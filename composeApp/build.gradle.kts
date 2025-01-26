@@ -7,8 +7,7 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
-
-    id("org.bytedeco.gradle-javacpp-platform") version "1.5.10"
+    alias(libs.plugins.javacppPlatformPlugin)
 }
 
 kotlin {

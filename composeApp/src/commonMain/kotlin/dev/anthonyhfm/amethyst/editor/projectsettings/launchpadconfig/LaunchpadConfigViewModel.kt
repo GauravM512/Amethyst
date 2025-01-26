@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.projectsettings.launchpadconfig
+package dev.anthonyhfm.amethyst.editor.projectsettings.launchpadconfig
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

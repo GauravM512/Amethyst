@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.tracks
+package dev.anthonyhfm.amethyst.editor.tracks
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.data.tracks.Track
-import dev.anthonyhfm.amethyst.editor.ui.tracks.ui.TrackElement
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable

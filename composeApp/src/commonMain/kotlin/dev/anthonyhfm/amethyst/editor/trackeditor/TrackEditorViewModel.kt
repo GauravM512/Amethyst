@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.trackeditor
+package dev.anthonyhfm.amethyst.editor.trackeditor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

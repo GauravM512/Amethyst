@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.projectsettings
+package dev.anthonyhfm.amethyst.editor.projectsettings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExitTransition
@@ -40,7 +40,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.editor.ui.projectsettings.launchpadconfig.LaunchpadConfigSettings
+import dev.anthonyhfm.amethyst.editor.projectsettings.launchpadconfig.LaunchpadConfigSettings
 import kotlin.math.exp
 
 @OptIn(ExperimentalMaterial3Api::class)

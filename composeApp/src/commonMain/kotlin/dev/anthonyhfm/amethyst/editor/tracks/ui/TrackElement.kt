@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.tracks.ui
+package dev.anthonyhfm.amethyst.editor.tracks
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

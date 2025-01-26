@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.tracks
+package dev.anthonyhfm.amethyst.editor.tracks
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.StateFlow

@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.projectsettings.launchpadconfig
+package dev.anthonyhfm.amethyst.editor.projectsettings.launchpadconfig
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.core.data.ProjectRepository
-import dev.anthonyhfm.amethyst.editor.ui.projectsettings.launchpadconfig.ui.LaunchpadConfigItem
+import dev.anthonyhfm.amethyst.editor.projectsettings.launchpadconfig.ui.LaunchpadConfigItem
 import org.koin.compose.koinInject
 
 @Composable

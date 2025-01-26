@@ -20,6 +20,7 @@ ktmidi = "0.10.1"
 alsa-javacpp = "0.1.0"
 rtmidi-javacpp = "0.1.5"
 libremidi-javacpp = "0.1.2"
+javacpp-platform-plugin = "1.5.10"
 
 [libraries]
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koinCore" }
@@ -54,3 +55,4 @@ androidLibrary = { id = "com.android.library", version.ref = "agp" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+javacppPlatformPlugin = { id = "org.bytedeco.gradle-javacpp-platform", version.ref = "javacpp-platform-plugin" }

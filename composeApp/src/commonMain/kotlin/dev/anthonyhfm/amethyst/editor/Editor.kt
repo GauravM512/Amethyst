@@ -10,9 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import dev.anthonyhfm.amethyst.editor.ui.projectsettings.ProjectSettingsPanel
-import dev.anthonyhfm.amethyst.editor.ui.trackeditor.TrackEditor
-import dev.anthonyhfm.amethyst.editor.ui.tracks.Tracks
+import dev.anthonyhfm.amethyst.editor.projectsettings.ProjectSettingsPanel
+import dev.anthonyhfm.amethyst.editor.trackeditor.TrackEditor
+import dev.anthonyhfm.amethyst.editor.tracks.Tracks
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable

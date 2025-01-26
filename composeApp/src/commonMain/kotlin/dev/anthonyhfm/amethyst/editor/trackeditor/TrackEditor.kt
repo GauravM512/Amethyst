@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui.trackeditor
+package dev.anthonyhfm.amethyst.editor.trackeditor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
