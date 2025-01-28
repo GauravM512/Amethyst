@@ -20,13 +20,22 @@ import kotlinx.coroutines.launch
 class FilterEffectPlugin : EffectPlugin() {
     override var isEnabled: MutableStateFlow<Boolean> = MutableStateFlow(true)
 
-    private var previewState: PreviewState? = null
+    private val filterData: MutableList<MutableList<Boolean>> = MutableList(
+        size = 10,
+        init = {
+            MutableList(
+                size = 10,
+                init = {
+                    false
+                }
+            )
+        }
+    )
 
     @Composable
     override fun Content() {
         val scope = rememberCoroutineScope()
-
-        previewState = rememberPreviewState()
+        val previewState = rememberPreviewState()
 
         AmethystPlugin(
             title = "Filter",
@@ -39,23 +48,45 @@ class FilterEffectPlugin : EffectPlugin() {
                 }
             }
         ) {
-            previewState?.let {
-                LaunchpadPro(
-                    previewState = it,
-                    onClick = { x, y ->
+            LaunchpadPro(
+                previewState = previewState,
+                onClick = { x, y ->
+                    scope.launch {
+                        if (filterData[x][y]) {
+                            previewState.sendToPreview(
+                                data = MidiEffectData(
+                                    x = x,
+                                    y = y,
+                                    r = 0,
+                                    g = 0,
+                                    b = 0,
+                                )
+                            )
+                        } else {
+                            previewState.sendToPreview(
+                                data = MidiEffectData(
+                                    x = x,
+                                    y = y,
+                                    r = 20,
+                                    g = 20,
+                                    b = 63,
+                                )
+                            )
+                        }
 
-                    },
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .fillMaxHeight(0.9f)
-                )
-            }
+                        filterData[x][y] = !filterData[x][y]
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxHeight(0.9f)
+            )
         }
     }
 
     override suspend fun passData(data: MidiEffectData) {
-        previewState?.sendToPreview(data = data)
-
-        midiOutput(data)
+        if (filterData[data.x][data.y]) {
+            midiOutput(data)
+        }
     }
 }

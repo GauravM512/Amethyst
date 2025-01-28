@@ -1,7 +1,10 @@
 package dev.anthonyhfm.amethyst.ui.previewdevices
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +56,9 @@ fun LaunchpadPro(
                 Spacer(modifier = Modifier.weight(0.5f))
 
                 for (x in 0..9) {
-                    GridPad(x, y, state[x][y])
+                    GridPad(x, y, state[x][y]) {
+                        onClick(x, y)
+                    }
 
                     if (x != 9) {
                         Spacer(modifier = Modifier.weight(0.1f))
@@ -71,12 +77,25 @@ fun LaunchpadPro(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RowScope.GridPad(x: Int, y: Int, effectData: MidiEffectData) {
+private fun RowScope.GridPad(
+    x: Int,
+    y: Int,
+    effectData: MidiEffectData,
+    onClick: () -> Unit,
+) {
     Box(
         modifier = Modifier
             .weight(1f)
-            .fillMaxHeight(),
+            .fillMaxHeight()
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    onClick()
+                }
+            ),
 
         contentAlignment = Alignment.Center
     ) {
