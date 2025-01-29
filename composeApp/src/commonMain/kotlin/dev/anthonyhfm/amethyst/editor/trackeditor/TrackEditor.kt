@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.editor.trackeditor.ui.AddComponentSpacer
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -54,46 +55,29 @@ fun TrackEditor(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.5.dp))
             .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp), RoundedCornerShape(12.dp))
-            .padding(12.dp)
+            .padding(vertical = 12.dp)
             .horizontalScroll(rememberScrollState()),
-
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (state.trackSelected && state.effects != null) {
             val effects by state.effects!!.collectAsState()
 
             effects.forEach {
+                AddComponentSpacer(
+                    expanded = false,
+                    onAddComponent = {
+                        viewModel.onAddEffect(it)
+                    }
+                )
+
                 it.Content()
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight(),
-
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(
-                    onClick = {
-                        viewModel.onAddEffect()
-                    }
-                ) {
-                    Icon(Icons.Default.Add, null)
+            AddComponentSpacer(
+                expanded = true,
+                onAddComponent = {
+                    viewModel.onAddEffect(it)
                 }
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize(),
-
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Select a track for editing it's contents".uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            )
         }
     }
 }

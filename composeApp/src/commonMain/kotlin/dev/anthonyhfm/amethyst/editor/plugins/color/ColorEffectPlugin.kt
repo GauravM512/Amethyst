@@ -1,0 +1,94 @@
+package dev.anthonyhfm.amethyst.editor.plugins.color
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import com.github.skydoves.colorpicker.compose.BrightnessSlider
+import com.github.skydoves.colorpicker.compose.HsvColorPicker
+import com.github.skydoves.colorpicker.compose.rememberColorPickerController
+import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.editor.plugins.EffectPlugin
+import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+
+class ColorEffectPlugin : EffectPlugin() {
+    override var isEnabled: MutableStateFlow<Boolean> = MutableStateFlow(true)
+
+    var color: Color = Color.Black
+
+    @Composable
+    override fun Content() {
+        val scope = rememberCoroutineScope()
+
+        val controller = rememberColorPickerController()
+
+        AmethystPlugin(
+            title = "Color",
+            enabled = isEnabled.collectAsState().value,
+            modifier = Modifier
+                .width(200.dp),
+            onChangeEnabled = {
+                scope.launch {
+                    isEnabled.emit(it)
+                }
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(12.dp),
+
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                HsvColorPicker(
+                    controller = controller,
+                    onColorChanged = {
+                        color = it.color
+                    },
+                    modifier = Modifier
+                        .size(170.dp)
+                )
+
+                Spacer(Modifier.weight(1f))
+
+                BrightnessSlider(
+                    controller = controller,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                )
+            }
+        }
+    }
+
+    override suspend fun passData(data: MidiEffectData) {
+        if (data.r != 0 || data.g != 0 || data.b != 0) {
+            midiOutput(
+                data.copy(
+                    r = (63 * color.red).toInt(),
+                    g = (63 * color.green).toInt(),
+                    b = (63 * color.blue).toInt()
+                )
+            )
+        } else {
+            midiOutput(data)
+        }
+    }
+}

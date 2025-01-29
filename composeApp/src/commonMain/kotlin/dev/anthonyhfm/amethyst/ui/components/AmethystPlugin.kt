@@ -38,7 +38,7 @@ fun AmethystPlugin(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(28.dp)
-                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.2.dp))
         ) {
             Text(
                 text = title,

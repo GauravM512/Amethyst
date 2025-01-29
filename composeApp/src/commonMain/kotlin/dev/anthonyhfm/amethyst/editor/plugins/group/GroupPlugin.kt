@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Duo
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
@@ -30,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.editor.plugins.EffectPlugin
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
+import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
+import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -48,9 +53,6 @@ class GroupPlugin : EffectPlugin() {
         value = listOf(
             GroupData(
                 name = "Group 1",
-            ),
-            GroupData(
-                name = "Group 2",
             ),
         )
     )
@@ -83,7 +85,7 @@ class GroupPlugin : EffectPlugin() {
                         modifier = Modifier
                             .fillMaxHeight()
                             .width(28.dp)
-                            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+                            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.2.dp))
                     )
 
                     GroupList()
@@ -97,7 +99,7 @@ class GroupPlugin : EffectPlugin() {
                     .clip(RoundedCornerShape(6.dp))
                     .fillMaxHeight()
                     .width(28.dp)
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.2.dp))
                     .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp), RoundedCornerShape(6.dp))
             )
         }
@@ -119,15 +121,24 @@ class GroupPlugin : EffectPlugin() {
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             groupsState.forEachIndexed { index, groupData ->
-                GroupItem(
-                    groupData = groupData,
-                    selected = selectionIndex == index,
-                    onSelect = {
-                        scope.launch {
-                            selectedGroupIndex.emit(index)
+                ContextMenuArea(
+                    items = listOf(
+                        ContextMenuItem("Copy") { },
+                        ContextMenuItem("Paste") { },
+                        ContextMenuItem("Duplicate") { },
+                        ContextMenuItem("Remove") { },
+                    )
+                ) {
+                    GroupItem(
+                        groupData = groupData,
+                        selected = selectionIndex == index,
+                        onSelect = {
+                            scope.launch {
+                                selectedGroupIndex.emit(index)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }

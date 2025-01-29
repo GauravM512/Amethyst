@@ -8,44 +8,34 @@ import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import kotlinx.coroutines.flow.asStateFlow
 
 class PreviewState {
-    private val _grid: MutableStateFlow<MutableList<MutableList<MidiEffectData>>> = MutableStateFlow(
-        value = MutableList(
-            size = 10,
-            init = { x ->
-                MutableList(
-                    size = 10,
-                    init = { y ->
-                        MidiEffectData(
-                            x = x,
-                            y = y,
-                            r = 0,
-                            g = 0,
-                            b = 0
-                        )
-                    }
+    private val _grid: MutableStateFlow<List<List<MidiEffectData>>> = MutableStateFlow(
+        value = List(10) { x ->
+            List(10) { y ->
+                MidiEffectData(
+                    x = x,
+                    y = y,
+                    r = 0,
+                    g = 0,
+                    b = 0
                 )
             }
-        )
+        }
     )
 
     val grid: StateFlow<List<List<MidiEffectData>>> = _grid.asStateFlow()
 
     suspend fun sendToPreview(data: MidiEffectData) {
-        // This probably pulls performance like a bitch
+        // Optimized version to only modify the specific cell
         _grid.emit(
-            value = _grid.value.mapIndexed { x, y_data ->
+            _grid.value.mapIndexed { x, row ->
                 if (data.x == x) {
-                    y_data.mapIndexed { y, effectData ->
-                        if (y == data.y) {
-                            data
-                        } else {
-                            effectData
-                        }
-                    }.toMutableList()
+                    row.mapIndexed { y, effectData ->
+                        if (y == data.y) data else effectData
+                    }
                 } else {
-                    y_data
+                    row
                 }
-            }.toMutableList()
+            }
         )
     }
 }

@@ -55,12 +55,14 @@ kotlin {
             runtimeOnly(libs.koin.compose)
             runtimeOnly(libs.koin.compose.viewmodel)
             implementation(libs.koin.compose.viewmodel.navigation)
+
+            implementation(libs.colorpicker.compose)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.ktmidi.jvm.desktop)
-            implementation("uk.co.xfactory-librarians:coremidi4j:1.6")
+            implementation(libs.coremidi4j)
 
             api(libs.rtmidi.javacpp.platform)
             api(libs.libremidi.javacpp.platform)
