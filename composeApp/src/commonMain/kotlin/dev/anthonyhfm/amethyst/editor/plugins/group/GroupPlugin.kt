@@ -1,11 +1,22 @@
 package dev.anthonyhfm.amethyst.editor.plugins.group
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.HoverInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,12 +27,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +55,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.exp
 
 /**
  * # The Group Plugin
@@ -90,7 +108,11 @@ class GroupPlugin : EffectPlugin() {
                 }
             }
 
-            GroupContent()
+            key( // Trigger recomposition on selected group change
+                selectedGroupIndex.collectAsState().value
+            ) {
+                GroupContent()
+            }
 
             Box(
                 modifier = Modifier
@@ -114,9 +136,9 @@ class GroupPlugin : EffectPlugin() {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(4.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
 
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             groupsState.forEachIndexed { index, groupData ->
                 ContextMenuArea(
@@ -138,6 +160,13 @@ class GroupPlugin : EffectPlugin() {
                     )
                 }
             }
+
+            AddGroupButton(
+                expanded = true,
+                onAddGroup = {
+                    createGroup()
+                }
+            )
         }
     }
 
@@ -177,6 +206,47 @@ class GroupPlugin : EffectPlugin() {
                     MaterialTheme.colorScheme.onTertiaryContainer
                 }
             )
+        }
+    }
+
+    @Composable
+    private fun ColumnScope.AddGroupButton(
+        expanded: Boolean = false,
+        onAddGroup: () -> Unit
+    ) {
+        val interaction = remember { MutableInteractionSource() }
+        val hovering: Boolean by interaction.collectIsHoveredAsState()
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(
+                    height = animateDpAsState(
+                        targetValue = if (expanded || hovering) {
+                            56.dp
+                        } else {
+                            8.dp
+                        }
+                    ).value
+                )
+                .hoverable(interaction),
+
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AnimatedVisibility(
+                visible = expanded || hovering,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
+            ) {
+                IconButton(
+                    onClick = {
+                        onAddGroup()
+                    }
+                ) {
+                    Icon(Icons.Default.Add, null)
+                }
+            }
         }
     }
 
@@ -222,6 +292,40 @@ class GroupPlugin : EffectPlugin() {
                     }
                 )
             }
+        }
+    }
+
+    fun createGroup(atIndex: Int? = null) {
+        CoroutineScope(Dispatchers.Main).launch {
+            if (atIndex == null) {
+                groups.emit(
+                    groups.value.plus(
+                        GroupData(
+                            name = "Group ${groups.value.size + 1}"
+                        )
+                    )
+                )
+            } else {
+                val mutableList = groups.value.toMutableList()
+
+                mutableList.add(
+                    index = atIndex,
+                    element = GroupData(
+                        name = "Group ${groups.value.size + 1}"
+                    )
+                )
+
+                groups.emit(mutableList)
+            }
+        }
+    }
+
+    fun deleteGroup(index: Int) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val mutableList = groups.value.toMutableList()
+            mutableList.removeAt(index)
+
+            groups.emit(mutableList)
         }
     }
 

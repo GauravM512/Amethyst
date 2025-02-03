@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.editor.plugins.filter
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -36,6 +37,22 @@ class FilterEffectPlugin : EffectPlugin() {
     override fun Content() {
         val scope = rememberCoroutineScope()
         val previewState = rememberPreviewState()
+
+        LaunchedEffect(Unit) { // Loads the saved filterData into a new previewState when recomposed
+            filterData.forEachIndexed { x, data ->
+                data.forEachIndexed { y, enabled ->
+                    previewState.sendToPreview(
+                        data = MidiEffectData(
+                            x = x,
+                            y = y,
+                            r = if (enabled) 20 else 0,
+                            g = if (enabled) 20 else 0,
+                            b = if (enabled) 63 else 0,
+                        )
+                    )
+                }
+            }
+        }
 
         AmethystPlugin(
             title = "Filter",
