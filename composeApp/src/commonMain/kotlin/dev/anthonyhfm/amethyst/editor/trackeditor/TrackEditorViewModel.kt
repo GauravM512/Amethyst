@@ -44,6 +44,7 @@ class TrackEditorViewModel(
         state.value.selectedTrack?.let { selectedTrack ->
             (projectRepository.tracks.value[selectedTrack] as EffectTrack).addEffect(
                 effect = effect,
+                atIndex = atIndex
             )
         }
     }

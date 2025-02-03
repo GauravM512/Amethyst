@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -61,15 +62,15 @@ fun TrackEditor(
         if (state.trackSelected && state.effects != null) {
             val effects by state.effects!!.collectAsState()
 
-            effects.forEach {
+            effects.forEachIndexed { index, effectPlugin ->
                 AddComponentSpacer(
                     expanded = false,
                     onAddComponent = {
-                        viewModel.onAddEffect(it)
+                        viewModel.onAddEffect(it, index)
                     }
                 )
 
-                it.Content()
+                effectPlugin.Content()
             }
 
             AddComponentSpacer(

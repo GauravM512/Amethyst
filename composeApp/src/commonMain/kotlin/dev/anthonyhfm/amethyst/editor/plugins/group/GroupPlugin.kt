@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.editor.plugins.EffectPlugin
+import dev.anthonyhfm.amethyst.editor.trackeditor.ui.AddComponentSpacer
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
@@ -40,6 +41,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.exp
 
 /**
  * # The Group Plugin
@@ -186,32 +188,62 @@ class GroupPlugin : EffectPlugin() {
     private fun GroupContent() {
         val groupsState by groups.collectAsState()
         val selectionIndex by selectedGroupIndex.collectAsState()
+        val effects by groupsState[selectionIndex].effects.collectAsState()
 
-        if (groupsState[selectionIndex].effects.value.isEmpty()) {
+        if (effects.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(100.dp)
-            )
+                    .width(100.dp),
+
+                contentAlignment = Alignment.Center
+            ) {
+                AddComponentSpacer(
+                    expanded = true,
+                    onAddComponent = {
+                        addEffectToGroup(selectionIndex, it)
+                    }
+                )
+            }
         } else {
             Row(
                 modifier = Modifier
                     .fillMaxHeight(),
-
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                groupsState[selectionIndex].effects.value.forEach {
-                    it.Content()
+                groupsState[selectionIndex].effects.value.forEachIndexed { index, effectPlugin ->
+                    AddComponentSpacer(
+                        onAddComponent = {
+                            addEffectToGroup(selectionIndex, it, index)
+                        }
+                    )
+
+                    effectPlugin.Content()
                 }
+
+                AddComponentSpacer(
+                    onAddComponent = {
+                        addEffectToGroup(selectionIndex, it)
+                    }
+                )
             }
         }
     }
 
-    fun addEffectToGroup(groupIndex: Int, effect: EffectPlugin) {
+    fun addEffectToGroup(groupIndex: Int, effect: EffectPlugin, atIndex: Int? = null) {
         CoroutineScope(Dispatchers.Main).launch {
-            groups.value[groupIndex].effects.emit(
-                value = groups.value[groupIndex].effects.value.plus(effect)
-            )
+            if (atIndex == null) {
+                groups.value[groupIndex].effects.emit(
+                    value = groups.value[groupIndex].effects.value.plus(effect)
+                )
+            } else {
+                val mutableList = groups.value[groupIndex].effects.value.toMutableList()
+
+                mutableList.add(atIndex, effect)
+
+                groups.value[groupIndex].effects.emit(
+                    value = mutableList
+                )
+            }
 
             groups.value[groupIndex].effects.emit(
                 groups.value[groupIndex].effects.value.mapIndexed { index, effectPlugin ->

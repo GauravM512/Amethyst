@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -25,7 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,8 +36,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.editor.plugins.EffectPlugin
+import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.previewdevices.LaunchpadPro
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 class OffsetEffectPlugin : EffectPlugin() {
     override var isEnabled: MutableStateFlow<Boolean> = MutableStateFlow(true)
@@ -44,33 +49,22 @@ class OffsetEffectPlugin : EffectPlugin() {
 
     @Composable
     override fun Content() {
-        Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .fillMaxHeight()
-                .width(150.dp)
-                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
-                .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp), RoundedCornerShape(6.dp)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp)
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
-            ) {
-                Text(
-                    text = "Offset",
-                    style = MaterialTheme.typography.labelLarge,
-                    lineHeight = MaterialTheme.typography.labelLarge.fontSize,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                )
-            }
+        val scope = rememberCoroutineScope()
 
+        AmethystPlugin(
+            title = "Offset",
+            enabled = isEnabled.collectAsState().value,
+            onChangeEnabled = {
+                scope.launch {
+                    isEnabled.emit(it)
+                }
+            },
+            modifier = Modifier
+                .width(145.dp)
+        ) {
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(16.dp),
             ) {
                 Text(

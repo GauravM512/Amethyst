@@ -23,11 +23,19 @@ class EffectTrack(
     private val _effects = MutableStateFlow<List<EffectPlugin>>(emptyList())
     val effects = _effects.asStateFlow()
 
-    fun <T : EffectPlugin> addEffect(effect: T) {
+    fun <T : EffectPlugin> addEffect(effect: T, atIndex: Int? = null) {
         CoroutineScope(Dispatchers.Main).launch {
-            _effects.emit(
-                value = _effects.value.plus(effect)
-            )
+            if (atIndex == null) {
+                _effects.emit(
+                    value = _effects.value.plus(effect)
+                )
+            } else {
+                val mutableList = _effects.value.toMutableList()
+
+                mutableList.add(atIndex, effect)
+
+                _effects.emit(mutableList)
+            }
 
             _effects.emit(
                 _effects.value.mapIndexed { index, effectPlugin ->
