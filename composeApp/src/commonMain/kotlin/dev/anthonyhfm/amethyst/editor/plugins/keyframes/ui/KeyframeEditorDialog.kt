@@ -32,12 +32,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.window.PopupProperties
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.viewModelFactory
+import dev.anthonyhfm.amethyst.editor.plugins.keyframes.data.Keyframe
+import dev.anthonyhfm.amethyst.editor.plugins.keyframes.ui.components.KeyframeColorPicker
 import dev.anthonyhfm.amethyst.editor.plugins.keyframes.ui.components.KeyframesPlaybackControls
 import dev.anthonyhfm.amethyst.editor.plugins.keyframes.ui.components.VerticalKeyframeList
 import dev.anthonyhfm.amethyst.ui.modifier.platformPaddingTop
 import dev.anthonyhfm.amethyst.ui.previewdevices.LaunchpadPro
 import dev.anthonyhfm.amethyst.ui.previewdevices.rememberPreviewState
-import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,15 +54,16 @@ fun KeyframeEditorDialog(
     val keyframes by viewModel.keyframeData.collectAsState()
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(keyframes[state.selectedKeyframe].frame) {
-        keyframes[state.selectedKeyframe].frame.forEach {
-            it.forEach {
-                previewState.sendToPreview(it)
+    if (visible) {
+
+        LaunchedEffect(keyframes[state.selectedKeyframe].frame) {
+            keyframes[state.selectedKeyframe].frame.forEach {
+                it.forEach {
+                    previewState.sendToPreview(it)
+                }
             }
         }
-    }
 
-    if (visible) {
         Popup(
             onDismissRequest = {
                 onDismissRequest()
@@ -112,6 +117,9 @@ fun KeyframeEditorDialog(
                         },
                         onAddKeyframe = {
                             viewModel.addKeyframe(it)
+                        },
+                        onPositionChange = { before, after ->
+                            viewModel.changeKeyframePosition(before, after)
                         }
                     )
 
@@ -137,11 +145,16 @@ fun KeyframeEditorDialog(
                             .padding(horizontal = 12.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .fillMaxHeight()
-                            .width(250.dp)
+                            .width(220.dp)
                             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.2.dp))
                             .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp), RoundedCornerShape(12.dp)),
                     ) {
-
+                        KeyframeColorPicker(
+                            color = state.selectedColor,
+                            onColorChanged = {
+                                viewModel.changeColor(it)
+                            }
+                        )
                     }
                 }
             }

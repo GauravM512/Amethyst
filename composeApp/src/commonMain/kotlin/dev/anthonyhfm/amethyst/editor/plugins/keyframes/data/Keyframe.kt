@@ -1,6 +1,8 @@
 package dev.anthonyhfm.amethyst.editor.plugins.keyframes.data
 
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.core.util.UUID
+import dev.anthonyhfm.amethyst.core.util.randomUUID
 
 data class Keyframe(
     val frame: List<List<MidiEffectData>> = List(10) { x ->
@@ -13,5 +15,6 @@ data class Keyframe(
                 b = 0
             )
         }
-    }
+    },
+    internal val uuid: String = UUID.randomUUID()
 )

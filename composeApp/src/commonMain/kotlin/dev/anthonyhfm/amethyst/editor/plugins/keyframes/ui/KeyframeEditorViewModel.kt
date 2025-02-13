@@ -39,9 +39,9 @@ class KeyframeEditorViewModel(
                     it.mapIndexed { array_y, data ->
                         if (array_x == x && array_y == y) {
                             data.copy(
-                                r = 63,
-                                g = 63,
-                                b = 63,
+                                r = (state.value.selectedColor.red * 63).toInt(),
+                                g = (state.value.selectedColor.green * 63).toInt(),
+                                b = (state.value.selectedColor.blue * 63).toInt(),
                             )
                         } else {
                             data
@@ -59,6 +59,34 @@ class KeyframeEditorViewModel(
             state.update {
                 it.copy(
                     selectedKeyframe = index
+                )
+            }
+        }
+    }
+
+    fun changeKeyframePosition(before: Int, after: Int) {
+        viewModelScope.launch {
+            keyframeData.update {
+                it.toMutableList().apply {
+                    add(before, removeAt(after))
+                }
+            }
+
+            if (state.value.selectedKeyframe == after) {
+                state.update {
+                    it.copy(
+                        selectedKeyframe = after
+                    )
+                }
+            }
+        }
+    }
+
+    fun changeColor(color: Color) {
+        viewModelScope.launch {
+            state.update {
+                it.copy(
+                    selectedColor = color
                 )
             }
         }

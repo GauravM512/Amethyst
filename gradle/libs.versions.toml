@@ -20,6 +20,7 @@ kotlin = "2.1.0"
 kotlinx-coroutines = "1.10.1"
 ktmidi = "0.10.1"
 alsa-javacpp = "0.1.0"
+reorderable = "2.4.3"
 rtmidi-javacpp = "0.1.5"
 libremidi-javacpp = "0.1.2"
 javacpp-platform-plugin = "1.5.10"
@@ -48,6 +49,7 @@ kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-co
 ktmidi = { module = "dev.atsushieno:ktmidi", version.ref = "ktmidi" }
 ktmidi-jvm-desktop = { module = "dev.atsushieno:ktmidi-jvm-desktop", version.ref = "ktmidi" }
 alsa-javacpp = { module = "dev.atsushieno:alsa-javacpp", version.ref = "alsa-javacpp" }
+reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 rtmidi-javacpp = { module = "dev.atsushieno:rtmidi-javacpp", version.ref = "rtmidi-javacpp" }
 rtmidi-javacpp-platform = { module = "dev.atsushieno:rtmidi-javacpp-platform", version.ref = "rtmidi-javacpp" }
 libremidi-javacpp = { module = "dev.atsushieno:libremidi-javacpp", version.ref = "libremidi-javacpp" }

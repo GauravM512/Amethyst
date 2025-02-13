@@ -19,6 +19,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.editor.plugins.EffectPlugin
 import dev.anthonyhfm.amethyst.editor.plugins.keyframes.data.Keyframe
+import dev.anthonyhfm.amethyst.editor.plugins.keyframes.data.KeyframesContract
+import dev.anthonyhfm.amethyst.editor.plugins.keyframes.data.KeyframesContract.Event
 import dev.anthonyhfm.amethyst.editor.plugins.keyframes.ui.KeyframeEditorDialog
 import dev.anthonyhfm.amethyst.editor.plugins.keyframes.ui.KeyframeEditorViewModel
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
@@ -45,9 +47,7 @@ class KeyframesEffectPlugin : EffectPlugin() {
     override fun Content() {
         val scope = rememberCoroutineScope()
         var editorVisible: Boolean by remember { mutableStateOf(false) }
-        var editorViewModel = viewModel {
-            KeyframeEditorViewModel(keyframeData)
-        }
+        val editorViewModel = viewModel { KeyframeEditorViewModel(keyframeData) }
 
         LaunchedEffect(keyframeData.collectAsState().value) {
             prerenderKeyframes()
