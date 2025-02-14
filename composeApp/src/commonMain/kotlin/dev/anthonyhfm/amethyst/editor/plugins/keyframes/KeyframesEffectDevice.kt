@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class KeyframesEffectPlugin : EffectDevice() {
+class KeyframesEffectDevice : EffectDevice() {
     val keyframeData: MutableStateFlow<List<Keyframe>> = MutableStateFlow(
         value = listOf(
             Keyframe()

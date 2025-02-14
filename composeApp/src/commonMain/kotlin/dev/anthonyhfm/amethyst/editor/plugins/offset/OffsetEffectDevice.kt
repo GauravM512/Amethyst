@@ -28,7 +28,7 @@ import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.editor.plugins.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 
-class OffsetEffectPlugin : EffectDevice() {
+class OffsetEffectDevice : EffectDevice() {
     private val offsetX: MutableState<Int> = mutableStateOf(0)
     private val offsetY: MutableState<Int> = mutableStateOf(0)
 

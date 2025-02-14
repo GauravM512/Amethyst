@@ -21,7 +21,7 @@ import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.editor.plugins.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 
-class ColorEffectPlugin : EffectDevice() {
+class ColorEffectDevice : EffectDevice() {
     var color: Color = Color.White
 
     @Composable

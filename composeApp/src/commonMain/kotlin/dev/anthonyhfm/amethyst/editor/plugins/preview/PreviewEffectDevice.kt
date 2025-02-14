@@ -13,7 +13,7 @@ import dev.anthonyhfm.amethyst.ui.previewdevices.LaunchpadPro
 import dev.anthonyhfm.amethyst.ui.previewdevices.PreviewState
 import dev.anthonyhfm.amethyst.ui.previewdevices.rememberPreviewState
 
-class PreviewEffectPlugin : EffectDevice() {
+class PreviewEffectDevice : EffectDevice() {
     private var previewState: PreviewState? = null
 
     @Composable

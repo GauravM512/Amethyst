@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
  *
  * The Group Plugin is very different to the other plugins because of its ability to contain other plugins
  */
-class GroupPlugin : EffectDevice() {
+class GroupEffectDevice : EffectDevice() {
     private val groups: MutableStateFlow<List<GroupData>> = MutableStateFlow(
         value = listOf(
             GroupData(

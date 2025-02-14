@@ -54,7 +54,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
-class GradientPlugin : EffectDevice() {
+class GradientEffectDevice : EffectDevice() {
     private val gradientData: MutableStateFlow<List<GradientColor>> = MutableStateFlow(
         value = listOf(
             GradientColor(0f, Color.White),

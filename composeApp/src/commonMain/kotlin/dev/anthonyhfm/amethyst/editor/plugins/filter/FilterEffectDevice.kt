@@ -15,7 +15,7 @@ import dev.anthonyhfm.amethyst.ui.previewdevices.LaunchpadPro
 import dev.anthonyhfm.amethyst.ui.previewdevices.rememberPreviewState
 import kotlinx.coroutines.launch
 
-class FilterEffectPlugin : EffectDevice() {
+class FilterEffectDevice : EffectDevice() {
     private val filterData: MutableList<MutableList<Boolean>> = MutableList(
         size = 10,
         init = {
