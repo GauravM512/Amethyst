@@ -44,6 +44,7 @@ import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
+import dev.anthonyhfm.amethyst.devices.effects.gradient.ui.GradientEditorBar
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import kotlinx.coroutines.CoroutineScope
@@ -106,87 +107,18 @@ class GradientEffectDevice : EffectDevice() {
 
                     verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
                 ) {
-                    Box(
-                        modifier = Modifier
-                    ) {
-                        Canvas(
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .fillMaxWidth()
-                                .height(28.dp)
-                        ) {
-                            drawRect(
-                                brush = Brush.horizontalGradient(
-                                    colorStops = colors.sortedBy { it.position }
-                                        .map { it.position to it.color }
-                                        .toTypedArray(), // Hier setzen wir die Farben exakt an ihre Positionen
-                                    startX = 0f,
-                                    endX = size.width
-                                ),
-                                size = size
-                            )
-                        }
-
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .padding(horizontal = 12.dp)
-                                .fillMaxWidth()
-                        ) {
-                            colors.forEachIndexed { index, color ->
-                                var pos: Float by remember { mutableStateOf(color.position) }
-
-                                LaunchedEffect(pos) {
-                                    gradientData.emit(
-                                        value = colors.mapIndexed { i, it ->
-                                            if (i == index) it.copy(position = pos) else it
-                                        }
-                                    )
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .offset(x = -6.dp, y = -5.dp)
-                                        .offset(
-                                            x = maxWidth * pos
-                                        )
-                                        .scale(if (selectedColor == index) 1.1f else 1f)
-                                        .shadow(
-                                            elevation = if (selectedColor == index) 16.dp else 6.dp,
-                                            shape = CircleShape
-                                        )
-                                        .clip(CircleShape)
-                                        .height(38.dp)
-                                        .width(12.dp)
-                                        .background(color.color)
-                                        .border(
-                                            width = 2.dp,
-                                            color = Color.White,
-                                            shape = CircleShape
-                                        )
-                                        .clickable {
-                                            selectedColor = if (selectedColor == index) {
-                                                null
-                                            } else {
-                                                index
-                                            }
-                                        }
-                                        .pointerInput(Unit) {
-                                            detectDragGestures(
-                                                onDrag = { input, offset ->
-                                                    input.consume()
-
-                                                    val pct = (offset.x / density.density).dp / maxWidth
-                                                    val newPos = (pos + pct).coerceIn(0f, 1f)
-
-                                                    pos = newPos
-                                                }
-                                            )
-                                        }
-                                )
+                    GradientEditorBar(
+                        selectedColor = selectedColor,
+                        onSelectionChange = {
+                            selectedColor = it
+                        },
+                        colors = colors,
+                        onGradientDataEmit = {
+                            scope.launch {
+                                gradientData.emit(it)
                             }
                         }
-                    }
+                    )
 
                     Row(
                         modifier = Modifier
