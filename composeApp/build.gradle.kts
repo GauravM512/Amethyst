@@ -106,7 +106,12 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "dev.anthonyhfm.amethyst"
+
+            macOS {
+                iconFile.set(project.file("../icons/amethyst_macos.icns"))
+            }
+
+            packageName = "Amethyst"
             packageVersion = "1.0.0"
         }
     }

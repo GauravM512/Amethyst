@@ -9,6 +9,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
+import dev.anthonyhfm.amethyst.start.StartWindow
 
 fun main() {
     val platform = DesktopPlatform.get()
@@ -19,6 +20,9 @@ fun main() {
     }
 
     application {
+        /*StartWindow(
+
+        )*/
         Window(
             onCloseRequest = ::exitApplication,
             title = "Amethyst",
