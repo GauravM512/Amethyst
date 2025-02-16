@@ -31,7 +31,7 @@ fun Tracks(
     onSelectTrack: (Int) -> Unit
 ) {
     val viewModel = koinViewModel<TracksViewModel>()
-    val tracks: List<Track> by viewModel.tracks.collectAsState()
+    val tracks: List<Track<*>> by viewModel.tracks.collectAsState()
     val deviceConfigs: List<ProjectDeviceConfig> by viewModel.deviceConfigs.collectAsState()
 
     Column(

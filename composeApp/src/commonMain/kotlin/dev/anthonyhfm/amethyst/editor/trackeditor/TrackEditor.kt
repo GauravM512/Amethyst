@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
@@ -44,24 +43,24 @@ fun TrackEditor(
             .padding(vertical = 12.dp)
             .horizontalScroll(rememberScrollState())
     ) {
-        if (state.trackSelected && state.effects != null) {
-            val effects by state.effects!!.collectAsState()
+        if (state.trackSelected && state.devices != null) {
+            val devices by state.devices!!.collectAsState()
 
-            effects.forEachIndexed { index, effectPlugin ->
+            devices.forEachIndexed { index, device ->
                 AddComponentSpacer(
                     expanded = false,
                     onAddComponent = {
-                        viewModel.onAddEffect(it, index)
+                        viewModel.onAddDevice(it, index)
                     }
                 )
 
-                effectPlugin.Content()
+                device.Content()
             }
 
             AddComponentSpacer(
                 expanded = true,
                 onAddComponent = {
-                    viewModel.onAddEffect(it)
+                    viewModel.onAddDevice(it)
                 }
             )
         }

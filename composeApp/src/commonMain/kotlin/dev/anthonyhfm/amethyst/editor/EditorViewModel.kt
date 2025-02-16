@@ -5,15 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.core.data.ProjectRepository
 import dev.anthonyhfm.amethyst.core.data.tracks.EffectTrack
-import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.core.midi.data.getMidiInputData
-import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiInput
 import kotlinx.coroutines.launch
 
 class EditorViewModel(
     private val projectRepository: ProjectRepository,
-    midiAccess: MidiAccess
 ) : ViewModel() {
     val state = MutableStateFlow(EditorState())
 
@@ -45,7 +42,7 @@ class EditorViewModel(
     }
 
     private fun handleMidiInput(midiInput: MidiInput, data: ByteArray) {
-        projectRepository.tracks.value.filterIsInstance<EffectTrack>().forEach { track ->
+        projectRepository.tracks.value.forEach { track ->
             track.projectDeviceIndex?.let { projectDeviceIndex ->
                 if (projectRepository.launchpadConfigs.value[projectDeviceIndex].input == midiInput) {
                     getMidiInputData(data)?.let {

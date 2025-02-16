@@ -1,47 +1,33 @@
 package dev.anthonyhfm.amethyst.core.data.tracks
 
-import kotlinx.coroutines.flow.MutableStateFlow
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.core.midi.devices.DeviceType
+import dev.anthonyhfm.amethyst.devices.BaseDevice
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.atsushieno.ktmidi.MidiOutput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class EffectTrack(
     override val name: String,
-    var projectDeviceIndex: Int? = null
-) : Track {
+    override var projectDeviceIndex: Int? = null
+) : Track<EffectDevice>() {
     var midiOutput: MidiOutput? = null
     var deviceType: DeviceType? = null
 
-    private val _effects = MutableStateFlow<List<EffectDevice>>(emptyList())
-    val effects = _effects.asStateFlow()
+    override fun addDevice(device: BaseDevice<*>, atIndex: Int?) {
+        super.addDevice(device, atIndex)
 
-    fun <T : EffectDevice> addEffect(effect: T, atIndex: Int? = null) {
         CoroutineScope(Dispatchers.Main).launch {
-            if (atIndex == null) {
-                _effects.emit(
-                    value = _effects.value.plus(effect)
-                )
-            } else {
-                val mutableList = _effects.value.toMutableList()
-
-                mutableList.add(atIndex, effect)
-
-                _effects.emit(mutableList)
-            }
-
-            _effects.emit(
-                _effects.value.mapIndexed { index, effectPlugin ->
-                    if (index + 1 < _effects.value.size) {
+            _devices.emit(
+                _devices.value.mapIndexed { index, effectPlugin ->
+                    if (index + 1 < _devices.value.size) {
                         effectPlugin.midiOutput = {
                             CoroutineScope(Dispatchers.IO).launch {
-                                _effects.value[index + 1].passData(it)
+                                _devices.value[index + 1].passData(it)
                             }
                         }
 
@@ -58,7 +44,7 @@ class EffectTrack(
         }
     }
 
-    fun processMidiInputData(midiInputData: MidiInputData) {
+    override fun processMidiInputData(midiInputData: MidiInputData) {
         val white = if (midiInputData.velocity == 0) 0 else 63
 
         val midiEffectData = MidiEffectData(
@@ -69,11 +55,11 @@ class EffectTrack(
             b = white
         )
 
-        if (effects.value.isEmpty()) {
+        if (devices.value.isEmpty()) {
             outputMidiEffectData(midiEffectData)
         } else {
             CoroutineScope(Dispatchers.IO).launch {
-                effects.value[0].passData(midiEffectData)
+                devices.value[0].passData(midiEffectData)
             }
         }
     }

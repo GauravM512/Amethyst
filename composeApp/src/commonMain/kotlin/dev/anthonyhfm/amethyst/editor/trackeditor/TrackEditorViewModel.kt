@@ -5,8 +5,9 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import dev.anthonyhfm.amethyst.core.data.ProjectRepository
+import dev.anthonyhfm.amethyst.core.data.tracks.AudioTrack
 import dev.anthonyhfm.amethyst.core.data.tracks.EffectTrack
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
+import dev.anthonyhfm.amethyst.devices.BaseDevice
 import kotlinx.coroutines.launch
 
 class TrackEditorViewModel(
@@ -22,24 +23,31 @@ class TrackEditorViewModel(
                 state.value.copy(
                     trackSelected = index != null,
                     selectedTrack = index,
-                    effects = if (index != null) {
-                        projectRepository
-                            .tracks.value.filterIsInstance<EffectTrack>()[index!!]
-                            .effects
-                    } else {
-                        null
+                    devices = index?.let {
+                        projectRepository.tracks.value[index].devices
                     }
                 )
             )
         }
     }
 
-    fun onAddEffect(effect: EffectDevice, atIndex: Int? = null) {
+    fun onAddDevice(device: BaseDevice<*>, atIndex: Int? = null) {
         state.value.selectedTrack?.let { selectedTrack ->
-            (projectRepository.tracks.value[selectedTrack] as EffectTrack).addEffect(
-                effect = effect,
-                atIndex = atIndex
-            )
+            when (projectRepository.tracks.value[selectedTrack]) {
+                is EffectTrack -> {
+                    projectRepository.tracks.value[selectedTrack].addDevice(
+                        device = device,
+                        atIndex = atIndex
+                    )
+                }
+
+                is AudioTrack -> {
+                    projectRepository.tracks.value[selectedTrack].addDevice(
+                        device = device,
+                        atIndex = atIndex
+                    )
+                }
+            }
         }
     }
 }
@@ -47,5 +55,5 @@ class TrackEditorViewModel(
 data class TrackEditorState(
     val trackSelected: Boolean = false,
     val selectedTrack: Int? = null,
-    val effects: StateFlow<List<EffectDevice>>? = null
+    val devices: StateFlow<List<BaseDevice<*>>>? = null
 )

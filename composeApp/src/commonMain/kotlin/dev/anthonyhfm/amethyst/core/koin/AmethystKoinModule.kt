@@ -13,7 +13,7 @@ val amethystKoinModule = module {
 
     single { ProjectRepository() }
 
-    viewModel { EditorViewModel(get(), get()) }
+    viewModel { EditorViewModel(get()) }
     viewModel { TracksViewModel(get()) }
     viewModel { TrackEditorViewModel(get()) }
 }
