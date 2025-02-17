@@ -1,13 +1,6 @@
 package dev.anthonyhfm.amethyst.devices.effects.gradient
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -15,11 +8,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,18 +21,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.devices.effects.gradient.ui.GradientEditorBar
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
@@ -52,35 +38,34 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration.Companion.milliseconds
 
-class GradientEffectDevice : EffectDevice() {
-    private val gradientData: MutableStateFlow<List<GradientColor>> = MutableStateFlow(
-        value = listOf(
-            GradientColor(0f, Color.White),
-            GradientColor(0.5f, Color.Red),
-            GradientColor(1f, Color.Black)
-        )
-    )
-
-    private val gradientSteps: MutableStateFlow<Int> = MutableStateFlow(20)
-    private val gradientDuration: MutableStateFlow<Int> = MutableStateFlow(300) // Duration in MS
+class GradientEffectDevice : EffectDevice<GradientEffectDeviceState>() {
+    override val state = MutableStateFlow(GradientEffectDeviceState())
 
     @Composable
     override fun Content() {
         val scope = rememberCoroutineScope()
         val controller = rememberColorPickerController()
-        val density = LocalDensity.current
 
-        val colors by gradientData.collectAsState()
+        val colors = state.collectAsState().value.gradientData
         var selectedColor: Int? by remember { mutableStateOf(null) }
-        val duration by gradientDuration.collectAsState()
-        val steps by gradientSteps.collectAsState()
+        val duration = state.collectAsState().value.durationMs
+        val steps = state.collectAsState().value.steps
 
         LaunchedEffect(selectedColor) {
             if (selectedColor != null) {
-                controller.selectByColor(colors[selectedColor!!].color, false)
+                controller.selectByColor(
+                    color = Color(
+                        colors[selectedColor!!].r,
+                        colors[selectedColor!!].g,
+                        colors[selectedColor!!].b,
+                    ),
+                    fromUser = false
+                )
             }
         }
 
@@ -113,9 +98,11 @@ class GradientEffectDevice : EffectDevice() {
                             selectedColor = it
                         },
                         colors = colors,
-                        onGradientDataEmit = {
-                            scope.launch {
-                                gradientData.emit(it)
+                        onGradientDataEmit = { data ->
+                            state.update {
+                                it.copy(
+                                    gradientData = data
+                                )
                             }
                         }
                     )
@@ -130,9 +117,11 @@ class GradientEffectDevice : EffectDevice() {
                             headline = "Duration",
                             text = "${duration}ms",
                             value = duration / 1000f,
-                            onValueChange = {
-                                scope.launch {
-                                    gradientDuration.emit((it * 1000).toInt())
+                            onValueChange = { duration ->
+                                state.update {
+                                    it.copy(
+                                        durationMs = (duration * 1000).toInt()
+                                    )
                                 }
                             }
                         )
@@ -141,9 +130,11 @@ class GradientEffectDevice : EffectDevice() {
                             headline = "Steps",
                             text = "$steps",
                             value = steps / 100f,
-                            onValueChange = {
-                                scope.launch {
-                                    gradientSteps.emit((it * 100).toInt())
+                            onValueChange = { steps ->
+                                state.update {
+                                    it.copy(
+                                        steps = (steps * 100).toInt()
+                                    )
                                 }
                             }
                         )
@@ -164,14 +155,18 @@ class GradientEffectDevice : EffectDevice() {
                         HsvColorPicker(
                             controller = controller,
                             onColorChanged = { color ->
-                                scope.launch {
-                                    val list = gradientData.value.toMutableList()
+                                state.update {
+                                    val list = it.gradientData.toMutableList()
 
                                     list[selectedColor!!] = list[selectedColor!!].copy(
-                                        color = color.color
+                                        r = color.color.red,
+                                        g = color.color.green,
+                                        b = color.color.blue
                                     )
 
-                                    gradientData.emit(list)
+                                    return@update it.copy(
+                                        gradientData = list
+                                    )
                                 }
                             },
                             modifier = Modifier
@@ -194,11 +189,11 @@ class GradientEffectDevice : EffectDevice() {
     override suspend fun passData(data: MidiEffectData) {
         if (data.r != 0 || data.g != 0 || data.b != 0) {
             CoroutineScope(Dispatchers.IO).launch {
-                val stepLength = gradientDuration.value / gradientSteps.value
-                val colors = gradientData.value.toList().sortedBy { it.position }.map { it.position to it.color }
+                val stepLength = state.value.durationMs / state.value.steps
+                val colors = state.value.gradientData.sortedBy { it.position }.map { it.position to Color(it.r,  it.g, it.b) }
 
-                for (step in 0..gradientSteps.value) {
-                    val progress = step.toFloat() / gradientSteps.value
+                for (step in 0..state.value.steps) {
+                    val progress = step.toFloat() / state.value.steps
                     val color = interpolateGradient(colors, progress)
 
                     val midiData = data.copy(
@@ -228,9 +223,23 @@ class GradientEffectDevice : EffectDevice() {
             blue = start.second.blue * (1 - t) + end.second.blue * t
         )
     }
+}
 
+@Serializable
+data class GradientEffectDeviceState(
+    val gradientData: List<GradientColor> = listOf(
+        GradientColor(0f, 1f, 1f, 1f),
+        GradientColor(0.5f, 1f, 0f, 0f),
+        GradientColor(1f, 0f, 0f, 0f)
+    ),
+    val steps: Int = 20,
+    val durationMs: Int = 300
+) : DeviceState() {
+    @Serializable
     data class GradientColor(
-        var position: Float,
-        var color: Color,
+        val position: Float,
+        val r: Float,
+        val g: Float,
+        val b: Float,
     )
 }

@@ -29,14 +29,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientEffectDevice
+import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientEffectDeviceState
 
 @Composable
 fun GradientEditorBar(
     selectedColor: Int?,
     onSelectionChange: (Int?) -> Unit,
-    colors: List<GradientEffectDevice.GradientColor>,
-    onGradientDataEmit: (List<GradientEffectDevice.GradientColor>) -> Unit,
+    colors: List<GradientEffectDeviceState.GradientColor>,
+    onGradientDataEmit: (List<GradientEffectDeviceState.GradientColor>) -> Unit,
 ) {
     val density = LocalDensity.current
 
@@ -53,7 +53,7 @@ fun GradientEditorBar(
             drawRect(
                 brush = Brush.horizontalGradient(
                     colorStops = colors.sortedBy { it.position }
-                        .map { it.position to it.color }
+                        .map { it.position to Color(it.r, it.g, it.b) }
                         .toTypedArray(), // Hier setzen wir die Farben exakt an ihre Positionen
                     startX = 0f,
                     endX = size.width
@@ -92,7 +92,7 @@ fun GradientEditorBar(
                         .clip(CircleShape)
                         .height(38.dp)
                         .width(12.dp)
-                        .background(color.color)
+                        .background(Color(color.r, color.g, color.b))
                         .border(
                             width = 2.dp,
                             color = Color.White,

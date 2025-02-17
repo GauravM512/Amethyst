@@ -6,7 +6,7 @@ import dev.anthonyhfm.amethyst.devices.audio.AudioDevice
 class AudioTrack(
     override val name: String,
     override var projectDeviceIndex: Int? = null
-) : Track<AudioDevice>() {
+) : Track<AudioDevice<*>>() {
     override fun processMidiInputData(midiInputData: MidiInputData) {
 
     }

@@ -47,7 +47,7 @@ fun KeyframeEditorDialog(
     onDismissRequest: () -> Unit
 ) {
     val previewState = rememberPreviewState()
-    val keyframes by viewModel.keyframeData.collectAsState()
+    val keyframes = viewModel.data.collectAsState().value.keyframes
     val state by viewModel.state.collectAsState()
 
     if (visible) {

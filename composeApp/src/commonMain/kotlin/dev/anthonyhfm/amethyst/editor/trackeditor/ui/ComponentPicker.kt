@@ -28,13 +28,13 @@ import dev.anthonyhfm.amethyst.devices.effects.preview.PreviewEffectDevice
 data class PickableComponent(
     val name: String,
     val icon: ImageVector,
-    val plugin: EffectDevice
+    val plugin: EffectDevice<*>
 )
 
 @Composable
 fun ComponentPicker(
     visible: Boolean,
-    onPickComponent: (EffectDevice) -> Unit,
+    onPickComponent: (EffectDevice<*>) -> Unit,
     onDismiss: () -> Unit
 ) {
     val pickableComponents: Array<PickableComponent> = arrayOf(

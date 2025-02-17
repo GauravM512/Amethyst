@@ -8,14 +8,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-abstract class Track <Device : BaseDevice<*>> {
+abstract class Track <Device : BaseDevice<*, *>> {
     abstract val name: String
     abstract var projectDeviceIndex: Int?
 
     protected val _devices = MutableStateFlow<List<Device>>(emptyList())
     val devices = _devices.asStateFlow()
 
-    open fun addDevice(device: BaseDevice<*>, atIndex: Int? = null) {
+    open fun addDevice(device: BaseDevice<*, *>, atIndex: Int? = null) {
         CoroutineScope(Dispatchers.Main).launch {
             if (atIndex == null) {
                 _devices.emit(

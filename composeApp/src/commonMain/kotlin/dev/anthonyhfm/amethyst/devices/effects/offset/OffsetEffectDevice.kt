@@ -19,21 +19,26 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
 
-class OffsetEffectDevice : EffectDevice() {
-    private val offsetX: MutableState<Int> = mutableStateOf(0)
-    private val offsetY: MutableState<Int> = mutableStateOf(0)
+class OffsetEffectDevice : EffectDevice<OffsetEffectDeviceState>() {
+    override val state = MutableStateFlow(OffsetEffectDeviceState())
 
     @Composable
     override fun Content() {
+        val deviceState by state.collectAsState()
+
         AmethystPlugin(
             title = "Offset",
             modifier = Modifier
@@ -51,11 +56,11 @@ class OffsetEffectDevice : EffectDevice() {
                 Spacer(Modifier.height(20.dp))
 
                 Text(
-                    text = "Offset X: ${offsetX.value}"
+                    text = "Offset X: ${deviceState.offsetX}"
                 )
 
                 Text(
-                    text = "Offset Y: ${offsetY.value}"
+                    text = "Offset Y: ${deviceState.offsetY}"
                 )
 
                 Spacer(
@@ -73,7 +78,11 @@ class OffsetEffectDevice : EffectDevice() {
                             .border(1.dp, Color.White, RoundedCornerShape(4.dp))
                             .padding(2.dp)
                             .clickable {
-                                offsetY.value += 1
+                                state.update {
+                                    it.copy(
+                                        offsetY = it.offsetY + 1
+                                    )
+                                }
                             }
                     )
 
@@ -84,7 +93,11 @@ class OffsetEffectDevice : EffectDevice() {
                             .border(1.dp, Color.White, RoundedCornerShape(4.dp))
                             .padding(2.dp)
                             .clickable {
-                                offsetY.value -= 1
+                                state.update {
+                                    it.copy(
+                                        offsetY = it.offsetY - 1
+                                    )
+                                }
                             }
                     )
 
@@ -95,7 +108,11 @@ class OffsetEffectDevice : EffectDevice() {
                             .border(1.dp, Color.White, RoundedCornerShape(4.dp))
                             .padding(2.dp)
                             .clickable {
-                                offsetX.value -= 1
+                                state.update {
+                                    it.copy(
+                                        offsetX = it.offsetX - 1
+                                    )
+                                }
                             }
                     )
 
@@ -106,7 +123,11 @@ class OffsetEffectDevice : EffectDevice() {
                             .border(1.dp, Color.White, RoundedCornerShape(4.dp))
                             .padding(2.dp)
                             .clickable {
-                                offsetX.value += 1
+                                state.update {
+                                    it.copy(
+                                        offsetX = it.offsetX + 1
+                                    )
+                                }
                             }
                     )
                 }
@@ -117,9 +138,15 @@ class OffsetEffectDevice : EffectDevice() {
     override suspend fun passData(data: MidiEffectData) {
         midiOutput(
             data.copy(
-                x = data.x + offsetX.value,
-                y = data.y + offsetY.value
+                x = data.x + state.value.offsetX,
+                y = data.y + state.value.offsetY
             )
         )
     }
 }
+
+@Serializable
+data class OffsetEffectDeviceState(
+    val offsetX: Int = 0,
+    val offsetY: Int = 0
+) : DeviceState()

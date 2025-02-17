@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.editor.trackeditor.ui.AddComponentSpacer
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
@@ -53,14 +54,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 /**
  * # The Group Plugin
  *
  * The Group Plugin is very different to the other plugins because of its ability to contain other plugins
  */
-class GroupEffectDevice : EffectDevice() {
+class GroupEffectDevice : EffectDevice<GroupEffectDeviceState>() {
+    override val state = MutableStateFlow(GroupEffectDeviceState())
+
     private val groups: MutableStateFlow<List<GroupData>> = MutableStateFlow(
         value = listOf(
             GroupData(
@@ -68,8 +73,6 @@ class GroupEffectDevice : EffectDevice() {
             ),
         )
     )
-
-    private val selectedGroupIndex: MutableStateFlow<Int> = MutableStateFlow(0)
 
     @Composable
     override fun Content() {
@@ -97,7 +100,7 @@ class GroupEffectDevice : EffectDevice() {
             }
 
             key( // Trigger recomposition on selected group change
-                selectedGroupIndex.collectAsState().value
+                state.collectAsState().value
             ) {
                 GroupContent()
             }
@@ -117,7 +120,7 @@ class GroupEffectDevice : EffectDevice() {
     private fun GroupList() {
         val scope = rememberCoroutineScope()
         val groupsState by groups.collectAsState()
-        val selectionIndex by selectedGroupIndex.collectAsState()
+        val selectionIndex = state.collectAsState().value.selectionIndex
         val scrollState = rememberScrollState()
 
         Column(
@@ -145,8 +148,10 @@ class GroupEffectDevice : EffectDevice() {
                         groupData = groupData,
                         selected = selectionIndex == index,
                         onSelect = {
-                            scope.launch {
-                                selectedGroupIndex.emit(index)
+                            state.update {
+                                it.copy(
+                                    selectionIndex = index
+                                )
                             }
                         }
                     )
@@ -245,8 +250,8 @@ class GroupEffectDevice : EffectDevice() {
     @Composable
     private fun GroupContent() {
         val groupsState by groups.collectAsState()
-        val selectionIndex by selectedGroupIndex.collectAsState()
-        val effects by groupsState[selectionIndex].effects.collectAsState()
+        val selectionIndex = state.collectAsState().value.selectionIndex
+        val effects by groupsState[selectionIndex].devices.collectAsState()
 
         if (effects.isEmpty()) {
             Box(
@@ -268,7 +273,7 @@ class GroupEffectDevice : EffectDevice() {
                 modifier = Modifier
                     .fillMaxHeight(),
             ) {
-                groupsState[selectionIndex].effects.value.forEachIndexed { index, effectPlugin ->
+                groupsState[selectionIndex].devices.value.forEachIndexed { index, effectPlugin ->
                     AddComponentSpacer(
                         onAddComponent = {
                             addEffectToGroup(selectionIndex, it, index)
@@ -321,28 +326,28 @@ class GroupEffectDevice : EffectDevice() {
         }
     }
 
-    fun addEffectToGroup(groupIndex: Int, effect: EffectDevice, atIndex: Int? = null) {
+    fun addEffectToGroup(groupIndex: Int, effect: EffectDevice<*>, atIndex: Int? = null) {
         CoroutineScope(Dispatchers.Main).launch {
             if (atIndex == null) {
-                groups.value[groupIndex].effects.emit(
-                    value = groups.value[groupIndex].effects.value.plus(effect)
+                groups.value[groupIndex].devices.emit(
+                    value = groups.value[groupIndex].devices.value.plus(effect)
                 )
             } else {
-                val mutableList = groups.value[groupIndex].effects.value.toMutableList()
+                val mutableList = groups.value[groupIndex].devices.value.toMutableList()
 
                 mutableList.add(atIndex, effect)
 
-                groups.value[groupIndex].effects.emit(
+                groups.value[groupIndex].devices.emit(
                     value = mutableList
                 )
             }
 
-            groups.value[groupIndex].effects.emit(
-                groups.value[groupIndex].effects.value.mapIndexed { index, effectPlugin ->
-                    if (index + 1 < groups.value[groupIndex].effects.value.size) {
+            groups.value[groupIndex].devices.emit(
+                groups.value[groupIndex].devices.value.mapIndexed { index, effectPlugin ->
+                    if (index + 1 < groups.value[groupIndex].devices.value.size) {
                         effectPlugin.midiOutput = {
                             CoroutineScope(Dispatchers.IO).launch {
-                                groups.value[groupIndex].effects.value[index + 1].passData(it)
+                                groups.value[groupIndex].devices.value[index + 1].passData(it)
                             }
                         }
 
@@ -361,7 +366,7 @@ class GroupEffectDevice : EffectDevice() {
 
     override suspend fun passData(data: MidiEffectData) {
         groups.value.forEach {
-            val effect = it.effects.value.getOrNull(0)
+            val effect = it.devices.value.getOrNull(0)
 
             if (effect != null) {
                 effect.passData(data)
@@ -371,3 +376,8 @@ class GroupEffectDevice : EffectDevice() {
         }
     }
 }
+
+@Serializable
+data class GroupEffectDeviceState(
+    val selectionIndex: Int = 0
+) : DeviceState()

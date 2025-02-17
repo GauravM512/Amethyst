@@ -3,7 +3,9 @@ package dev.anthonyhfm.amethyst.devices.effects.keyframes.data
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class Keyframe(
     val frame: List<List<MidiEffectData>> = List(10) { x ->
         List(10) { y ->

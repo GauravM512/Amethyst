@@ -5,5 +5,5 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 data class GroupData(
     val name: String,
-    val effects: MutableStateFlow<List<EffectDevice>> = MutableStateFlow(emptyList())
+    val devices: MutableStateFlow<List<EffectDevice<*>>> = MutableStateFlow(emptyList())
 )

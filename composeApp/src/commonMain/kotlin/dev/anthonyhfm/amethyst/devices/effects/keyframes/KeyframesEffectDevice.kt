@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.data.Keyframe
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.KeyframeEditorDialog
@@ -26,24 +27,21 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
-class KeyframesEffectDevice : EffectDevice() {
-    val keyframeData: MutableStateFlow<List<Keyframe>> = MutableStateFlow(
-        value = listOf(
-            Keyframe()
-        )
-    )
+class KeyframesEffectDevice : EffectDevice<KeyframesEffectDeviceState>() {
+    override val state = MutableStateFlow(KeyframesEffectDeviceState())
 
     val renderedData: MutableList<Pair<Duration, MutableList<MidiEffectData>>> = mutableListOf()
 
     @Composable
     override fun Content() {
         var editorVisible: Boolean by remember { mutableStateOf(false) }
-        val editorViewModel = remember { KeyframeEditorViewModel(keyframeData) }
+        val editorViewModel = remember { KeyframeEditorViewModel(state) }
 
-        LaunchedEffect(keyframeData.collectAsState().value) {
+        LaunchedEffect(state.collectAsState().value.keyframes) {
             prerenderKeyframes()
         }
 
@@ -77,9 +75,9 @@ class KeyframesEffectDevice : EffectDevice() {
         renderedData.clear()
 
         GlobalScope.launch {
-            keyframeData.value.forEachIndexed { keyframeIndex, it ->
+            state.value.keyframes.forEachIndexed { keyframeIndex, it ->
                 val frame = it.frame.flatten()
-                val lastFrame = keyframeData.value.getOrNull(keyframeIndex - 1)?.frame?.flatten()
+                val lastFrame = state.value.keyframes.getOrNull(keyframeIndex - 1)?.frame?.flatten()
 
                 renderedData.add(
                     Pair<Duration, MutableList<MidiEffectData>>(
@@ -127,3 +125,10 @@ class KeyframesEffectDevice : EffectDevice() {
         }
     }
 }
+
+@Serializable
+data class KeyframesEffectDeviceState(
+    val keyframes: List<Keyframe> = listOf(
+        Keyframe()
+    )
+) : DeviceState()

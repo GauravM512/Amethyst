@@ -1,8 +1,10 @@
 package dev.anthonyhfm.amethyst.devices.effects.keyframes.ui
 
+import androidx.compose.animation.core.keyframes
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesEffectDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.data.Keyframe
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -10,13 +12,13 @@ import kotlinx.coroutines.launch
 import kotlin.collections.get
 
 class KeyframeEditorViewModel(
-    val keyframeData: MutableStateFlow<List<Keyframe>>
+    val data: MutableStateFlow<KeyframesEffectDeviceState>
 ) : ViewModel() {
     val state = MutableStateFlow(KeyframeEditorState())
 
     fun addKeyframe(atIndex: Int? = null) {
         viewModelScope.launch {
-            val keyframes = keyframeData.value.toMutableList()
+            val keyframes = data.value.keyframes.toMutableList()
 
             if (atIndex != null) {
                 keyframes.add(atIndex, Keyframe())
@@ -24,15 +26,19 @@ class KeyframeEditorViewModel(
                 keyframes.add(Keyframe())
             }
 
-            keyframeData.emit(keyframes)
+            data.update {
+                it.copy(
+                    keyframes = keyframes
+                )
+            }
 
-            selectKeyframe(atIndex ?: keyframeData.value.lastIndex)
+            selectKeyframe(atIndex ?: data.value.keyframes.lastIndex)
         }
     }
 
     fun setKeyframeLight(x: Int, y: Int) {
         viewModelScope.launch {
-            val keyframes = keyframeData.value.toMutableList()
+            val keyframes = data.value.keyframes.toMutableList()
             val frame = keyframes[state.value.selectedKeyframe].frame
 
             keyframes[state.value.selectedKeyframe] = keyframes[state.value.selectedKeyframe].copy(
@@ -51,7 +57,11 @@ class KeyframeEditorViewModel(
                 }
             )
 
-            keyframeData.emit(keyframes)
+            data.update {
+                it.copy(
+                    keyframes = keyframes
+                )
+            }
         }
     }
 
@@ -67,10 +77,12 @@ class KeyframeEditorViewModel(
 
     fun changeKeyframePosition(before: Int, after: Int) {
         viewModelScope.launch {
-            keyframeData.update {
-                it.toMutableList().apply {
-                    add(before, removeAt(after))
-                }
+            data.update {
+                it.copy(
+                    keyframes = it.keyframes.toMutableList().apply {
+                        add(before, removeAt(after))
+                    }
+                )
             }
 
             if (state.value.selectedKeyframe == after) {

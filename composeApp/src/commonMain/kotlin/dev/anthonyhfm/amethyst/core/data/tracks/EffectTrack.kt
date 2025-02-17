@@ -14,11 +14,11 @@ import kotlinx.coroutines.launch
 class EffectTrack(
     override val name: String,
     override var projectDeviceIndex: Int? = null
-) : Track<EffectDevice>() {
+) : Track<EffectDevice<*>>() {
     var midiOutput: MidiOutput? = null
     var deviceType: DeviceType? = null
 
-    override fun addDevice(device: BaseDevice<*>, atIndex: Int?) {
+    override fun addDevice(device: BaseDevice<*, *>, atIndex: Int?) {
         super.addDevice(device, atIndex)
 
         CoroutineScope(Dispatchers.Main).launch {

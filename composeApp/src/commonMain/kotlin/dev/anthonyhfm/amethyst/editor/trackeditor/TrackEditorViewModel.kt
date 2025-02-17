@@ -31,7 +31,7 @@ class TrackEditorViewModel(
         }
     }
 
-    fun onAddDevice(device: BaseDevice<*>, atIndex: Int? = null) {
+    fun onAddDevice(device: BaseDevice<*, *>, atIndex: Int? = null) {
         state.value.selectedTrack?.let { selectedTrack ->
             when (projectRepository.tracks.value[selectedTrack]) {
                 is EffectTrack -> {
@@ -55,5 +55,5 @@ class TrackEditorViewModel(
 data class TrackEditorState(
     val trackSelected: Boolean = false,
     val selectedTrack: Int? = null,
-    val devices: StateFlow<List<BaseDevice<*>>>? = null
+    val devices: StateFlow<List<BaseDevice<*, *>>>? = null
 )

@@ -31,7 +31,7 @@ import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 @Composable
 fun AddComponentSpacer(
     expanded: Boolean = false,
-    onAddComponent: (EffectDevice) -> Unit
+    onAddComponent: (EffectDevice<*>) -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovering: Boolean by interaction.collectIsHoveredAsState()

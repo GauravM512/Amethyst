@@ -7,13 +7,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.previewdevices.LaunchpadPro
 import dev.anthonyhfm.amethyst.ui.previewdevices.PreviewState
 import dev.anthonyhfm.amethyst.ui.previewdevices.rememberPreviewState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.serialization.Serializable
 
-class PreviewEffectDevice : EffectDevice() {
+class PreviewEffectDevice : EffectDevice<PreviewEffectDeviceState>() {
+    override val state = MutableStateFlow(PreviewEffectDeviceState())
+
     private var previewState: PreviewState? = null
 
     @Composable
@@ -43,5 +48,14 @@ class PreviewEffectDevice : EffectDevice() {
         previewState?.sendToPreview(data = data)
 
         midiOutput(data)
+    }
+}
+
+@Serializable
+data class PreviewEffectDeviceState(
+    val previewType: PreviewType = PreviewType.LaunchpadPro
+) : DeviceState() {
+    enum class PreviewType {
+        LaunchpadPro
     }
 }

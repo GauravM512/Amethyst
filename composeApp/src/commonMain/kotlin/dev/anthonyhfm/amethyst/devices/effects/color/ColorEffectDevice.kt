@@ -18,20 +18,29 @@ import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
 
-class ColorEffectDevice : EffectDevice() {
-    var color: Color = Color.White
+class ColorEffectDevice : EffectDevice<ColorEffectDeviceState>() {
+    override val state = MutableStateFlow(ColorEffectDeviceState())
 
     @Composable
     override fun Content() {
-        val scope = rememberCoroutineScope()
-
         val controller = rememberColorPickerController()
 
         LaunchedEffect(Unit) {
-            controller.selectByColor(color, false)
+            controller.selectByColor(
+                color = Color(
+                    red = state.value.r,
+                    green = state.value.g,
+                    blue = state.value.b
+                ),
+                fromUser = false
+            )
         }
 
         AmethystPlugin(
@@ -47,8 +56,14 @@ class ColorEffectDevice : EffectDevice() {
             ) {
                 HsvColorPicker(
                     controller = controller,
-                    onColorChanged = {
-                        color = it.color
+                    onColorChanged = { color ->
+                        state.update {
+                            it.copy(
+                                r = color.color.red,
+                                g = color.color.green,
+                                b = color.color.blue
+                            )
+                        }
                     },
                     modifier = Modifier
                         .size(170.dp)
@@ -68,15 +83,24 @@ class ColorEffectDevice : EffectDevice() {
 
     override suspend fun passData(data: MidiEffectData) {
         if (data.r != 0 || data.g != 0 || data.b != 0) {
-            midiOutput(
-                data.copy(
-                    r = (63 * color.red).toInt(),
-                    g = (63 * color.green).toInt(),
-                    b = (63 * color.blue).toInt()
+            state.value.let { color ->
+                midiOutput(
+                    data.copy(
+                        r = (63 * color.r).toInt(),
+                        g = (63 * color.g).toInt(),
+                        b = (63 * color.b).toInt()
+                    )
                 )
-            )
+            }
         } else {
             midiOutput(data)
         }
     }
 }
+
+@Serializable
+data class ColorEffectDeviceState(
+    val r: Float = 1f,
+    val g: Float = 1f,
+    val b: Float = 1f
+) : DeviceState()

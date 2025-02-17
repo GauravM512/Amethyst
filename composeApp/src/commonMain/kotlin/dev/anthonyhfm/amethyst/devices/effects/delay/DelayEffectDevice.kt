@@ -8,21 +8,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlin.time.Duration.Companion.milliseconds
 
-class DelayEffectDevice : EffectDevice() {
-    val delay: MutableStateFlow<Int> = MutableStateFlow(0)
+class DelayEffectDevice : EffectDevice<DelayEffectDeviceState>() {
+    override val state = MutableStateFlow(DelayEffectDeviceState())
 
     @Composable
     override fun Content() {
-        val scope = rememberCoroutineScope()
-        val delayState by delay.collectAsState()
+        val deviceState by state.collectAsState()
 
         AmethystPlugin(
             title = "Delay",
@@ -31,11 +33,13 @@ class DelayEffectDevice : EffectDevice() {
         ) {
             TextDial(
                 headline = "Delay",
-                text = "$delayState ms",
-                value = delayState / 1000f,
+                text = "${deviceState.delayMs} ms",
+                value = deviceState.delayMs / 1000f,
                 onValueChange = {
-                    scope.launch {
-                        delay.emit((it * 1000).toInt())
+                    state.update {
+                        it.copy(
+                            delayMs = (it.delayMs * 1000).toInt()
+                        )
                     }
                 }
             )
@@ -43,8 +47,13 @@ class DelayEffectDevice : EffectDevice() {
     }
 
     override suspend fun passData(data: MidiEffectData) {
-        delay(delay.value.milliseconds)
+        delay(state.value.delayMs.milliseconds)
 
         midiOutput(data)
     }
 }
+
+@Serializable
+data class DelayEffectDeviceState(
+    val delayMs: Int = 200
+) : DeviceState()

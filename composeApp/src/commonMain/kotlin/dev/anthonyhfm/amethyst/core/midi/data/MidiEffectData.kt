@@ -1,5 +1,8 @@
 package dev.anthonyhfm.amethyst.core.midi.data
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MidiEffectData(
     val x: Int,
     val y: Int,

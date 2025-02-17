@@ -59,7 +59,7 @@ kotlin {
             implementation(libs.colorpicker.compose)
             implementation(libs.reorderable)
 
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.8.0")
             implementation(libs.filekit.core)
         }
         desktopMain.dependencies {

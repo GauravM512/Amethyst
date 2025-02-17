@@ -9,24 +9,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.previewdevices.LaunchpadPro
 import dev.anthonyhfm.amethyst.ui.previewdevices.rememberPreviewState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
-class FilterEffectDevice : EffectDevice() {
-    private val filterData: MutableList<MutableList<Boolean>> = MutableList(
-        size = 10,
-        init = {
-            MutableList(
-                size = 10,
-                init = {
-                    false
-                }
-            )
-        }
-    )
+class FilterEffectDevice : EffectDevice<FilterEffectDeviceState>() {
+    override val state = MutableStateFlow(FilterEffectDeviceState())
 
     @Composable
     override fun Content() {
@@ -34,7 +28,7 @@ class FilterEffectDevice : EffectDevice() {
         val previewState = rememberPreviewState()
 
         LaunchedEffect(Unit) { // Loads the saved filterData into a new previewState when recomposed
-            filterData.forEachIndexed { x, data ->
+            state.value.filterData.forEachIndexed { x, data ->
                 data.forEachIndexed { y, enabled ->
                     previewState.sendToPreview(
                         data = MidiEffectData(
@@ -58,7 +52,7 @@ class FilterEffectDevice : EffectDevice() {
                 previewState = previewState,
                 onClick = { x, y ->
                     scope.launch {
-                        if (filterData[x][y]) {
+                        if (state.value.filterData[x][y]) {
                             previewState.sendToPreview(
                                 data = MidiEffectData(
                                     x = x,
@@ -80,7 +74,15 @@ class FilterEffectDevice : EffectDevice() {
                             )
                         }
 
-                        filterData[x][y] = !filterData[x][y]
+                        state.update {
+                            it.copy(
+                                filterData = it.filterData.toMutableList().apply {
+                                    this[x].toMutableList().apply {
+                                        this[y] = !it.filterData[x][y]
+                                    }
+                                }
+                            )
+                        }
                     }
                 },
                 modifier = Modifier
@@ -91,8 +93,23 @@ class FilterEffectDevice : EffectDevice() {
     }
 
     override suspend fun passData(data: MidiEffectData) {
-        if (filterData[data.x][data.y]) {
+        if (state.value.filterData[data.x][data.y]) {
             midiOutput(data)
         }
     }
 }
+
+@Serializable
+data class FilterEffectDeviceState(
+    val filterData: List<List<Boolean>> = List(
+        size = 10,
+        init = {
+            List(
+                size = 10,
+                init = {
+                    false
+                }
+            )
+        }
+    )
+) : DeviceState()
