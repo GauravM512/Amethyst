@@ -379,5 +379,5 @@ class GroupEffectDevice : EffectDevice<GroupEffectDeviceState>() {
 
 @Serializable
 data class GroupEffectDeviceState(
-    val selectionIndex: Int = 0
+    val selectionIndex: Int = 0,
 ) : DeviceState()
