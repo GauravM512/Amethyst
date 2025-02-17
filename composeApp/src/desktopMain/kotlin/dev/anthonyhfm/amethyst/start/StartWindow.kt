@@ -20,13 +20,16 @@ import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.start.ui.AmethystWelcome
 import dev.anthonyhfm.amethyst.start.ui.ProjectsView
 import dev.anthonyhfm.amethyst.ui.modifier.platformPaddingTop
+import kotlin.system.exitProcess
 
 @Composable
 fun StartWindow(
-    exitApplication: () -> Unit,
+    onOpenEditor: () -> Unit
 ) {
     Window(
-        onCloseRequest = exitApplication,
+        onCloseRequest = {
+            exitProcess(0)
+        },
         title = "Amethyst",
         state = rememberWindowState(
             width = 700.dp,
@@ -36,6 +39,10 @@ fun StartWindow(
         resizable = false
     ) {
         val viewModel = viewModel { StartWindowViewModel() }
+
+        viewModel.onOpenEditor = {
+            onOpenEditor()
+        }
 
         if(DesktopPlatform.get() == DesktopPlatform.MacOS) {
             window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)

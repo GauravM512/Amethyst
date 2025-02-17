@@ -8,24 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class ProjectRepository {
     val launchpadConfigs: MutableStateFlow<List<ProjectDeviceConfig>> =
-        MutableStateFlow(
-            listOf(
-                ProjectDeviceConfig(
-                    name = "Launchpad 1",
-                )
-            )
-        )
-
+        MutableStateFlow(emptyList())
     val tracks: MutableStateFlow<List<Track<*>>> =
-        MutableStateFlow(
-            listOf(
-                AudioTrack(
-                    name = "Audio"
-                ),
-                EffectTrack(
-                    name = "Lights",
-                    projectDeviceIndex = 0
-                ),
-            )
-        )
+        MutableStateFlow(emptyList())
 }
