@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.trackeditor
+package dev.anthonyhfm.amethyst.advanced_editor.trackeditor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,7 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.editor.trackeditor.ui.AddComponentSpacer
+import dev.anthonyhfm.amethyst.advanced_editor.trackeditor.ui.AddComponentSpacer
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable

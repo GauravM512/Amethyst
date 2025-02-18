@@ -1,11 +1,9 @@
-package dev.anthonyhfm.amethyst.editor.projectsettings.launchpadconfig
+package dev.anthonyhfm.amethyst.advanced_editor.projectsettings.launchpadconfig
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.core.data.ProjectRepository
 import dev.anthonyhfm.amethyst.core.data.project.ProjectDeviceConfig
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 class LaunchpadConfigViewModel(
     private val projectRepository: ProjectRepository

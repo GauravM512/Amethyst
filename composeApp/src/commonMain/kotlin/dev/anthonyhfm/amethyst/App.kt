@@ -6,9 +6,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.rememberNavController
 import dev.anthonyhfm.amethyst.core.koin.amethystKoinModule
-import dev.anthonyhfm.amethyst.editor.Editor
+import dev.anthonyhfm.amethyst.advanced_editor.AdvancedEditor
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.KoinApplication
 
@@ -27,7 +26,7 @@ fun App() {
                 modifier = Modifier
                     .fillMaxSize()
             ) {
-                Editor()
+                AdvancedEditor()
             }
         }
     }

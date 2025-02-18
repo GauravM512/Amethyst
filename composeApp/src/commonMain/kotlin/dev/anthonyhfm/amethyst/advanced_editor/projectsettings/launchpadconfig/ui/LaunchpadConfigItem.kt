@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.projectsettings.launchpadconfig.ui
+package dev.anthonyhfm.amethyst.advanced_editor.projectsettings.launchpadconfig.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement

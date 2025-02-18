@@ -1,19 +1,16 @@
-package dev.anthonyhfm.amethyst.editor
+package dev.anthonyhfm.amethyst.advanced_editor
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
-import dev.anthonyhfm.amethyst.editor.ui.EditorMenuBar
+import dev.anthonyhfm.amethyst.advanced_editor.ui.EditorMenuBar
 import kotlin.system.exitProcess
 
 @Composable
@@ -45,7 +42,7 @@ fun EditorWindow() {
                     OSXTitleBar()
                 }
 
-                Editor()
+                AdvancedEditor()
             }
         }
     }

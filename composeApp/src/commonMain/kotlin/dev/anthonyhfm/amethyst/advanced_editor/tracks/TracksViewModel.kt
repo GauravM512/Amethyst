@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.tracks
+package dev.anthonyhfm.amethyst.advanced_editor.tracks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,7 +8,7 @@ import dev.anthonyhfm.amethyst.core.data.project.ProjectDeviceConfig
 import dev.anthonyhfm.amethyst.core.data.tracks.AudioTrack
 import dev.anthonyhfm.amethyst.core.data.tracks.EffectTrack
 import dev.anthonyhfm.amethyst.core.data.tracks.Track
-import dev.anthonyhfm.amethyst.editor.tracks.ui.CreateTrackType
+import dev.anthonyhfm.amethyst.advanced_editor.tracks.ui.CreateTrackType
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 

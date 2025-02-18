@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
-import dev.anthonyhfm.amethyst.editor.trackeditor.ui.AddComponentSpacer
+import dev.anthonyhfm.amethyst.advanced_editor.trackeditor.ui.AddComponentSpacer
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem

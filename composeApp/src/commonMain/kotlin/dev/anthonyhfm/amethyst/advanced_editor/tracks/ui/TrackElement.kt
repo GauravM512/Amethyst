@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.tracks
+package dev.anthonyhfm.amethyst.advanced_editor.tracks
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

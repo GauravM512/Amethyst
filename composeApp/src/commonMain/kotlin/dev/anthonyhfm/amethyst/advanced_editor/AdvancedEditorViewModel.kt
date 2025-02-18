@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor
+package dev.anthonyhfm.amethyst.advanced_editor
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.ViewModel
@@ -10,7 +10,7 @@ import dev.atsushieno.ktmidi.MidiInput
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class EditorViewModel(
+class AdvancedEditorViewModel(
     private val projectRepository: ProjectRepository,
 ) : ViewModel() {
     val state = MutableStateFlow(EditorState())

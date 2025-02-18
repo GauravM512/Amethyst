@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.ui
+package dev.anthonyhfm.amethyst.advanced_editor.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.FrameWindowScope

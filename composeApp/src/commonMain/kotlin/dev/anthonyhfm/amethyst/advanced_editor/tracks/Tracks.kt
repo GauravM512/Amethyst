@@ -1,17 +1,15 @@
-package dev.anthonyhfm.amethyst.editor.tracks
+package dev.anthonyhfm.amethyst.advanced_editor.tracks
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
@@ -22,7 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.data.project.ProjectDeviceConfig
 import dev.anthonyhfm.amethyst.core.data.tracks.Track
-import dev.anthonyhfm.amethyst.editor.tracks.ui.CreateTrackButton
+import dev.anthonyhfm.amethyst.advanced_editor.tracks.ui.CreateTrackButton
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -34,6 +32,8 @@ fun Tracks(
     val tracks: List<Track<*>> by viewModel.tracks.collectAsState()
     val deviceConfigs: List<ProjectDeviceConfig> by viewModel.deviceConfigs.collectAsState()
 
+    val verticalScrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .padding(start = 12.dp, top = 12.dp)
@@ -41,29 +41,50 @@ fun Tracks(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.2.dp))
             .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp), RoundedCornerShape(12.dp))
-            .padding(12.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(12.dp),
 
-        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        tracks.forEachIndexed { index, track ->
-            TrackElement(
-                selected = selectedTrack == index,
-                onSelect = {
-                    onSelectTrack(index)
-                },
-                track = track,
-                deviceConfigs = deviceConfigs,
-                onChangeDeviceConfig = {
-                    viewModel.changeDeviceConfig(index, it)
-                }
-            )
-        }
+        Row(
+            modifier = Modifier
+                .fillMaxSize(),
 
-        CreateTrackButton(
-            onCreate = {
-                viewModel.createTrack(it)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .verticalScroll(verticalScrollState)
+            ) {
+                tracks.forEachIndexed { index, track ->
+                    TrackElement(
+                        selected = selectedTrack == index,
+                        onSelect = {
+                            onSelectTrack(index)
+                        },
+                        track = track,
+                        deviceConfigs = deviceConfigs,
+                        onChangeDeviceConfig = {
+                            viewModel.changeDeviceConfig(index, it)
+                        }
+                    )
+                }
+
+                CreateTrackButton(
+                    onCreate = {
+                        viewModel.createTrack(it)
+                    }
+                )
             }
-        )
+
+            Column(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp), RoundedCornerShape(6.dp)),
+            ) {
+
+            }
+        }
     }
 }

@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor
+package dev.anthonyhfm.amethyst.advanced_editor
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,14 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import dev.anthonyhfm.amethyst.editor.projectsettings.ProjectSettingsPanel
-import dev.anthonyhfm.amethyst.editor.trackeditor.TrackEditor
-import dev.anthonyhfm.amethyst.editor.tracks.Tracks
+import dev.anthonyhfm.amethyst.advanced_editor.projectsettings.ProjectSettingsPanel
+import dev.anthonyhfm.amethyst.advanced_editor.trackeditor.TrackEditor
+import dev.anthonyhfm.amethyst.advanced_editor.tracks.Tracks
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun Editor() {
-    val viewModel = koinViewModel<EditorViewModel>()
+fun AdvancedEditor() {
+    val viewModel = koinViewModel<AdvancedEditorViewModel>()
     val state by viewModel.state.collectAsState()
 
     Surface(

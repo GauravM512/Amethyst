@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor.trackeditor.ui
+package dev.anthonyhfm.amethyst.advanced_editor.trackeditor.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState

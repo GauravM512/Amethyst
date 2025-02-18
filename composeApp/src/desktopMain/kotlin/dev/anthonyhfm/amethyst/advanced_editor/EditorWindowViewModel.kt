@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.editor
+package dev.anthonyhfm.amethyst.advanced_editor
 
 import androidx.lifecycle.ViewModel
 
