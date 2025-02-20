@@ -5,11 +5,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.application
+import com.formdev.flatlaf.FlatDarkLaf
+import com.formdev.flatlaf.FlatLightLaf
+import com.formdev.flatlaf.FlatPropertiesLaf
+import com.formdev.flatlaf.ui.FlatTitlePane
 import dev.anthonyhfm.amethyst.core.koin.amethystKoinModule
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
+import dev.anthonyhfm.amethyst.desktop.FlatAmethystLaf
 import dev.anthonyhfm.amethyst.start.StartWindow
 import dev.anthonyhfm.amethyst.workspace.WorkspaceWindow
 import org.koin.compose.KoinApplication
+import java.awt.Color
+import javax.swing.BorderFactory
+import javax.swing.JFrame
+import javax.swing.UIManager
+
 
 fun main() {
     val platform = DesktopPlatform.get()
@@ -20,6 +30,10 @@ fun main() {
     }
 
     application {
+        if (platform == DesktopPlatform.Windows) {
+            UIManager.setLookAndFeel(FlatAmethystLaf())
+        }
+
         KoinApplication(
             application = {
                 modules(amethystKoinModule)

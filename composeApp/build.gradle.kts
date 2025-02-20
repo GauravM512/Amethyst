@@ -59,6 +59,7 @@ kotlin {
             implementation(libs.colorpicker.compose)
             implementation(libs.reorderable)
 
+            implementation("com.formdev:flatlaf:3.5.4")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.8.0")
             implementation(libs.filekit.core)
         }

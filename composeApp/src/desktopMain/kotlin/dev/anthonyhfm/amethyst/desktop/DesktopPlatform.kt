@@ -12,7 +12,11 @@ sealed interface DesktopPlatform {
 
             if (system.contains("Mac OS X")) {
                 return MacOS
+            } else if (system.contains("Windows")) {
+                return Windows
             }
+
+            println(system)
 
             return Unknown
         }
