@@ -1,7 +1,7 @@
-package dev.anthonyhfm.amethyst.devices.effects.group
+package dev.anthonyhfm.amethyst.devices.effects_old.group
 
 import dev.anthonyhfm.amethyst.devices.DeviceState
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
+import dev.anthonyhfm.amethyst.devices.effects_old.EffectDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient

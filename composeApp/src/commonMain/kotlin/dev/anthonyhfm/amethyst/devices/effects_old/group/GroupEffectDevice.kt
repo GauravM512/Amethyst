@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.devices.effects.group
+package dev.anthonyhfm.amethyst.devices.effects_old.group
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -45,11 +45,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.devices.DeviceState
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
-import dev.anthonyhfm.amethyst.advanced_editor.trackeditor.ui.AddComponentSpacer
+import dev.anthonyhfm.amethyst.devices.effects_old.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
+import dev.anthonyhfm.amethyst.workspace.chain.ui.HiddenDevicePickerButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -261,12 +261,12 @@ class GroupEffectDevice : EffectDevice<GroupEffectDeviceState>() {
 
                 contentAlignment = Alignment.Center
             ) {
-                AddComponentSpacer(
+                /*HiddenDevicePickerButton(
                     expanded = true,
                     onAddComponent = {
                         addEffectToGroup(selectionIndex, it)
                     }
-                )
+                )*/
             }
         } else {
             Row(
@@ -274,20 +274,20 @@ class GroupEffectDevice : EffectDevice<GroupEffectDeviceState>() {
                     .fillMaxHeight(),
             ) {
                 groupsState[selectionIndex].devices.value.forEachIndexed { index, effectPlugin ->
-                    AddComponentSpacer(
+                    /*HiddenDevicePickerButton(
                         onAddComponent = {
                             addEffectToGroup(selectionIndex, it, index)
                         }
-                    )
+                    )*/
 
                     effectPlugin.Content()
                 }
 
-                AddComponentSpacer(
+                /*HiddenDevicePickerButton(
                     onAddComponent = {
                         addEffectToGroup(selectionIndex, it)
                     }
-                )
+                )*/
             }
         }
     }

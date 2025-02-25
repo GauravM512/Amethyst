@@ -3,10 +3,9 @@ package dev.anthonyhfm.amethyst.workspace
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.core.midi.data.getMidiInputData
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadProMk3Device
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport_launchpads.ViewportLaunchpadPro
-import dev.anthonyhfm.amethyst.ui.launchpad.viewport_launchpads.ViewportMystrix
 import dev.anthonyhfm.amethyst.workspace.chain.WorkspaceChain
-import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiInput
 import dev.atsushieno.ktmidi.MidiOutput
@@ -114,7 +113,7 @@ class WorkspaceViewModel(
                         event.inputPort?.let { input ->
                             inputDevice = midiAccess.openInput(input.id)
 
-                            inputDevice.setMessageReceivedListener { bytes, _, _, _ ->
+                            inputDevice!!.setMessageReceivedListener { bytes, _, _, _ ->
                                 getMidiInputData(bytes)?.let {
                                     chain.onMidiInput(
                                         inputData = it,
@@ -126,6 +125,16 @@ class WorkspaceViewModel(
 
                         event.outputPort?.let { output ->
                             outputDevice = midiAccess.openOutput(output.id)
+
+                            Heaven.registerDevice(
+                                device = LaunchpadProMk3Device(
+                                    midiOutput = outputDevice,
+                                    position = Pair(
+                                        first = this@apply.position.value.x.toInt(),
+                                        second = this@apply.position.value.y.toInt()
+                                    )
+                                ),
+                            )
                         }
 
                         deviceConfig = deviceConfig.copy(

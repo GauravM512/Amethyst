@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.devices.effects.offset
+package dev.anthonyhfm.amethyst.devices.effects_old.offset
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,7 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.devices.DeviceState
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
+import dev.anthonyhfm.amethyst.devices.effects_old.EffectDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update

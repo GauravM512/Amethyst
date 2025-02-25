@@ -2,8 +2,6 @@ package dev.anthonyhfm.amethyst.workspace.ui.viewport.elements
 
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.RotateLeft
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon

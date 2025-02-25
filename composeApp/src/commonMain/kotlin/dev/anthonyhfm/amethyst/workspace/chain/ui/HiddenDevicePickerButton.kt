@@ -26,12 +26,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
+import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.effects_old.EffectDevice
 
 @Composable
 fun HiddenDevicePickerButton(
     expanded: Boolean = false,
-    onAddComponent: (EffectDevice<*>) -> Unit
+    onAddComponent: (ChainDevice<*>) -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovering: Boolean by interaction.collectIsHoveredAsState()

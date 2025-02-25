@@ -15,12 +15,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
+import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.effects_old.EffectDevice
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 
 @Composable
 fun WorkspaceChainEditor(
-    devices: List<EffectDevice<*>>,
+    devices: List<ChainDevice<*>>,
     onEvent: (WorkspaceContract.Event) -> Unit
 ) {
     Row(

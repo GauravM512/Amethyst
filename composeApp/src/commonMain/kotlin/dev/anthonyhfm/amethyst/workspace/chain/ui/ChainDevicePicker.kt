@@ -2,9 +2,7 @@ package dev.anthonyhfm.amethyst.workspace.chain.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.Filter
 import androidx.compose.material.icons.filled.Gradient
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.MoreTime
@@ -14,63 +12,31 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.color.ColorEffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.delay.DelayEffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.filter.FilterEffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientEffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.group.GroupEffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesEffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.offset.OffsetEffectDevice
+import dev.anthonyhfm.amethyst.devices.ChainDevice
 
 data class PickableComponent(
     val name: String,
     val icon: ImageVector,
-    val plugin: EffectDevice<*>
+    val plugin: ChainDevice<*>
 )
 
 @Composable
 fun ChainDevicePicker(
     visible: Boolean,
-    onPickComponent: (EffectDevice<*>) -> Unit,
+    onPickComponent: (ChainDevice<*>) -> Unit,
     onDismiss: () -> Unit
 ) {
     val pickableComponents: Array<PickableComponent> = arrayOf(
-        PickableComponent(
-            name = "Group",
-            icon = Icons.AutoMirrored.Filled.List,
-            plugin = GroupEffectDevice()
-        ),
-        PickableComponent(
-            name = "Filter",
-            icon = Icons.Default.Filter,
-            plugin = FilterEffectDevice()
-        ),
-        PickableComponent(
+        /*PickableComponent(
             name = "Offset",
             icon = Icons.Default.GridOn,
             plugin = OffsetEffectDevice()
-        ),
-        PickableComponent(
+        ),*/
+        /*PickableComponent(
             name = "Delay",
             icon = Icons.Default.MoreTime,
-            plugin = DelayEffectDevice()
-        ),
-        PickableComponent(
-            name = "Color",
-            icon = Icons.Default.ColorLens,
-            plugin = ColorEffectDevice()
-        ),
-        PickableComponent(
-            name = "Gradient",
-            icon = Icons.Default.Gradient,
-            plugin = GradientEffectDevice()
-        ),
-        PickableComponent(
-            name = "Keyframes",
-            icon = Icons.Default.Animation,
-            plugin = KeyframesEffectDevice()
-        ),
+            plugin = DelayChainDevice()
+        ),*/
     )
 
     DropdownMenu(

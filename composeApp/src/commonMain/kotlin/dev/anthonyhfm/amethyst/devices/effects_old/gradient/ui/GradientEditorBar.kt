@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.devices.effects.gradient.ui
+package dev.anthonyhfm.amethyst.devices.effects_old.gradient.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -29,7 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientEffectDeviceState
+import dev.anthonyhfm.amethyst.devices.effects_old.gradient.GradientEffectDeviceState
 
 @Composable
 fun GradientEditorBar(

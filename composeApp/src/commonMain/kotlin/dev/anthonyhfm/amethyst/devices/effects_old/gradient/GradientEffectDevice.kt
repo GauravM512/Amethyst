@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.devices.effects.gradient
+package dev.anthonyhfm.amethyst.devices.effects_old.gradient
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,15 +22,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
 import dev.anthonyhfm.amethyst.devices.DeviceState
-import dev.anthonyhfm.amethyst.devices.effects.EffectDevice
-import dev.anthonyhfm.amethyst.devices.effects.gradient.ui.GradientEditorBar
+import dev.anthonyhfm.amethyst.devices.effects_old.EffectDevice
+import dev.anthonyhfm.amethyst.devices.effects_old.gradient.ui.GradientEditorBar
 import dev.anthonyhfm.amethyst.ui.components.AmethystPlugin
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import kotlinx.coroutines.CoroutineScope

@@ -59,9 +59,9 @@ kotlin {
             implementation(libs.colorpicker.compose)
             implementation(libs.reorderable)
 
-            implementation("com.formdev:flatlaf:3.5.4")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.8.0")
             implementation(libs.filekit.core)
+            kotlin("stdlib")
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs) {
@@ -71,6 +71,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.ktmidi.jvm.desktop)
             implementation(libs.coremidi4j)
+            implementation("com.formdev:flatlaf:3.5.4")
         }
     }
 }

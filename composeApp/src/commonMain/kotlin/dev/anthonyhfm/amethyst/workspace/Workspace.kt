@@ -81,17 +81,13 @@ fun Workspace() {
 
             AnimatedVisibility(
                 visible = state.mode == WorkspaceContract.WorkspaceMode.CHAIN,
-                enter = slideInVertically {
-                    it
-                },
-                exit = slideOutVertically {
-                    it
-                },
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
             ) {
                 WorkspaceChainEditor(
-                    devices = viewModel.chain.devices.collectAsState().value,
+                    devices = viewModel.chain.heavenChain.devices.value,
                     onEvent = { viewModel.onEvent(it) }
                 )
             }
