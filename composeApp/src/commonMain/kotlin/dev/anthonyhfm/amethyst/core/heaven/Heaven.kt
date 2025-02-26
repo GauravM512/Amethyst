@@ -55,25 +55,18 @@ object Heaven {
     private fun wake() {
         if (isAwake) return
 
-        prev = max(0, stopWatch.elapsedTicks() - 1)
+        prev = stopWatch.elapsedTicks() - 1
 
         renderJob = GlobalScope.launch {
-            var noDrawCounter = 0
+            prev = stopWatch.elapsedTicks() - 1
 
-            while (true) {
-                prev = max(0, stopWatch.elapsedTicks())
-
-                if (renderAt < 0 && jobQueue.isEmpty() && jobs.isEmpty() && signalQueue.isEmpty()) {
-                    delay(1)
-                    continue
-                }
-
+            while (renderAt >= 0 || jobQueue.isNotEmpty() || jobs.isNotEmpty() || signalQueue.isNotEmpty()) {
                 while (jobQueue.isNotEmpty()) {
                     val (time, job) = jobQueue.removeFirst()
                     jobs.getOrPut(time) { ArrayList() }.add(job)
                 }
 
-                prev = max(0, stopWatch.elapsedTicks())
+                prev = stopWatch.elapsedTicks()
 
                 jobs.keys.filter { it <= prev }.toList().forEach { key ->
                     jobs[key]?.forEach { it.invoke() }
@@ -91,39 +84,27 @@ object Heaven {
                                 val posX = signal.x - it.position.first
                                 val posY = abs(signal.y - 9 - it.position.second)
 
+                                changed = true
+
                                 it.screen.midiEnter(signal.copy(
                                     x = posX,
                                     y = posY
                                 ))
-
-                                changed = true
                             }
                         }
                     }
                 }
 
                 if (changed && renderAt < 0) {
-                    val tick250 = msToTicks(250.0 / 60)
-                    val tick1000 = msToTicks(1000.0 / 60)
-
-                    renderAt = max(prev + tick250, lastRender + tick1000)
-                }
-
-                if (renderAt >= 0 && prev > renderAt) {
+                    renderAt = max(
+                        prev + msToTicks(250.0 / 60),
+                        lastRender + msToTicks(1000.0 / 60)
+                    )
+                } else if (renderAt >= 0 && prev > renderAt) {
                     Screen.draw()
 
                     lastRender = prev
                     renderAt = -1L
-                    noDrawCounter = 0
-                } else {
-                    noDrawCounter++
-
-                    if (noDrawCounter > 100) {
-                        Screen.draw()
-                        lastRender = prev
-                        renderAt = -1L
-                        noDrawCounter = 0
-                    }
                 }
             }
         }

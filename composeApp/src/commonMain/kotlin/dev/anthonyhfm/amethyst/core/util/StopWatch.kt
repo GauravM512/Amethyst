@@ -5,11 +5,15 @@ import kotlin.time.TimeSource
 
 class StopWatch {
     private var startMark = TimeSource.Monotonic.markNow()
+    private var lastTicks: Long = 0L
+    private var lastNanos: Long = 0L
 
-    val frequency: Long = 1_000_000_000L
+    val frequency: Long = 10_000_000L // 10 Millionen Ticks pro Sekunde
 
     fun reset() {
         startMark = TimeSource.Monotonic.markNow()
+        lastTicks = 0L
+        lastNanos = 0L
     }
 
     fun elapsedMillis(): Double {
@@ -17,14 +21,19 @@ class StopWatch {
     }
 
     fun elapsedNanos(): Long {
-        return startMark.elapsedNow().inWholeNanoseconds
-    }
-
-    fun elapsedDuration(): Duration {
-        return startMark.elapsedNow()
+        return startMark.elapsedNow().inWholeNanoseconds.coerceAtLeast(0)
     }
 
     fun elapsedTicks(): Long {
-        return (elapsedNanos() * frequency) / 1_000_000_000L
+        val nanos = elapsedNanos()
+        val deltaNanos = (nanos - lastNanos).coerceAtLeast(0)
+
+        val deltaTicks = deltaNanos / 100
+        val currentTicks = lastTicks + deltaTicks
+
+        lastTicks = currentTicks
+        lastNanos = nanos
+
+        return currentTicks
     }
 }
