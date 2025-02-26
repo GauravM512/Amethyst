@@ -48,7 +48,7 @@ class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
             job = {
                 midiExit?.invoke(n)
             },
-            time = state.value.delayMs
+            delayInMs = state.value.delayMs
         )
     }
 }

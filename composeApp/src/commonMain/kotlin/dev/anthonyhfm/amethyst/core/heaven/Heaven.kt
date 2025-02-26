@@ -26,6 +26,7 @@ object Heaven {
     private var renderAt: Long = -1L
 
     private val stopWatch = StopWatch()
+    private val renderScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private fun msToTicks(ms: Double): Long = (ms / 1000 * stopWatch.frequency).toLong()
 
@@ -42,8 +43,9 @@ object Heaven {
         wake()
     }
 
-    fun schedule(job: () -> Unit, time: Double) {
-        jobQueue.add(msToTicks(time) to job)
+    fun schedule(job: () -> Unit, delayInMs: Double) {
+        val targetTime = prev + msToTicks(delayInMs)
+        jobQueue.add(targetTime to job)
         wake()
     }
 
@@ -73,8 +75,8 @@ object Heaven {
                     }
 
                     while (jobQueue.isNotEmpty()) {
-                        val (time, job) = jobQueue.removeFirst()
-                        jobs.getOrPut(time) { ArrayList() }.add(job)
+                        val (targetTime, job) = jobQueue.removeFirst()
+                        jobs.getOrPut(targetTime) { ArrayList() }.add(job)
                     }
 
                     prev = max(0, stopWatch.elapsedTicks())
@@ -84,7 +86,9 @@ object Heaven {
                         keysToProcess.forEach { key ->
                             val jobList = jobs[key]
                             if (jobList != null) {
-                                jobList.forEach { it.invoke() }
+                                jobList.forEach {
+                                    it.invoke()
+                                }
                                 jobs.remove(key)
                             }
                         }
@@ -128,7 +132,7 @@ object Heaven {
                         renderAt = -1L
                     }
 
-                    delay(1) // Vermeidet Busy-Waiting und verbessert die Performance
+                    delay(1)
                 }
             } catch (e: Exception) {
                 println("RenderJob Exception: ${e.message}")
