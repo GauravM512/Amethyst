@@ -15,10 +15,12 @@ import kotlin.math.max
 object Heaven {
     private val devices: MutableList<LaunchpadDevice> = mutableListOf()
 
-    private val signalQueue: ArrayDeque<List<Signal>> = ArrayDeque()
+    private val signalQueue: MutableList<List<Signal>> = mutableListOf()
     private val jobs: MutableMap<Long, MutableList<() -> Unit>> = mutableMapOf()
-    private val jobQueue: ArrayDeque<Pair<Long, () -> Unit>> = ArrayDeque()
+    private val jobQueue: MutableList<Pair<Long, () -> Unit>> = mutableListOf()
 
+    private val deviceMutex = Mutex()
+    private val signalMutex = Mutex()
     private val jobMutex = Mutex()
 
     private var prev: Long = 0L
@@ -31,21 +33,37 @@ object Heaven {
     private fun msToTicks(ms: Double): Long = (ms / 1000 * stopWatch.frequency).toLong()
 
     fun registerDevice(device: LaunchpadDevice) {
-        devices.add(device)
+        renderScope.launch {
+            deviceMutex.withLock {
+                devices.add(device)
+            }
+        }
     }
 
     fun unregisterDevice(device: LaunchpadDevice) {
-        devices.remove(device)
+        renderScope.launch {
+            deviceMutex.withLock {
+                devices.remove(device)
+            }
+        }
     }
 
     fun midiEnter(signals: List<Signal>) {
-        signalQueue.add(signals)
+        renderScope.launch {
+            signalMutex.withLock {
+                signalQueue.add(signals)
+            }
+        }
         wake()
     }
 
     fun schedule(job: () -> Unit, delayInMs: Double) {
         val targetTime = prev + msToTicks(delayInMs)
-        jobQueue.add(targetTime to job)
+        renderScope.launch {
+            jobMutex.withLock {
+                jobQueue.add(targetTime to job)
+            }
+        }
         wake()
     }
 
@@ -64,7 +82,7 @@ object Heaven {
 
         prev = stopWatch.elapsedTicks() - 1
 
-        renderJob = GlobalScope.launch {
+        renderJob = renderScope.launch {
             try {
                 while (true) {
                     prev = max(0, stopWatch.elapsedTicks())
@@ -74,9 +92,11 @@ object Heaven {
                         continue
                     }
 
-                    while (jobQueue.isNotEmpty()) {
-                        val (targetTime, job) = jobQueue.removeFirst()
-                        jobs.getOrPut(targetTime) { ArrayList() }.add(job)
+                    jobMutex.withLock {
+                        while (jobQueue.isNotEmpty()) {
+                            val (targetTime, job) = jobQueue.removeFirstOrNull() ?: continue
+                            jobs.getOrPut(targetTime) { ArrayList() }.add(job)
+                        }
                     }
 
                     prev = max(0, stopWatch.elapsedTicks())
@@ -87,7 +107,11 @@ object Heaven {
                             val jobList = jobs[key]
                             if (jobList != null) {
                                 jobList.forEach {
-                                    it.invoke()
+                                    try {
+                                        it.invoke()
+                                    } catch (e: Exception) {
+                                        println("Error executing job: ${e.message}")
+                                    }
                                 }
                                 jobs.remove(key)
                             }
@@ -96,25 +120,33 @@ object Heaven {
 
                     var changed = false
 
-                    while (signalQueue.isNotEmpty()) {
-                        val signals = signalQueue.removeFirst()
+                    signalMutex.withLock {
+                        while (signalQueue.isNotEmpty()) {
+                            val signals = signalQueue.removeFirstOrNull() ?: continue
 
-                        signals.forEach { signal ->
-                            devices.forEach { device ->
-                                if (signal.x in device.position.first until device.position.first + 10 &&
-                                    signal.y in device.position.second until device.position.second + 10) {
+                            signals.forEach { signal ->
+                                deviceMutex.withLock {
+                                    devices.forEach { device ->
+                                        if (signal.x in device.position.first until device.position.first + 10 &&
+                                            signal.y in device.position.second until device.position.second + 10) {
 
-                                    val posX = signal.x - device.position.first
-                                    val posY = abs(signal.y - 9 - device.position.second)
+                                            val posX = signal.x - device.position.first
+                                            val posY = abs(signal.y - 9 - device.position.second)
 
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        device.screen.midiEnter(signal.copy(
-                                            x = posX,
-                                            y = posY
-                                        ))
+                                            renderScope.launch {
+                                                try {
+                                                    device.screen.midiEnter(signal.copy(
+                                                        x = posX,
+                                                        y = posY
+                                                    ))
+                                                } catch (e: Exception) {
+                                                    println("Error in midiEnter: ${e.message}")
+                                                }
+                                            }
+
+                                            changed = true
+                                        }
                                     }
-
-                                    changed = true
                                 }
                             }
                         }
