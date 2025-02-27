@@ -1,38 +1,25 @@
 package dev.anthonyhfm.amethyst.core.heaven.elements
 
 import androidx.compose.ui.graphics.Color
-import kotlinx.coroutines.runBlocking
-
+import co.touchlab.stately.concurrency.AtomicReference
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.math.sign
 
 class Screen : AutoCloseable {
     private class Pixel(
         private val index: Byte
     ) {
         private val signals: MutableMap<Int, Signal> = mutableMapOf()
-        private var state: Color = Color.Black
+        private val currentColor = AtomicReference(Color.Black)
         private val locker = Mutex()
 
-        init {
-            runBlocking {
-                clear()
-            }
-        }
-
-        suspend fun clear() = locker.withLock {
+        fun clear() {
             signals.clear()
             signals[10000] = Signal(null, null, x = index % 10, y = index / 10, color = Color.Black, layer = -100)
+            currentColor.set(Color.Black)
         }
 
-        suspend fun getColor(): Color = locker.withLock {
-            var ret = Color.Black
-
-            ret = signals.entries.minByOrNull { it.key }!!.value.color
-
-            return ret
-        }
+        fun getColor(): Color = currentColor.get()
 
         suspend fun midiEnter(n: Signal) = locker.withLock {
             if (n.y * 10 + n.x != index.toInt()) return@withLock
@@ -41,25 +28,27 @@ class Screen : AutoCloseable {
 
             if (n.color != Color.Black) {
                 signals[layer] = n.copy()
-            } else if (layer in signals) {
+            } else {
                 signals.remove(layer)
             }
+
+            // Aktualisiere die aktuelle Farbe ohne zusätzliche Sperren
+            val newColor = signals.entries.minByOrNull { it.key }?.value?.color ?: Color.Black
+            currentColor.set(newColor)
         }
     }
 
     var screenExit: ((List<RawUpdate>, Array<Color>) -> Unit)? = null
 
     private val screen = Array(101) { Pixel(index = it.toByte()) }
+    private val snapshot = Array(101) { Color.Black }
 
-    private val snapshot = Array(101) { Color(0x00000000) }
-
-    suspend fun clear() {
+    fun clear() {
         screen.forEach { it.clear() }
-
         snapshot()
     }
 
-    private suspend fun snapshot() {
+    private fun snapshot() {
         val updates = mutableListOf<RawUpdate>()
 
         for (i in screen.indices) {
