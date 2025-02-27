@@ -20,7 +20,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
@@ -58,7 +58,7 @@ class ViewportMystrix(
 private fun GridPad(
     x: Int,
     y: Int,
-    effectData: MidiEffectData,
+    effectData: RawUpdate,
     onClick: (() -> Unit)?,
 ) {
     Box(
@@ -104,7 +104,7 @@ private fun ClippedPad(
     topRight: Boolean,
     bottomLeft: Boolean,
     bottomRight: Boolean,
-    effectData: MidiEffectData
+    effectData: RawUpdate
 ) {
     GenericLaunchpadButton(
         sizeModifier = Modifier

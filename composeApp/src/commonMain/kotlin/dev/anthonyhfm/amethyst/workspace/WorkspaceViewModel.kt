@@ -26,6 +26,8 @@ class WorkspaceViewModel(
     init {
         viewModelScope.launch {
             state.collect { state ->
+                Heaven.devices = state.viewportElements
+
                 chain.launchpadElements.update {
                     state.viewportElements
                 }
@@ -104,7 +106,7 @@ class WorkspaceViewModel(
             is WorkspaceContract.Event.OnChangeDeviceConfig -> {
                 state.value.viewportElements[event.index].apply {
                     deviceConfig.input?.close()
-                    deviceConfig.output?.close()
+                    deviceConfig.launchpadDevice?.midiOutput?.close()
 
                     CoroutineScope(Dispatchers.IO).launch {
                         var inputDevice: MidiInput? = null
@@ -113,7 +115,7 @@ class WorkspaceViewModel(
                         event.inputPort?.let { input ->
                             inputDevice = midiAccess.openInput(input.id)
 
-                            inputDevice!!.setMessageReceivedListener { bytes, _, _, _ ->
+                            inputDevice.setMessageReceivedListener { bytes, _, _, _ ->
                                 getMidiInputData(bytes)?.let {
                                     chain.onMidiInput(
                                         inputData = it,
@@ -125,22 +127,15 @@ class WorkspaceViewModel(
 
                         event.outputPort?.let { output ->
                             outputDevice = midiAccess.openOutput(output.id)
-
-                            Heaven.registerDevice(
-                                device = LaunchpadProMk3Device(
-                                    midiOutput = outputDevice,
-                                    position = Pair(
-                                        first = this@apply.position.value.x.toInt(),
-                                        second = this@apply.position.value.y.toInt()
-                                    )
-                                ),
-                            )
                         }
 
                         deviceConfig = deviceConfig.copy(
                             input = inputDevice,
-                            output = outputDevice,
-                            type = event.deviceType
+                            launchpadDevice = outputDevice?.let {
+                                LaunchpadProMk3Device(
+                                    midiOutput = outputDevice,
+                                )
+                            },
                         )
                     }
                 }

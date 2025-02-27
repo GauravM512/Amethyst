@@ -10,11 +10,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 
 @Composable
 fun GenericLaunchpadButton(
-    effect: MidiEffectData = MidiEffectData(-1, -1, 0, 0, 0),
+    effect: RawUpdate = RawUpdate(0, Color.Black),
     sizeModifier: Modifier,
     enableLightSpot: Boolean = true,
     shape: Shape = RoundedCornerShape(10)
@@ -33,31 +33,30 @@ fun GenericLaunchpadButton(
                     Color.White.copy(0.1f),
                     Color.Transparent
                 ),
-                center = Offset(buttonWidth / 2f, buttonHeight / 2f), // Zentrum des Kreises
+                center = Offset(buttonWidth / 2f, buttonHeight / 2f),
                 radius = size.minDimension / 2f
             )
 
-            // Mittlerer, heller Spot mit radialem Fade
             drawCircle(
                 brush = gradient,
                 radius = size.minDimension / 2f,
-                center = Offset(buttonWidth / 2f, buttonHeight / 2f) // In der Mitte der Buttonfläche
+                center = Offset(buttonWidth / 2f, buttonHeight / 2f)
             )
         }
     }
 }
 
-private fun computeColor(effectData: MidiEffectData): Color {
-    val minComponent = 0x50
+private fun computeColor(effectData: RawUpdate): Color {
+    val minComponent = 0x3C
     val maxComponent = 0xFF
 
-    fun scaleColor(component: Int): Int {
-        return ((component / 63f) * (maxComponent - minComponent) + minComponent).toInt()
+    fun scaleColor(component: Float): Int {
+        return (component * (maxComponent - minComponent) + minComponent).toInt()
     }
 
-    val red = scaleColor(effectData.r)
-    val green = scaleColor(effectData.g)
-    val blue = scaleColor(effectData.b)
+    val red = scaleColor(effectData.color.red)
+    val green = scaleColor(effectData.color.green)
+    val blue = scaleColor(effectData.color.blue)
 
     return Color(red, green, blue)
 }

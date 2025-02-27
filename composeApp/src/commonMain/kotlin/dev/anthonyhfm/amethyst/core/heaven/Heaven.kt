@@ -2,6 +2,7 @@ import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice
 import dev.anthonyhfm.amethyst.core.util.StopWatch
+import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
@@ -13,7 +14,7 @@ import kotlin.math.abs
 import kotlin.math.max
 
 object Heaven {
-    private val devices: MutableList<LaunchpadDevice> = mutableListOf()
+    var devices: List<LaunchpadViewportElement> = emptyList()
 
     private val signalQueue: MutableList<List<Signal>> = mutableListOf()
     private val jobs: MutableMap<Long, MutableList<() -> Unit>> = mutableMapOf()
@@ -31,22 +32,6 @@ object Heaven {
     private val renderScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private fun msToTicks(ms: Double): Long = (ms / 1000 * stopWatch.frequency).toLong()
-
-    fun registerDevice(device: LaunchpadDevice) {
-        renderScope.launch {
-            deviceMutex.withLock {
-                devices.add(device)
-            }
-        }
-    }
-
-    fun unregisterDevice(device: LaunchpadDevice) {
-        renderScope.launch {
-            deviceMutex.withLock {
-                devices.remove(device)
-            }
-        }
-    }
 
     fun midiEnter(signals: List<Signal>) {
         renderScope.launch {
@@ -127,11 +112,11 @@ object Heaven {
                             signals.forEach { signal ->
                                 deviceMutex.withLock {
                                     devices.forEach { device ->
-                                        if (signal.x in device.position.first until device.position.first + 10 &&
-                                            signal.y in device.position.second until device.position.second + 10) {
+                                        if (signal.x in device.position.value.x.toInt() until device.position.value.x.toInt() + 10 &&
+                                            signal.y in device.position.value.y.toInt() until device.position.value.y.toInt() + 10) {
 
-                                            val posX = signal.x - device.position.first
-                                            val posY = abs(signal.y - 9 - device.position.second)
+                                            val posX = signal.x - device.position.value.x.toInt()
+                                            val posY = abs(signal.y - 9 - device.position.value.y.toInt())
 
                                             renderScope.launch {
                                                 try {

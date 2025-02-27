@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -21,7 +20,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
+import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
@@ -59,7 +58,7 @@ class ViewportLaunchpadProMk3(
 private fun GridPad(
     x: Int,
     y: Int,
-    effectData: MidiEffectData,
+    effectData: RawUpdate,
     onClick: (() -> Unit)?,
 ) {
     Box(
@@ -113,7 +112,7 @@ private fun GridPad(
 }
 
 @Composable
-private fun EdgePad(effectData: MidiEffectData) {
+private fun EdgePad(effectData: RawUpdate) {
     Box(
         modifier = Modifier
             .fillMaxSize(),
@@ -137,7 +136,7 @@ private fun EdgePad(effectData: MidiEffectData) {
 }
 
 @Composable
-private fun ShiftButtonPad(effectData: MidiEffectData) {
+private fun ShiftButtonPad(effectData: RawUpdate) {
     Box(
         modifier = Modifier
             .fillMaxSize(),
@@ -166,7 +165,7 @@ private fun ClippedPad(
     topRight: Boolean,
     bottomLeft: Boolean,
     bottomRight: Boolean,
-    effectData: MidiEffectData
+    effectData: RawUpdate
 ) {
     GenericLaunchpadButton(
         sizeModifier = Modifier

@@ -14,8 +14,6 @@ abstract class LaunchpadDevice {
         }
     }
 
-    abstract var position: Pair<Int, Int>
-
     abstract var midiOutput: MidiOutput
 
     abstract fun clear()

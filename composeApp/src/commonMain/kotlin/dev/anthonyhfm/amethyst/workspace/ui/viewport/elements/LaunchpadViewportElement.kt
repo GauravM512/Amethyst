@@ -12,10 +12,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Shape
 import dev.anthonyhfm.amethyst.core.data.project.ProjectDeviceConfig
+import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.previewdevices.PreviewState
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportElement
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 abstract class LaunchpadViewportElement(
     override var position: MutableState<Offset> = mutableStateOf(Offset(0f, 0f)),
@@ -24,8 +29,22 @@ abstract class LaunchpadViewportElement(
     abstract override var size: Size
     abstract val layout: LaunchpadLayout
 
+    val renderScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
     var deviceConfig: ProjectDeviceConfig = ProjectDeviceConfig()
     val previewState: PreviewState = PreviewState()
+
+    val screen = Screen()
+
+    init {
+        screen.screenExit = { u, c ->
+            deviceConfig.launchpadDevice?.sendUpdate(u, c)
+
+            renderScope.launch {
+                previewState.sendToPreview(u)
+            }
+        }
+    }
 
     var onEvent: ((WorkspaceContract.Event) -> Unit)? = null
 
