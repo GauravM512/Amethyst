@@ -93,6 +93,7 @@ fun DeviceSettingsDialog(
                                 text = { Text(it.name ?: "Unknown Input") },
                                 onClick = {
                                     midiInputPort = it
+                                    expandedInput = false
                                 }
                             )
                         }
@@ -126,6 +127,7 @@ fun DeviceSettingsDialog(
                                 text = { Text(it.name ?: "Unknown Output") },
                                 onClick = {
                                     midiOutputPort = it
+                                    expandedOutput = false
                                 }
                             )
                         }
@@ -169,6 +171,7 @@ fun DeviceSettingsDialog(
                                 text = { Text(it.name) },
                                 onClick = {
                                     midiDeviceType = it
+                                    expandedDeviceType = false
                                 }
                             )
                         }

@@ -219,7 +219,7 @@ class OffsetChainDevice : ChainDevice<OffsetChainDeviceState>() {
             n.map {
                 it.copy(
                     x = it.x + state.value.offsetX,
-                    y = it.y + state.value.offsetY,
+                    y = it.y - state.value.offsetY,
                 )
             }
         )
