@@ -59,6 +59,7 @@ kotlin {
             implementation(libs.colorpicker.compose)
             implementation(libs.reorderable)
 
+            implementation("co.touchlab:stately-concurrent-collections:2.0.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.8.0")
             implementation(libs.filekit.core)
             kotlin("stdlib")

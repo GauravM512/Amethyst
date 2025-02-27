@@ -165,6 +165,11 @@ object Heaven {
                     }
 
                     delay(1)
+
+                    if (renderAt < 0 && jobQueue.isEmpty() && jobs.isEmpty() && signalQueue.isEmpty()) {
+                        Screen.draw()
+                        lastRender = prev
+                    }
                 }
             } catch (e: Exception) {
                 println("RenderJob Exception: ${e.message}")
