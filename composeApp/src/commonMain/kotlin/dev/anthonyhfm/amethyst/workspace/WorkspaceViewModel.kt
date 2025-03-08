@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.workspace
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.anthonyhfm.amethyst.core.midi.IO_COROUTINE
 import dev.anthonyhfm.amethyst.core.midi.data.getMidiInputData
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceMystrix
@@ -112,7 +113,7 @@ class WorkspaceViewModel(
                     deviceConfig.input?.close()
                     deviceConfig.launchpadDevice?.midiOutput?.close()
 
-                    CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
+                    IO_COROUTINE.launch {
                         var inputDevice: MidiInput? = null
                         var outputDevice: MidiOutput? = null
 

@@ -4,6 +4,8 @@ import dev.anthonyhfm.amethyst.core.midi.mac.CoreMidi4JAccess
 import dev.atsushieno.ktmidi.AlsaMidiAccess
 import dev.atsushieno.ktmidi.JvmMidiAccess
 import dev.atsushieno.ktmidi.MidiAccess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 
 actual val platformMidiAccess: MidiAccess =
@@ -13,3 +15,6 @@ actual val platformMidiAccess: MidiAccess =
         JvmMidiAccess()
     else
         CoreMidi4JAccess()
+
+actual val IO_COROUTINE: CoroutineScope
+    get() = CoroutineScope(Dispatchers.IO)

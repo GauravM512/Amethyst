@@ -3,10 +3,13 @@ package dev.anthonyhfm.amethyst.core.midi.devices
 import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
+import dev.anthonyhfm.amethyst.core.midi.IO_COROUTINE
 import dev.atsushieno.ktmidi.MidiOutput
 
 abstract class LaunchpadDevice {
     val screen: Screen = Screen()
+
+    protected val outscope = IO_COROUTINE
 
     init {
         screen.screenExit = { updates, colors ->

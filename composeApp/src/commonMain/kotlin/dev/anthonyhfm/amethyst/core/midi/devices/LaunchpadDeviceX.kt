@@ -3,16 +3,11 @@ package dev.anthonyhfm.amethyst.core.midi.devices
 import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.atsushieno.ktmidi.MidiOutput
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class LaunchpadDeviceX(
     override var midiOutput: MidiOutput,
 ) : LaunchpadDevice() {
-    val outscope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
     override fun clear() { }
 
     override fun sendUpdate(updates: List<RawUpdate>, colors: Array<Color>) {
