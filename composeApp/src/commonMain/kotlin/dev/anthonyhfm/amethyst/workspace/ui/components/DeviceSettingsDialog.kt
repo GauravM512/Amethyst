@@ -15,7 +15,6 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,12 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.midi.devices.DeviceType
-import dev.anthonyhfm.amethyst.core.midi.devices.novation.LaunchpadMiniMk3Device
-import dev.anthonyhfm.amethyst.core.midi.devices.novation.LaunchpadMk2Device
-import dev.anthonyhfm.amethyst.core.midi.devices.novation.LaunchpadProMk3Device
-import dev.anthonyhfm.amethyst.core.midi.devices.novation.LaunchpadXDevice
-import dev.anthonyhfm.amethyst.core.midi.devices.others.MatrixDevice
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiPortDetails
@@ -46,7 +40,7 @@ fun DeviceSettingsDialog(
     var expandedOutput: Boolean by remember { mutableStateOf(false) }
     var expandedDeviceType: Boolean by remember { mutableStateOf(false) }
 
-    var midiDeviceType: DeviceType? by remember { mutableStateOf(null) }
+    var midiDeviceType: LaunchpadDeviceType? by remember { mutableStateOf(null) }
     var midiInputPort: MidiPortDetails? by remember { mutableStateOf(null) }
     var midiOutputPort: MidiPortDetails? by remember { mutableStateOf(null) }
 
@@ -141,7 +135,7 @@ fun DeviceSettingsDialog(
                     }
                 ) {
                     OutlinedTextField(
-                        value = midiDeviceType?.name ?: "",
+                        value = midiDeviceType?.label ?: "",
                         onValueChange = { },
                         label = { Text("Midi Device Type") },
                         readOnly = true,
@@ -156,19 +150,11 @@ fun DeviceSettingsDialog(
                         expanded = expandedDeviceType,
                         onDismissRequest = { expandedDeviceType = false },
                     ) {
-                        val deviceTypes by remember { mutableStateOf(
-                            listOf(
-                                LaunchpadProMk3Device(),
-                                LaunchpadXDevice(),
-                                LaunchpadMiniMk3Device(),
-                                MatrixDevice(),
-                                LaunchpadMk2Device()
-                            )
-                        ) }
+                        val deviceTypes by remember { mutableStateOf(LaunchpadDeviceType.entries) }
 
                         deviceTypes.forEach {
                             DropdownMenuItem(
-                                text = { Text(it.name) },
+                                text = { Text(it.label) },
                                 onClick = {
                                     midiDeviceType = it
                                     expandedDeviceType = false

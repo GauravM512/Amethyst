@@ -22,3 +22,15 @@ abstract class LaunchpadDevice {
 
     abstract fun getEffectSysEx(update: RawUpdate): ByteArray
 }
+
+enum class LaunchpadDeviceType(val label: String) {
+    LAUNCHPAD_PRO_MK3(
+        label = "Launchpad Pro Mk3"
+    ),
+    LAUNCHPAD_X(
+        label = "Launchpad X"
+    ),
+    MYSTRIX(
+        label = "Mystrix"
+    )
+}

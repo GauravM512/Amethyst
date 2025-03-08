@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.ui.previewdevices
+package dev.anthonyhfm.amethyst.ui.launchpad
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -6,12 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import dev.anthonyhfm.amethyst.core.midi.data.MidiEffectData
-import kotlinx.coroutines.flow.asStateFlow
 
-class PreviewState { // TODO: Replace with Heaven's screen-class
+class LaunchpadPreviewState { // TODO: Replace with Heaven's screen-class
     val grid: MutableState<List<RawUpdate>> = mutableStateOf(
         List(100) {
             RawUpdate(
@@ -31,9 +27,9 @@ class PreviewState { // TODO: Replace with Heaven's screen-class
 }
 
 @Composable
-fun rememberPreviewState(): PreviewState {
+fun rememberLaunchpadPreviewState(): LaunchpadPreviewState {
     val state = remember {
-        PreviewState()
+        LaunchpadPreviewState()
     }
 
     return state

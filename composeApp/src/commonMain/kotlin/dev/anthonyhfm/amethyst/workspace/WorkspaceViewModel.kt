@@ -3,7 +3,11 @@ package dev.anthonyhfm.amethyst.workspace
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.core.midi.data.getMidiInputData
-import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadProMk3Device
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceMystrix
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceProMk3
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceX
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport_launchpads.ViewportLaunchpadPro
 import dev.anthonyhfm.amethyst.workspace.chain.WorkspaceChain
 import dev.atsushieno.ktmidi.MidiAccess
@@ -131,10 +135,8 @@ class WorkspaceViewModel(
 
                         deviceConfig = deviceConfig.copy(
                             input = inputDevice,
-                            launchpadDevice = outputDevice?.let {
-                                LaunchpadProMk3Device(
-                                    midiOutput = outputDevice,
-                                )
+                            launchpadDevice = outputDevice?.let { output ->
+                                event.deviceType?.mapLaunchpadDevice(output)
                             },
                         )
                     }
@@ -148,4 +150,14 @@ class WorkspaceViewModel(
     }
 
     fun triggerEffect(effect: WorkspaceContract.Effect) { }
+}
+
+private fun LaunchpadDeviceType.mapLaunchpadDevice(output: MidiOutput): LaunchpadDevice? {
+    return when (this) {
+        LaunchpadDeviceType.LAUNCHPAD_PRO_MK3 -> LaunchpadDeviceProMk3(output)
+        LaunchpadDeviceType.LAUNCHPAD_X -> LaunchpadDeviceX(output)
+        LaunchpadDeviceType.MYSTRIX -> LaunchpadDeviceMystrix(output)
+
+        else -> null
+    }
 }

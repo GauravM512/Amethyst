@@ -8,16 +8,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.launch
 
-class LaunchpadProMk3Device(
-    override var midiOutput: MidiOutput,
+class LaunchpadDeviceMystrix(
+    override var midiOutput: MidiOutput
 ) : LaunchpadDevice() {
     val outscope = CoroutineScope(Dispatchers.IO)
 
-    override fun clear() {
-        val clearSysEx = byteArrayOf(0xF0.toByte(), 0x00.toByte(), 0x20.toByte(), 0x29.toByte(), 0x02.toByte(), 0x0E.toByte(), 0x03.toByte(), 0x00.toByte(), 0xF7.toByte())
-
-        sendMidi(clearSysEx)
-    }
+    override fun clear() { }
 
     override fun sendUpdate(updates: List<RawUpdate>, colors: Array<Color>) {
         updates.forEach {
@@ -27,18 +23,17 @@ class LaunchpadProMk3Device(
 
     override fun getEffectSysEx(update: RawUpdate): ByteArray {
         return byteArrayOf(
-            240.toByte(),
-            0.toByte(),
-            32.toByte(),
-            41.toByte(),
-            2.toByte(),
-            14.toByte(),
-            3.toByte(),
-            3.toByte(),
+            0xF0.toByte(),
+            0x00.toByte(),
+            0x02.toByte(),
+            0x03.toByte(),
+            0x4D.toByte(),
+            0x58.toByte(),
+            0x5E.toByte(),
             update.index,
-            (update.color.red * 127).toInt().toByte(),
-            (update.color.green * 127).toInt().toByte(),
-            (update.color.blue * 127).toInt().toByte(),
+            (update.color.red * 63).toInt().toByte(),
+            (update.color.green * 63).toInt().toByte(),
+            (update.color.blue * 63).toInt().toByte(),
             247.toByte()
         )
     }

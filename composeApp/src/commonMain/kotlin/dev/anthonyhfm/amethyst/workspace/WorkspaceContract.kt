@@ -1,7 +1,7 @@
 package dev.anthonyhfm.amethyst.workspace
 
 import androidx.compose.ui.geometry.Offset
-import dev.anthonyhfm.amethyst.core.midi.devices.DeviceType
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import dev.atsushieno.ktmidi.MidiPortDetails
@@ -24,7 +24,7 @@ interface WorkspaceContract {
             val index: Int,
             var inputPort: MidiPortDetails?,
             var outputPort: MidiPortDetails?,
-            var deviceType: DeviceType?
+            var deviceType: LaunchpadDeviceType?
         ) : Event
 
         data class AddChainDevice(val device: ChainDevice<*>, val atIndex: Int? = null) : Event

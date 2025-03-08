@@ -1,6 +1,5 @@
 package dev.anthonyhfm.amethyst.core.util
 
-import kotlin.time.Duration
 import kotlin.time.TimeSource
 
 class StopWatch {

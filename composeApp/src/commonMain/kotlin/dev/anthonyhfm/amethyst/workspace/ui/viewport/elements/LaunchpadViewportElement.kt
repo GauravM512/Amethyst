@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.Shape
 import dev.anthonyhfm.amethyst.core.data.project.ProjectDeviceConfig
 import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
-import dev.anthonyhfm.amethyst.ui.previewdevices.PreviewState
+import dev.anthonyhfm.amethyst.ui.launchpad.LaunchpadPreviewState
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportElement
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +32,7 @@ abstract class LaunchpadViewportElement(
     val renderScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     var deviceConfig: ProjectDeviceConfig = ProjectDeviceConfig()
-    val previewState: PreviewState = PreviewState()
+    val previewState: LaunchpadPreviewState = LaunchpadPreviewState()
 
     val screen = Screen()
 
