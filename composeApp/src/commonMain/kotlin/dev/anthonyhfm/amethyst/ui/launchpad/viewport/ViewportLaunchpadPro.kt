@@ -1,9 +1,11 @@
-package dev.anthonyhfm.amethyst.ui.launchpad.viewport_launchpads
+package dev.anthonyhfm.amethyst.ui.launchpad.viewport
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,14 +20,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
+import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 
 class ViewportLaunchpadPro(
@@ -43,13 +50,23 @@ class ViewportLaunchpadPro(
                 .size(width = size.width.dp * 40, height = size.height.dp * 40)
                 .clip(shape)
                 .background(Color(0xFF0d0d0d))
-                .padding(12.dp),
+                .padding(12.dp)
         ) { x, y ->
             GridPad(
                 x = x,
                 y = y,
                 effectData = previewGrid[x + y * 10],
-                onClick = null
+                onClick = null,
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = { offset: Offset ->
+                                onEvent?.invoke(WorkspaceContract.Event.OnPressVirtualDevice(x, y, position.value))
+                                tryAwaitRelease()
+                                onEvent?.invoke(WorkspaceContract.Event.OnReleaseVirtualDevice(x, y, position.value))
+                            }
+                        )
+                    }
             )
         }
     }
@@ -62,9 +79,10 @@ private fun GridPad(
     y: Int,
     effectData: RawUpdate,
     onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .then(
                 if (onClick != null) {

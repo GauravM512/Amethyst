@@ -3,20 +3,18 @@ package dev.anthonyhfm.amethyst.workspace
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.core.midi.IO_COROUTINE
+import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.core.midi.data.getMidiInputData
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceMystrix
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceProMk3
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceX
-import dev.anthonyhfm.amethyst.ui.launchpad.viewport_launchpads.ViewportLaunchpadPro
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadPro
 import dev.anthonyhfm.amethyst.workspace.chain.WorkspaceChain
 import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiInput
 import dev.atsushieno.ktmidi.MidiOutput
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -109,48 +107,64 @@ class WorkspaceViewModel(
             }
 
             is WorkspaceContract.Event.OnChangeDeviceConfig -> {
-                state.value.viewportElements[event.index].apply {
-                    deviceConfig.input?.close()
-                    deviceConfig.launchpadDevice?.midiOutput?.close()
-
-                    IO_COROUTINE.launch {
-                        var inputDevice: MidiInput? = null
-                        var outputDevice: MidiOutput? = null
-
-                        event.inputPort?.let { input ->
-                            inputDevice = midiAccess.openInput(input.id)
-
-                            inputDevice.setMessageReceivedListener { bytes, _, _, _ ->
-                                getMidiInputData(bytes)?.let {
-                                    chain.onMidiInput(
-                                        inputData = it,
-                                        offset = this@apply.position.value
-                                    )
-                                }
-                            }
-                        }
-
-                        event.outputPort?.let { output ->
-                            outputDevice = midiAccess.openOutput(output.id)
-                        }
-
-                        deviceConfig = deviceConfig.copy(
-                            input = inputDevice,
-                            launchpadDevice = outputDevice?.let { output ->
-                                event.deviceType?.mapLaunchpadDevice(output)
-                            },
-                        )
-                    }
-                }
+                changeDeviceConfig(event)
             }
 
             is WorkspaceContract.Event.AddChainDevice -> {
                 chain.addDevice(event.device, event.atIndex)
             }
+
+            is WorkspaceContract.Event.OnPressVirtualDevice -> {
+                chain.onMidiInput(
+                    inputData = MidiInputData(event.y * 10 + event.x, 127),
+                    offset = event.offset
+                )
+            }
+
+            is WorkspaceContract.Event.OnReleaseVirtualDevice -> {
+                chain.onMidiInput(
+                    inputData = MidiInputData(event.y * 10 + event.x, 0),
+                    offset = event.offset
+                )
+            }
         }
     }
 
-    fun triggerEffect(effect: WorkspaceContract.Effect) { }
+    fun changeDeviceConfig(event: WorkspaceContract.Event.OnChangeDeviceConfig) {
+        state.value.viewportElements[event.index].apply {
+            deviceConfig.input?.close()
+            deviceConfig.launchpadDevice?.midiOutput?.close()
+
+            IO_COROUTINE.launch {
+                var inputDevice: MidiInput? = null
+                var outputDevice: MidiOutput? = null
+
+                event.inputPort?.let { input ->
+                    inputDevice = midiAccess.openInput(input.id)
+
+                    inputDevice.setMessageReceivedListener { bytes, _, _, _ ->
+                        getMidiInputData(bytes)?.let {
+                            chain.onMidiInput(
+                                inputData = it,
+                                offset = this@apply.position.value
+                            )
+                        }
+                    }
+                }
+
+                event.outputPort?.let { output ->
+                    outputDevice = midiAccess.openOutput(output.id)
+                }
+
+                deviceConfig = deviceConfig.copy(
+                    input = inputDevice,
+                    launchpadDevice = outputDevice?.let { output ->
+                        event.deviceType?.mapLaunchpadDevice(output)
+                    },
+                )
+            }
+        }
+    }
 }
 
 private fun LaunchpadDeviceType.mapLaunchpadDevice(output: MidiOutput): LaunchpadDevice? {
