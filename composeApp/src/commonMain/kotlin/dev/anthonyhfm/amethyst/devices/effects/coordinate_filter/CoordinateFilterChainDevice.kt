@@ -5,6 +5,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.devices.ChainDevice
@@ -18,6 +19,18 @@ import org.koin.compose.koinInject
 class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState>() {
     override val state = MutableStateFlow(CoordinateFilterChainDeviceState())
 
+    val customMode: CoordinateFilterWorkspaceMode = CoordinateFilterWorkspaceMode()
+
+    init {
+        customMode.modeWakeup = {
+            refreshVirtualDevices()
+        }
+
+        customMode.onVirtualDevicePress = { x, y, offset ->
+            onSetKeyFilter(x, y, offset)
+        }
+    }
+
     @Composable
     override fun Content() {
         val controller = koinInject<WorkspaceController>()
@@ -30,7 +43,7 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
             Button(
                 onClick = {
                     controller.switchMode(
-                        mode = CoordinateFilterWorkspaceMode()
+                        mode =
                     )
                 }
             ) {
@@ -39,6 +52,16 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
                 )
             }
         }
+    }
+
+    fun refreshVirtualDevices() {
+        Heaven.devices.forEach {
+
+        }
+    }
+
+    fun onSetKeyFilter(x: Int, y: Int, offset: Offset) {
+
     }
 
     override fun midiEnter(n: List<Signal>) {

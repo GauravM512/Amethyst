@@ -33,6 +33,7 @@ abstract class LaunchpadViewportElement(
 
     var deviceConfig: ProjectDeviceConfig = ProjectDeviceConfig()
     val previewState: LaunchpadPreviewState = LaunchpadPreviewState()
+    var mirrorLaunchpad: Boolean = true
 
     val screen = Screen()
 
@@ -40,8 +41,10 @@ abstract class LaunchpadViewportElement(
         screen.screenExit = { u, c ->
             deviceConfig.launchpadDevice?.sendUpdate(u, c)
 
-            renderScope.launch {
-                previewState.sendToPreview(u)
+            if (mirrorLaunchpad) {
+                renderScope.launch {
+                    previewState.sendToPreview(u)
+                }
             }
         }
     }

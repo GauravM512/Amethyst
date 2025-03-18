@@ -24,6 +24,15 @@ class LaunchpadPreviewState { // TODO: Replace with Heaven's screen-class
             }
         }
     }
+
+    fun clear() {
+        grid.value = List(100) {
+            RawUpdate(
+                index = it,
+                color = Color.Black
+            )
+        }
+    }
 }
 
 @Composable

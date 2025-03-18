@@ -10,6 +10,7 @@ import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceMystrix
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceProMk3
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceX
+import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadPro
 import dev.anthonyhfm.amethyst.workspace.chain.WorkspaceChain
 import dev.atsushieno.ktmidi.MidiAccess
@@ -46,6 +47,23 @@ class WorkspaceViewModel(
             controller.mode.collect { newMode ->
                 state.update {
                     it.copy(mode = newMode)
+                }
+
+                when (newMode) {
+                    is CoordinateFilterWorkspaceMode -> {
+                        chain.launchpadElements.value.forEach {
+                            it.mirrorLaunchpad = false
+                            it.previewState.clear()
+                        }
+
+                        newMode.wake()
+                    }
+
+                    else -> {
+                        chain.launchpadElements.value.forEach {
+                            it.mirrorLaunchpad = true
+                        }
+                    }
                 }
             }
         }
@@ -126,11 +144,19 @@ class WorkspaceViewModel(
             }
 
             is WorkspaceContract.Event.OnPressVirtualDevice -> {
-                if (state.value.mode !is WorkspaceContract.WorkspaceMode.Layout) {
-                    chain.onMidiInput(
-                        inputData = MidiInputData(event.y * 10 + event.x, 127),
-                        offset = event.offset
-                    )
+                when (state.value.mode) {
+                    is CoordinateFilterWorkspaceMode -> {
+                        (state.value.mode as CoordinateFilterWorkspaceMode).virtualDevicePress(event.x, event.y, event.offset)
+                    }
+
+                    is WorkspaceContract.WorkspaceMode.Layout -> { }
+
+                    else -> {
+                        chain.onMidiInput(
+                            inputData = MidiInputData(event.y * 10 + event.x, 127),
+                            offset = event.offset
+                        )
+                    }
                 }
             }
 
