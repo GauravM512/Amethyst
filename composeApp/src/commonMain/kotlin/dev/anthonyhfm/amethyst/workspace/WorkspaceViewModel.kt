@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 
 class WorkspaceViewModel(
     private val midiAccess: MidiAccess,
-    private val controller: WorkspaceController,
+    private val controller: WorkspaceRepository,
     private val amethystMidiManager: AmethystMidiManager
 ) : ViewModel() {
     val state = MutableStateFlow(
@@ -218,17 +218,17 @@ class WorkspaceViewModel(
                 var deviceType: LaunchpadDeviceType? = null
 
                 if (inputDevice != null && outputDevice != null) {
-                    deviceType = amethystMidiManager.detect(inputDevice!!, outputDevice!!)
+                    deviceType = amethystMidiManager.detect(inputDevice, outputDevice)
                 }
 
-                /*inputDevice?.setMessageReceivedListener { bytes, _, _, _ ->
+                inputDevice?.setMessageReceivedListener { bytes, _, _, _ ->
                     getMidiInputData(bytes)?.let {
                         chain.onMidiInput(
                             inputData = it,
                             offset = this@apply.position.value
                         )
                     }
-                */
+                }
 
                 deviceConfig = deviceConfig.copy(
                     input = inputDevice,

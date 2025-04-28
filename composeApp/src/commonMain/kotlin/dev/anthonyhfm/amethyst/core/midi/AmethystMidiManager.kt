@@ -1,6 +1,9 @@
 package dev.anthonyhfm.amethyst.core.midi
 
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceMystrix
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceProMk3
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceX
 import dev.atsushieno.ktmidi.MidiInput
 import dev.atsushieno.ktmidi.MidiOutput
 import kotlinx.coroutines.delay
@@ -12,6 +15,13 @@ import kotlinx.coroutines.runBlocking
  * The Amethyst Midi Manager should be able to recognize device types based on input and output device.
  */
 class AmethystMidiManager {
+    @OptIn(ExperimentalUnsignedTypes::class)
+    val inquiryTests: Map<LaunchpadDeviceType, (UByteArray) -> Boolean> = mapOf(
+        LaunchpadDeviceType.LAUNCHPAD_PRO_MK3 to { LaunchpadDeviceProMk3.identify(it) },
+        LaunchpadDeviceType.LAUNCHPAD_X to { LaunchpadDeviceX.identify(it) },
+        LaunchpadDeviceType.MYSTRIX to { LaunchpadDeviceMystrix.identify(it) }
+    )
+
     @OptIn(ExperimentalUnsignedTypes::class)
     fun detect(input: MidiInput, output: MidiOutput): LaunchpadDeviceType? {
         val deviceInquiry = ubyteArrayOf(
@@ -26,16 +36,21 @@ class AmethystMidiManager {
         var deviceType: LaunchpadDeviceType? = null
         var wait = true
         var waitCounter = 0
-
-        input.setMessageReceivedListener({ data, _, _, _ ->
-            deviceType = getDeviceTypeByInquiry(data)
-
-            if (deviceType != null) {
+        val timeout = 2000
+        
+        val listener: (ByteArray, Int, Long, Long) -> Unit = { data, _, _, _ ->
+            val detectedType = getDeviceTypeByInquiry(data)
+            if (detectedType != null) {
+                deviceType = detectedType
                 wait = false
             }
+        }
 
-            println(data.toMutableList().map { it.toUByte() })
-        })
+        input.setMessageReceivedListener(
+            listener = { data, _, _, _ ->
+                listener(data, 0, 0, 0)
+            }
+        )
 
         output.send(
             mevent = deviceInquiry.toByteArray(),
@@ -45,7 +60,7 @@ class AmethystMidiManager {
         )
 
         runBlocking {
-            while (wait && waitCounter < 2000) {
+            while (wait && waitCounter < timeout) {
                 waitCounter += 1
                 delay(1)
             }
@@ -60,14 +75,14 @@ class AmethystMidiManager {
         val messageStart = data.toUByteArray().indexOf(240u)
         val messageEnd = data.toUByteArray().indexOf(247u)
 
-        // Checks if the received message is a sysex message
         if (messageStart == -1 || messageEnd == -1) return null
 
         val sysex = convertedData.copyOfRange(messageStart, messageEnd + 1)
 
-        // Checks if the received message is a valid inquiry response
-        if (sysex[1] == 126.toUByte() && sysex[2] == 127.toUByte()) {
-            
+        if (sysex[1] == 126.toUByte()) {
+            return inquiryTests.entries.find {
+                it.value(sysex)
+            }?.key
         }
 
         return null
