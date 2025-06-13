@@ -26,29 +26,32 @@ import androidx.compose.ui.unit.dp
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
+import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.gradient.ui.GradientEditorBar
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
+import dev.anthonyhfm.amethyst.ui.components.TimeDial
+import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration.Companion.milliseconds
 
 class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
     override val state = MutableStateFlow(GradientChainDeviceState())
 
     @Composable
     override fun Content() {
-        val scope = rememberCoroutineScope()
         val controller = rememberColorPickerController()
+        val deviceState by state.collectAsState()
 
-        val colors = state.collectAsState().value.gradientData
+        val colors = deviceState.gradientData
         var selectedColor: Int? by remember { mutableStateOf(null) }
-        val duration = state.collectAsState().value.durationMs
-        val steps = state.collectAsState().value.steps
 
         LaunchedEffect(selectedColor) {
             if (selectedColor != null) {
@@ -107,30 +110,34 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
 
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        TextDial(
+                        TimeDial(
                             headline = "Duration",
-                            text = "${duration.toInt()}ms",
-                            value = duration.toFloat() / 1000f,
-                            onValueChange = { duration ->
+                            timing = deviceState.timing,
+                            onSelectTiming = { timing, msValue ->
                                 state.update {
                                     it.copy(
-                                        durationMs = (duration * 1000).toDouble()
+                                        timing = timing,
+                                        durationMs = msValue.toDouble()
                                     )
                                 }
                             }
                         )
 
                         TextDial(
-                            headline = "Steps",
-                            text = "$steps",
-                            value = steps / 100f,
-                            onValueChange = { steps ->
+                            headline = "Gate",
+                            text = "${(deviceState.gate * 200).toInt()}%",
+                            value = deviceState.gate,
+                            onValueChange = { value ->
                                 state.update {
-                                    it.copy(
-                                        steps = (steps * 100).toInt()
-                                    )
+                                    it.copy(gate = value)
                                 }
-                            }
+                            },
+                            modifier = Modifier
+                                .rightClickable {
+                                    state.update {
+                                        it.copy(gate = 0.5f) // Reset gate to its original state
+                                    }
+                                },
                         )
                     }
                 }
@@ -194,13 +201,19 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
     }
 
     override fun midiEnter(n: List<Signal>) {
-        val stepLength = state.value.durationMs / state.value.steps
+        // jesus christ, this is a lot of math
+        val gradientSteps = ((GlobalSettings.perforanceFPS / GlobalSettings.gradientSmoothness) * (state.value.durationMs * (state.value.gate * 2)).toInt() / 1000).toInt()
+
+        println("Gradient steps: $gradientSteps")
+        println("Duration: ${state.value.durationMs} ms")
+
+        val stepLength = (state.value.durationMs * (state.value.gate * 2)) / gradientSteps
         val colors = state.value.gradientData.sortedBy { it.position }.map { it.position to Color(it.r,  it.g, it.b) }
 
         n.forEach { signal ->
             if (signal.color != Color.Black) {
-                for (step in 0..state.value.steps) {
-                    val progress = step.toFloat() / state.value.steps
+                for (step in 0..gradientSteps) {
+                    val progress = step.toFloat() / gradientSteps
                     val color = interpolateGradient(colors, progress)
 
                     Heaven.schedule(
@@ -214,27 +227,6 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
                 }
             }
         }
-
-        /*
-        val stepLength = state.value.durationMs / state.value.steps
-        val colors = state.value.gradientData.sortedBy { it.position }.map { it.position to Color(it.r,  it.g, it.b) }
-
-        for (step in 0..state.value.steps) {
-            val progress = step.toFloat() / state.value.steps
-            val color = interpolateGradient(colors, progress)
-
-            val midiData = data.copy(
-                r = (color.red * 63).toInt().coerceIn(0, 63),
-                g = (color.green * 63).toInt().coerceIn(0, 63),
-                b = (color.blue * 63).toInt().coerceIn(0, 63)
-            )
-
-            midiOutput(midiData)
-
-            delay(stepLength.milliseconds)
-        }
-        midiOutput(data.copy(r = 0, g = 0, b = 0))
-         */
     }
 }
 
@@ -245,8 +237,9 @@ data class GradientChainDeviceState(
         GradientColor(0.5f, 1f, 0f, 0f),
         GradientColor(1f, 0f, 0f, 0f)
     ),
-    val steps: Int = 20,
-    val durationMs: Double = 300.0
+    val timing: Timing = Timing.Duration(300.milliseconds),
+    val durationMs: Double = 300.0,
+    val gate: Float = 0.5f, // 100% = 0.5f, 200% = 1.0f
 ) : DeviceState() {
     @Serializable
     data class GradientColor(

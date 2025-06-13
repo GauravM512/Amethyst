@@ -11,7 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Shape
-import dev.anthonyhfm.amethyst.core.data.project.ProjectDeviceConfig
+import dev.anthonyhfm.amethyst.core.midi.data.ProjectDeviceConfig
 import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.LaunchpadPreviewState

@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.core.data.project
+package dev.anthonyhfm.amethyst.core.midi.data
 
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice
 import dev.atsushieno.ktmidi.MidiInput

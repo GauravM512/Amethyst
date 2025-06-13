@@ -76,7 +76,7 @@ fun Timing.toMsValue(bpm: Double): Int = when (this) {
     is Timing.Duration -> this.duration.inMs.toInt()
 
     is Timing.Rythm -> {
-        val fraction: Float = timing.factor
+        val fraction: Float = timing.factor * 4
         val secondsPerQuarter = 60.0 / bpm
 
         (secondsPerQuarter * fraction * 1000).toInt()

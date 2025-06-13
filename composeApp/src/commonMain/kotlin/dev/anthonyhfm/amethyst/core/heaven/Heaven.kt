@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.core.heaven
 
+import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice
@@ -29,6 +30,7 @@ object Heaven {
     private var prev: Long = 0L
     private var lastRender: Long = -1L
     private var renderAt: Long = -1L
+    var fps: Int = GlobalSettings.perforanceFPS
 
     private val stopWatch = StopWatch()
     private val renderScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -141,8 +143,8 @@ object Heaven {
 
                     if (changed && renderAt < 0) {
                         renderAt = max(
-                            prev + msToTicks(250.0 / 60),
-                            lastRender + msToTicks(1000.0 / 60)
+                            prev + msToTicks(250.0 / fps),
+                            lastRender + msToTicks(1000.0 / fps)
                         )
                     } else if (renderAt >= 0 && prev > renderAt) {
                         Screen.draw()

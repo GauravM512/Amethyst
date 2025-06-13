@@ -61,7 +61,8 @@ kotlin {
             implementation(libs.colorpicker.compose)
             implementation(libs.reorderable)
 
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.8.0")
+            implementation(libs.kotlinx.serialization.protobuf)
+            implementation(libs.multiplatform.settings.no.arg)
             implementation(libs.filekit.core)
             kotlin("stdlib")
         }
