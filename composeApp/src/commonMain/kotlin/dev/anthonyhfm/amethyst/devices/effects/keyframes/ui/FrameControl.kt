@@ -1,15 +1,12 @@
 package dev.anthonyhfm.amethyst.devices.effects.keyframes.ui
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -20,7 +17,12 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun FrameControl(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    currentFrame: Int,
+    isPlaying: Boolean,
+    onPreviousFrame: () -> Unit,
+    onNextFrame: () -> Unit,
+    onPlayPause: () -> Unit
 ) {
     Card(
         modifier = modifier
@@ -28,38 +30,33 @@ fun FrameControl(
     ) {
         Row(
             modifier = Modifier
-                .padding(4.dp)
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = {
-
-                }
+                onClick = onPreviousFrame
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipPrevious,
-                    contentDescription = "Skip to previous frame"
+                    contentDescription = "Previous Frame"
                 )
             }
 
             IconButton(
-                onClick = {
-
-                }
+                onClick = onPlayPause
             ) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Play"
+                    imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Stop" else "Play"
                 )
             }
 
             IconButton(
-                onClick = {
-
-                }
+                onClick = onNextFrame
             ) {
                 Icon(
                     imageVector = Icons.Default.SkipNext,
-                    contentDescription = "Skip to next frame"
+                    contentDescription = "Next Frame"
                 )
             }
         }

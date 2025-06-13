@@ -1,0 +1,95 @@
+package dev.anthonyhfm.amethyst.ui.components
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import dev.anthonyhfm.amethyst.core.util.Timing
+import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import org.koin.compose.koinInject
+import org.koin.core.time.inMs
+import kotlin.time.Duration.Companion.milliseconds
+
+@Composable
+fun TimeDial(
+    headline: String = "Duration",
+    workspaceRepository: WorkspaceRepository = koinInject(),
+    timing: Timing,
+    onSelectTiming: (timing: Timing, msValue: Int) -> Unit
+) {
+    var millisecondMode: Boolean by remember { mutableStateOf(false) }
+    val bpm by workspaceRepository.bpm.collectAsState()
+
+    LaunchedEffect(bpm) {
+        onSelectTiming(timing, timing.toMsValue(bpm))
+    }
+
+    if (millisecondMode) {
+        TextDial(
+            value = if (timing is Timing.Duration) timing.duration.inMs.toFloat() / 1000 else 0.3f,
+            onValueChange = {
+                onSelectTiming(
+                    Timing.Duration((it * 1000).toInt().milliseconds),
+                    (it * 1000).toInt().milliseconds.inMs.toInt()
+                )
+            },
+            headline = headline,
+            text = "${timing.toMsValue(bpm)} ms",
+            modifier = Modifier
+                .rightClickable {
+                    millisecondMode = !millisecondMode
+                },
+        )
+    } else {
+        val stepDialState = rememberStepDialState(
+            values = Timing.Rythm.RythmTiming.entries,
+            initialIndex = if (timing is Timing.Rythm) {
+                Timing.Rythm.RythmTiming.entries.indexOf(timing.timing)
+            } else {
+                0
+            }
+        )
+
+        LaunchedEffect(stepDialState.current) {
+            val selectedTiming = stepDialState.current
+
+            println("Selected timing: $selectedTiming")
+
+            onSelectTiming(
+                Timing.Rythm(selectedTiming),
+                Timing.Rythm(selectedTiming).toMsValue(bpm)
+            )
+        }
+
+        StepTextDial(
+            state = stepDialState,
+            text = if (timing is Timing.Rythm) {
+                timing.timing.text
+            } else {
+                ""
+            },
+            headline = headline,
+            modifier = Modifier
+                .rightClickable {
+                    millisecondMode = !millisecondMode
+                    println("Rightclick")
+                },
+        )
+    }
+}
+
+fun Timing.toMsValue(bpm: Double): Int = when (this) {
+    is Timing.Duration -> this.duration.inMs.toInt()
+
+    is Timing.Rythm -> {
+        val fraction: Float = timing.factor
+        val secondsPerQuarter = 60.0 / bpm
+
+        (secondsPerQuarter * fraction * 1000).toInt()
+    }
+}

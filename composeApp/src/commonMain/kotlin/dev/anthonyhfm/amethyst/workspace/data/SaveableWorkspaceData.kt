@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SaveableWorkspaceData(
-    val title: String,
-    val author: String,
-    val settings: WorkspaceSettings = WorkspaceSettings(120)
+    val title: String = "Untitled Workspace",
+    val author: String = "Unknown Author",
+    val settings: WorkspaceSettings = WorkspaceSettings()
 )

@@ -8,22 +8,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
-import dev.anthonyhfm.amethyst.workspace.WorkspaceController
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import org.koin.compose.koinInject
 
 class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
     override val state = MutableStateFlow(KeyframesChainDeviceState())
-
-    private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode(this)
+    private val viewModel: KeyframesWorkspaceModeViewModel = KeyframesWorkspaceModeViewModel()
+    private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode(
+        keyframesChainDevice = this,
+        viewModel = viewModel
+    )
 
     init {
         customMode.modeWakeup = {
@@ -37,13 +40,13 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         }
 
         customMode.onVirtualDevicePress = { x, y, offset ->
-            onSetKeyFilter(x, y, offset)
+            onSetLight(x, y, offset)
         }
     }
 
     @Composable
     override fun Content() {
-        val controller = koinInject<WorkspaceController>()
+        val controller = koinInject<WorkspaceRepository>()
 
         AmethystDevice(
             title = "Keyframes",
@@ -68,58 +71,143 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         Heaven.devices.forEach { device ->
             device.previewState.clear()
 
-            state.value.filters.forEach { (x, y) ->
-                if (x >= device.position.value.x.toInt() &&
-                    x < device.position.value.x.toInt() + 10 &&
-                    y >= device.position.value.y.toInt() && 
-                    y < device.position.value.y.toInt() + 10) {
+            val currentFrame = viewModel.state.value.currentFrame
+            val currentFrameEntries = state.value.entries.find { it.id == currentFrame }?.entries ?: emptyList()
 
-                    val localX = x - device.position.value.x.toInt()
-                    val localY = 9 - (y - device.position.value.y.toInt())
+            currentFrameEntries.forEach { entry ->
+                if (entry.x >= device.position.value.x.toInt() &&
+                    entry.x < device.position.value.x.toInt() + 10 &&
+                    entry.y >= device.position.value.y.toInt() && 
+                    entry.y < device.position.value.y.toInt() + 10) {
+
+                    val localX = entry.x - device.position.value.x.toInt()
+                    val localY = 9 - (entry.y - device.position.value.y.toInt())
 
                     device.previewState.sendToPreview(listOf(
-                        RawUpdate(localX + localY * 10, Color.Green)
+                        RawUpdate(localX + localY * 10, Color(entry.r, entry.g, entry.b))
                     ))
                 }
             }
         }
     }
 
-    fun onSetKeyFilter(x: Int, y: Int, offset: Offset) {
+    fun onSetLight(x: Int, y: Int, offset: Offset) {
         val globalX = offset.x.toInt() + x
         val globalY = offset.y.toInt() + (9 - y)
-
-        val coordinatePair = Pair(globalX, globalY)
-
-        val isAlreadyFiltered = state.value.filters.contains(coordinatePair)
-
+        
+        val currentFrameId = viewModel.state.value.currentFrame
+        val selectedColor = viewModel.state.value.drawColor
+        val frameDuration = viewModel.state.value.getFrameDuration(currentFrameId)
+        
+        viewModel.addColorToHistory(selectedColor)
+        
         state.update { currentState ->
-            if (isAlreadyFiltered) {
+            val currentFrameIndex = currentState.entries.indexOfFirst { it.id == currentFrameId }
+            
+            if (currentFrameIndex == -1) {
+                val newFrame = Frame(
+                    id = currentFrameId,
+                    entries = listOf(
+                        KeyframeEntry(
+                            x = globalX,
+                            y = globalY,
+                            r = selectedColor.red,
+                            g = selectedColor.green,
+                            b = selectedColor.blue
+                        )
+                    ),
+                    length = frameDuration.toInt()
+                )
                 currentState.copy(
-                    filters = currentState.filters.filter { it != coordinatePair }
+                    entries = currentState.entries + newFrame
                 )
             } else {
-                currentState.copy(
-                    filters = currentState.filters + coordinatePair
-                )
+                val currentFrame = currentState.entries[currentFrameIndex]
+                val entryIndex = currentFrame.entries.indexOfFirst { it.x == globalX && it.y == globalY }
+                
+                val updatedFrame = if (entryIndex != -1) {
+                    currentFrame.copy(
+                        entries = currentFrame.entries.filterIndexed { index, _ -> index != entryIndex },
+                        length = frameDuration.toInt() // Aktualisiere auch die Frame-Dauer
+                    )
+                } else {
+                    val newEntry = KeyframeEntry(
+                        x = globalX,
+                        y = globalY,
+                        r = selectedColor.red,
+                        g = selectedColor.green,
+                        b = selectedColor.blue
+                    )
+                    currentFrame.copy(
+                        entries = currentFrame.entries + newEntry,
+                        length = frameDuration.toInt()
+                    )
+                }
+                
+                val updatedEntries = currentState.entries.toMutableList().also {
+                    it[currentFrameIndex] = updatedFrame
+                }
+                
+                currentState.copy(entries = updatedEntries)
             }
         }
 
         refreshVirtualDevices()
     }
 
-    override fun midiEnter(n: List<Signal>) {
-        val filteredSignals = n.filter { signal ->
-            state.value.filters.contains(Pair(signal.x, signal.y))
+    fun updateFrameDuration(frameDuration: Double) {
+        val currentFrameId = viewModel.state.value.currentFrame
+        
+        viewModel.setFrameDuration(currentFrameId, frameDuration)
+        
+        state.update { currentState ->
+            val currentFrameIndex = currentState.entries.indexOfFirst { it.id == currentFrameId }
+            
+            if (currentFrameIndex != -1) {
+                val updatedFrame = currentState.entries[currentFrameIndex].copy(
+                    length = frameDuration.toInt()
+                )
+                
+                val updatedEntries = currentState.entries.toMutableList().also {
+                    it[currentFrameIndex] = updatedFrame
+                }
+                
+                currentState.copy(entries = updatedEntries)
+            } else {
+                val newFrame = Frame(
+                    id = currentFrameId,
+                    entries = emptyList(),
+                    length = frameDuration.toInt()
+                )
+                currentState.copy(
+                    entries = currentState.entries + newFrame
+                )
+            }
         }
+    }
 
-        if (filteredSignals.isNotEmpty()) {
-            midiExit?.invoke(filteredSignals)
-        }
+    override fun midiEnter(n: List<Signal>) {
+        midiExit?.invoke(n)
     }
 }
 
 @Serializable
 data class KeyframesChainDeviceState(
-    val filters: List<Pair<Int, Int>> = emptyList()
+    val entries: List<Frame> = emptyList()
 ) : DeviceState()
+
+@Serializable
+data class Frame(
+    val id: Int,
+    val entries: List<KeyframeEntry> = emptyList(),
+    val length: Int = 200,
+)
+
+@Serializable
+data class KeyframeEntry(
+    val x: Int,
+    val y: Int,
+    val r: Float,
+    val g: Float,
+    val b: Float
+)

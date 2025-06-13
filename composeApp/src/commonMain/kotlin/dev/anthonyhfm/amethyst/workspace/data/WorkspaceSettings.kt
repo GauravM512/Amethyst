@@ -4,5 +4,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class WorkspaceSettings(
-    val bpm: Int
+    val bpm: Double = 120.0
 )

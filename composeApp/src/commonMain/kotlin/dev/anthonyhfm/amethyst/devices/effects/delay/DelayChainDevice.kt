@@ -6,15 +6,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
+import dev.anthonyhfm.amethyst.ui.components.TimeDial
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
     override val state = MutableStateFlow(DelayChainDeviceState())
@@ -28,14 +32,14 @@ class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
             modifier = Modifier
                 .width(100.dp)
         ) {
-            TextDial(
+            TimeDial(
                 headline = "Delay",
-                text = "${deviceState.delayMs.roundToInt()} ms",
-                value = deviceState.delayMs.toInt() / 1000f,
-                onValueChange = { change ->
+                timing = deviceState.timing,
+                onSelectTiming = { timing, msValue ->
                     state.update {
                         it.copy(
-                            delayMs = (change * 1000).toDouble()
+                            timing = timing,
+                            delayMs = msValue
                         )
                     }
                 }
@@ -48,12 +52,13 @@ class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
             job = {
                 midiExit?.invoke(n)
             },
-            delayInMs = state.value.delayMs
+            delayInMs = state.value.delayMs.toDouble()
         )
     }
 }
 
 @Serializable
 data class DelayChainDeviceState(
-    val delayMs: Double = 200.0
+    val timing: Timing = Timing.Duration(200.milliseconds),
+    val delayMs: Int = 200,
 ) : DeviceState()

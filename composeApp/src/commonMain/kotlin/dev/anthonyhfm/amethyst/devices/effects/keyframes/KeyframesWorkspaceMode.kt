@@ -10,20 +10,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.FrameControl
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.FrameTools
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
 class KeyframesWorkspaceMode(
-    keyframesChainDevice: KeyframesChainDevice
+    val keyframesChainDevice: KeyframesChainDevice,
+    private val viewModel: KeyframesWorkspaceModeViewModel
 ) : WorkspaceContract.WorkspaceMode {
     override val displayName: String = "Keyframes Editor"
     override val selectable: Boolean = false
-
-    private val deviceState: StateFlow<KeyframesChainDeviceState> = keyframesChainDevice.state.asStateFlow()
 
     var onVirtualDevicePress: ((x: Int, y: Int, offset: Offset) -> Unit)? = null
     var modeWakeup: (() -> Unit)? = null
@@ -43,7 +39,6 @@ class KeyframesWorkspaceMode(
 
     @Composable
     fun EditorUI(paddingValues: PaddingValues) {
-        val viewModel = viewModel { KeyframesWorkspaceModeViewModel() }
         val state by viewModel.state.collectAsState()
 
         Box(
@@ -52,14 +47,31 @@ class KeyframesWorkspaceMode(
                 .padding(paddingValues)
         ) {
             FrameControl(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                modifier = Modifier.align(Alignment.BottomCenter),
+                currentFrame = state.currentFrame,
+                isPlaying = state.isPlaying,
+                onPreviousFrame = { 
+                    viewModel.previousFrame()
+                    keyframesChainDevice.refreshVirtualDevices()
+                },
+                onNextFrame = {
+                    viewModel.nextFrame()
+                    keyframesChainDevice.refreshVirtualDevices()
+                },
+                onPlayPause = {
+                    // TODO: Play/pause logic
+                }
             )
 
             FrameTools(
                 state = state,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
+                modifier = Modifier.align(Alignment.TopEnd),
+                onColorSelected = { color ->
+                    viewModel.setDrawColor(color)
+                },
+                onFrameDurationChanged = { duration ->
+                    keyframesChainDevice.updateFrameDuration(duration)
+                }
             )
         }
     }

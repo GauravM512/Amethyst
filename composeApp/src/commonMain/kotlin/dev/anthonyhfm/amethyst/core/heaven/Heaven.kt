@@ -1,3 +1,5 @@
+package dev.anthonyhfm.amethyst.core.heaven
+
 import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice

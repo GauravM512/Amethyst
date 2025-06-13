@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -26,7 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
-import dev.anthonyhfm.amethyst.workspace.WorkspaceController
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import org.koin.compose.koinInject
 
 @Composable
@@ -36,7 +35,7 @@ fun WorkspaceMode(
 ) {
     var showModeSwitch: Boolean by remember { mutableStateOf(false) }
 
-    val controller = koinInject<WorkspaceController>()
+    val controller = koinInject<WorkspaceRepository>()
 
     Row(
         modifier = Modifier
