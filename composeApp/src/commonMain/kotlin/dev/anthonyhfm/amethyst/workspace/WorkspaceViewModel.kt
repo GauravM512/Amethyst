@@ -167,6 +167,13 @@ class WorkspaceViewModel(
                 }
             }
 
+            is WorkspaceContract.Event.ReorderChainDevice -> {
+                // Nur im Chain-Modus das Neuordnen der Geräte erlauben
+                if (state.value.mode is WorkspaceContract.WorkspaceMode.Chain) {
+                    chain.reorderDevice(event.fromIndex, event.toIndex)
+                }
+            }
+
             is WorkspaceContract.Event.OnPressVirtualDevice -> {
                 when (state.value.mode) {
                     is KeyframesWorkspaceMode -> {

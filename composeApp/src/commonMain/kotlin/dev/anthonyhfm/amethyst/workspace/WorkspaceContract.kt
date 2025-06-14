@@ -27,6 +27,7 @@ interface WorkspaceContract {
         ) : Event
 
         data class AddChainDevice(val device: ChainDevice<*>, val atIndex: Int? = null) : Event
+        data class ReorderChainDevice(val fromIndex: Int, val toIndex: Int) : Event
 
         data class OnPressVirtualDevice(val x: Int, val y: Int, val offset: Offset) : Event
         data class OnReleaseVirtualDevice(val x: Int, val y: Int, val offset: Offset) : Event

@@ -13,17 +13,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 
 @Composable
 fun AmethystDevice(
     title: String,
     modifier: Modifier = Modifier,
+    titleBarModifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
 ) {
+    val titleModifier = LocalTitleBarModifier.current.then(titleBarModifier)
+
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
@@ -36,6 +41,7 @@ fun AmethystDevice(
                 .fillMaxWidth()
                 .height(28.dp)
                 .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.2.dp))
+                .then(titleModifier)
         ) {
             Text(
                 text = title,

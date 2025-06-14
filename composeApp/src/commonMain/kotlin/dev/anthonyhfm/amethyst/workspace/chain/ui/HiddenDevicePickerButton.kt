@@ -31,6 +31,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDevice
 @Composable
 fun HiddenDevicePickerButton(
     expanded: Boolean = false,
+    forceOff: Boolean = false,
     onAddComponent: (ChainDevice<*>) -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -41,21 +42,28 @@ fun HiddenDevicePickerButton(
         modifier = Modifier
             .fillMaxHeight()
             .width(
-                width = animateDpAsState(
-                    targetValue = if (hovering || expanded || pickerVisible) {
-                        56.dp
-                    } else {
-                        12.dp
-                    }
-                ).value
+                // If forceOff is true, set the width to 12.dp immediately,
+                // without animation and regardless of other states
+                if (forceOff) {
+                    12.dp
+                } else {
+                    animateDpAsState(
+                        targetValue = if (hovering || expanded || pickerVisible) {
+                            56.dp
+                        } else {
+                            12.dp
+                        }
+                    ).value
+                }
             )
             .hoverable(interaction),
 
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Show the plus button only if not forceOff and if hovering, expanded, or pickerVisible is true
         AnimatedVisibility(
-            visible = hovering || expanded || pickerVisible,
+            visible = !forceOff && (hovering || expanded || pickerVisible),
             enter = scaleIn() + fadeIn(),
             exit = scaleOut() + fadeOut()
         ) {
