@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
@@ -35,24 +37,11 @@ fun WorkspaceChainEditor(
     onEvent: (WorkspaceContract.Event) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    // State that indicates whether a drag operation is currently in progress
     var isDraggingAny by remember { mutableStateOf(false) }
-    // Separate expanded state for the last picker to properly expand and collapse it
-    var lastPickerExpanded by remember { mutableStateOf(true) }
 
-    // When the drag operation is finished, we reset the lastPickerExpanded state
     LaunchedEffect(isDraggingAny) {
         if (!isDraggingAny && devices.isNotEmpty()) {
-            // Short delay to ensure the animation is complete
-            delay(300) // Longer delay for more reliable expansion
-            lastPickerExpanded = true
-        }
-    }
-
-    // When the devices list changes, we make sure the picker is expanded
-    LaunchedEffect(devices.size) {
-        if (!isDraggingAny) {
-            lastPickerExpanded = true
+            delay(300)
         }
     }
 
@@ -62,8 +51,8 @@ fun WorkspaceChainEditor(
             .clip(RoundedCornerShape(12.dp))
             .height(280.dp)
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(0.5.dp))
-            .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(12.dp), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer.compositeOver(MaterialTheme.colorScheme.surfaceColorAtElevation(24.dp)))
+            .border(1.dp, MaterialTheme.colorScheme.surfaceBright, RoundedCornerShape(12.dp))
             .padding(vertical = 12.dp)
             .horizontalScroll(scrollState)
     ) {
@@ -93,7 +82,6 @@ fun WorkspaceChainEditor(
                     },
                     onMove = {
                         isDraggingAny = true
-                        lastPickerExpanded = false // Explicitly collapse the last picker
                     },
                     verticalAlignment = Alignment.CenterVertically
                 ) { index, device, isDragging ->
