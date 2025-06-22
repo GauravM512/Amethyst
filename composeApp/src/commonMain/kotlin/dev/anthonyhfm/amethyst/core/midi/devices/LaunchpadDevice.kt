@@ -39,6 +39,9 @@ enum class LaunchpadDeviceType(val label: String) {
     LAUNCHPAD_PRO_CFW(
         label = "Launchpad Pro (CFW)"
     ),
+    LAUNCHPAD_MK2(
+        label = "Launchpad Pro"
+    ),
     MYSTRIX(
         label = "Mystrix"
     ),

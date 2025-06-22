@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.core.midi
 
+import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceMK2
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceMystrix
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevicePro
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceProMk3
@@ -22,6 +23,7 @@ class AmethystMidiManager {
         LaunchpadDeviceType.LAUNCHPAD_X to { LaunchpadDeviceX.identify(it) },
         LaunchpadDeviceType.LAUNCHPAD_PRO_CFW to { LaunchpadDevicePro.identifyCFW(it) },
         LaunchpadDeviceType.LAUNCHPAD_PRO to { LaunchpadDevicePro.identify(it) },
+        LaunchpadDeviceType.LAUNCHPAD_MK2 to { LaunchpadDeviceMK2.identify(it) },
         LaunchpadDeviceType.MYSTRIX to { LaunchpadDeviceMystrix.identify(it) }
     )
 
