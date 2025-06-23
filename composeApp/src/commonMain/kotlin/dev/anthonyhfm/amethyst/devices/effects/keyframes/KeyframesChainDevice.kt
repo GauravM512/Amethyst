@@ -44,8 +44,8 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceContract.KeyframesC
             }
         }
 
-        customMode.onVirtualDevicePress = { x, y, offset, size: IntSize ->
-            onEvent(KeyframesChainDeviceContract.Event.OnPaintButton(x, y))
+        customMode.onVirtualDevicePress = { x, y, offset ->
+            onEvent(KeyframesChainDeviceContract.Event.OnPaintButton(x, y, offset))
         }
     }
 
@@ -78,6 +78,9 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceContract.KeyframesC
     fun onEvent(event: KeyframesChainDeviceContract.Event) {
         when (event) {
             is KeyframesChainDeviceContract.Event.OnPaintButton -> {
+                val globalX = event.offset.x.toInt() + event.x
+                val globalY = event.offset.y.toInt() + (9 - event.y)
+
                 state.update { state ->
                     state.copy(
                         frames = state.frames.toMutableList().apply {
@@ -85,7 +88,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceContract.KeyframesC
                                 index = state.selectedFrameIndex,
                                 element = state.frames[state.selectedFrameIndex].copy(
                                     entries = state.frames[state.selectedFrameIndex].entries.toMutableList().apply {
-                                        val index: Int = indexOfFirst { it.x == event.x && it.y == event.y }
+                                        val index: Int = indexOfFirst { it.x == globalX && it.y == globalY }
 
                                         if (index != -1) {
                                             removeAt(index)
@@ -93,8 +96,8 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceContract.KeyframesC
 
                                         add(
                                             element = KeyframesChainDeviceContract.KeyframesEntry(
-                                                x = event.x,
-                                                y = event.y,
+                                                x = globalX,
+                                                y = globalY,
                                                 r = state.selectedColor.first,
                                                 g = state.selectedColor.second,
                                                 b = state.selectedColor.third
@@ -141,19 +144,6 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceContract.KeyframesC
         Heaven.devices.forEach { device ->
             device.previewState.clear()
         }
-
-        println(state.value.frames[state.value.selectedFrameIndex]?.entries)
-
-        Heaven.midiEnter(
-            signals = state.value.frames[state.value.selectedFrameIndex]?.entries?.map { (x, y, r, g, b) ->
-                Signal(
-                    x = x,
-                    y = y,
-                    color = Color(r, g, b),
-                    origin = this,
-                )
-            } ?: emptyList()
-        )
     }
 
     /*fun onSetKeyFilter(x: Int, y: Int, offset: Offset) {

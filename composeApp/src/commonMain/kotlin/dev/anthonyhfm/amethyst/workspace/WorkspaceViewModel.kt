@@ -201,11 +201,11 @@ class WorkspaceViewModel(
             is WorkspaceContract.Event.OnPressVirtualDevice -> {
                 when (state.value.mode) {
                     is KeyframesWorkspaceMode -> {
-                        (state.value.mode as KeyframesWorkspaceMode).virtualDevicePress(event.x, event.y, event.offset, event.size)
+                        (state.value.mode as KeyframesWorkspaceMode).virtualDevicePress(event.x, event.y, event.offset)
                     }
 
                     is CoordinateFilterWorkspaceMode -> {
-                        (state.value.mode as CoordinateFilterWorkspaceMode).virtualDevicePress(event.x, event.y, event.offset, event.size)
+                        (state.value.mode as CoordinateFilterWorkspaceMode).virtualDevicePress(event.x, event.y, event.offset)
                     }
 
                     is WorkspaceContract.WorkspaceMode.Layout -> { }

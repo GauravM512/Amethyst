@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.devices.effects.keyframes
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
@@ -7,7 +8,7 @@ import kotlinx.serialization.Serializable
 
 sealed interface KeyframesChainDeviceContract {
     sealed interface Event {
-        data class OnPaintButton(val x: Int, val y: Int) : Event
+        data class OnPaintButton(val x: Int, val y: Int, val offset: Offset) : Event
         data class OnColorUpdate(val color: Color) : Event
         data class OnSelectFrame(val frameIndex: Int) : Event
         data class OnChangeFrameTiming(val frameIndex: Int, val timing: Timing) : Event

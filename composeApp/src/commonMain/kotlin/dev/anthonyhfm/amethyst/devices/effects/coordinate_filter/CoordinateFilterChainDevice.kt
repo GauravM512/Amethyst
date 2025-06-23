@@ -36,7 +36,7 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
             }
         }
 
-        customMode.onVirtualDevicePress = { x, y, offset, size ->
+        customMode.onVirtualDevicePress = { x, y, offset ->
             onSetKeyFilter(x, y, offset)
         }
     }

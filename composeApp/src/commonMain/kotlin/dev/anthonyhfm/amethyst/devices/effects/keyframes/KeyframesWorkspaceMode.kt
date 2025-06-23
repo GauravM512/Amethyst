@@ -16,7 +16,7 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
     override val displayName: String = "Keyframes"
     override val selectable: Boolean = false
 
-    var onVirtualDevicePress: ((x: Int, y: Int, offset: Offset, size: IntSize) -> Unit)? = null
+    var onVirtualDevicePress: ((x: Int, y: Int, offset: Offset) -> Unit)? = null
     var modeWakeup: (() -> Unit)? = null
     var modeClose: (() -> Unit)? = null
 
@@ -32,8 +32,8 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
         }
     }
 
-    fun virtualDevicePress(x: Int, y: Int, offset: Offset, size: IntSize) {
-        onVirtualDevicePress?.invoke(x, y, offset, size)
+    fun virtualDevicePress(x: Int, y: Int, offset: Offset) {
+        onVirtualDevicePress?.invoke(x, y, offset)
     }
 
     fun wake() {
