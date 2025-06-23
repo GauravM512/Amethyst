@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.workspace
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntSize
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
@@ -32,8 +33,8 @@ interface WorkspaceContract {
         data class AddChainDevice(val device: ChainDevice<*>, val atIndex: Int? = null) : Event
         data class ReorderChainDevice(val fromIndex: Int, val toIndex: Int) : Event
 
-        data class OnPressVirtualDevice(val x: Int, val y: Int, val offset: Offset) : Event
-        data class OnReleaseVirtualDevice(val x: Int, val y: Int, val offset: Offset) : Event
+        data class OnPressVirtualDevice(val x: Int, val y: Int, val offset: Offset, val size: IntSize) : Event
+        data class OnReleaseVirtualDevice(val x: Int, val y: Int, val offset: Offset, val size: IntSize) : Event
     }
 
     data class State(

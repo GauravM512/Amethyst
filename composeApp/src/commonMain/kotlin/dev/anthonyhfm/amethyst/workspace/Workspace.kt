@@ -109,7 +109,7 @@ fun Workspace() {
             }
 
             if (state.mode is KeyframesWorkspaceMode) {
-                (state.mode as KeyframesWorkspaceMode).EditorUI(paddingValues)
+                (state.mode as KeyframesWorkspaceMode).ModeContent(paddingValues)
             }
         }
     }

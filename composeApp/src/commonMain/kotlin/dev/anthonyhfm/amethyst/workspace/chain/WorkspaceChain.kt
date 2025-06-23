@@ -29,7 +29,6 @@ class WorkspaceChain {
 
         val signal = Signal(
             origin = this,
-            device = null,
             x = posX + x,
             y = posY + (9 - y),
             color = if (inputData.velocity == 0) Color.Black else Color.White,

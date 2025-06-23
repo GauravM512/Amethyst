@@ -15,7 +15,7 @@ class Screen : AutoCloseable {
 
         fun clear() {
             signals.clear()
-            signals[10000] = Signal(null, null, x = index % 10, y = index / 10, color = Color.Black, layer = -100)
+            signals[10000] = Signal(null, x = index % 10, y = index / 10, color = Color.Black, layer = -100)
             currentColor.compareAndSet(currentColor.get(), Color.Black)
         }
 

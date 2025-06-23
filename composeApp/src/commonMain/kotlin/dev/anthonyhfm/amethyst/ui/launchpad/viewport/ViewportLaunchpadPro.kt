@@ -63,9 +63,9 @@ class ViewportLaunchpadPro(
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onPress = { offset: Offset ->
-                                onEvent?.invoke(WorkspaceContract.Event.OnPressVirtualDevice(x, y, position.value))
+                                onEvent?.invoke(WorkspaceContract.Event.OnPressVirtualDevice(x, y, position.value, size))
                                 tryAwaitRelease()
-                                onEvent?.invoke(WorkspaceContract.Event.OnReleaseVirtualDevice(x, y, position.value))
+                                onEvent?.invoke(WorkspaceContract.Event.OnReleaseVirtualDevice(x, y, position.value, size))
                             }
                         )
                     }

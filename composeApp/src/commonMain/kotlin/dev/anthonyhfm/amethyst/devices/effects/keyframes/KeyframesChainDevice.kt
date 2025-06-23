@@ -1,12 +1,20 @@
 package dev.anthonyhfm.amethyst.devices.effects.keyframes
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
@@ -20,13 +28,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
 
-class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
-    override val state = MutableStateFlow(KeyframesChainDeviceState())
-    private val viewModel: KeyframesWorkspaceModeViewModel = KeyframesWorkspaceModeViewModel()
-    private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode(
-        keyframesChainDevice = this,
-        viewModel = viewModel
-    )
+class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceContract.KeyframesChainDeviceState>() {
+    override val state = MutableStateFlow(KeyframesChainDeviceContract.KeyframesChainDeviceState())
+
+    private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode()
 
     init {
         customMode.modeWakeup = {
@@ -39,8 +44,8 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
             }
         }
 
-        customMode.onVirtualDevicePress = { x, y, offset ->
-            onSetLight(x, y, offset)
+        customMode.onVirtualDevicePress = { x, y, offset, size: IntSize ->
+            onEvent(KeyframesChainDeviceContract.Event.OnPaintButton(x, y))
         }
     }
 
@@ -51,18 +56,83 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         AmethystDevice(
             title = "Keyframes",
             modifier = Modifier
-                .width(200.dp)
+                .width(120.dp)
         ) {
-            Button(
+            FilledIconButton(
                 onClick = {
-                    controller.switchMode(
-                        mode = customMode
+                    controller.switchMode(mode = customMode)
+                },
+                modifier = Modifier
+                    .size(72.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Draw,
+                    contentDescription = "Draw",
+                    modifier = Modifier
+                        .size(36.dp)
+                )
+            }
+        }
+    }
+
+    fun onEvent(event: KeyframesChainDeviceContract.Event) {
+        when (event) {
+            is KeyframesChainDeviceContract.Event.OnPaintButton -> {
+                state.update { state ->
+                    state.copy(
+                        frames = state.frames.toMutableList().apply {
+                            set(
+                                index = state.selectedFrameIndex,
+                                element = state.frames[state.selectedFrameIndex].copy(
+                                    entries = state.frames[state.selectedFrameIndex].entries.toMutableList().apply {
+                                        val index: Int = indexOfFirst { it.x == event.x && it.y == event.y }
+
+                                        if (index != -1) {
+                                            removeAt(index)
+                                        }
+
+                                        add(
+                                            element = KeyframesChainDeviceContract.KeyframesEntry(
+                                                x = event.x,
+                                                y = event.y,
+                                                r = state.selectedColor.first,
+                                                g = state.selectedColor.second,
+                                                b = state.selectedColor.third
+                                            )
+                                        )
+                                    }
+                                )
+                            )
+                        }
                     )
                 }
-            ) {
-                Text(
-                    text = "Edit keyframes",
-                )
+
+                refreshVirtualDevices()
+            }
+
+            is KeyframesChainDeviceContract.Event.OnChangeFrameTiming -> {
+                state.update {
+                    it.copy(
+                        frames = it.frames.toMutableList().apply {
+                            set(
+                                index = event.frameIndex,
+                                element = it.frames[event.frameIndex].copy(timing = event.timing)
+                            )
+                        }
+                    )
+                }
+            }
+
+            is KeyframesChainDeviceContract.Event.OnColorUpdate -> {
+                state.update {
+                    it.copy(selectedColor = Triple(event.color.red, event.color.green, event.color.blue))
+                }
+            }
+
+            is KeyframesChainDeviceContract.Event.OnSelectFrame -> {
+                state.update {
+                    it.copy(selectedFrameIndex = event.frameIndex)
+                }
             }
         }
     }
@@ -70,144 +140,52 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
     fun refreshVirtualDevices() {
         Heaven.devices.forEach { device ->
             device.previewState.clear()
-
-            val currentFrame = viewModel.state.value.currentFrame
-            val currentFrameEntries = state.value.entries.find { it.id == currentFrame }?.entries ?: emptyList()
-
-            currentFrameEntries.forEach { entry ->
-                if (entry.x >= device.position.value.x.toInt() &&
-                    entry.x < device.position.value.x.toInt() + 10 &&
-                    entry.y >= device.position.value.y.toInt() && 
-                    entry.y < device.position.value.y.toInt() + 10) {
-
-                    val localX = entry.x - device.position.value.x.toInt()
-                    val localY = 9 - (entry.y - device.position.value.y.toInt())
-
-                    device.previewState.sendToPreview(listOf(
-                        RawUpdate(localX + localY * 10, Color(entry.r, entry.g, entry.b))
-                    ))
-                }
-            }
         }
+
+        println(state.value.frames[state.value.selectedFrameIndex]?.entries)
+
+        Heaven.midiEnter(
+            signals = state.value.frames[state.value.selectedFrameIndex]?.entries?.map { (x, y, r, g, b) ->
+                Signal(
+                    x = x,
+                    y = y,
+                    color = Color(r, g, b),
+                    origin = this,
+                )
+            } ?: emptyList()
+        )
     }
 
-    fun onSetLight(x: Int, y: Int, offset: Offset) {
+    /*fun onSetKeyFilter(x: Int, y: Int, offset: Offset) {
         val globalX = offset.x.toInt() + x
         val globalY = offset.y.toInt() + (9 - y)
-        
-        val currentFrameId = viewModel.state.value.currentFrame
-        val selectedColor = viewModel.state.value.drawColor
-        val frameDuration = viewModel.state.value.getFrameDuration(currentFrameId)
-        
-        viewModel.addColorToHistory(selectedColor)
-        
+
+        val coordinatePair = Pair(globalX, globalY)
+
+        val isAlreadyFiltered = state.value.filters.contains(coordinatePair)
+
         state.update { currentState ->
-            val currentFrameIndex = currentState.entries.indexOfFirst { it.id == currentFrameId }
-            
-            if (currentFrameIndex == -1) {
-                val newFrame = Frame(
-                    id = currentFrameId,
-                    entries = listOf(
-                        KeyframeEntry(
-                            x = globalX,
-                            y = globalY,
-                            r = selectedColor.red,
-                            g = selectedColor.green,
-                            b = selectedColor.blue
-                        )
-                    ),
-                    length = frameDuration.toInt()
-                )
+            if (isAlreadyFiltered) {
                 currentState.copy(
-                    entries = currentState.entries + newFrame
+                    filters = currentState.filters.filter { it != coordinatePair }
                 )
             } else {
-                val currentFrame = currentState.entries[currentFrameIndex]
-                val entryIndex = currentFrame.entries.indexOfFirst { it.x == globalX && it.y == globalY }
-                
-                val updatedFrame = if (entryIndex != -1) {
-                    currentFrame.copy(
-                        entries = currentFrame.entries.filterIndexed { index, _ -> index != entryIndex },
-                        length = frameDuration.toInt() // Aktualisiere auch die Frame-Dauer
-                    )
-                } else {
-                    val newEntry = KeyframeEntry(
-                        x = globalX,
-                        y = globalY,
-                        r = selectedColor.red,
-                        g = selectedColor.green,
-                        b = selectedColor.blue
-                    )
-                    currentFrame.copy(
-                        entries = currentFrame.entries + newEntry,
-                        length = frameDuration.toInt()
-                    )
-                }
-                
-                val updatedEntries = currentState.entries.toMutableList().also {
-                    it[currentFrameIndex] = updatedFrame
-                }
-                
-                currentState.copy(entries = updatedEntries)
+                currentState.copy(
+                    filters = currentState.filters + coordinatePair
+                )
             }
         }
 
         refreshVirtualDevices()
-    }
-
-    fun updateFrameDuration(frameDuration: Double) {
-        val currentFrameId = viewModel.state.value.currentFrame
-        
-        viewModel.setFrameDuration(currentFrameId, frameDuration)
-        
-        state.update { currentState ->
-            val currentFrameIndex = currentState.entries.indexOfFirst { it.id == currentFrameId }
-            
-            if (currentFrameIndex != -1) {
-                val updatedFrame = currentState.entries[currentFrameIndex].copy(
-                    length = frameDuration.toInt()
-                )
-                
-                val updatedEntries = currentState.entries.toMutableList().also {
-                    it[currentFrameIndex] = updatedFrame
-                }
-                
-                currentState.copy(entries = updatedEntries)
-            } else {
-                val newFrame = Frame(
-                    id = currentFrameId,
-                    entries = emptyList(),
-                    length = frameDuration.toInt()
-                )
-                currentState.copy(
-                    entries = currentState.entries + newFrame
-                )
-            }
-        }
-    }
+    }*/
 
     override fun midiEnter(n: List<Signal>) {
-        midiExit?.invoke(n)
+        /*val filteredSignals = n.filter { signal ->
+            state.value.filters.contains(Pair(signal.x, signal.y))
+        }
+
+        if (filteredSignals.isNotEmpty()) {
+            midiExit?.invoke(filteredSignals)
+        }*/
     }
 }
-
-@Serializable
-data class KeyframesChainDeviceState(
-    val entries: List<Frame> = emptyList()
-) : DeviceState()
-
-@Serializable
-data class Frame(
-    val id: Int,
-    val entries: List<KeyframeEntry> = emptyList(),
-    val length: Int = 200,
-)
-
-@Serializable
-data class KeyframeEntry(
-    val x: Int,
-    val y: Int,
-    val r: Float,
-    val g: Float,
-    val b: Float
-)

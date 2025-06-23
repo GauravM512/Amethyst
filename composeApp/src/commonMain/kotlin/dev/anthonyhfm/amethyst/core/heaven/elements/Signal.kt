@@ -5,7 +5,6 @@ import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevice
 
 data class Signal(
     val origin: Any?,
-    val device: LaunchpadDevice?,
     val x: Int,
     val y: Int,
     val color: Color,
