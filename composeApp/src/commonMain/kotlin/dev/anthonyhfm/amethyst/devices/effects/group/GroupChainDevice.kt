@@ -73,7 +73,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
                 .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
         ) {
             AmethystDevice(
                 title = "Group",
