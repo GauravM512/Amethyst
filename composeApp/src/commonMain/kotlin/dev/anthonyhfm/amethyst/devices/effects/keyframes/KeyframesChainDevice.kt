@@ -143,6 +143,21 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceContract.KeyframesC
     fun refreshVirtualDevices() {
         Heaven.devices.forEach { device ->
             device.previewState.clear()
+
+            state.value.frames[state.value.selectedFrameIndex].entries.forEach { (x, y, r, g, b) ->
+                if (x >= device.position.value.x.toInt() &&
+                    x < device.position.value.x.toInt() + 10 &&
+                    y >= device.position.value.y.toInt() &&
+                    y < device.position.value.y.toInt() + 10) {
+
+                    val localX = x - device.position.value.x.toInt()
+                    val localY = 9 - (y - device.position.value.y.toInt())
+
+                    device.previewState.sendToPreview(listOf(
+                        RawUpdate(localX + localY * 10, Color(r, g, b))
+                    ))
+                }
+            }
         }
     }
 
