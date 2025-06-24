@@ -9,7 +9,5 @@ import org.koin.dsl.module
 val amethystKoinModule = module {
     includes(midiKoinModule)
 
-    single { WorkspaceRepository() }
-
-    viewModel { WorkspaceViewModel(get(), get(), get()) }
+    viewModel { WorkspaceViewModel(get(), get()) }
 }

@@ -35,8 +35,6 @@ fun WorkspaceMode(
 ) {
     var showModeSwitch: Boolean by remember { mutableStateOf(false) }
 
-    val controller = koinInject<WorkspaceRepository>()
-
     Row(
         modifier = Modifier
             .clip(CircleShape)
@@ -54,7 +52,7 @@ fun WorkspaceMode(
                     showModeSwitch = true
                 } else {
                     // If the mode is not selectable, go back to the previous mode
-                    controller.switchToPreviousMode()
+                    WorkspaceRepository.switchToPreviousMode()
                 }
             }
             .padding(12.dp),

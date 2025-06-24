@@ -43,8 +43,6 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
 
     @Composable
     override fun Content() {
-        val controller = koinInject<WorkspaceRepository>()
-
         AmethystDevice(
             title = "Coordinate Filter",
             modifier = Modifier
@@ -52,7 +50,7 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
         ) {
             Button(
                 onClick = {
-                    controller.switchMode(
+                    WorkspaceRepository.switchMode(
                         mode = customMode
                     )
                 }

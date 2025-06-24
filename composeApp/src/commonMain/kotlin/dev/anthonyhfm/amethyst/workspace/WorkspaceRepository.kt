@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class WorkspaceRepository {
+object WorkspaceRepository {
     private val _mode: MutableStateFlow<WorkspaceContract.WorkspaceMode> = MutableStateFlow(WorkspaceContract.WorkspaceMode.Layout())
     val mode: StateFlow<WorkspaceContract.WorkspaceMode> = _mode.asStateFlow()
 

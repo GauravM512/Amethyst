@@ -32,12 +32,11 @@ import kotlinx.coroutines.launch
 
 class WorkspaceViewModel(
     private val midiAccess: MidiAccess,
-    private val controller: WorkspaceRepository,
     private val amethystMidiManager: AmethystMidiManager
 ) : ViewModel() {
     val state = MutableStateFlow(
         WorkspaceContract.State(
-            mode = controller.mode.value
+            mode = WorkspaceRepository.mode.value
         )
     )
 
@@ -55,7 +54,7 @@ class WorkspaceViewModel(
         }
 
         viewModelScope.launch {
-            controller.mode.collect { newMode ->
+            WorkspaceRepository.mode.collect { newMode ->
                 when (newMode) {
                     is KeyframesWorkspaceMode -> {
                         chain.launchpadElements.value.forEach {
@@ -125,7 +124,7 @@ class WorkspaceViewModel(
             }
 
             is WorkspaceContract.Event.ChangeWorkspaceMode -> {
-                controller.switchMode(event.mode)
+                WorkspaceRepository.switchMode(event.mode)
             }
 
             is WorkspaceContract.Event.ChangeViewportElementPosition -> {

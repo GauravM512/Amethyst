@@ -11,6 +11,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -19,10 +22,12 @@ import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.*
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
+import dev.anthonyhfm.amethyst.ui.components.toMsValue
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +41,8 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
     private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode()
 
     init {
+        renderAnimation()
+
         customMode.state = state.asStateFlow()
 
         customMode.onEvent = { onEvent(it) }
@@ -57,7 +64,12 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
 
     @Composable
     override fun Content() {
-        val controller = koinInject<WorkspaceRepository>()
+        val bpm = WorkspaceRepository.bpm.collectAsState()
+        val state by state.collectAsState()
+
+        LaunchedEffect(bpm, state.frames) {
+            renderAnimation()
+        }
 
         AmethystDevice(
             title = "Keyframes",
@@ -66,7 +78,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         ) {
             FilledIconButton(
                 onClick = {
-                    controller.switchMode(mode = customMode)
+                    WorkspaceRepository.switchMode(mode = customMode)
                 },
                 modifier = Modifier
                     .size(72.dp)
@@ -213,13 +225,61 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
-        /*val filteredSignals = n.filter { signal ->
-            state.value.filters.contains(Pair(signal.x, signal.y))
+    /**
+     * Weird and complex rendering logic to create an animation based on the frames and their timings.
+     * This prerenders the animation so that it can be played back smoothly later.
+     *
+     * Supposed to run better than rendering on the fly during playback.
+     */
+    fun renderAnimation() {
+        val renderedAnimation: MutableList<Pair<Int, List<Signal>>> = mutableListOf()
+        var animationMs = 0
+
+        state.value.frames.plus(Frame(Timing.Rythm(Timing.Rythm.RythmTiming._1_16))).forEachIndexed { index, frame ->
+            animationMs += state.value.frames.getOrNull(index - 1)?.timing?.toMsValue(WorkspaceRepository.bpm.value) ?: 0
+
+            renderedAnimation.add(
+                Pair(
+                    first = animationMs,
+                    second = frame.entries.map { entry ->
+                        Signal(
+                            origin = this,
+                            x = entry.x,
+                            y = entry.y,
+                            color = Color(entry.r, entry.g, entry.b),
+                            layer = 0
+                        )
+                    }.plus(
+                        state.value.frames.getOrNull(index - 1)?.entries?.filter { previousEntry ->
+                            frame.entries.find { it.x == previousEntry.x && it.y == previousEntry.y } == null
+                        }?.map {
+                            Signal(
+                                origin = this,
+                                x = it.x,
+                                y = it.y,
+                                color = Color.Black, // Assuming black for cleared signals
+                                layer = 0
+                            )
+                        } ?: emptyList()
+                    )
+                )
+            )
         }
 
-        if (filteredSignals.isNotEmpty()) {
-            midiExit?.invoke(filteredSignals)
-        }*/
+        state.update {
+            it.copy(renderedAnimation = renderedAnimation)
+        }
+    }
+
+    override fun midiEnter(n: List<Signal>) {
+        n.forEach {
+            if (it.color != Color.Black) {
+                state.value.renderedAnimation.forEach {
+                    Heaven.schedule(it.first.toDouble()) {
+                        midiExit?.invoke(it.second)
+                    }
+                }
+            }
+        }
     }
 }

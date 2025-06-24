@@ -2,11 +2,13 @@ package dev.anthonyhfm.amethyst.devices.effects.keyframes
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 sealed interface KeyframesChainDeviceContract {
     sealed interface Event {
@@ -29,7 +31,9 @@ sealed interface KeyframesChainDeviceContract {
             Frame(
                 timing = Timing.Rythm(Timing.Rythm.RythmTiming._1_4),
             )
-        )
+        ),
+        @Transient
+        val renderedAnimation: List<Pair<Int, List<Signal>>> = emptyList(),
     ) : DeviceState()
 
     @Serializable

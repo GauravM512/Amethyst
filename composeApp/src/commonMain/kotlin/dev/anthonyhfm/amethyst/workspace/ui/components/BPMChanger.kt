@@ -30,10 +30,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 
 @Composable
-fun BPMChanger(
-    repository: WorkspaceRepository = koinInject()
-) {
-    var bpmText: String by remember { mutableStateOf(repository.bpm.value.toString()) }
+fun BPMChanger() {
+    var bpmText: String by remember { mutableStateOf(WorkspaceRepository.bpm.value.toString()) }
 
     Row(
         modifier = Modifier
@@ -59,7 +57,7 @@ fun BPMChanger(
                 if (newValue.length <= 6) {
                     if (newValue.isEmpty()) {
                         bpmText = "0"
-                        repository.setBpm(0.0)
+                        WorkspaceRepository.setBpm(0.0)
                     } else if (isValidBpmInput(newValue)) {
                         val normalizedValue = newValue.replace(',', '.')
                         
@@ -68,7 +66,7 @@ fun BPMChanger(
                             
                             if (numericValue <= 999.99) {
                                 bpmText = newValue
-                                repository.setBpm(numericValue)
+                                WorkspaceRepository.setBpm(numericValue)
                             }
                         } catch (_: Exception) {}
                     }
