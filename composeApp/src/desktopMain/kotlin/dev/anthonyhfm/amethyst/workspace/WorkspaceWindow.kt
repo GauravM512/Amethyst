@@ -9,12 +9,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
+import dev.anthonyhfm.amethyst.desktop.FlatAmethystLaf
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
 import dev.anthonyhfm.amethyst.workspace.ui.WorkspaceMenuBar
+import javax.swing.UIManager
 import kotlin.system.exitProcess
 
 @Composable
 fun WorkspaceWindow() {
+    if (DesktopPlatform.get() == DesktopPlatform.Windows) {
+        UIManager.setLookAndFeel(FlatAmethystLaf())
+    }
+
     Window(
         onCloseRequest = {
             exitProcess(0)
@@ -23,7 +29,10 @@ fun WorkspaceWindow() {
         state = rememberWindowState(
             width = 1200.dp,
             height = 800.dp
-        )
+        ),
+        onKeyEvent = {
+            false
+        }
     ) {
         WorkspaceMenuBar()
 

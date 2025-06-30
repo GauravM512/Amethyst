@@ -30,16 +30,12 @@ fun main() {
     }
 
     application {
-        if (platform == DesktopPlatform.Windows) {
-            UIManager.setLookAndFeel(FlatAmethystLaf())
-        }
-
         KoinApplication(
             application = {
                 modules(amethystKoinModule)
             }
         ) {
-            var showEditor: Boolean by remember { mutableStateOf(true) }
+            var showEditor: Boolean by remember { mutableStateOf(false) }
 
             if (!showEditor) {
                 StartWindow(

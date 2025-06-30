@@ -8,6 +8,7 @@ import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.awt.Desktop
 import java.net.URI
@@ -29,15 +30,15 @@ class StartWindowViewModel() : ViewModel() {
                     serializer = SaveableWorkspaceData.serializer(),
                     value = SaveableWorkspaceData("New Project", "")
                 ),
-                extension = "aspj",
+                extension = "amproj",
                 baseName = "project",
             )
 
             file?.readBytes()?.let { bytes ->
-                // amethystReader.readFromFile(bytes)
-            }
+                val data = ProtoBuf.decodeFromByteArray<SaveableWorkspaceData>(bytes)
 
-            onOpenEditor?.invoke()
+                onOpenEditor?.invoke()
+            }
         }
     }
 
@@ -47,14 +48,14 @@ class StartWindowViewModel() : ViewModel() {
             val file = FileKit.pickFile(
                 type = PickerType.File(
                     extensions = listOf(
-                        "aspj",
+                        "amproj",
                     )
                 ),
                 mode = PickerMode.Single,
             )
 
             file?.readBytes()?.let { bytes ->
-                // amethystReader.readFromFile(bytes)
+                val data = ProtoBuf.decodeFromByteArray<SaveableWorkspaceData>(bytes)
             }
 
             onOpenEditor?.invoke()

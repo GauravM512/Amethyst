@@ -14,16 +14,23 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
+import dev.anthonyhfm.amethyst.desktop.FlatAmethystLaf
+import dev.anthonyhfm.amethyst.desktop.FlatUtilityLaf
 import dev.anthonyhfm.amethyst.start.ui.AmethystWelcome
 import dev.anthonyhfm.amethyst.start.ui.ProjectsView
 import dev.anthonyhfm.amethyst.ui.modifier.platformPaddingTop
 import org.koin.compose.koinInject
+import javax.swing.UIManager
 import kotlin.system.exitProcess
 
 @Composable
 fun StartWindow(
     onOpenEditor: () -> Unit
 ) {
+    if (DesktopPlatform.get() == DesktopPlatform.Windows) {
+        UIManager.setLookAndFeel(FlatUtilityLaf())
+    }
+
     Window(
         onCloseRequest = {
             exitProcess(0)
