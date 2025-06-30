@@ -23,7 +23,7 @@ abstract class LaunchpadDevice {
 
     abstract fun sendUpdate(updates: List<RawUpdate>, colors: Array<Color>)
 
-    abstract fun getEffectSysEx(update: RawUpdate): ByteArray
+    abstract fun getEffectSysEx(updates: List<RawUpdate>): ByteArray
 }
 
 enum class LaunchpadDeviceType(val label: String) {

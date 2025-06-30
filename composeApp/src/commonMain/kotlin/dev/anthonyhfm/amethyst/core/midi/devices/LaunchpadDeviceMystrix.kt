@@ -11,26 +11,28 @@ class LaunchpadDeviceMystrix(
     override fun clear() { }
 
     override fun sendUpdate(updates: List<RawUpdate>, colors: Array<Color>) {
-        updates.forEach {
-            sendMidi(getEffectSysEx(it))
+        updates.chunked(78).forEach { chunked ->
+            sendMidi(getEffectSysEx(chunked))
         }
     }
 
-    override fun getEffectSysEx(update: RawUpdate): ByteArray {
-        return byteArrayOf(
-            0xF0.toByte(),
-            0x00.toByte(),
-            0x02.toByte(),
-            0x03.toByte(),
-            0x4D.toByte(),
-            0x58.toByte(),
-            0x5E.toByte(),
-            update.index,
-            (update.color.red * 63).toInt().toByte(),
-            (update.color.green * 63).toInt().toByte(),
-            (update.color.blue * 63).toInt().toByte(),
-            247.toByte()
-        )
+    override fun getEffectSysEx(updates: List<RawUpdate>): ByteArray {
+        return mutableListOf<Byte>().apply {
+            addAll(arrayOf(0xF0.toByte(), 0x00.toByte(), 0x02.toByte(), 0x03.toByte(), 0x4D.toByte(), 0x58.toByte(), 0x5E.toByte()))
+
+            updates.forEach { update ->
+                addAll(
+                    arrayOf(
+                        update.index,
+                        (update.color.red * 63).toInt().toByte(),
+                        (update.color.green * 63).toInt().toByte(),
+                        (update.color.blue * 63).toInt().toByte(),
+                    )
+                )
+            }
+
+            add(247.toByte())
+        }.toByteArray()
     }
 
     private fun sendMidi(data: ByteArray) {

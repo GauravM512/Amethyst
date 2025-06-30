@@ -15,27 +15,28 @@ class LaunchpadDeviceProMk3(
     }
 
     override fun sendUpdate(updates: List<RawUpdate>, colors: Array<Color>) {
-        updates.forEach {
-            sendMidi(getEffectSysEx(it))
+        updates.chunked(78).forEach { chunked ->
+            sendMidi(getEffectSysEx(chunked))
         }
     }
 
-    override fun getEffectSysEx(update: RawUpdate): ByteArray {
-        return byteArrayOf(
-            240.toByte(),
-            0.toByte(),
-            32.toByte(),
-            41.toByte(),
-            2.toByte(),
-            14.toByte(),
-            3.toByte(),
-            3.toByte(),
-            update.index,
-            (update.color.red * 127).toInt().toByte(),
-            (update.color.green * 127).toInt().toByte(),
-            (update.color.blue * 127).toInt().toByte(),
-            247.toByte()
-        )
+    override fun getEffectSysEx(updates: List<RawUpdate>): ByteArray {
+        return mutableListOf<Byte>().apply {
+            addAll(arrayOf(240.toByte(), 0.toByte(), 32.toByte(), 41.toByte(), 2.toByte(), 14.toByte(), 3.toByte(), 3.toByte()))
+
+            updates.forEach { update ->
+                addAll(
+                    arrayOf(
+                        update.index,
+                        (update.color.red * 127).toInt().toByte(),
+                        (update.color.green * 127).toInt().toByte(),
+                        (update.color.blue * 127).toInt().toByte(),
+                    )
+                )
+            }
+
+            add(247.toByte())
+        }.toByteArray()
     }
 
     private fun sendMidi(data: ByteArray) {
