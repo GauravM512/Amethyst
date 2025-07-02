@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.core.heaven.elements
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 
 class Chain : SignalReceiver() {
     val devices: MutableState<List<ChainDevice<*>>> = mutableStateOf(emptyList())
@@ -16,14 +17,16 @@ class Chain : SignalReceiver() {
     }
 
     fun reroute() {
-        for (i in 1..devices.value.size) {
-            devices.value[i - 1].midiExit = {
-                devices.value[i].midiEnter(it)
+        if (devices.value.isNotEmpty()) {
+            for (i in 1..devices.value.size) {
+                devices.value[i - 1].midiExit = {
+                    devices.value[i].midiEnter(it)
+                }
             }
-        }
 
-        devices.value[devices.value.lastIndex].midiExit = {
-            midiExit?.invoke(it)
+            devices.value[devices.value.lastIndex].midiExit = {
+                midiExit?.invoke(it)
+            }
         }
     }
 

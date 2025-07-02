@@ -96,14 +96,27 @@ fun Workspace() {
             )
 
             AnimatedVisibility(
-                visible = state.mode is WorkspaceContract.WorkspaceMode.Chain,
+                visible = state.mode is WorkspaceContract.WorkspaceMode.LightsChain,
                 enter = slideInVertically { it },
                 exit = slideOutVertically { it },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
             ) {
                 WorkspaceChainEditor(
-                    devices = viewModel.chain.heavenChain.devices.value,
+                    devices = WorkspaceRepository.lightsChain.heavenChain.devices.value,
+                    onEvent = { viewModel.onEvent(it) }
+                )
+            }
+
+            AnimatedVisibility(
+                visible = state.mode is WorkspaceContract.WorkspaceMode.SamplingChain,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+            ) {
+                WorkspaceChainEditor(
+                    devices = WorkspaceRepository.samplingChain.heavenChain.devices.value,
                     onEvent = { viewModel.onEvent(it) }
                 )
             }

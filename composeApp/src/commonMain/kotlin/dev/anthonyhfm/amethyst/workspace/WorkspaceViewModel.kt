@@ -40,16 +40,10 @@ class WorkspaceViewModel(
         )
     )
 
-    val chain: WorkspaceChain = WorkspaceChain()
-
     init {
         viewModelScope.launch {
             state.collect { state ->
                 Heaven.devices = state.viewportElements
-
-                chain.launchpadElements.update {
-                    state.viewportElements
-                }
             }
         }
 
@@ -57,7 +51,7 @@ class WorkspaceViewModel(
             WorkspaceRepository.mode.collect { newMode ->
                 when (newMode) {
                     is KeyframesWorkspaceMode -> {
-                        chain.launchpadElements.value.forEach {
+                        Heaven.devices.forEach {
                             it.mirrorLaunchpad = false
                             it.previewState.clear()
                         }
@@ -74,8 +68,9 @@ class WorkspaceViewModel(
                             (state.value.mode as KeyframesWorkspaceMode).close()
                         }
 
-                        chain.launchpadElements.value.forEach {
+                        Heaven.devices.forEach {
                             it.mirrorLaunchpad = true
+                            it.previewState.clear()
                         }
                     }
                 }
@@ -186,14 +181,18 @@ class WorkspaceViewModel(
             }
 
             is WorkspaceContract.Event.AddChainDevice -> {
-                if (state.value.mode !is WorkspaceContract.WorkspaceMode.Layout) {
-                    chain.addDevice(event.device, event.atIndex)
+                if (state.value.mode is WorkspaceContract.WorkspaceMode.LightsChain) {
+                    WorkspaceRepository.lightsChain.addDevice(event.device, event.atIndex)
+                } else if (state.value.mode is WorkspaceContract.WorkspaceMode.SamplingChain) {
+                    WorkspaceRepository.samplingChain.addDevice(event.device, event.atIndex)
                 }
             }
 
             is WorkspaceContract.Event.ReorderChainDevice -> {
-                if (state.value.mode is WorkspaceContract.WorkspaceMode.Chain) {
-                    chain.reorderDevice(event.fromIndex, event.toIndex)
+                if (state.value.mode is WorkspaceContract.WorkspaceMode.LightsChain) {
+                    WorkspaceRepository.lightsChain.reorderDevice(event.fromIndex, event.toIndex)
+                } else if (state.value.mode is WorkspaceContract.WorkspaceMode.SamplingChain) {
+                    WorkspaceRepository.samplingChain.reorderDevice(event.fromIndex, event.toIndex)
                 }
             }
 
@@ -210,7 +209,12 @@ class WorkspaceViewModel(
                     is WorkspaceContract.WorkspaceMode.Layout -> { }
 
                     else -> {
-                        chain.onMidiInput(
+                        WorkspaceRepository.lightsChain.onMidiInput(
+                            inputData = MidiInputData(event.y * 10 + event.x, 127),
+                            offset = event.offset
+                        )
+
+                        WorkspaceRepository.samplingChain.onMidiInput(
                             inputData = MidiInputData(event.y * 10 + event.x, 127),
                             offset = event.offset
                         )
@@ -220,7 +224,12 @@ class WorkspaceViewModel(
 
             is WorkspaceContract.Event.OnReleaseVirtualDevice -> {
                 if (state.value.mode !is WorkspaceContract.WorkspaceMode.Layout) {
-                    chain.onMidiInput(
+                    WorkspaceRepository.lightsChain.onMidiInput(
+                        inputData = MidiInputData(event.y * 10 + event.x, 0),
+                        offset = event.offset
+                    )
+
+                    WorkspaceRepository.samplingChain.onMidiInput(
                         inputData = MidiInputData(event.y * 10 + event.x, 0),
                         offset = event.offset
                     )
@@ -254,7 +263,12 @@ class WorkspaceViewModel(
 
                 inputDevice?.setMessageReceivedListener { bytes, _, _, _ ->
                     getMidiInputData(bytes)?.let {
-                        chain.onMidiInput(
+                        WorkspaceRepository.lightsChain.onMidiInput(
+                            inputData = it,
+                            offset = this@apply.position.value
+                        )
+
+                        WorkspaceRepository.samplingChain.onMidiInput(
                             inputData = it,
                             offset = this@apply.position.value
                         )
@@ -280,7 +294,5 @@ private fun LaunchpadDeviceType.mapLaunchpadDevice(output: MidiOutput): Launchpa
         LaunchpadDeviceType.LAUNCHPAD_PRO_CFW -> LaunchpadDevicePro(output, true)
         LaunchpadDeviceType.LAUNCHPAD_MK2 -> LaunchpadDeviceMK2(output)
         LaunchpadDeviceType.MYSTRIX -> LaunchpadDeviceMystrix(output)
-
-        else -> null
     }
 }

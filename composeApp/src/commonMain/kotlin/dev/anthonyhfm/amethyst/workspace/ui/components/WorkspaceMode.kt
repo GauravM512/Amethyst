@@ -102,7 +102,8 @@ private fun ModeSwitchDialog(
     val selectableModes = listOf(
         WorkspaceContract.WorkspaceMode.Layout(),
         WorkspaceContract.WorkspaceMode.Preview(),
-        WorkspaceContract.WorkspaceMode.Chain(),
+        WorkspaceContract.WorkspaceMode.LightsChain(),
+        WorkspaceContract.WorkspaceMode.SamplingChain(),
     )
 
     DropdownMenu(

@@ -10,16 +10,27 @@ import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import kotlinx.coroutines.flow.MutableStateFlow
 
-class WorkspaceChain {
-    val heavenChain = Chain()
+class WorkspaceChain(
+    private val isSampling: Boolean = false
+) {
+    var heavenChain = Chain()
+        set(value) {
+            field = value
+
+            if (!isSampling) {
+                heavenChain.midiExit = {
+                    Heaven.midiEnter(it)
+                }
+            }
+        }
 
     init {
-        heavenChain.midiExit = {
-            Heaven.midiEnter(it)
+        if (!isSampling) {
+            heavenChain.midiExit = {
+                Heaven.midiEnter(it)
+            }
         }
     }
-
-    val launchpadElements: MutableStateFlow<List<LaunchpadViewportElement>> = MutableStateFlow(listOf())
 
     fun onMidiInput(inputData: MidiInputData, offset: Offset) {
         val x = inputData.pitch % 10

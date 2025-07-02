@@ -63,8 +63,10 @@ kotlin {
             implementation(libs.reorderable)
 
             implementation(libs.kotlinx.serialization.protobuf)
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.multiplatform.settings.no.arg)
             implementation(libs.filekit.core)
+            implementation(libs.dropdown)
             kotlin("stdlib")
         }
         desktopMain.dependencies {

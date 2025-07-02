@@ -77,6 +77,9 @@ fun StartWindow(
                         },
                         onClickOpenProject = {
                             viewModel.onClickOpenProject()
+                        },
+                        onOpenRecentWorkspace = {
+                            viewModel.openProjectFile(it.path)
                         }
                     )
                 }

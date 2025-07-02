@@ -12,6 +12,7 @@ import com.formdev.flatlaf.ui.FlatTitlePane
 import dev.anthonyhfm.amethyst.core.koin.amethystKoinModule
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.FlatAmethystLaf
+import dev.anthonyhfm.amethyst.desktop.about.setupAboutHandler
 import dev.anthonyhfm.amethyst.start.StartWindow
 import dev.anthonyhfm.amethyst.workspace.WorkspaceWindow
 import org.koin.compose.KoinApplication
@@ -27,6 +28,8 @@ fun main() {
     if (platform == DesktopPlatform.MacOS) {
         System.setProperty("apple.awt.application.name", "Amethyst")
         System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua")
+
+        setupAboutHandler()
     }
 
     application {

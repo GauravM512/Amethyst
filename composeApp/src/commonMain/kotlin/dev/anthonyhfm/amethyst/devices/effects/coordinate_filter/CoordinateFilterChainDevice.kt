@@ -1,8 +1,11 @@
 package dev.anthonyhfm.amethyst.devices.effects.coordinate_filter
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -18,7 +21,6 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
-import org.koin.compose.koinInject
 
 class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState>() {
     override val state = MutableStateFlow(CoordinateFilterChainDeviceState())
@@ -46,17 +48,20 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
         AmethystDevice(
             title = "Coordinate Filter",
             modifier = Modifier
-                .width(200.dp)
+                .width(120.dp)
         ) {
-            Button(
+            FilledIconButton(
                 onClick = {
-                    WorkspaceRepository.switchMode(
-                        mode = customMode
-                    )
-                }
+                    WorkspaceRepository.switchMode(mode = customMode)
+                },
+                modifier = Modifier
+                    .size(72.dp)
             ) {
-                Text(
-                    text = "Pick coordinates"
+                Icon(
+                    imageVector = Icons.Default.MyLocation,
+                    contentDescription = "Pick",
+                    modifier = Modifier
+                        .size(36.dp)
                 )
             }
         }

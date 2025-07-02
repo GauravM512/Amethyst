@@ -2,6 +2,9 @@ package dev.anthonyhfm.amethyst.start
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
 import io.github.vinceglb.filekit.core.FileKit
 import io.github.vinceglb.filekit.core.PickerMode
@@ -11,6 +14,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.awt.Desktop
+import java.io.File
 import java.net.URI
 
 class StartWindowViewModel() : ViewModel() {
@@ -28,7 +32,7 @@ class StartWindowViewModel() : ViewModel() {
             val file = FileKit.saveFile(
                 bytes = ProtoBuf.encodeToByteArray(
                     serializer = SaveableWorkspaceData.serializer(),
-                    value = SaveableWorkspaceData("New Project", "")
+                    value = SaveableWorkspaceData("New Project")
                 ),
                 extension = "amproj",
                 baseName = "project",
@@ -36,6 +40,17 @@ class StartWindowViewModel() : ViewModel() {
 
             file?.readBytes()?.let { bytes ->
                 val data = ProtoBuf.decodeFromByteArray<SaveableWorkspaceData>(bytes)
+
+                if (file.path != null) {
+                    GlobalSettings.recentWorkspaces = GlobalSettings.recentWorkspaces.plus(
+                        RecentWorkspace(
+                            title = data.title,
+                            path = file.path!!
+                        )
+                    ).toSet().toList()
+                }
+
+                WorkspaceRepository.loadWorkspace(data)
 
                 onOpenEditor?.invoke()
             }
@@ -56,9 +71,44 @@ class StartWindowViewModel() : ViewModel() {
 
             file?.readBytes()?.let { bytes ->
                 val data = ProtoBuf.decodeFromByteArray<SaveableWorkspaceData>(bytes)
-            }
 
-            onOpenEditor?.invoke()
+                if (file.path != null) {
+                    GlobalSettings.recentWorkspaces = GlobalSettings.recentWorkspaces.plus(
+                        RecentWorkspace(
+                            title = data.title,
+                            path = file.path!!
+                        )
+                    ).toSet().toList()
+                }
+
+                WorkspaceRepository.loadWorkspace(data)
+
+                onOpenEditor?.invoke()
+            }
+        }
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    fun openProjectFile(path: String) {
+        viewModelScope.launch {
+            val file = File(path)
+
+            file.readBytes().let { bytes ->
+                val data = ProtoBuf.decodeFromByteArray<SaveableWorkspaceData>(bytes)
+
+                if (file.path != null) {
+                    GlobalSettings.recentWorkspaces = GlobalSettings.recentWorkspaces.plus(
+                        RecentWorkspace(
+                            title = data.title,
+                            path = file.path
+                        )
+                    ).toSet().toList()
+                }
+
+                WorkspaceRepository.loadWorkspace(data)
+
+                onOpenEditor?.invoke()
+            }
         }
     }
 }

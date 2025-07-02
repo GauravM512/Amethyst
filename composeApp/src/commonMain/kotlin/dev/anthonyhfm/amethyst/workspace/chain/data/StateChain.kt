@@ -8,18 +8,26 @@ import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilte
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.flip.FlipChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.flip.FlipChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.hold.HoldChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.hold.HoldChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import dev.anthonyhfm.amethyst.devices.effects.layer.LayerChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.layer.LayerChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.layer_filter.LayerFilterChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.layer_filter.LayerFilterChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.loop.LoopChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.loop.LoopChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.offset.OffsetChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.offset.OffsetChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.rotate.RotateChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.rotate.RotateChainDeviceState
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.collections.forEach
@@ -33,13 +41,6 @@ data class StateChain(
 
         devices.forEach { device ->
             when (device) {
-                is ColorChainDeviceState -> {
-                    ColorChainDevice().let {
-                        it.state.update { device }
-                        chain.add(it)
-                    }
-                }
-
                 is CoordinateFilterChainDeviceState -> {
                     CoordinateFilterChainDevice().let {
                         it.state.update { device }
@@ -47,8 +48,36 @@ data class StateChain(
                     }
                 }
 
+                is LayerFilterChainDeviceState -> {
+                    LayerFilterChainDevice().let {
+                        it.state.update { device }
+                        chain.add(it)
+                    }
+                }
+
                 is DelayChainDeviceState -> {
                     DelayChainDevice().let {
+                        it.state.update { device }
+                        chain.add(it)
+                    }
+                }
+
+                is HoldChainDeviceState -> {
+                    HoldChainDevice().let {
+                        it.state.update { device }
+                        chain.add(it)
+                    }
+                }
+
+                is LoopChainDeviceState -> {
+                    LoopChainDevice().let {
+                        it.state.update { device }
+                        chain.add(it)
+                    }
+                }
+
+                is ColorChainDeviceState -> {
+                    ColorChainDevice().let {
                         it.state.update { device }
                         chain.add(it)
                     }
@@ -89,15 +118,22 @@ data class StateChain(
                     }
                 }
 
-                is LayerFilterChainDeviceState -> {
-                    LayerFilterChainDevice().let {
+                is OffsetChainDeviceState -> {
+                    OffsetChainDevice().let {
                         it.state.update { device }
                         chain.add(it)
                     }
                 }
 
-                is OffsetChainDeviceState -> {
-                    OffsetChainDevice().let {
+                is FlipChainDeviceState -> {
+                    FlipChainDevice().let {
+                        it.state.update { device }
+                        chain.add(it)
+                    }
+                }
+
+                is RotateChainDeviceState -> {
+                    RotateChainDevice().let {
                         it.state.update { device }
                         chain.add(it)
                     }
@@ -114,15 +150,7 @@ data class StateChain(
         fun pack(chain: Chain): StateChain {
             return StateChain(
                 devices = chain.devices.value.map {
-                    when (it) {
-                        is GroupChainDevice -> {
-                            println(it.state.value.groups.map { it.stateChain })
-
-                            it.state.value
-                        }
-
-                        else -> it.state.value
-                    }
+                    it.state.value
                 }
             )
         }

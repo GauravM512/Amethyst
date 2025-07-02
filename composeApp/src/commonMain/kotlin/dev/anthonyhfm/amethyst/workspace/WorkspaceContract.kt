@@ -1,8 +1,6 @@
 package dev.anthonyhfm.amethyst.workspace
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.IntSize
-import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import dev.atsushieno.ktmidi.MidiPortDetails
@@ -54,7 +52,6 @@ interface WorkspaceContract {
     interface WorkspaceMode {
         val displayName: String
         val selectable: Boolean
-
         data class Layout(
             override val displayName: String = "Layout Editor",
             override val selectable: Boolean = true
@@ -65,8 +62,13 @@ interface WorkspaceContract {
             override val selectable: Boolean = true
         ) : WorkspaceMode
 
-        data class Chain(
-            override val displayName: String = "Chain Editor",
+        data class LightsChain(
+            override val displayName: String = "Lights (Chain Editor)",
+            override val selectable: Boolean = true
+        ) : WorkspaceMode
+
+        data class SamplingChain(
+            override val displayName: String = "Sampling (Chain Editor)",
             override val selectable: Boolean = true
         ) : WorkspaceMode
     }

@@ -1,11 +1,23 @@
 package dev.anthonyhfm.amethyst.workspace
 
+import dev.anthonyhfm.amethyst.workspace.chain.WorkspaceChain
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
+import dev.anthonyhfm.amethyst.workspace.data.WorkspaceSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 object WorkspaceRepository {
+    var lightsChain: WorkspaceChain = WorkspaceChain()
+        private set
+
+    var samplingChain: WorkspaceChain = WorkspaceChain(isSampling = true)
+        private set
+
+    private var saveableWorkspaceData: SaveableWorkspaceData? = null
+
     private val _mode: MutableStateFlow<WorkspaceContract.WorkspaceMode> = MutableStateFlow(WorkspaceContract.WorkspaceMode.Layout())
     val mode: StateFlow<WorkspaceContract.WorkspaceMode> = _mode.asStateFlow()
 
@@ -43,4 +55,30 @@ object WorkspaceRepository {
             uuid
         }
     }
+
+    fun loadWorkspace(workspaceData: SaveableWorkspaceData) {
+        saveableWorkspaceData = workspaceData
+
+        lightsChain.heavenChain = workspaceData.lights.unpack()
+        samplingChain.heavenChain = workspaceData.sampling.unpack()
+
+        _bpm.update {
+            workspaceData.settings.bpm
+        }
+
+        _mode.update {
+            WorkspaceContract.WorkspaceMode.Preview()
+        }
+    }
+
+    fun saveWorkspace(): SaveableWorkspaceData {
+        return SaveableWorkspaceData(
+            lights = StateChain.pack(lightsChain.heavenChain),
+            sampling = StateChain.pack(lightsChain.heavenChain),
+            settings = WorkspaceSettings(
+                bpm = _bpm.value
+            )
+        ).also { saveableWorkspaceData = it }
+    }
 }
+

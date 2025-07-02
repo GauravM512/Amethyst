@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.start.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,17 +24,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RowScope.ProjectsView(
     onClickCreateProject: () -> Unit,
     onClickOpenProject: () -> Unit,
+    onOpenRecentWorkspace: (RecentWorkspace) -> Unit
 ) {
+    val projects: List<RecentWorkspace> = GlobalSettings.recentWorkspaces
+
     Scaffold(
         modifier = Modifier
             .weight(1f)
@@ -94,6 +101,11 @@ fun RowScope.ProjectsView(
             }
         }
     ) { paddingValues ->
+        if (projects.isEmpty()) {
+            EmptyProjects()
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .padding(paddingValues)
@@ -101,13 +113,16 @@ fun RowScope.ProjectsView(
 
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            for (i in 1 .. 3) {
+            projects.forEach {
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .fillMaxWidth()
                         .height(46.dp)
                         .background(MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp))
+                        .clickable {
+                            onOpenRecentWorkspace(it)
+                        }
                         .padding(start = 12.dp),
 
                     verticalAlignment = Alignment.CenterVertically,
@@ -117,13 +132,13 @@ fun RowScope.ProjectsView(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = "Project Name",
+                            text = it.title,
                             style = MaterialTheme.typography.labelLarge,
                             lineHeight = MaterialTheme.typography.labelLarge.fontSize
                         )
 
                         Text(
-                            text = "~/desktop/project.aspj",
+                            text = it.path,
                             style = MaterialTheme.typography.labelSmall,
                             lineHeight = MaterialTheme.typography.labelSmall.fontSize,
                             color = MaterialTheme.colorScheme.onBackground.copy(0.6f)
