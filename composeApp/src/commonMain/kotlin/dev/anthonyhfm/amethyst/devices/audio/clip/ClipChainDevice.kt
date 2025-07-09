@@ -1,14 +1,17 @@
 package dev.anthonyhfm.amethyst.devices.audio.clip
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -17,6 +20,7 @@ import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import io.github.vinceglb.filekit.core.FileKit
 import io.github.vinceglb.filekit.core.PickerMode
 import io.github.vinceglb.filekit.core.PickerType
@@ -64,6 +68,22 @@ class ClipChainDevice : ChainDevice<ClipChainDeviceState>() {
                 }
             ) {
                 Icon(Icons.Default.FileOpen, null)
+            }
+
+            if (deviceState.audioKey.isEmpty()) {
+                Text(
+                    text = "Please select an audio file",
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(vertical = 6.dp)
+                )
+            } else {
+                Text(
+                    text = WorkspaceRepository.audioRegistry[deviceState.audioKey]?.name ?: "Unnamed Audio",
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(vertical = 6.dp)
+                )
             }
         }
     }
