@@ -61,26 +61,22 @@ class WorkspaceViewModel(
             WorkspaceRepository.mode.collect { newMode ->
                 when (newMode) {
                     is KeyframesWorkspaceMode -> {
-                        Heaven.devices.forEach {
-                            it.mirrorLaunchpad = false
-                            it.previewState.clear()
-                        }
+                        Heaven.clear()
 
                         newMode.wake()
                     }
 
                     else -> {
                         if (state.value.mode is CoordinateFilterWorkspaceMode) {
+                            Heaven.clear()
+
                             (state.value.mode as CoordinateFilterWorkspaceMode).close()
                         }
 
                         if (state.value.mode is KeyframesWorkspaceMode) {
-                            (state.value.mode as KeyframesWorkspaceMode).close()
-                        }
+                            Heaven.clear()
 
-                        Heaven.devices.forEach {
-                            it.mirrorLaunchpad = true
-                            it.previewState.clear()
+                            (state.value.mode as KeyframesWorkspaceMode).close()
                         }
                     }
                 }
@@ -273,15 +269,12 @@ class WorkspaceViewModel(
 
                 inputDevice?.setMessageReceivedListener { bytes, _, _, _ ->
                     getMidiInputData(bytes)?.let {
-                        WorkspaceRepository.lightsChain.onMidiInput(
-                            inputData = it,
-                            offset = this@apply.position.value
-                        )
+                        if (WorkspaceRepository.mode.value.claimInputs) {
 
-                        WorkspaceRepository.samplingChain.onMidiInput(
-                            inputData = it,
-                            offset = this@apply.position.value
-                        )
+                        } else {
+                            WorkspaceRepository.lightsChain.onMidiInput(it, this@apply.position.value)
+                            WorkspaceRepository.samplingChain.onMidiInput(it, this@apply.position.value)
+                        }
                     }
                 }
 

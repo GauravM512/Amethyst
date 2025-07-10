@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
     override val displayName: String = "Keyframes"
     override val selectable: Boolean = false
+    override val claimInputs: Boolean = true
 
     lateinit var state: StateFlow<KeyframesChainDeviceContract.KeyframesChainDeviceState>
 

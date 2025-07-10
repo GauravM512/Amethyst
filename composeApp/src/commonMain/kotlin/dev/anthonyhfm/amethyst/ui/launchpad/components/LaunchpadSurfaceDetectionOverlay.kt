@@ -101,8 +101,8 @@ private fun calculatePadFromOffset(
 
     if (col in 0 until layoutType.x && actualRow in 0 until layoutType.y) {
         return Pair(
-            col + layoutType.offsetX,
-            actualRow + layoutType.offsetY
+            col,
+            actualRow
         )
     }
 

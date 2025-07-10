@@ -13,6 +13,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Shape
 import dev.anthonyhfm.amethyst.core.midi.data.ProjectDeviceConfig
 import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
+import dev.anthonyhfm.amethyst.core.util.UUID
+import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.LaunchpadPreviewState
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
@@ -30,11 +32,12 @@ abstract class LaunchpadViewportElement(
     abstract override var size: Size
     abstract val layout: LaunchpadLayout
 
+    internal val internalUUID = UUID.randomUUID()
+
     val renderScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     var deviceConfig: ProjectDeviceConfig = ProjectDeviceConfig()
     val previewState: LaunchpadPreviewState = LaunchpadPreviewState()
-    var mirrorLaunchpad: Boolean = true
 
     val screen = Screen()
 
@@ -42,10 +45,8 @@ abstract class LaunchpadViewportElement(
         screen.screenExit = { u, c ->
             deviceConfig.launchpadDevice?.sendUpdate(u, c)
 
-            if (mirrorLaunchpad) {
-                renderScope.launch {
-                    previewState.sendToPreview(u)
-                }
+            renderScope.launch {
+                previewState.sendToPreview(u)
             }
         }
     }

@@ -7,6 +7,7 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 class CoordinateFilterWorkspaceMode : WorkspaceContract.WorkspaceMode {
     override val displayName: String = "Coordinate-Filter Picker"
     override val selectable: Boolean = false
+    override val claimInputs: Boolean = true
 
     var onVirtualDevicePress: ((x: Int, y: Int, offset: Offset) -> Unit)? = null
     var modeWakeup: (() -> Unit)? = null

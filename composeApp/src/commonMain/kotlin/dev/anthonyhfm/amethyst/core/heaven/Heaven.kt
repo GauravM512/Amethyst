@@ -116,10 +116,10 @@ object Heaven {
                             signals.forEach { signal ->
                                 deviceMutex.withLock {
                                     devices.forEach { device ->
-                                        if (signal.x in device.position.value.x.toInt() until device.position.value.x.toInt() + 10 &&
-                                            signal.y in device.position.value.y.toInt() until device.position.value.y.toInt() + 10) {
+                                        if (signal.x in device.position.value.x.toInt() until device.position.value.x.toInt() + device.layout.x &&
+                                            signal.y in device.position.value.y.toInt() until device.position.value.y.toInt() + device.layout.y) {
 
-                                            val posX = signal.x - device.position.value.x.toInt()
+                                            val posX = signal.x - device.position.value.x.toInt() + device.layout.offsetX
                                             val posY = abs(signal.y - 9 - device.position.value.y.toInt())
 
                                             renderScope.launch {
@@ -164,6 +164,24 @@ object Heaven {
                 println("RenderJob Exception: ${e.message}")
                 e.printStackTrace()
             }
+        }
+    }
+
+    fun clear() {
+        renderScope.launch {
+            deviceMutex.withLock {
+                devices.forEach { it.screen.clear() }
+            }
+            signalMutex.withLock {
+                signalQueue.clear()
+            }
+            jobMutex.withLock {
+                jobs.clear()
+                jobQueue.clear()
+            }
+            prev = 0L
+            lastRender = -1L
+            renderAt = -1L
         }
     }
 }
