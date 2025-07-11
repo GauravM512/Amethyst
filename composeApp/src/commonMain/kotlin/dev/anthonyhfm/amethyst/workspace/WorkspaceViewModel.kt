@@ -270,7 +270,7 @@ class WorkspaceViewModel(
                 inputDevice?.setMessageReceivedListener { bytes, _, _, _ ->
                     getMidiInputData(bytes)?.let {
                         if (WorkspaceRepository.mode.value.claimInputs) {
-
+                            WorkspaceRepository.mode.value.onMidiInput(it)
                         } else {
                             WorkspaceRepository.lightsChain.onMidiInput(it, this@apply.position.value)
                             WorkspaceRepository.samplingChain.onMidiInput(it, this@apply.position.value)

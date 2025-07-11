@@ -1,6 +1,8 @@
 package dev.anthonyhfm.amethyst.workspace
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import dev.anthonyhfm.amethyst.core.audio.AudioClip
 import dev.anthonyhfm.amethyst.core.audio.AudioPlayer
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
@@ -70,6 +72,19 @@ object WorkspaceRepository {
         _selectionUUID.update {
             uuid
         }
+    }
+
+    fun getWorkspaceBounds(): Pair<IntOffset, IntSize> {
+        return Pair(
+            first = IntOffset(
+                x = Heaven.devices.minOf { it.position.value.x.toInt() },
+                y = Heaven.devices.minOf { it.position.value.y.toInt() }
+            ),
+            second = IntSize(
+                width = Heaven.devices.maxOf { it.position.value.x.toInt() + it.size.width.toInt() } - Heaven.devices.minOf { it.position.value.x.toInt() },
+                height = Heaven.devices.maxOf { it.position.value.y.toInt() + it.size.height.toInt() } - Heaven.devices.minOf { it.position.value.y.toInt() }
+            )
+        )
     }
 
     fun loadWorkspace(workspaceData: SaveableWorkspaceData) {
