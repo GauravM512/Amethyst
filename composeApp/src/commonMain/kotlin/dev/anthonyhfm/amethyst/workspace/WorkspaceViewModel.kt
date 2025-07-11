@@ -82,7 +82,12 @@ class WorkspaceViewModel(
                 }
 
                 state.update {
-                    it.copy(mode = newMode)
+                    it.copy(
+                        mode = newMode,
+                        viewportState = it.viewportState.copy(
+                            selectedElement = null
+                        )
+                    )
                 }
             }
         }
