@@ -82,12 +82,10 @@ kotlin {
             val lwjglVersion = "3.3.3"
             val lwjglPlatforms = listOf("natives-windows", "natives-linux", "natives-macos", "natives-macos-arm64")
 
-            // LWJGL Core
             implementation("org.lwjgl:lwjgl:$lwjglVersion")
             implementation("org.lwjgl:lwjgl-openal:$lwjglVersion")
             implementation("org.lwjgl:lwjgl-stb:$lwjglVersion")
 
-            // Natives für alle Plattformen
             lwjglPlatforms.forEach { platform ->
                 runtimeOnly("org.lwjgl:lwjgl:$lwjglVersion:$platform")
                 runtimeOnly("org.lwjgl:lwjgl-openal:$lwjglVersion:$platform")

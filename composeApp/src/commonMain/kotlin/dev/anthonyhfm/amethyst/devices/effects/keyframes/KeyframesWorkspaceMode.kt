@@ -16,11 +16,8 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.unit.IntSize
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.views.FrameDrawingPanel
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.views.FrameListPanel
-import dev.anthonyhfm.amethyst.ui.modifier.EditorEvent
-import dev.anthonyhfm.amethyst.ui.modifier.editorEventListener
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import kotlinx.coroutines.flow.StateFlow
 
@@ -79,6 +76,11 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
                         onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDuplicateFrame())
                         return true
                     }
+                }
+
+                Key.Delete, Key.Backspace -> {
+                    onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDeleteFrame(state.value.selectedFrameIndex))
+                    return true
                 }
             }
         }

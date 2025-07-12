@@ -207,6 +207,21 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
                 refreshVirtualDevices()
             }
 
+            is Event.OnDeleteFrame -> {
+                if (state.value.frames.size <= 1) return
+
+                state.update {
+                    it.copy(
+                        frames = it.frames.toMutableList().apply {
+                            removeAt(event.frameIndex)
+                        },
+                        selectedFrameIndex = event.frameIndex.coerceAtMost(it.frames.lastIndex)
+                    )
+                }
+
+                refreshVirtualDevices()
+            }
+
             is Event.OnChangeFramePosition -> {
                 state.update {
                     it.copy(
