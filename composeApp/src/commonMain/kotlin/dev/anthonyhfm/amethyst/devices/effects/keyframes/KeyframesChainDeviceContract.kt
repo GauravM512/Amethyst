@@ -16,6 +16,7 @@ sealed interface KeyframesChainDeviceContract {
         data class OnColorUpdate(val color: Color) : Event
         data class OnSelectFrame(val frameIndex: Int) : Event
         data class OnAddFrame(val atIndex: Int? = null) : Event
+        data class OnDuplicateFrame(val frameIndex: Int? = null) : Event
         data class OnChangeFrameTiming(val frameIndex: Int, val timing: Timing, val gate: Float) : Event
         data class OnChangeFramePosition(
             val from: Int,

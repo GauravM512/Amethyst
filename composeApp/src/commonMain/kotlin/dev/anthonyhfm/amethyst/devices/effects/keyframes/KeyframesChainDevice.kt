@@ -23,6 +23,8 @@ import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.Timing
+import dev.anthonyhfm.amethyst.core.util.UUID
+import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.*
@@ -179,6 +181,28 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
                 }
 
                 onEvent(Event.OnSelectFrame(event.atIndex ?: (state.value.frames.size - 1)))
+
+                refreshVirtualDevices()
+            }
+
+            is Event.OnDuplicateFrame -> {
+                val frameIndexToDuplicate = event.frameIndex ?: state.value.selectedFrameIndex
+                val frameToDuplicate = state.value.frames[frameIndexToDuplicate]
+
+                state.update {
+                    it.copy(
+                        frames = it.frames.toMutableList().apply {
+                            add(
+                                index = frameIndexToDuplicate + 1,
+                                element = frameToDuplicate.copy(
+                                    _internalUuid = UUID.randomUUID()
+                                )
+                            )
+                        }
+                    )
+                }
+
+                onEvent(Event.OnSelectFrame(frameIndexToDuplicate + 1))
 
                 refreshVirtualDevices()
             }

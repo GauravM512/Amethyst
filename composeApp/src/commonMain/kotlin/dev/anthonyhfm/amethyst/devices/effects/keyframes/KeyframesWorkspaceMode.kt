@@ -12,6 +12,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.IntSize
@@ -42,27 +44,6 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .editorEventListener {
-                    when (it) {
-                        is EditorEvent.Up -> {
-                            onEvent?.invoke(
-                                KeyframesChainDeviceContract.Event.OnSelectFrame(state.selectedFrameIndex - 1)
-                            )
-                        }
-
-                        is EditorEvent.Down -> {
-                            onEvent?.invoke(
-                                KeyframesChainDeviceContract.Event.OnSelectFrame(state.selectedFrameIndex + 1)
-                            )
-                        }
-
-                        is EditorEvent.Duplicate -> {
-
-                        }
-
-                        else -> { }
-                    }
-                }
         ) {
             FrameListPanel(
                 state = state,
@@ -91,6 +72,13 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
                 Key.DirectionDown, Key.DirectionRight -> {
                     onEvent?.invoke(KeyframesChainDeviceContract.Event.OnSelectFrame(state.value.selectedFrameIndex + 1))
                     return true
+                }
+
+                Key.D -> {
+                    if (event.isCtrlPressed || event.isMetaPressed) {
+                        onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDuplicateFrame())
+                        return true
+                    }
                 }
             }
         }

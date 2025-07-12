@@ -9,13 +9,16 @@ import dev.anthonyhfm.amethyst.desktop.FlatUtilityLaf
 import javax.swing.UIManager
 
 @Composable
-actual fun SettingsDialog() {
+actual fun SettingsDialog(visible: Boolean, onDismiss: () -> Unit) {
     if (DesktopPlatform.get() == DesktopPlatform.Windows) {
         UIManager.setLookAndFeel(FlatUtilityLaf())
     }
 
     DialogWindow(
-        onCloseRequest = { /* Handle close request */ },
+        visible = visible,
+        onCloseRequest = {
+            onDismiss()
+        },
         title = "Settings",
         state = rememberDialogState(
             width = 400.dp,

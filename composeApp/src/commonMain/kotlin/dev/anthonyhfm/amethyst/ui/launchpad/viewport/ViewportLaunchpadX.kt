@@ -91,8 +91,6 @@ private fun GridPad(
     effectData: RawUpdate,
     modifier: Modifier = Modifier,
 ) {
-    println("GridPad: x=$x, y=$y")
-
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center

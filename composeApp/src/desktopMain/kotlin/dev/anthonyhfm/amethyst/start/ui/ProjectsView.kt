@@ -24,12 +24,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.SettingsDialog
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +44,7 @@ fun RowScope.ProjectsView(
     onOpenRecentWorkspace: (RecentWorkspace) -> Unit
 ) {
     val projects: List<RecentWorkspace> = GlobalSettings.recentWorkspaces
+    var showSettings by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier
@@ -53,10 +58,17 @@ fun RowScope.ProjectsView(
                 actions = {
                     IconButton(
                         onClick = {
-
+                            showSettings = true
                         }
                     ) {
                         Icon(Icons.Default.Settings, "Settings")
+
+                        SettingsDialog(
+                            visible = showSettings,
+                            onDismiss = {
+                                showSettings = false
+                            },
+                        )
                     }
                 }
             )

@@ -43,7 +43,7 @@ class SortedDictionary<K : Comparable<K>, V> {
         return y
     }
 
-    fun put(key: K, value: V) {
+    operator fun set(key: K, value: V) {
         root.value = insert(root.value, key, value)
     }
 
@@ -86,7 +86,7 @@ class SortedDictionary<K : Comparable<K>, V> {
         return node
     }
 
-    fun get(key: K): V? = search(root.value, key)?.value
+    operator fun get(key: K): V? = search(root.value, key)?.value
 
     private fun search(node: Node<K, V>?, key: K): Node<K, V>? {
         if (node == null || node.key == key) return node
