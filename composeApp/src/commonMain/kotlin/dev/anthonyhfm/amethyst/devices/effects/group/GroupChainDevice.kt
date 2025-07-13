@@ -51,6 +51,7 @@ import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.chain.ui.HiddenDevicePickerButton
 import dev.anthonyhfm.amethyst.workspace.chain.ui.TitleBarModifierProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -441,11 +442,13 @@ class GroupChainDevice(
         val group = state.value.groups[index]
         createGroup(index + 1)
 
-        // Rename the newly created group
         state.update {
             it.copy(
                 groups = it.groups.toMutableList().apply {
-                    this[index + 1] = this[index + 1].copy(name = "${group.name} (Copy)")
+                    this[index + 1] = Group(
+                        name = "Chain ${it.groups.size + 1}",
+                        chain = StateChain.pack(group.chain).unpack()
+                    )
                 }
             )
         }
