@@ -66,6 +66,12 @@ class WorkspaceViewModel(
                         newMode.wake()
                     }
 
+                    is CoordinateFilterWorkspaceMode -> {
+                        Heaven.clear()
+
+                        newMode.wake()
+                    }
+
                     else -> {
                         if (state.value.mode is CoordinateFilterWorkspaceMode) {
                             Heaven.clear()
