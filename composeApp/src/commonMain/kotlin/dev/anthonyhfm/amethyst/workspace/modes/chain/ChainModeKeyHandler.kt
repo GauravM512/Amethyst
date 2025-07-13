@@ -27,6 +27,10 @@ object ChainModeKeyHandler {
                         return true
                     }
                 }
+
+                Key.Escape -> {
+                    WorkspaceRepository.setSelection(null)
+                }
             }
         }
 
