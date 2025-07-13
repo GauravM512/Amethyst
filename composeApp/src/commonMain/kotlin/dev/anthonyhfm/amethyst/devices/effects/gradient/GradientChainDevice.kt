@@ -50,16 +50,15 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
         val controller = rememberColorPickerController()
         val deviceState by state.collectAsState()
 
-        val colors = deviceState.gradientData
         var selectedColor: Int? by remember { mutableStateOf(null) }
 
         LaunchedEffect(selectedColor) {
             if (selectedColor != null) {
                 controller.selectByColor(
                     color = Color(
-                        colors[selectedColor!!].r,
-                        colors[selectedColor!!].g,
-                        colors[selectedColor!!].b,
+                        deviceState.gradientData[selectedColor!!].r,
+                        deviceState.gradientData[selectedColor!!].g,
+                        deviceState.gradientData[selectedColor!!].b,
                     ),
                     fromUser = false
                 )
@@ -95,11 +94,27 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
                         onSelectionChange = {
                             selectedColor = it
                         },
-                        colors = colors,
+                        colors = deviceState.gradientData,
                         onGradientDataEmit = { data ->
                             state.update {
                                 it.copy(
                                     gradientData = data
+                                )
+                            }
+                        },
+                        onAddGradientPoint = { position ->
+                            val newColor = GradientChainDeviceState.GradientColor(
+                                r = 1.0f,
+                                g = 1.0f,
+                                b = 1.0f,
+                                position = position
+                            )
+                            val updatedColors = deviceState.gradientData.toMutableList().apply {
+                                add(newColor)
+                            }
+                            state.update {
+                                it.copy(
+                                    gradientData = updatedColors
                                 )
                             }
                         }

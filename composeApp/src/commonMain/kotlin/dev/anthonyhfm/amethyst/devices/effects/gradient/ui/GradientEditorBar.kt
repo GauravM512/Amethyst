@@ -30,6 +30,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientChainDeviceState
+import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 
 @Composable
 fun GradientEditorBar(
@@ -37,36 +38,41 @@ fun GradientEditorBar(
     onSelectionChange: (Int?) -> Unit,
     colors: List<GradientChainDeviceState.GradientColor>,
     onGradientDataEmit: (List<GradientChainDeviceState.GradientColor>) -> Unit,
+    onAddGradientPoint: (position: Float) -> Unit,
 ) {
     val density = LocalDensity.current
 
     Box(
         modifier = Modifier
     ) {
-        Canvas(
-            modifier = Modifier
-                .padding(horizontal = 12.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .fillMaxWidth()
-                .height(28.dp)
-        ) {
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colorStops = colors.sortedBy { it.position }
-                        .map { it.position to Color(it.r, it.g, it.b) }
-                        .toTypedArray(),
-                    startX = 0f,
-                    endX = size.width
-                ),
-                size = size
-            )
-        }
-
         BoxWithConstraints(
             modifier = Modifier
                 .padding(horizontal = 12.dp)
                 .fillMaxWidth()
         ) {
+            Canvas(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .fillMaxWidth()
+                    .height(28.dp)
+                    .rightClickable { offset ->
+                        val position = offset.x / constraints.maxWidth.toFloat()
+                        val clampedPosition = position.coerceIn(0f, 1f)
+                        onAddGradientPoint(clampedPosition)
+                    }
+            ) {
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        colorStops = colors.sortedBy { it.position }
+                            .map { it.position to Color(it.r, it.g, it.b) }
+                            .toTypedArray(),
+                        startX = 0f,
+                        endX = size.width
+                    ),
+                    size = size
+                )
+            }
+
             colors.forEachIndexed { index, color ->
                 var pos: Float by remember { mutableStateOf(color.position) }
 
