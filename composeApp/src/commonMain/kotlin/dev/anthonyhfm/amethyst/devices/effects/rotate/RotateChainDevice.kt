@@ -122,7 +122,26 @@ class RotateChainDevice : ChainDevice<RotateChainDeviceState>() {
     override fun midiEnter(n: List<Signal>) {
         val bounds = WorkspaceRepository.bounds
 
-        midiExit?.invoke(n)
+        when (state.value.mode) {
+            RotateChainDeviceState.RotateMode.DEGREES_270 -> {
+                midiExit?.invoke(
+                    n.map {
+                        it.copy(
+                            x = it.y,
+                            y = it.x,
+                        )
+                    }
+                )
+            }
+
+            else -> {
+                midiExit?.invoke(n)
+            }
+        }
+
+        if (state.value.bypass) {
+            midiExit?.invoke(n)
+        }
     }
 }
 
