@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
@@ -76,6 +77,8 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
 
     @Composable
     override fun Content() {
+        val selections by SelectionManager.selections.collectAsState()
+
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
@@ -84,7 +87,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         ) {
             AmethystDevice(
                 title = "Group",
-                deviceId = internalUUID,
+                isSelected = selections.contains(this@GroupChainDevice),
                 modifier = Modifier
                     .width(180.dp),
             ) {
@@ -294,55 +297,15 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                     }
                 )
 
-                ReorderableRow(
-                    list = effects,
-                    onSettle = { fromIndex, toIndex ->
-                        isDraggingAny = false
-                        reorderDeviceInGroup(groupsState.selectionIndex, fromIndex, toIndex)
-                    },
-                    onMove = {
-                        isDraggingAny = true
-                    },
-                    verticalAlignment = Alignment.CenterVertically
-                ) { index, device, isDragging ->
-                    key(device.internalUUID) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            ChainDeviceItem(
-                                device = device,
-                                isDragging = isDragging
-                            )
+                effects.forEachIndexed { index, device ->
+                    device.Content()
 
-                            HiddenDevicePickerButton(
-                                onAddComponent = {
-                                    groupsState.groups[groupsState.selectionIndex].chain.add(it, index + 1)
-                                }
-                            )
+                    HiddenDevicePickerButton(
+                        onAddComponent = {
+                            groupsState.groups[groupsState.selectionIndex].chain.add(it, index + 1)
                         }
-                    }
+                    )
                 }
-            }
-        }
-    }
-
-    @Composable
-    private fun ReorderableScope.ChainDeviceItem(
-        device: ChainDevice<*>,
-        isDragging: Boolean
-    ) {
-        Box(
-            modifier = Modifier
-                .then(
-                    if (isDragging) {
-                        Modifier.shadow(8.dp, RoundedCornerShape(8.dp))
-                    } else {
-                        Modifier
-                    }
-                )
-        ) {
-            TitleBarModifierProvider(Modifier.draggableHandle()) {
-                device.Content()
             }
         }
     }
