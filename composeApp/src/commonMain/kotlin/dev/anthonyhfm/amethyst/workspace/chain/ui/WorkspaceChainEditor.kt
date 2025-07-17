@@ -25,7 +25,6 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 
 @Composable
 fun WorkspaceChainEditor(
-    sampling: Boolean,
     devices: List<ChainDevice<*>>,
     onEvent: (WorkspaceContract.Event) -> Unit
 ) {

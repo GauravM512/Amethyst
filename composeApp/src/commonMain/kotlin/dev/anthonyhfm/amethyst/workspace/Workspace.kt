@@ -103,7 +103,6 @@ fun Workspace() {
                     .align(Alignment.BottomCenter)
             ) {
                 WorkspaceChainEditor(
-                    sampling = false,
                     devices = WorkspaceRepository.lightsChain.heavenChain.devices.value,
                     onEvent = { viewModel.onEvent(it) }
                 )
@@ -117,7 +116,6 @@ fun Workspace() {
                     .align(Alignment.BottomCenter)
             ) {
                 WorkspaceChainEditor(
-                    sampling = true,
                     devices = WorkspaceRepository.samplingChain.heavenChain.devices.value,
                     onEvent = { viewModel.onEvent(it) }
                 )
