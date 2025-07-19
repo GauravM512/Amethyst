@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drop.dropTarget
@@ -40,6 +41,7 @@ fun HiddenDevicePickerButton(
     dragAndDropState: DragAndDropState<ChainDevice<*>> = rememberDragAndDropState(),
     expanded: Boolean = false,
     forceOff: Boolean = false,
+    expandedWidth: Dp = 56.dp,
     onAddComponent: (ChainDevice<*>) -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -55,7 +57,7 @@ fun HiddenDevicePickerButton(
                 } else {
                     animateDpAsState(
                         targetValue = if (hovering || expanded || pickerVisible) {
-                            56.dp
+                            expandedWidth
                         } else {
                             12.dp
                         }

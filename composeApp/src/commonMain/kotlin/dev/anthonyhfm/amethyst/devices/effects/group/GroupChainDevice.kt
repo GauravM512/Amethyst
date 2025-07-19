@@ -281,26 +281,13 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         val devices by groupsState.groups[groupsState.selectionIndex].chain.devices
 
         if (devices.isEmpty()) {
-            DragAndDropContainer(
-                state = dragAndDropState,
-            ) {
-
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(100.dp),
-
-                contentAlignment = Alignment.Center
-            ) {
-                HiddenDevicePickerButton(
-                    expanded = true,
-                    onAddComponent = {
-                        groupsState.groups[groupsState.selectionIndex].chain.add(it)
-                    }
-                )
-            }
+            HiddenDevicePickerButton(
+                expanded = true,
+                expandedWidth = 100.dp,
+                onAddComponent = {
+                    groupsState.groups[groupsState.selectionIndex].chain.add(it)
+                }
+            )
         } else {
             Row(
                 modifier = Modifier
