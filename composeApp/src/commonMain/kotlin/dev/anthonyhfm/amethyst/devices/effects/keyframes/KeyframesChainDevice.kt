@@ -283,44 +283,50 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
      * Supposed to run better than rendering on the fly during playback.
      */
     fun renderAnimation() {
-        val renderedAnimation: MutableList<Pair<Int, List<Signal>>> = mutableListOf()
+        val bpm = WorkspaceRepository.bpm.value
         var animationMs = 0
 
-        state.value.frames.plus(Frame(Timing.Rythm(Timing.Rythm.RythmTiming._1_16))).forEachIndexed { index, frame ->
-            animationMs += ((state.value.frames.getOrNull(index - 1)?.timing?.toMsValue(WorkspaceRepository.bpm.value) ?: 0) * (frame.gate * 2)).toInt()
+        val frames = state.value.frames + Frame(Timing.Rythm(Timing.Rythm.RythmTiming._1_16))
 
-            renderedAnimation.add(
-                Pair(
-                    first = animationMs,
-                    second = frame.entries.map { entry ->
-                        Signal(
-                            origin = this,
-                            x = entry.x,
-                            y = entry.y,
-                            color = Color(entry.r, entry.g, entry.b),
-                            layer = 0
-                        )
-                    }.plus(
-                        state.value.frames.getOrNull(index - 1)?.entries?.filter { previousEntry ->
-                            frame.entries.find { it.x == previousEntry.x && it.y == previousEntry.y } == null
-                        }?.map {
-                            Signal(
-                                origin = this,
-                                x = it.x,
-                                y = it.y,
-                                color = Color.Black, // Assuming black for cleared signals
-                                layer = 0
-                            )
-                        } ?: emptyList()
-                    )
-                )
-            )
+        val renderedAnimation = buildList {
+            frames.forEachIndexed { index, frame ->
+                val previousFrame = frames.getOrNull(index - 1)
+                val deltaMs = previousFrame?.timing?.toMsValue(bpm)?.times(frame.gate * 2)?.toInt() ?: 0
+                animationMs += deltaMs
+
+                val signals = buildList {
+                    addAll(frame.entries.map { it.toSignal() })
+
+                    if (previousFrame != null) {
+                        val cleared = previousFrame.entries.filter { prev ->
+                            frame.entries.none { it.x == prev.x && it.y == prev.y }
+                        }.map { it.toOffSignal() }
+                        addAll(cleared)
+                    }
+                }
+
+                add(animationMs to signals)
+            }
         }
 
-        state.update {
-            it.copy(renderedAnimation = renderedAnimation)
-        }
+        state.update { it.copy(renderedAnimation = renderedAnimation) }
     }
+
+    private fun KeyframesEntry.toSignal() = Signal(
+        origin = this,
+        x = x,
+        y = y,
+        color = Color(r, g, b),
+        layer = 0
+    )
+
+    private fun KeyframesEntry.toOffSignal() = Signal(
+        origin = this,
+        x = x,
+        y = y,
+        color = Color.Black,
+        layer = 0
+    )
 
     override fun midiEnter(n: List<Signal>) {
         n.forEach {
