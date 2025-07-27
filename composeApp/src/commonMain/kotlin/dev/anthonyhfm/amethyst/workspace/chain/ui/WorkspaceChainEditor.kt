@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.workspace.chain.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,10 +26,14 @@ import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropContainer
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
+import dev.anthonyhfm.amethyst.core.selection.Selectable
+import dev.anthonyhfm.amethyst.core.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.ui.components.DeviceDraggingPreview
 import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
 @Composable
 fun WorkspaceChainEditor(
@@ -75,13 +82,31 @@ fun WorkspaceChainEditor(
                                     state = dragAndDropState,
                                     key = device.selectionUUID,
                                     data = device,
+                                    draggableContent = {
+                                        DeviceDraggingPreview(device)
+                                    }
                                 ) {
                                     TitleBarModifierProvider(
                                         Modifier
-                                            .rightClickable {
-                                                println(device.selectionUUID)
+                                            .clickable {
+                                                SelectionManager.select(
+                                                    Selectable.ChainDevice(
+                                                        parent = when (WorkspaceRepository.mode.value) {
+                                                            is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain.heavenChain
+
+                                                            else -> {
+                                                                WorkspaceRepository.lightsChain.heavenChain
+                                                            }
+                                                        },
+                                                        device = device
+                                                    )
+                                                )
                                             }
                                     ) {
+                                        LaunchedEffect(dragAndDropState.draggedItem) {
+                                            device.isDragging.value = device.selectionUUID == dragAndDropState.draggedItem?.key
+                                        }
+
                                         if (device is GroupChainDevice) {
                                             device.Content(
                                                 dragAndDropState = dragAndDropState

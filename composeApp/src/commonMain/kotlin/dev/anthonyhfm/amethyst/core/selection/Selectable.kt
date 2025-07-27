@@ -13,6 +13,7 @@ interface Selectable {
 
     data class ChainDevice(
         val parent: Chain,
-        override val selectionUUID: String = UUID.randomUUID()
+        val device: dev.anthonyhfm.amethyst.devices.ChainDevice<*>,
+        override val selectionUUID: String = device.selectionUUID
     ) : Selectable
 }

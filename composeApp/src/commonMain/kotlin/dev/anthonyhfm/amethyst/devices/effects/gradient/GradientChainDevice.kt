@@ -70,6 +70,7 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
         AmethystDevice(
             title = "Gradient",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(
                     width = if (selectedColor != null) {

@@ -49,6 +49,7 @@ class ColorChainDevice : ChainDevice<ColorChainDeviceState>() {
         AmethystDevice(
             title = "Color",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(200.dp),
         ) {

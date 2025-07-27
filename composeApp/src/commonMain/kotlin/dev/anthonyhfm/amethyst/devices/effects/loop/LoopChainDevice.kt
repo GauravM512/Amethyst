@@ -41,6 +41,7 @@ class LoopChainDevice : ChainDevice<LoopChainDeviceState>() {
         AmethystDevice(
             title = "Loop",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier.width(200.dp)
         ) {
             Row(

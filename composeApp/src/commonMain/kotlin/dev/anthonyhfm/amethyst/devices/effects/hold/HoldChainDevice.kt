@@ -35,6 +35,7 @@ class HoldChainDevice : ChainDevice<HoldChainDeviceState>() {
         AmethystDevice(
             title = "Hold",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(100.dp)
         ) {

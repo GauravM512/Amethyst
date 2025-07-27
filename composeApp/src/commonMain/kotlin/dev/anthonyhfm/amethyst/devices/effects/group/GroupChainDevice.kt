@@ -31,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -43,6 +44,7 @@ import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.selection.Selectable
 import dev.anthonyhfm.amethyst.core.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
@@ -275,6 +277,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
 
         if (devices.isEmpty()) {
             ExpandingChainDevicePicker(
+                dragAndDropState = dragAndDropState,
                 expanded = true,
                 expandedWidth = 100.dp,
                 onAddComponent = {
@@ -288,6 +291,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ExpandingChainDevicePicker(
+                    dragAndDropState = dragAndDropState,
                     onAddComponent = {
                         groupsState.groups[groupsState.selectionIndex].chain.add(it, 0)
                     }
@@ -301,10 +305,19 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                     ) {
                         TitleBarModifierProvider(
                             Modifier
-                                .rightClickable {
-                                    println(device.selectionUUID)
+                                .clickable {
+                                    SelectionManager.select(
+                                        Selectable.ChainDevice(
+                                            parent = groupsState.groups[groupsState.selectionIndex].chain,
+                                            device = device
+                                        )
+                                    )
                                 }
                         ) {
+                            LaunchedEffect(dragAndDropState.draggedItem) {
+                                device.isDragging.value = device.selectionUUID == dragAndDropState.draggedItem?.key
+                            }
+
                             if (device is GroupChainDevice) {
                                 device.Content(
                                     dragAndDropState = dragAndDropState

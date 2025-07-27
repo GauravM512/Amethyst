@@ -78,6 +78,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         AmethystDevice(
             title = "Keyframes",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(120.dp)
         ) {

@@ -25,6 +25,7 @@ class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
         AmethystDevice(
             title = "Copy",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier.width(200.dp)
         ) {
 

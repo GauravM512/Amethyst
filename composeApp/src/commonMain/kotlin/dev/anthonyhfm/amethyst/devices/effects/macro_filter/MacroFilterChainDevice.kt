@@ -38,6 +38,7 @@ class MacroFilterChainDevice : ChainDevice<MacroFilterChainDeviceState>() {
         AmethystDevice(
             title = "Macro Filter",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(120.dp)
         ) {

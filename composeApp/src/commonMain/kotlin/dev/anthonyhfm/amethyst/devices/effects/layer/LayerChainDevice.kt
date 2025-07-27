@@ -30,6 +30,7 @@ class LayerChainDevice : ChainDevice<LayerChainDeviceState>() {
         AmethystDevice(
             title = "Layer",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(100.dp)
         ) {

@@ -53,6 +53,7 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
         AmethystDevice(
             title = "Coordinate Filter",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(140.dp)
         ) {

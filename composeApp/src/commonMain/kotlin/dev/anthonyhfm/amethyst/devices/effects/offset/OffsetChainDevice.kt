@@ -49,6 +49,7 @@ class OffsetChainDevice : ChainDevice<OffsetChainDeviceState>() {
         AmethystDevice(
             title = "Offset",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(200.dp)
         ) {

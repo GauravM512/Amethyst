@@ -43,6 +43,7 @@ class ClipChainDevice : ChainDevice<ClipChainDeviceState>() {
         AmethystDevice(
             title = "Clip",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(200.dp)
         ) {

@@ -36,6 +36,7 @@ class FlipChainDevice : ChainDevice<FlipChainDeviceState>() {
         AmethystDevice(
             title = "Flip",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(140.dp)
         ) {

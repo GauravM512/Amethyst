@@ -73,10 +73,8 @@ fun ExpandingChainDevicePicker(
                     onAddComponent(StateChain.unpackDevice(state.data.state.value))
 
                     if (WorkspaceRepository.mode.value is WorkspaceContract.WorkspaceMode.SamplingChain) {
-                        println("Removing from sampling heaven chain: ${state.data.selectionUUID}")
                         WorkspaceRepository.samplingChain.heavenChain.remove(state.data.selectionUUID)
                     } else {
-                        println("Removing from lights heaven chain: ${state.data.selectionUUID}")
                         WorkspaceRepository.lightsChain.heavenChain.remove(state.data.selectionUUID)
                     }
                 }
@@ -85,7 +83,6 @@ fun ExpandingChainDevicePicker(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Show the plus button only if not forceOff and if hovering, expanded, or pickerVisible is true
         AnimatedVisibility(
             visible = !forceOff && (hovering || expanded || pickerVisible),
             enter = scaleIn() + fadeIn(),

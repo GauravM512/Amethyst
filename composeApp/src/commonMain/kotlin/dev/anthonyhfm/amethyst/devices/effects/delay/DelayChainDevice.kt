@@ -34,6 +34,7 @@ class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
         AmethystDevice(
             title = "Delay",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(100.dp)
         ) {

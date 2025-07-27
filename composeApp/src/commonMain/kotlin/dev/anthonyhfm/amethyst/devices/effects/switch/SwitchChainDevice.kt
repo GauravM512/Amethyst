@@ -39,6 +39,7 @@ class SwitchChainDevice : ChainDevice<SwitchChainDeviceState>() {
         AmethystDevice(
             title = "Switch",
             isSelected = selections.contains(this),
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(100.dp)
         ) {
