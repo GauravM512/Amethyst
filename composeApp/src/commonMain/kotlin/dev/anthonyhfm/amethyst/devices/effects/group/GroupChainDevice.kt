@@ -496,6 +496,17 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
             }
         }
     }
+
+    fun packState(): GroupChainDeviceState {
+        return state.value.copy(
+            groups = state.value.groups.map { group ->
+                Group(
+                    name = group.name,
+                    stateChain = StateChain.pack(group.chain)
+                )
+            }
+        )
+    }
 }
 
 @Serializable

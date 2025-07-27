@@ -33,9 +33,12 @@ import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain.Companion.pack
 
 @Composable
 fun ExpandingChainDevicePicker(
@@ -70,7 +73,15 @@ fun ExpandingChainDevicePicker(
                 state = dragAndDropState,
                 key = remember { UUID.randomUUID() },
                 onDrop = { state ->
-                    onAddComponent(StateChain.unpackDevice(state.data.state.value))
+                    onAddComponent(
+                        StateChain.unpackDevice(
+                            if (state.data.state.value is GroupChainDeviceState) {
+                                (state.data as GroupChainDevice).packState()
+                            } else {
+                                state.data.state.value
+                            }
+                        )
+                    )
 
                     if (WorkspaceRepository.mode.value is WorkspaceContract.WorkspaceMode.SamplingChain) {
                         WorkspaceRepository.samplingChain.heavenChain.remove(state.data.selectionUUID)
