@@ -6,8 +6,12 @@ import dev.anthonyhfm.amethyst.conversion.unipad.data.KeySound
 import dev.anthonyhfm.amethyst.core.audio.AudioClip
 import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ZipEntry
+import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
+import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
 
@@ -87,6 +91,33 @@ object UnipadConverter : AmethystConverter {
                     }.plus(
                         Group(
                             name = "Page Switch",
+                            stateChain = StateChain(
+                                listOf(
+                                    GroupChainDeviceState(
+                                        groups = List(pages) { index ->
+                                            Group(
+                                                name = "Page Switch ${index + 1}",
+                                                stateChain = StateChain(
+                                                    devices = listOf(
+                                                        CoordinateFilterChainDeviceState(
+                                                            filters = listOf(Pair(9, 1 + index))
+                                                        ),
+                                                        SwitchChainDeviceState(
+                                                            macro = 0,
+                                                            value = index
+                                                        ),
+                                                        ColorChainDeviceState(
+                                                            r = 0f,
+                                                            g = 0f,
+                                                            b = 0f
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        }
+                                    )
+                                )
+                            )
                         )
                     )
                 )
