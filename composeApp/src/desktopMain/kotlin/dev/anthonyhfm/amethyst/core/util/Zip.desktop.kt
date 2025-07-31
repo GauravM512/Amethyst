@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.core.util
 
 import java.io.File
 import java.io.FileInputStream
+import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 
 actual object Zip {
@@ -59,5 +60,19 @@ actual object Zip {
 
         zipFile.close()
         return ByteArray(0)
+    }
+
+    actual fun decode(file: String): ByteArray {
+        val _file = File(file).let {
+            if (!it.exists() || !it.isFile) {
+                return ByteArray(0)
+            }
+
+            return@let it.inputStream()
+        }
+
+        val zipFile = GZIPInputStream(_file)
+
+        return zipFile.readAllBytes()
     }
 }

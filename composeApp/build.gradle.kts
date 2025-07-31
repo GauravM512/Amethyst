@@ -68,6 +68,9 @@ kotlin {
             implementation(libs.filekit.core)
             implementation(libs.dropdown)
             implementation("com.mohamedrejeb.dnd:compose-dnd:0.4.0")
+            implementation("io.github.pdvrieze.xmlutil:core:0.91.2")
+            implementation("io.github.pdvrieze.xmlutil:serialization:0.91.2")
+            implementation("io.github.pdvrieze.xmlutil:serialutil:0.91.2")
             kotlin("stdlib")
         }
         desktopMain.dependencies {

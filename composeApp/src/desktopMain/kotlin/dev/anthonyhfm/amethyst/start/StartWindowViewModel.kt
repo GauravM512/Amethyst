@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.start
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.unipad.UnipadConverter
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf
@@ -81,6 +82,14 @@ class StartWindowViewModel() : ViewModel() {
             when (file?.extension?.lowercase()) {
                 "amproj" -> {
                     openProjectFile(file.path!!)
+                }
+
+                "als" -> {
+                    WorkspaceRepository.loadWorkspace(
+                        workspaceData = AbletonConverter.convertToWorkspace(file.path!!)
+                    )
+
+                    onOpenEditor?.invoke()
                 }
 
                 "zip" -> {
