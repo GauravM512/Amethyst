@@ -33,9 +33,14 @@ import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain.Companion.pack
 
 @Composable
 fun ExpandingChainDevicePicker(
@@ -70,13 +75,21 @@ fun ExpandingChainDevicePicker(
                 state = dragAndDropState,
                 key = remember { UUID.randomUUID() },
                 onDrop = { state ->
-                    onAddComponent(StateChain.unpackDevice(state.data.state.value))
+                    onAddComponent(
+                        StateChain.unpackDevice(
+                            if (state.data.state.value is GroupChainDeviceState) {
+                                (state.data as GroupChainDevice).packState()
+                            } else if (state.data.state.value is MultiGroupChainDeviceState) {
+                                (state.data as MultiGroupChainDevice).packState()
+                            } else {
+                                state.data.state.value
+                            }
+                        )
+                    )
 
                     if (WorkspaceRepository.mode.value is WorkspaceContract.WorkspaceMode.SamplingChain) {
-                        println("Removing from sampling heaven chain: ${state.data.selectionUUID}")
                         WorkspaceRepository.samplingChain.heavenChain.remove(state.data.selectionUUID)
                     } else {
-                        println("Removing from lights heaven chain: ${state.data.selectionUUID}")
                         WorkspaceRepository.lightsChain.heavenChain.remove(state.data.selectionUUID)
                     }
                 }
@@ -85,7 +98,6 @@ fun ExpandingChainDevicePicker(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Show the plus button only if not forceOff and if hovering, expanded, or pickerVisible is true
         AnimatedVisibility(
             visible = !forceOff && (hovering || expanded || pickerVisible),
             enter = scaleIn() + fadeIn(),

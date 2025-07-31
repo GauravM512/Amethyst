@@ -77,7 +77,8 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
 
         AmethystDevice(
             title = "Keyframes",
-            isSelected = selections.contains(this),
+            isSelected = selections.any { it.selectionUUID == this.selectionUUID },
+            isDragging = isDragging.value,
             modifier = Modifier
                 .width(120.dp)
         ) {
@@ -295,12 +296,15 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
                 animationMs += deltaMs
 
                 val signals = buildList {
-                    addAll(frame.entries.map { it.toSignal() })
+                    addAll(frame.entries.filter { !(previousFrame?.entries?.contains(it) ?: false) }.map { it.toSignal() })
 
                     if (previousFrame != null) {
                         val cleared = previousFrame.entries.filter { prev ->
                             frame.entries.none { it.x == prev.x && it.y == prev.y }
-                        }.map { it.toOffSignal() }
+                        }.map {
+                            it.toOffSignal()
+                        }
+
                         addAll(cleared)
                     }
                 }

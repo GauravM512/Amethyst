@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.devices.effects.group
+package dev.anthonyhfm.amethyst.devices.effects.multi
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
@@ -48,12 +49,11 @@ import dev.anthonyhfm.amethyst.core.selection.Selectable
 import dev.anthonyhfm.amethyst.core.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
-import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
-import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ExpandingChainDevicePicker
 import dev.anthonyhfm.amethyst.workspace.chain.ui.TitleBarModifierProvider
@@ -64,8 +64,8 @@ import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
-    override val state = MutableStateFlow(GroupChainDeviceState())
+class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
+    override val state = MutableStateFlow(MultiGroupChainDeviceState())
 
     init {
         createGroup()
@@ -75,10 +75,13 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         private var copiedGroupName: String? = null
     }
 
+    val multiMap: MutableMap<Pair<Int, Int>, Int> = mutableMapOf()
+
     @Composable
     fun Content(
         dragAndDropState: DragAndDropState<ChainDevice<*>> = rememberDragAndDropState()
     ) {
+        val deviceState by state.collectAsState()
         val selections by SelectionManager.selections.collectAsState()
         val isSelected = selections.any { it.selectionUUID == this.selectionUUID }
 
@@ -89,7 +92,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
         ) {
             AmethystDevice(
-                title = "Group",
+                title = "Multi",
                 isSelected = isSelected,
                 modifier = Modifier
                     .width(180.dp),
@@ -115,7 +118,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
             }
 
             key( // Trigger recomposition on selected group change
-                state.collectAsState().value
+                deviceState.groups, deviceState.selectionIndex
             ) {
                 GroupContent(dragAndDropState)
             }
@@ -395,8 +398,81 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
     }
 
     override fun midiEnter(n: List<Signal>) {
-        state.value.groups.forEach {
-            it.chain.midiEnter(n)
+        n.forEach {
+            when (state.value.type) {
+                MultiGroupChainDeviceState.TYPE.FORWARD -> {
+                    if (it.color != Color.Black) {
+                        multiMap[Pair(it.x, it.y)] = state.value.currentMultiIndex
+
+                        if (state.value.currentMultiIndex < state.value.groups.size - 1) {
+                            state.update {
+                                it.copy(currentMultiIndex = it.currentMultiIndex + 1)
+                            }
+                        } else {
+                            state.update {
+                                it.copy(currentMultiIndex = 0)
+                            }
+                        }
+
+                        multiMap[Pair(it.x, it.y)]?.let { index ->
+                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        }
+                    } else {
+                        multiMap[Pair(it.x, it.y)]?.let { index ->
+                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        }
+
+                        multiMap.remove(Pair(it.x, it.y))
+                    }
+                }
+
+                MultiGroupChainDeviceState.TYPE.BACKWARD -> {
+                    if (it.color != Color.Black) {
+                        multiMap[Pair(it.x, it.y)] = state.value.currentMultiIndex
+
+                        if (state.value.currentMultiIndex > 0) {
+                            state.update {
+                                it.copy(currentMultiIndex = it.currentMultiIndex - 1)
+                            }
+                        } else {
+                            state.update {
+                                it.copy(currentMultiIndex = state.value.groups.size - 1)
+                            }
+                        }
+
+                        multiMap[Pair(it.x, it.y)]?.let { index ->
+                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        }
+                    } else {
+                        multiMap[Pair(it.x, it.y)]?.let { index ->
+                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        }
+
+                        multiMap.remove(Pair(it.x, it.y))
+                    }
+                }
+
+                MultiGroupChainDeviceState.TYPE.RANDOM -> {
+                    if (state.value.groups.isNotEmpty()) {
+                        val randomIndex = (state.value.currentMultiIndex + (0..state.value.groups.size - 1).random()) % state.value.groups.size
+                        state.value.groups[randomIndex].chain.midiEnter(listOf(it))
+
+                        if (it.color != Color.Black) {
+                            multiMap[Pair(it.x, it.y)] = randomIndex
+
+                            multiMap[Pair(it.x, it.y)]?.let { index ->
+                                state.value.groups[index].chain.midiEnter(listOf(it))
+                            }
+                        } else {
+                            multiMap[Pair(it.x, it.y)]?.let { index ->
+                                state.value.groups[index].chain.midiEnter(listOf(it))
+                            }
+
+                            multiMap.remove(Pair(it.x, it.y))
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -475,7 +551,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         }
     }
 
-    fun loadFromState(state: GroupChainDeviceState) {
+    fun loadFromState(state: MultiGroupChainDeviceState) {
         val unpackedGroups = state.groups.map { group ->
             val unpackedChain = group.stateChain.unpack()
             unpackedChain.midiExit = {
@@ -505,7 +581,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         }
     }
 
-    fun packState(): GroupChainDeviceState {
+    fun packState(): MultiGroupChainDeviceState {
         return state.value.copy(
             groups = state.value.groups.map { group ->
                 Group(
@@ -518,7 +594,15 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
 }
 
 @Serializable
-data class GroupChainDeviceState(
+data class MultiGroupChainDeviceState(
     val selectionIndex: Int = 0,
+    val type: TYPE = TYPE.FORWARD,
+    val currentMultiIndex: Int = 0,
     val groups: List<Group> = emptyList()
-) : DeviceState()
+) : DeviceState() {
+    enum class TYPE {
+        FORWARD,
+        BACKWARD,
+        RANDOM
+    }
+}

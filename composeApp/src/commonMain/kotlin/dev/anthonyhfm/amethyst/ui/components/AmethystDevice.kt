@@ -13,11 +13,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
@@ -28,6 +38,7 @@ import org.koin.compose.koinInject
 fun AmethystDevice(
     title: String,
     isSelected: Boolean,
+    isDragging: Boolean = false,
     modifier: Modifier = Modifier,
     titleBarModifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit
@@ -52,6 +63,7 @@ fun AmethystDevice(
             .fillMaxHeight()
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .border(1.dp, borderColor, RoundedCornerShape(6.dp))
+            .alpha(if (isDragging) 0.2f else 1f)
     ) {
         Box(
             modifier = Modifier

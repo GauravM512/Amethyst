@@ -1,6 +1,8 @@
 package dev.anthonyhfm.amethyst.devices
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.heaven.elements.SignalReceiver
 import dev.anthonyhfm.amethyst.core.selection.Selectable
@@ -13,6 +15,8 @@ abstract class ChainDevice <State : @Serializable DeviceState> : SignalReceiver(
     override val selectionUUID: String = UUID.randomUUID()
 
     abstract val state: MutableStateFlow<State>
+
+    val isDragging: MutableState<Boolean> = mutableStateOf(false)
 
     @Composable
     abstract fun Content()

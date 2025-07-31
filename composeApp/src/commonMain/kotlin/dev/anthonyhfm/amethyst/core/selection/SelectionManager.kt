@@ -16,4 +16,8 @@ object SelectionManager {
             selections.value = selections.value + element
         }
     }
+
+    fun clear() {
+        selections.value = emptyList()
+    }
 }
