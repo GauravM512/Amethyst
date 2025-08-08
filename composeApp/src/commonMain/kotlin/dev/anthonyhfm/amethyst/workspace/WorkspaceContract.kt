@@ -6,6 +6,7 @@ import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.workspace.modes.chain.ChainModeKeyHandler
+import dev.anthonyhfm.amethyst.workspace.modes.layout.LayoutModeKeyHandler
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import dev.atsushieno.ktmidi.MidiPortDetails
 
@@ -58,7 +59,11 @@ interface WorkspaceContract {
         data class Layout(
             override val displayName: String = "Layout Editor",
             override val selectable: Boolean = true
-        ) : WorkspaceMode
+        ) : WorkspaceMode {
+            override fun onKeyEvent(event: KeyEvent): Boolean {
+                return LayoutModeKeyHandler.handleKeyInput(event)
+            }
+        }
 
         data class Preview(
             override val displayName: String = "Preview",

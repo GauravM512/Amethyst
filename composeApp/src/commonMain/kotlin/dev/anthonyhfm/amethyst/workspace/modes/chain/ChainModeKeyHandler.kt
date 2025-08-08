@@ -20,10 +20,14 @@ object ChainModeKeyHandler {
 
                         SelectionManager.clear()
                     }
+
+                    return true
                 }
 
                 Key.Escape -> {
                     SelectionManager.clear()
+
+                    return true
                 }
             }
         }

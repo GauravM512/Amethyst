@@ -44,14 +44,24 @@ class WorkspaceViewModel(
     )
 
     init {
-        Heaven.devices.forEach { device ->
-            device.onEvent = { onEvent(it) }
+        viewModelScope.launch {
+            WorkspaceRepository.deviceRefresh.collect {
+                val devices = Heaven.devices.map { device ->
+                    device.onEvent = { onEvent(it) }
 
-            state.update {
-                it.copy(
-                    viewportElements = it.viewportElements.plus(device)
-                )
+                    return@map device
+                }
+
+                state.update {
+                    it.copy(
+                        viewportElements = devices
+                    )
+                }
             }
+        }
+
+        viewModelScope.launch {
+            WorkspaceRepository.deviceRefresh.emit(Unit)
         }
 
         viewModelScope.launch {

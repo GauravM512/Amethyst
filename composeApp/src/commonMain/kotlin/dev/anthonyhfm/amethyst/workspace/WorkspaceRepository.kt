@@ -17,12 +17,17 @@ import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.data.Macro
 import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
 import dev.anthonyhfm.amethyst.workspace.data.WorkspaceSettings
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.runBlocking
 
 object WorkspaceRepository {
+    val deviceRefresh: MutableSharedFlow<Unit> = MutableSharedFlow()
+
     var lightsChain: WorkspaceChain = WorkspaceChain()
         private set
 
@@ -89,16 +94,28 @@ object WorkspaceRepository {
     }
 
     fun updateWorkspaceBounds() {
-        bounds = Pair(
-            first = IntOffset(
-                x = Heaven.devices.minOf { it.position.value.x.toInt() },
-                y = Heaven.devices.minOf { it.position.value.y.toInt() }
-            ),
-            second = IntSize(
-                width = Heaven.devices.maxOf { it.position.value.x.toInt() + it.size.width.toInt() } - Heaven.devices.minOf { it.position.value.x.toInt() },
-                height = Heaven.devices.maxOf { it.position.value.y.toInt() + it.size.height.toInt() } - Heaven.devices.minOf { it.position.value.y.toInt() }
+        if (Heaven.devices.isNotEmpty()) {
+            bounds = Pair(
+                first = IntOffset(
+                    x = Heaven.devices.minOf { it.position.value.x.toInt() },
+                    y = Heaven.devices.minOf { it.position.value.y.toInt() }
+                ),
+                second = IntSize(
+                    width = Heaven.devices.maxOf { it.position.value.x.toInt() + it.size.width.toInt() } - Heaven.devices.minOf { it.position.value.x.toInt() },
+                    height = Heaven.devices.maxOf { it.position.value.y.toInt() + it.size.height.toInt() } - Heaven.devices.minOf { it.position.value.y.toInt() }
+                )
             )
-        )
+        }
+    }
+
+    fun removeVirtualDevice(uuid: String) {
+        Heaven.devices = Heaven.devices.filterNot { it.selectionUUID == uuid }
+
+        runBlocking {
+            deviceRefresh.emit(Unit)
+        }
+
+        updateWorkspaceBounds()
     }
 
     fun loadWorkspace(workspaceData: SaveableWorkspaceData) {
