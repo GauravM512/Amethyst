@@ -9,8 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import java.io.File
 
 actual val platformMidiAccess: MidiAccess =
-    if (File("/dev/snd/seq").exists())
-        AlsaMidiAccess()
+    if (System.getProperty("os.name").contains("Linux"))
+        JvmMidiAccess()
     else if (System.getProperty("os.name").contains("Windows"))
         JvmMidiAccess()
     else
