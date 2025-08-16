@@ -102,18 +102,22 @@ class FlipChainDevice : ChainDevice<FlipChainDeviceState>() {
 
     override fun midiEnter(n: List<Signal>) {
         val bounds = WorkspaceRepository.bounds
-
+        
         midiExit?.invoke(
             n.map {
                 when (state.value.mode) {
                     FlipChainDeviceState.FlipMode.HORIZONTAL -> {
-                        it.copy(
-                            y = bounds.first.y + bounds.second.height - 1 - it.y
-                        )
+                        val rightEdgeX = bounds.first.x + bounds.second.width - 1
+                        val distanceFromRight = rightEdgeX - it.x
+                        val flippedX = bounds.first.x + distanceFromRight
+                        it.copy(x = flippedX)
                     }
 
                     FlipChainDeviceState.FlipMode.VERTICAL -> {
-                        it.copy(x = bounds.first.x - it.x + bounds.second.width - 1)
+                        val bottomEdgeY = bounds.first.y + bounds.second.height - 1
+                        val distanceFromBottom = bottomEdgeY - it.y
+                        val flippedY = bounds.first.y + distanceFromBottom
+                        it.copy(y = flippedY)
                     }
                 }
             }.toMutableList().apply {
@@ -131,7 +135,7 @@ data class FlipChainDeviceState(
     val mode: FlipMode = FlipMode.HORIZONTAL,
 ) : DeviceState() {
     enum class FlipMode {
-        HORIZONTAL,
         VERTICAL,
+        HORIZONTAL,
     }
 }
