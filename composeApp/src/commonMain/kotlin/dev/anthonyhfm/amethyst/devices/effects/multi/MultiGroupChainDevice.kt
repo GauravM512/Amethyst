@@ -14,6 +14,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +44,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,12 +68,14 @@ import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ExpandingChainDevicePicker
 import dev.anthonyhfm.amethyst.workspace.chain.ui.TitleBarModifierProvider
+import io.androidpoet.dropdown.MenuItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import kotlin.math.exp
 
 class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
     override val state = MutableStateFlow(MultiGroupChainDeviceState())
@@ -84,6 +97,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
         val deviceState by state.collectAsState()
         val selections by SelectionManager.selections.collectAsState()
         val isSelected = selections.any { it.selectionUUID == this.selectionUUID }
+        var showTypePicker: Boolean by remember { mutableStateOf(false) }
 
         Row(
             modifier = Modifier
@@ -113,7 +127,82 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
                             )
                     )
 
-                    GroupList()
+                    Column {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                        ) {
+                            GroupList()
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        ) {
+                            DropdownMenu(
+                                expanded = showTypePicker,
+                                onDismissRequest = {
+                                    showTypePicker = false
+                                }
+                            ) {
+                                MultiGroupChainDeviceState.TYPE.entries.forEach { type ->
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            state.update {
+                                                it.copy(type = type)
+                                            }
+
+                                            showTypePicker = false
+                                        },
+                                        text = {
+                                            Text(
+                                                text = when (type) {
+                                                    MultiGroupChainDeviceState.TYPE.FORWARD -> "Forwards"
+                                                    MultiGroupChainDeviceState.TYPE.BACKWARD -> "Backwards"
+                                                    MultiGroupChainDeviceState.TYPE.RANDOM -> "Random"
+                                                }
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = when (type) {
+                                                    MultiGroupChainDeviceState.TYPE.FORWARD -> Icons.Default.FastForward
+                                                    MultiGroupChainDeviceState.TYPE.BACKWARD -> Icons.Default.FastRewind
+                                                    MultiGroupChainDeviceState.TYPE.RANDOM -> Icons.Default.Shuffle
+                                                },
+                                                contentDescription = null
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+
+                            AssistChip(
+                                onClick = {
+                                    showTypePicker = true
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp),
+                                label = {
+                                    Text(
+                                        text = when (deviceState.type) {
+                                            MultiGroupChainDeviceState.TYPE.FORWARD -> "Forwards"
+                                            MultiGroupChainDeviceState.TYPE.BACKWARD -> "Backwards"
+                                            MultiGroupChainDeviceState.TYPE.RANDOM -> "Random"
+                                        }
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = null
+                                    )
+                                },
+                            )
+                        }
+                    }
                 }
             }
 
@@ -187,6 +276,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
                     ) {
                         GroupItem(
                             group = group,
+                            index = index,
                             selected = groupsState.selectionIndex == index,
                             onSelect = {
                                 state.update {
@@ -214,6 +304,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
     @Composable
     private fun ReorderableCollectionItemScope.GroupItem(
         group: Group,
+        index: Int,
         selected: Boolean,
         onSelect: () -> Unit
     ) {
@@ -235,7 +326,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
                 }
         ) {
             Text(
-                text = group.name,
+                text = group.name.replace("#", "${index + 1}"),
                 style = MaterialTheme.typography.labelLarge,
                 lineHeight = MaterialTheme.typography.labelLarge.fontSize,
                 modifier = Modifier
@@ -377,9 +468,9 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
             val out = it.copy(
                 groups = it.groups.toMutableList().apply {
                     if (atIndex == null) {
-                        add(Group("Chain ${it.groups.size + 1}"))
+                        add(Group("Chain #"))
                     } else {
-                        add(atIndex, Group("Chain ${it.groups.size + 1}"))
+                        add(atIndex, Group("Chain #"))
                     }
                 }
             )
@@ -537,7 +628,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
                     add(
                         index = index,
                         element = Group(
-                            name = "Chain ${it.groups.size + 1}",
+                            name = "Chain #",
                             chain = StateChain.pack(group.chain).unpack()
                         )
                     )

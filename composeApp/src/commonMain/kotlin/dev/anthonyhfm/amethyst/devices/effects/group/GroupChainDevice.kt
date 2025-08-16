@@ -183,6 +183,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                     ) {
                         GroupItem(
                             group = group,
+                            index = index,
                             selected = groupsState.selectionIndex == index,
                             onSelect = {
                                 state.update {
@@ -210,6 +211,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
     @Composable
     private fun ReorderableCollectionItemScope.GroupItem(
         group: Group,
+        index: Int,
         selected: Boolean,
         onSelect: () -> Unit
     ) {
@@ -231,7 +233,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                 }
         ) {
             Text(
-                text = group.name,
+                text = group.name.replace("#", "${index + 1}"),
                 style = MaterialTheme.typography.labelLarge,
                 lineHeight = MaterialTheme.typography.labelLarge.fontSize,
                 modifier = Modifier
@@ -373,9 +375,9 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
             val out = it.copy(
                 groups = it.groups.toMutableList().apply {
                     if (atIndex == null) {
-                        add(Group("Chain ${it.groups.size + 1}"))
+                        add(Group("Chain #"))
                     } else {
-                        add(atIndex, Group("Chain ${it.groups.size + 1}"))
+                        add(atIndex, Group("Chain #"))
                     }
                 }
             )
@@ -460,7 +462,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                     add(
                         index = index,
                         element = Group(
-                            name = "Chain ${it.groups.size + 1}",
+                            name = "Chain #",
                             chain = StateChain.pack(group.chain).unpack()
                         )
                     )
