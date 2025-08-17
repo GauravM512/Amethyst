@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.settings.SettingsDialog
@@ -152,10 +153,11 @@ fun RowScope.ProjectsView(
                         )
 
                         Text(
-                            text = it.path,
+                            text = it.path.replace(System.getProperty("user.home"), "~"),
                             style = MaterialTheme.typography.labelSmall,
                             lineHeight = MaterialTheme.typography.labelSmall.fontSize,
-                            color = MaterialTheme.colorScheme.onBackground.copy(0.6f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(0.6f),
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
