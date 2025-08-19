@@ -5,10 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
-import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
-import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
-import kotlinx.coroutines.flow.update
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 
 class Chain : SignalReceiver() {
     val devices: MutableState<List<ChainDevice<*>>> = mutableStateOf(emptyList())
@@ -35,7 +34,7 @@ class Chain : SignalReceiver() {
         }
     }
 
-    fun add(device: ChainDevice<*>, atIndex: Int? = null) {
+    fun add(device: ChainDevice<*>, atIndex: Int? = null, fromUser: Boolean = true) {
         devices.value = devices.value.toMutableList().apply {
             if (atIndex != null) {
                 add(index = atIndex, device)
@@ -44,31 +43,62 @@ class Chain : SignalReceiver() {
             }
         }
 
-        reroute()
-    }
-
-    fun remove(index: Int) {
-        devices.value = devices.value.toMutableList().apply {
-            removeAt(index)
+        if (fromUser) {
+            UndoManager.addAction(
+                UndoableAction.ChainDeviceCreation(
+                    parent = this,
+                    device = device
+                )
+            )
         }
 
         reroute()
     }
 
-    fun remove(uuid: String) {
-        if (devices.value.any { it.selectionUUID == uuid }) {
+    fun remove(index: Int, fromUser: Boolean = true) {
+        if (index >= 0 && index < devices.value.size) {
+            val deviceToRemove = devices.value[index]
+
+            if (fromUser) {
+                UndoManager.addAction(
+                    UndoableAction.ChainDeviceRemoval(
+                        parent = this,
+                        device = deviceToRemove
+                    )
+                )
+            }
+
+            devices.value = devices.value.toMutableList().apply {
+                removeAt(index)
+            }
+        }
+
+        reroute()
+    }
+
+    fun remove(uuid: String, fromUser: Boolean = true) {
+        val deviceToRemove = devices.value.find { it.selectionUUID == uuid }
+
+        if (deviceToRemove != null) {
+            if (fromUser) {
+                UndoManager.addAction(
+                    UndoableAction.ChainDeviceRemoval(
+                        parent = this,
+                        device = deviceToRemove
+                    )
+                )
+            }
+
             devices.value = devices.value.toMutableList().apply {
                 removeAll { it.selectionUUID == uuid }
             }
-
-            return
         } else {
             devices.value.map {
                 when (it) {
                     is GroupChainDevice -> {
                         it.apply {
                             state.value.groups.forEach { group ->
-                                group.chain.remove(uuid)
+                                group.chain.remove(uuid, fromUser)
                             }
                         }
                     }
@@ -76,14 +106,14 @@ class Chain : SignalReceiver() {
                     is MultiGroupChainDevice -> {
                         it.apply {
                             state.value.groups.forEach { group ->
-                                group.chain.remove(uuid)
+                                group.chain.remove(uuid, fromUser)
                             }
                         }
                     }
 
                     is ChokeChainDevice -> {
                         it.apply {
-                            state.value.chain.remove(uuid)
+                            state.value.chain.remove(uuid, fromUser)
                         }
                     }
 

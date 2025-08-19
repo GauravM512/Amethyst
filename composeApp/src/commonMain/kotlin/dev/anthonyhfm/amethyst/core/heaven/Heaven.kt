@@ -104,7 +104,7 @@ object Heaven {
                             prev + msToTicks(250.0 / fps),
                             lastRender + msToTicks(1000.0 / fps)
                         )
-                    } else if (renderAt >= 0 && prev > renderAt) {
+                    } else if (renderAt in 0..<prev) {
                         Screen.draw()
                         lastRender = prev
                         renderAt = -1L
@@ -125,6 +125,7 @@ object Heaven {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun processJobQueue(): Boolean {
         var processed = false
 
@@ -193,6 +194,7 @@ object Heaven {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun processSignals(): Boolean {
         var changed = false
 
@@ -237,6 +239,7 @@ object Heaven {
                 signal.y in deviceY until deviceY + device.layout.rows
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun clear() {
         renderScope.launch {
             deviceMutex.withLock {

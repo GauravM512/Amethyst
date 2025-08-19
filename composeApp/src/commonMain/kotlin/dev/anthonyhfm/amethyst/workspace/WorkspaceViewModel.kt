@@ -226,9 +226,9 @@ class WorkspaceViewModel(
 
             is WorkspaceContract.Event.AddChainDevice -> {
                 if (state.value.mode is WorkspaceContract.WorkspaceMode.LightsChain) {
-                    WorkspaceRepository.lightsChain.addDevice(event.device, event.atIndex)
+                    WorkspaceRepository.lightsChain.heavenChain.add(event.device, event.atIndex)
                 } else if (state.value.mode is WorkspaceContract.WorkspaceMode.SamplingChain) {
-                    WorkspaceRepository.samplingChain.addDevice(event.device, event.atIndex)
+                    WorkspaceRepository.samplingChain.heavenChain.add(event.device, event.atIndex)
                 }
             }
         }
