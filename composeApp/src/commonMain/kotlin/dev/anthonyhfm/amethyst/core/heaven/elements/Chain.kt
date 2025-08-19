@@ -124,4 +124,46 @@ class Chain : SignalReceiver() {
 
         reroute()
     }
+
+    /**
+     * Findet rekursiv die Chain, die ein Device mit der angegebenen UUID enthält
+     * @param deviceUUID Die UUID des gesuchten Devices
+     * @return Die Chain die das Device enthält, oder null falls nicht gefunden
+     */
+    fun findDeviceChain(deviceUUID: String): Chain? {
+        // Prüfe zuerst diese Chain
+        if (devices.value.any { it.selectionUUID == deviceUUID }) {
+            return this
+        }
+
+        // Suche rekursiv in verschachtelten Chains
+        devices.value.forEach { device ->
+            when (device) {
+                is GroupChainDevice -> {
+                    device.state.value.groups.forEach { group ->
+                        group.chain.findDeviceChain(deviceUUID)?.let { foundChain ->
+                            return foundChain
+                        }
+                    }
+                }
+
+                is MultiGroupChainDevice -> {
+                    device.state.value.groups.forEach { group ->
+                        group.chain.findDeviceChain(deviceUUID)?.let { foundChain ->
+                            return foundChain
+                        }
+                    }
+                }
+
+                is ChokeChainDevice -> {
+                    device.state.value.chain.findDeviceChain(deviceUUID)?.let { foundChain ->
+                        return foundChain
+                    }
+                }
+            }
+        }
+
+        // Device nicht gefunden
+        return null
+    }
 }

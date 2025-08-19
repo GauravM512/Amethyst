@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drop.dropTarget
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
+import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.ChainDevice
@@ -51,7 +52,8 @@ fun ExpandingChainDevicePicker(
     expanded: Boolean = false,
     forceOff: Boolean = false,
     expandedWidth: Dp = 56.dp,
-    onAddComponent: (ChainDevice<*>) -> Unit
+    onAddComponent: (ChainDevice<*>) -> Unit,
+    onDropDevice: (device: ChainDevice<*>, Pair<Int, String>, originChain: Chain) -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovering: Boolean by interaction.collectIsHoveredAsState()
@@ -78,27 +80,30 @@ fun ExpandingChainDevicePicker(
                 state = dragAndDropState,
                 key = remember { UUID.randomUUID() },
                 onDrop = { state ->
-                    onAddComponent(
-                        StateChain.unpackDevice(
-                            if (state.data.state.value is GroupChainDeviceState) {
-                                (state.data as GroupChainDevice).packState()
-                            } else if (state.data.state.value is MultiGroupChainDeviceState) {
-                                (state.data as MultiGroupChainDevice).packState()
-                            } else if (state.data.state.value is ChokeChainDeviceState) {
-                                (state.data as ChokeChainDevice).state.value.copy(
-                                    stateChain = pack((state.data as ChokeChainDevice).state.value.chain)
-                                )
-                            } else {
-                                state.data.state.value
-                            }
-                        )
+                    val device = StateChain.unpackDevice(
+                        if (state.data.state.value is GroupChainDeviceState) {
+                            (state.data as GroupChainDevice).packState()
+                        } else if (state.data.state.value is MultiGroupChainDeviceState) {
+                            (state.data as MultiGroupChainDevice).packState()
+                        } else if (state.data.state.value is ChokeChainDeviceState) {
+                            (state.data as ChokeChainDevice).state.value.copy(
+                                stateChain = pack((state.data as ChokeChainDevice).state.value.chain)
+                            )
+                        } else {
+                            state.data.state.value
+                        }
                     )
 
+                    var originChain: Chain?
                     if (WorkspaceRepository.mode.value is WorkspaceContract.WorkspaceMode.SamplingChain) {
-                        WorkspaceRepository.samplingChain.heavenChain.remove(state.data.selectionUUID)
+                        originChain = WorkspaceRepository.samplingChain.heavenChain.findDeviceChain(state.data.selectionUUID)
+                        WorkspaceRepository.samplingChain.heavenChain.remove(state.data.selectionUUID, false)
                     } else {
-                        WorkspaceRepository.lightsChain.heavenChain.remove(state.data.selectionUUID)
+                        originChain = WorkspaceRepository.lightsChain.heavenChain.findDeviceChain(state.data.selectionUUID)
+                        WorkspaceRepository.lightsChain.heavenChain.remove(state.data.selectionUUID, false)
                     }
+
+                    onDropDevice(device, Pair(originChain!!.devices.value.indexOfFirst { it.selectionUUID == state.data.selectionUUID }, state.data.selectionUUID), originChain)
                 }
             ),
 

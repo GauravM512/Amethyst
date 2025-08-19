@@ -22,11 +22,10 @@ internal typealias JvmMidiMessage = javax.sound.midi.MidiMessage
 class LinuxJVMAccess : MidiAccess() {
     override val name: String
         get() = "Linux JVM"
+
     override val inputs: Iterable<MidiPortDetails>
         get() = MidiSystem.getMidiDeviceInfo().map { i -> MidiSystem.getMidiDevice(i) }
             .flatMap {
-                println(it.deviceInfo.name)
-
                 // make sure the device has an input port that can be retrieved
                 if (it.maxTransmitters == -1 || it.maxTransmitters > it.transmitters.count()) {
                     listOf(it to it.transmitter)

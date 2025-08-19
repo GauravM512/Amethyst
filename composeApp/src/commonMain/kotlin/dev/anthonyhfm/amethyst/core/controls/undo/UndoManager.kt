@@ -31,7 +31,13 @@ object UndoManager {
 
                 is UndoableAction.MovedChainDevice -> {
                     action.chainAfter.remove(action.device.selectionUUID, fromUser = false)
-                    action.chainBefore.add(action.device, action.fromIndex, fromUser = false)
+
+                    if (action.fromIndex >= 0 && action.fromIndex <= action.chainBefore.devices.value.size) {
+                        action.chainBefore.add(action.device, action.fromIndex, fromUser = false)
+                    } else {
+                        action.chainBefore.add(action.device, fromUser = false)
+                    }
+
                     redoStack.add(action)
                 }
             }

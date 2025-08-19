@@ -17,6 +17,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +32,9 @@ import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
+import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
@@ -41,6 +49,14 @@ fun WorkspaceChainEditor(
 ) {
     val dragAndDropState = rememberDragAndDropState<ChainDevice<*>>()
     val scrollState = rememberScrollState()
+    var chain: Chain? by remember { mutableStateOf(null) }
+
+    LaunchedEffect(WorkspaceRepository.mode.collectAsState().value) {
+        chain = when (WorkspaceRepository.mode.value) {
+            is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain.heavenChain
+            else -> WorkspaceRepository.lightsChain.heavenChain
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -72,6 +88,21 @@ fun WorkspaceChainEditor(
                             expanded = false,
                             onAddComponent = {
                                 onEvent(WorkspaceContract.Event.AddChainDevice(it, 0))
+                            },
+                            onDropDevice = { device, (originalIndex, _), originChain ->
+                                chain!!.add(device, 0, fromUser = false)
+
+                                UndoManager.addAction(
+                                    UndoableAction.MovedChainDevice(
+                                        chainBefore = originChain,
+                                        chainAfter = chain!!,
+                                        device = device,
+                                        fromIndex = originalIndex,
+                                        toIndex = chain!!.devices.value.indexOfFirst {
+                                            it.selectionUUID == device.selectionUUID
+                                        },
+                                    )
+                                )
                             }
                         )
 
@@ -129,6 +160,21 @@ fun WorkspaceChainEditor(
                                     expanded = index == devices.lastIndex,
                                     onAddComponent = {
                                         onEvent(WorkspaceContract.Event.AddChainDevice(it, index + 1))
+                                    },
+                                    onDropDevice = { device, (originalIndex, _), originChain ->
+                                        chain!!.add(device, 0, fromUser = false)
+
+                                        UndoManager.addAction(
+                                            UndoableAction.MovedChainDevice(
+                                                chainBefore = originChain,
+                                                chainAfter = chain!!,
+                                                device = device,
+                                                fromIndex = originalIndex,
+                                                toIndex = chain!!.devices.value.indexOfFirst {
+                                                    it.selectionUUID == device.selectionUUID
+                                                },
+                                            )
+                                        )
                                     }
                                 )
                             }
@@ -141,6 +187,21 @@ fun WorkspaceChainEditor(
                     expanded = true,
                     onAddComponent = {
                         onEvent(WorkspaceContract.Event.AddChainDevice(it))
+                    },
+                    onDropDevice = { device, (originalIndex, _), originChain ->
+                        chain!!.add(device, 0, fromUser = false)
+
+                        UndoManager.addAction(
+                            UndoableAction.MovedChainDevice(
+                                chainBefore = originChain,
+                                chainAfter = chain!!,
+                                device = device,
+                                fromIndex = originalIndex,
+                                toIndex = chain!!.devices.value.indexOfFirst {
+                                    it.selectionUUID == device.selectionUUID
+                                },
+                            )
+                        )
                     }
                 )
             }

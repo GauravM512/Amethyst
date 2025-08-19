@@ -55,6 +55,8 @@ import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
@@ -343,6 +345,26 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                 expandedWidth = 100.dp,
                 onAddComponent = {
                     groupsState.groups[groupsState.openedGroupIndex].chain.add(it)
+                },
+                onDropDevice = { device, (originalIndex, originalUUID), originChain ->
+                    if (originalUUID == selectionUUID) return@ExpandingChainDevicePicker
+
+                    groupsState.groups[groupsState.openedGroupIndex].chain.add(
+                        device,
+                        fromUser = false
+                    )
+
+                    UndoManager.addAction(
+                        UndoableAction.MovedChainDevice(
+                            chainBefore = originChain,
+                            chainAfter = groupsState.groups[groupsState.openedGroupIndex].chain,
+                            device = device,
+                            fromIndex = originalIndex,
+                            toIndex = groupsState.groups[groupsState.openedGroupIndex].chain.devices.value.indexOfFirst {
+                                it.selectionUUID == device.selectionUUID
+                            },
+                        )
+                    )
                 }
             )
         } else {
@@ -355,6 +377,26 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                     dragAndDropState = dragAndDropState,
                     onAddComponent = {
                         groupsState.groups[groupsState.openedGroupIndex].chain.add(it, 0)
+                    },
+                    onDropDevice = { device, (originalIndex, originalUUID), originChain ->
+                        if (originalUUID == selectionUUID) return@ExpandingChainDevicePicker
+
+                        groupsState.groups[groupsState.openedGroupIndex].chain.add(
+                            device,
+                            fromUser = false
+                        )
+
+                        UndoManager.addAction(
+                            UndoableAction.MovedChainDevice(
+                                chainBefore = originChain,
+                                chainAfter = groupsState.groups[groupsState.openedGroupIndex].chain,
+                                device = device,
+                                fromIndex = originalIndex,
+                                toIndex = groupsState.groups[groupsState.openedGroupIndex].chain.devices.value.indexOfFirst {
+                                    it.selectionUUID == device.selectionUUID
+                                },
+                            )
+                        )
                     }
                 )
 
@@ -404,6 +446,26 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                         dragAndDropState = dragAndDropState,
                         onAddComponent = {
                             groupsState.groups[groupsState.openedGroupIndex].chain.add(it, index + 1)
+                        },
+                        onDropDevice = { device, (originalIndex, originalUUID), originChain ->
+                            if (originalUUID == selectionUUID) return@ExpandingChainDevicePicker
+
+                            groupsState.groups[groupsState.openedGroupIndex].chain.add(
+                                device,
+                                fromUser = false
+                            )
+
+                            UndoManager.addAction(
+                                UndoableAction.MovedChainDevice(
+                                    chainBefore = originChain,
+                                    chainAfter = groupsState.groups[groupsState.openedGroupIndex].chain,
+                                    device = device,
+                                    fromIndex = originalIndex,
+                                    toIndex = groupsState.groups[groupsState.openedGroupIndex].chain.devices.value.indexOfFirst {
+                                        it.selectionUUID == device.selectionUUID
+                                    },
+                                )
+                            )
                         }
                     )
                 }
