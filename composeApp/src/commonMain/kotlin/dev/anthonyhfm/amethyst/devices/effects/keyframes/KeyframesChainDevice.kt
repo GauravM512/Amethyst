@@ -160,21 +160,23 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
 
                 when {
                     event.rangeSelect -> {
-                        lastSelectedFrameIndex?.let { lastIndex ->
-                            if (lastIndex != event.frameIndex) {
-                                val start = minOf(lastIndex, event.frameIndex)
-                                val end = maxOf(lastIndex, event.frameIndex)
+                        val startIndex = lastSelectedFrameIndex ?: event.frameIndex
+                        val endIndex = event.frameIndex
 
-                                for (i in start..end) {
-                                    SelectionManager.select(
-                                        Selectable.KeyframeItem(parent = this, frameIndex = i),
-                                        single = false
-                                    )
-                                }
+                        val start = minOf(startIndex, endIndex)
+                        val end = maxOf(startIndex, endIndex)
+
+                        SelectionManager.clear()
+
+                        for (i in start..end) {
+                            if (i in 0 until state.value.frames.size) {
+                                SelectionManager.select(
+                                    Selectable.KeyframeItem(parent = this, frameIndex = i),
+                                    single = false
+                                )
                             }
                         }
 
-                        SelectionManager.select(keyframeItem, single = false)
                         lastSelectedFrameIndex = event.frameIndex
                     }
                     event.multiSelect -> {
@@ -290,6 +292,49 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
                 }
             }
         }
+    }
+
+    fun duplicateFrame(index: Int, toIndex: Int? = null) {
+        val frame = state.value.frames[index]
+        val targetIndex = toIndex ?: (index + 1)
+
+        state.update {
+            it.copy(
+                frames = it.frames.toMutableList().apply {
+                    add(
+                        index = targetIndex,
+                        element = frame.copy(_internalUuid = UUID.randomUUID())
+                    )
+                }
+            )
+        }
+
+        refreshVirtualDevices()
+    }
+
+    fun removeFrame(index: Int) {
+        if (state.value.frames.size <= 1) {
+            return
+        }
+
+        state.update {
+            val newFrames = it.frames.toMutableList().apply {
+                removeAt(index)
+            }
+
+            val newCurrentFrameIndex = when {
+                it.currentFrameIndex >= newFrames.size -> newFrames.size - 1
+                it.currentFrameIndex > index -> it.currentFrameIndex - 1
+                else -> it.currentFrameIndex
+            }
+
+            it.copy(
+                frames = newFrames,
+                currentFrameIndex = newCurrentFrameIndex
+            )
+        }
+
+        refreshVirtualDevices()
     }
 
     fun refreshVirtualDevices() {

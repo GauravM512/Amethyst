@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -16,11 +15,13 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
+import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.views.FrameDrawingPanel
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.views.FrameListPanel
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 
 class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
     override val displayName: String = "Keyframes"
@@ -34,7 +35,7 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
     var modeWakeup: (() -> Unit)? = null
     var modeClose: (() -> Unit)? = null
 
-    var parentDevice: dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice? = null
+    var parentDevice: KeyframesChainDevice? = null
 
     @Composable
     fun ModeContent(paddingValues: PaddingValues) {
@@ -77,13 +78,52 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
 
                 Key.D -> {
                     if (event.isCtrlPressed || event.isMetaPressed) {
-                        onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDuplicateFrame())
+                        val selectedKeyframes = SelectionManager.selections.value.filterIsInstance<Selectable.KeyframeItem>()
+                        if (selectedKeyframes.isNotEmpty()) {
+                            val sortedByIndex = selectedKeyframes.sortedByDescending { it.frameIndex }
+                            val highest = sortedByIndex.maxBy { it.frameIndex }.frameIndex
+
+                            sortedByIndex.forEach { keyframe ->
+                                parentDevice?.duplicateFrame(keyframe.frameIndex, highest + 1)
+                            }
+
+                            parentDevice?.state?.update { currentState ->
+                                currentState.copy(currentFrameIndex = highest + selectedKeyframes.size)
+                            }
+
+                            SelectionManager.selections.update {
+                                selectedKeyframes.mapIndexed { index, keyframe ->
+                                    keyframe.copy(frameIndex = highest + 1 + index)
+                                }
+                            }
+                        } else {
+                            onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDuplicateFrame())
+                        }
                         return true
                     }
                 }
 
                 Key.Delete, Key.Backspace -> {
-                    onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDeleteFrame(state.value.currentFrameIndex))
+                    // Verwende die neuen removeFrame Methoden wie bei GroupChainItems
+                    val selectedKeyframes = SelectionManager.selections.value.filterIsInstance<Selectable.KeyframeItem>()
+                    if (selectedKeyframes.isNotEmpty()) {
+                        val sortedByIndexDesc = selectedKeyframes.sortedByDescending { it.frameIndex }
+
+                        // Verhindere das Löschen aller Frames
+                        if (state.value.frames.size - selectedKeyframes.size < 1) {
+                            return true
+                        }
+
+                        // Lösche mit den neuen Methoden statt Events
+                        sortedByIndexDesc.forEach { keyframe ->
+                            parentDevice?.removeFrame(keyframe.frameIndex)
+                        }
+
+                        SelectionManager.clear()
+                    } else {
+                        // Fallback für Single-Frame-Deletion
+                        onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDeleteFrame(state.value.currentFrameIndex))
+                    }
                     return true
                 }
             }
