@@ -1,6 +1,5 @@
 package dev.anthonyhfm.amethyst.devices.effects.keyframes
 
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.Timing
@@ -47,6 +46,7 @@ sealed interface KeyframesChainDeviceContract {
         val timing: Timing,
         val gate: Float = 0.5f,
         val entries: List<KeyframesEntry> = emptyList(),
+        @Transient
         val _internalUuid: String = UUID.randomUUID()
     )
 

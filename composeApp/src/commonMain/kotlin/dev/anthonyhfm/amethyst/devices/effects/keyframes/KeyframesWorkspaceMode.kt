@@ -104,24 +104,16 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
                 }
 
                 Key.Delete, Key.Backspace -> {
-                    // Verwende die neuen removeFrame Methoden wie bei GroupChainItems
                     val selectedKeyframes = SelectionManager.selections.value.filterIsInstance<Selectable.KeyframeItem>()
                     if (selectedKeyframes.isNotEmpty()) {
                         val sortedByIndexDesc = selectedKeyframes.sortedByDescending { it.frameIndex }
 
-                        // Verhindere das Löschen aller Frames
-                        if (state.value.frames.size - selectedKeyframes.size < 1) {
-                            return true
-                        }
-
-                        // Lösche mit den neuen Methoden statt Events
                         sortedByIndexDesc.forEach { keyframe ->
                             parentDevice?.removeFrame(keyframe.frameIndex)
                         }
 
                         SelectionManager.clear()
                     } else {
-                        // Fallback für Single-Frame-Deletion
                         onEvent?.invoke(KeyframesChainDeviceContract.Event.OnDeleteFrame(state.value.currentFrameIndex))
                     }
                     return true

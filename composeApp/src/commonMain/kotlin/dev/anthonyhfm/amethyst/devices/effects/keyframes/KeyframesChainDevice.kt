@@ -160,7 +160,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
 
                 when {
                     event.rangeSelect -> {
-                        val startIndex = lastSelectedFrameIndex ?: event.frameIndex
+                        val startIndex = state.value.currentFrameIndex
                         val endIndex = event.frameIndex
 
                         val start = minOf(startIndex, endIndex)
@@ -213,11 +213,13 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
                                     index = event.atIndex,
                                     element = Frame(
                                         timing = state.value.frames.getOrNull(event.atIndex - 1)?.timing
-                                            ?: state.value.frames[state.value.currentFrameIndex].timing
+                                            ?: state.value.frames[state.value.currentFrameIndex].timing,
                                     )
                                 )
                             } else {
-                                add(Frame(state.value.frames[state.value.currentFrameIndex].timing))
+                                add(Frame(
+                                    timing = state.value.frames[state.value.currentFrameIndex].timing,
+                                ))
                             }
                         },
                     )
@@ -313,16 +315,20 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
     }
 
     fun removeFrame(index: Int) {
-        if (state.value.frames.size <= 1) {
-            return
-        }
-
         state.update {
             val newFrames = it.frames.toMutableList().apply {
                 removeAt(index)
             }
 
+            if (newFrames.isEmpty()) {
+                newFrames.add(Frame(
+                    timing = Timing.Rythm(Timing.Rythm.RythmTiming._1_4),
+                    _internalUuid = UUID.randomUUID()
+                ))
+            }
+
             val newCurrentFrameIndex = when {
+                newFrames.size == 1 -> 0
                 it.currentFrameIndex >= newFrames.size -> newFrames.size - 1
                 it.currentFrameIndex > index -> it.currentFrameIndex - 1
                 else -> it.currentFrameIndex
@@ -357,7 +363,10 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         val bpm = WorkspaceRepository.bpm.value
         var animationMs = 0
 
-        val frames = state.value.frames + Frame(Timing.Rythm(Timing.Rythm.RythmTiming._1_16))
+        val frames = state.value.frames + Frame(
+            timing = Timing.Rythm(Timing.Rythm.RythmTiming._1_16),
+            _internalUuid = UUID.randomUUID()
+        )
 
         val renderedAnimation = buildList {
             frames.forEachIndexed { index, frame ->
