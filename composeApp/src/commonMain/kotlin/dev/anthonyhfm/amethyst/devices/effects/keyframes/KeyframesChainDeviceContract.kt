@@ -26,6 +26,8 @@ sealed interface KeyframesChainDeviceContract {
             val from: Int,
             val to: Int
         ) : Event
+
+        data object OnImportMidiFile : Event
     }
 
     @Serializable

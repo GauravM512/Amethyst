@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -14,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 
 @Composable
@@ -31,6 +34,18 @@ fun WorkspaceTopAppBar(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         WorkspaceMode(mode, onEvent)
+
+        if (mode is KeyframesWorkspaceMode) {
+            FilledIconButton(
+                onClick = {
+                    mode.onEvent?.invoke(
+                        KeyframesChainDeviceContract.Event.OnImportMidiFile
+                    )
+                }
+            ) {
+                Icon(Icons.Default.FileOpen, null)
+            }
+        }
 
         Spacer(Modifier.weight(1f))
 

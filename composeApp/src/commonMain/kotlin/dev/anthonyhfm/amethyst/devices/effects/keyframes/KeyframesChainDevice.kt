@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.MidiFileImporter
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
@@ -30,6 +31,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.openFilePicker
+import io.github.vinceglb.filekit.dialogs.openFileSaver
+import kotlinx.coroutines.runBlocking
 
 class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
     override val state = MutableStateFlow(KeyframesChainDeviceState())
@@ -300,6 +306,27 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
                             )
                         }
                     )
+                }
+            }
+
+            is Event.OnImportMidiFile -> {
+                runBlocking {
+                    val file = FileKit.openFilePicker(
+                        type = FileKitType.File(
+                            extension = "mid"
+                        ),
+                    )
+
+                    if (file == null) return@runBlocking
+
+                    val data = MidiFileImporter.loadFile(
+                        file = file,
+                        bpm = WorkspaceRepository.bpm.value
+                    )
+
+                    this@KeyframesChainDevice.state.update {
+                        data
+                    }
                 }
             }
         }
