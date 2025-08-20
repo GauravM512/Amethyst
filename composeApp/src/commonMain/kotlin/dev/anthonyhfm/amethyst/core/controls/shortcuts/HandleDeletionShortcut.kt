@@ -25,16 +25,21 @@ fun handleDeletionShortcut(): Boolean {
         }
 
         SelectionManager.selections.value.any { it is Selectable.GroupChainItem } -> {
-            val selected = SelectionManager.selections.value.filterIsInstance<Selectable.GroupChainItem>().sortedByDescending { it.groupIndex }
+            val selectedGroupItems = SelectionManager.selections.value.filterIsInstance<Selectable.GroupChainItem>()
 
-            selected.forEach {
-                when (it.parent) {
+            // Group by parent device to handle multiple selections efficiently
+            val groupedSelections = selectedGroupItems.groupBy { it.parent }
+
+            groupedSelections.forEach { (parent, items) ->
+                val indices = items.map { it.groupIndex }
+
+                when (parent) {
                     is GroupChainDevice -> {
-                        it.parent.removeGroup(it.groupIndex)
+                        parent.removeGroups(indices)
                     }
 
                     is MultiGroupChainDevice -> {
-                        it.parent.removeGroup(it.groupIndex)
+                        parent.removeGroups(indices)
                     }
                 }
             }

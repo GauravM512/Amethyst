@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.core.controls.clipboard
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.Frame
+import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 
 sealed interface ClipboardData {
     data class ChainDevice(
@@ -15,5 +16,9 @@ sealed interface ClipboardData {
 
     data class Keyframe(
         val frames: List<Frame>
+    ) : ClipboardData
+
+    data class GroupChainItem(
+        val groups: List<Group>
     ) : ClipboardData
 }

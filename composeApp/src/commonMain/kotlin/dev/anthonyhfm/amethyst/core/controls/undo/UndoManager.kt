@@ -1,5 +1,8 @@
 package dev.anthonyhfm.amethyst.core.controls.undo
 
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
+
 object UndoManager {
     private val undoStack: MutableList<UndoableAction> = mutableListOf()
     private val redoStack: MutableList<UndoableAction> = mutableListOf()
@@ -77,6 +80,72 @@ object UndoManager {
                     }
                     redoStack.add(action)
                 }
+
+                // Group-related undo actions
+                is UndoableAction.GroupCreation -> {
+                    action.device.removeGroupInternal(action.groupIndex)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.GroupDeletion -> {
+                    action.device.addGroupInternal(action.groupIndex, action.group)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.GroupDuplication -> {
+                    action.device.removeGroupInternal(action.duplicatedIndex)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupDuplication -> {
+                    action.duplications.sortedByDescending { it.duplicatedIndex }.forEach { duplication ->
+                        action.device.removeGroupInternal(duplication.duplicatedIndex)
+                    }
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupDeletion -> {
+                    action.deletions.sortedBy { it.groupIndex }.forEach { deletion ->
+                        when (action.device) {
+                            is GroupChainDevice -> action.device.addGroupInternal(deletion.groupIndex, deletion.group)
+                            is MultiGroupChainDevice -> action.device.addGroupInternal(deletion.groupIndex, deletion.group)
+                            else -> throw IllegalArgumentException("Unsupported device type for MultiGroupDeletion: ${action.device::class.simpleName}")
+                        }
+                    }
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.GroupPaste -> {
+                    action.pastedGroups.sortedByDescending { it.groupIndex }.forEach { pasteInfo ->
+                        action.device.removeGroupInternal(pasteInfo.groupIndex)
+                    }
+                    redoStack.add(action)
+                }
+
+                // MultiGroupChainDevice undo actions
+                is UndoableAction.MultiGroupCreation -> {
+                    action.device.removeGroupInternal(action.groupIndex)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupDuplicationAction -> {
+                    action.device.removeGroupInternal(action.duplicatedIndex)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupMultiDuplication -> {
+                    action.duplications.sortedByDescending { it.duplicatedIndex }.forEach { duplication ->
+                        action.device.removeGroupInternal(duplication.duplicatedIndex)
+                    }
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupPaste -> {
+                    action.pastedGroups.sortedByDescending { it.groupIndex }.forEach { pasteInfo ->
+                        action.device.removeGroupInternal(pasteInfo.groupIndex)
+                    }
+                    redoStack.add(action)
+                }
             }
         }
     }
@@ -140,6 +209,72 @@ object UndoManager {
                     // Re-paste frames in original order
                     action.pastedFrames.forEach { pasteInfo ->
                         action.device.addFrameInternal(pasteInfo.frameIndex, pasteInfo.frame)
+                    }
+                    undoStack.add(action)
+                }
+
+                // Group-related redo actions
+                is UndoableAction.GroupCreation -> {
+                    action.device.addGroupInternal(action.groupIndex, action.group)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.GroupDeletion -> {
+                    action.device.removeGroupInternal(action.groupIndex)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.GroupDuplication -> {
+                    action.device.addGroupInternal(action.duplicatedIndex, action.duplicatedGroup)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupDuplication -> {
+                    action.duplications.forEach { duplication ->
+                        action.device.addGroupInternal(duplication.duplicatedIndex, duplication.duplicatedGroup)
+                    }
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.GroupPaste -> {
+                    action.pastedGroups.forEach { pasteInfo ->
+                        action.device.addGroupInternal(pasteInfo.groupIndex, pasteInfo.group)
+                    }
+                    undoStack.add(action)
+                }
+
+                // MultiGroupChainDevice redo actions
+                is UndoableAction.MultiGroupCreation -> {
+                    action.device.addGroupInternal(action.groupIndex, action.group)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupDeletion -> {
+                    action.deletions.sortedByDescending { it.groupIndex }.forEach { deletion ->
+                        when (action.device) {
+                            is GroupChainDevice -> action.device.removeGroupInternal(deletion.groupIndex)
+                            is MultiGroupChainDevice -> action.device.removeGroupInternal(deletion.groupIndex)
+                            else -> throw IllegalArgumentException("Unsupported device type for MultiGroupDeletion: ${action.device::class.simpleName}")
+                        }
+                    }
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupDuplicationAction -> {
+                    action.device.addGroupInternal(action.duplicatedIndex, action.duplicatedGroup)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupMultiDuplication -> {
+                    action.duplications.forEach { duplication ->
+                        action.device.addGroupInternal(duplication.duplicatedIndex, duplication.duplicatedGroup)
+                    }
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.MultiGroupPaste -> {
+                    action.pastedGroups.forEach { pasteInfo ->
+                        action.device.addGroupInternal(pasteInfo.groupIndex, pasteInfo.group)
                     }
                     undoStack.add(action)
                 }

@@ -796,6 +796,189 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
             SelectionManager.select(groupChainItem, single = false)
         }
     }
+
+    // Internal methods for undo/redo operations without triggering UndoManager
+    fun addGroupInternal(index: Int, group: Group) {
+        state.update {
+            val newGroups = it.groups.toMutableList().apply {
+                add(index, group.copy(chain = StateChain.pack(group.chain).unpack().apply {
+                    midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+                }))
+            }
+
+            it.copy(
+                groups = newGroups,
+                openedGroupIndex = index
+            )
+        }
+    }
+
+    fun removeGroupInternal(index: Int) {
+        if (state.value.groups.size <= 1) return
+
+        state.update {
+            val newGroups = it.groups.toMutableList().apply {
+                removeAt(index)
+            }
+
+            val newOpenedGroupIndex = when {
+                it.openedGroupIndex >= newGroups.size -> newGroups.size - 1
+                it.openedGroupIndex > index -> it.openedGroupIndex - 1
+                else -> it.openedGroupIndex
+            }
+
+            it.copy(
+                groups = newGroups,
+                openedGroupIndex = newOpenedGroupIndex
+            )
+        }
+    }
+
+    // Enhanced copy/paste methods with undo support
+    fun duplicateGroups(selectedIndices: List<Int>) {
+        if (selectedIndices.isEmpty()) return
+
+        val duplications = mutableListOf<UndoableAction.GroupDuplicationInfo>()
+        val sortedIndices = selectedIndices.sortedDescending()
+
+        // Calculate insertion points from the highest selected index
+        var insertionOffset = 0
+
+        sortedIndices.forEach { originalIndex ->
+            val group = state.value.groups[originalIndex]
+            val duplicatedIndex = originalIndex + 1 + insertionOffset
+
+            val duplicatedGroup = Group(
+                name = "Chain #",
+                chain = StateChain.pack(group.chain).unpack().apply {
+                    midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+                }
+            )
+
+            addGroupInternal(duplicatedIndex, duplicatedGroup)
+
+            duplications.add(
+                UndoableAction.GroupDuplicationInfo(
+                    originalIndex = originalIndex,
+                    duplicatedIndex = duplicatedIndex,
+                    duplicatedGroup = duplicatedGroup
+                )
+            )
+
+            insertionOffset++
+        }
+
+        // Add single or multi duplication action to undo stack
+        if (duplications.size == 1) {
+            val duplication = duplications.first()
+            UndoManager.addAction(
+                UndoableAction.MultiGroupDuplicationAction(
+                    device = this,
+                    originalIndex = duplication.originalIndex,
+                    duplicatedIndex = duplication.duplicatedIndex,
+                    duplicatedGroup = duplication.duplicatedGroup
+                )
+            )
+        } else {
+            UndoManager.addAction(
+                UndoableAction.MultiGroupMultiDuplication(
+                    device = this,
+                    duplications = duplications
+                )
+            )
+        }
+    }
+
+    fun pasteGroups(groups: List<dev.anthonyhfm.amethyst.devices.effects.group.data.Group>, targetIndex: Int?) {
+        if (groups.isEmpty()) return
+
+        val pastedGroups = mutableListOf<UndoableAction.GroupPasteInfo>()
+        val insertIndex = targetIndex ?: state.value.groups.size
+
+        groups.forEachIndexed { offset, group ->
+            val pasteIndex = insertIndex + offset
+            val pastedGroup = Group(
+                name = group.name,
+                chain = StateChain.pack(group.chain).unpack().apply {
+                    midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+                }
+            )
+
+            addGroupInternal(pasteIndex, pastedGroup)
+
+            pastedGroups.add(
+                UndoableAction.GroupPasteInfo(
+                    groupIndex = pasteIndex,
+                    group = pastedGroup
+                )
+            )
+        }
+
+        UndoManager.addAction(
+            UndoableAction.MultiGroupPaste(
+                device = this,
+                pastedGroups = pastedGroups
+            )
+        )
+    }
+
+    // Enhanced removeGroup with undo support for multi-selection
+    fun removeGroups(indices: List<Int>) {
+        if (indices.isEmpty() || state.value.groups.size <= indices.size) return
+
+        val deletions = mutableListOf<UndoableAction.GroupDeletionInfo>()
+        val sortedIndices = indices.sortedDescending()
+
+        sortedIndices.forEach { index ->
+            val group = state.value.groups[index]
+            deletions.add(
+                UndoableAction.GroupDeletionInfo(
+                    groupIndex = index,
+                    group = group
+                )
+            )
+            removeGroupInternal(index)
+        }
+
+        // Add single or multi deletion action to undo stack
+        if (deletions.size == 1) {
+            val deletion = deletions.first()
+            UndoManager.addAction(
+                UndoableAction.MultiGroupDeletion(
+                    device = this,
+                    deletions = listOf(deletion)
+                )
+            )
+        } else {
+            UndoManager.addAction(
+                UndoableAction.MultiGroupDeletion(
+                    device = this,
+                    deletions = deletions
+                )
+            )
+        }
+    }
+
+    // Enhanced createGroup with undo support
+    fun createGroupWithUndo(index: Int? = null) {
+        val insertIndex = index ?: state.value.groups.size
+        val newGroup = Group(
+            name = "Chain #",
+            chain = dev.anthonyhfm.amethyst.core.heaven.elements.Chain().apply {
+                midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+            }
+        )
+
+        addGroupInternal(insertIndex, newGroup)
+
+        UndoManager.addAction(
+            UndoableAction.MultiGroupCreation(
+                device = this,
+                groupIndex = insertIndex,
+                group = newGroup
+            )
+        )
+    }
 }
 
 @Serializable

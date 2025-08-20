@@ -6,6 +6,8 @@ import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -39,6 +41,23 @@ object ClipboardManager {
                 setClipboardData(
                     data = ClipboardData.Keyframe(
                         frames = frames
+                    )
+                )
+            }
+
+            data.any { it is Selectable.GroupChainItem } -> {
+                val groupItems = data.filterIsInstance<Selectable.GroupChainItem>()
+                val groups = groupItems.map { groupItem ->
+                    when (groupItem.parent) {
+                        is GroupChainDevice -> groupItem.parent.state.value.groups[groupItem.groupIndex]
+                        is MultiGroupChainDevice -> groupItem.parent.state.value.groups[groupItem.groupIndex]
+                        else -> throw IllegalStateException("Unsupported parent type for GroupChainItem")
+                    }
+                }
+
+                setClipboardData(
+                    data = ClipboardData.GroupChainItem(
+                        groups = groups
                     )
                 )
             }
@@ -91,6 +110,25 @@ object ClipboardManager {
                         .maxOfOrNull { it.frameIndex + 1 }
 
                     mode.parentDevice?.pasteFrames(keyframeData.frames, targetIndex)
+                }
+            }
+
+            is ClipboardData.GroupChainItem -> {
+                val groupData = clipboardData.value as ClipboardData.GroupChainItem
+                val selectedGroups = SelectionManager.selections.value.filterIsInstance<Selectable.GroupChainItem>()
+
+                if (selectedGroups.isNotEmpty()) {
+                    val firstSelected = selectedGroups.first()
+                    val targetIndex = selectedGroups.maxOfOrNull { it.groupIndex + 1 }
+
+                    when (firstSelected.parent) {
+                        is GroupChainDevice -> {
+                            firstSelected.parent.pasteGroups(groupData.groups, targetIndex)
+                        }
+                        is MultiGroupChainDevice -> {
+                            firstSelected.parent.pasteGroups(groupData.groups, targetIndex)
+                        }
+                    }
                 }
             }
 

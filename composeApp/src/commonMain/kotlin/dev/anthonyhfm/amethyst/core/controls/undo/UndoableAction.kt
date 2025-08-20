@@ -3,6 +3,9 @@ package dev.anthonyhfm.amethyst.core.controls.undo
 import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.Frame
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
+import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 
 sealed interface UndoableAction {
     data class ChainDeviceCreation(
@@ -72,4 +75,77 @@ sealed interface UndoableAction {
         val frameIndex: Int,
         val frame: Frame
     )
+
+    data class GroupCreation(
+        val device: GroupChainDevice,
+        val groupIndex: Int,
+        val group: Group
+    ) : UndoableAction
+
+    data class GroupDeletion(
+        val device: GroupChainDevice,
+        val groupIndex: Int,
+        val group: Group
+    ) : UndoableAction
+
+    data class GroupDuplication(
+        val device: GroupChainDevice,
+        val originalIndex: Int,
+        val duplicatedIndex: Int,
+        val duplicatedGroup: Group
+    ) : UndoableAction
+
+    data class MultiGroupDuplication(
+        val device: GroupChainDevice,
+        val duplications: List<GroupDuplicationInfo>
+    ) : UndoableAction
+
+    data class GroupDuplicationInfo(
+        val originalIndex: Int,
+        val duplicatedIndex: Int,
+        val duplicatedGroup: Group
+    )
+
+    data class MultiGroupDeletion(
+        val device: dev.anthonyhfm.amethyst.devices.ChainDevice<*>, // Typsicherer als Any
+        val deletions: List<GroupDeletionInfo>
+    ) : UndoableAction
+
+    data class GroupDeletionInfo(
+        val groupIndex: Int,
+        val group: Group
+    )
+
+    data class GroupPaste(
+        val device: GroupChainDevice,
+        val pastedGroups: List<GroupPasteInfo>
+    ) : UndoableAction
+
+    data class GroupPasteInfo(
+        val groupIndex: Int,
+        val group: Group
+    )
+
+    data class MultiGroupCreation(
+        val device: MultiGroupChainDevice,
+        val groupIndex: Int,
+        val group: Group
+    ) : UndoableAction
+
+    data class MultiGroupDuplicationAction(
+        val device: MultiGroupChainDevice,
+        val originalIndex: Int,
+        val duplicatedIndex: Int,
+        val duplicatedGroup: Group
+    ) : UndoableAction
+
+    data class MultiGroupMultiDuplication(
+        val device: MultiGroupChainDevice,
+        val duplications: List<GroupDuplicationInfo>
+    ) : UndoableAction
+
+    data class MultiGroupPaste(
+        val device: MultiGroupChainDevice,
+        val pastedGroups: List<GroupPasteInfo>
+    ) : UndoableAction
 }
