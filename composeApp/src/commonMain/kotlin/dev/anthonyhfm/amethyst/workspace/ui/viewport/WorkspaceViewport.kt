@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -20,9 +22,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.shadow.DropShadowPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -116,6 +123,34 @@ fun WorkspaceViewport(
                 }
                 x += scaledGridSize
             }
+        }
+
+        elements.forEachIndexed { index, element ->
+            Box(
+                modifier = Modifier
+                    .size(
+                        width = element.size.width.dp * gridSize,
+                        height = element.size.height.dp * gridSize
+                    )
+                    .offset {
+                        val scaledGridSize = gridSize * viewportState.zoom
+                        val xOffset = (element.position.value.x * scaledGridSize + viewportState.offset.x).roundToInt()
+                        val yOffset = (element.position.value.y * scaledGridSize + viewportState.offset.y).roundToInt()
+                        IntOffset(xOffset, yOffset)
+                    }
+                    .graphicsLayer {
+                        scaleX = viewportState.zoom
+                        scaleY = viewportState.zoom
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+                    }
+                    .dropShadow(
+                        element.shape,
+                        androidx.compose.ui.graphics.shadow.Shadow(
+                            radius = 8.dp,
+                            color = Color.Black.copy(0.3f)
+                        )
+                    )
+            )
         }
 
         elements.forEachIndexed { index, element ->
