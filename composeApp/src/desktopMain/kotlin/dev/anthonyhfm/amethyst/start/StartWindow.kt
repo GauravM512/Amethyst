@@ -10,6 +10,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,6 +24,7 @@ import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.FlatAmethystLaf
 import dev.anthonyhfm.amethyst.desktop.FlatUtilityLaf
 import dev.anthonyhfm.amethyst.start.ui.AmethystWelcome
+import dev.anthonyhfm.amethyst.start.ui.LoadingScreen
 import dev.anthonyhfm.amethyst.start.ui.ProjectsView
 import dev.anthonyhfm.amethyst.ui.modifier.platformPaddingTop
 import org.jetbrains.compose.resources.painterResource
@@ -58,6 +61,7 @@ fun StartWindow(
         }
     ) {
         val viewModel = viewModel { StartWindowViewModel() }
+        val loadingMessage: String? by viewModel.loadingState.collectAsState()
 
         viewModel.onOpenEditor = {
             onOpenEditor()
@@ -66,6 +70,10 @@ fun StartWindow(
         if (DesktopPlatform.get() == DesktopPlatform.MacOS) {
             window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
             window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+        }
+
+        if (loadingMessage != null) {
+            LoadingScreen(loadingMessage!!)
         }
 
         MaterialTheme(

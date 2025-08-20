@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.start
 
+import androidx.compose.runtime.MutableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
@@ -18,6 +19,9 @@ import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.write
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
@@ -27,6 +31,8 @@ import java.net.URI
 
 class StartWindowViewModel() : ViewModel() {
     var onOpenEditor: (() -> Unit)? = null
+
+    val loadingState: MutableStateFlow<String?> = MutableStateFlow(null)
 
     fun openGitHubWebsite() {
         Desktop.getDesktop().browse(
@@ -85,23 +91,33 @@ class StartWindowViewModel() : ViewModel() {
 
             when (file?.extension?.lowercase()) {
                 "amproj" -> {
+                    loadingState.update { "Opening Amethyst Workspace File.." }
+
                     openProjectFile(file.path)
                 }
 
                 "als" -> {
-                    WorkspaceRepository.loadWorkspace(
-                        workspaceData = AbletonConverter.convertToWorkspace(file.path)
-                    )
+                    loadingState.update { "Converting Ableton Live-Set.." }
 
-                    onOpenEditor?.invoke()
+                    GlobalScope.launch {
+                        WorkspaceRepository.loadWorkspace(
+                            workspaceData = AbletonConverter.convertToWorkspace(file.path)
+                        )
+
+                        onOpenEditor?.invoke()
+                    }
                 }
 
                 "zip" -> {
-                    WorkspaceRepository.loadWorkspace(
-                        workspaceData = UnipadConverter.convertToWorkspace(file.path)
-                    )
+                    loadingState.update { "Converting UniPad Project.." }
 
-                    onOpenEditor?.invoke()
+                    GlobalScope.launch {
+                        WorkspaceRepository.loadWorkspace(
+                            workspaceData = UnipadConverter.convertToWorkspace(file.path)
+                        )
+
+                        onOpenEditor?.invoke()
+                    }
                 }
             }
         }
