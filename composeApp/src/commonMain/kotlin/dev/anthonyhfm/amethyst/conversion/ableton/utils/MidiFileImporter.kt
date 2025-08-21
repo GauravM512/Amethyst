@@ -191,11 +191,8 @@ object MidiFileImporter {
                                     b = triple.third / 63f
                                 )
                             } else {
-                                filtered + KeyframesChainDeviceContract.KeyframesEntry(
-                                    x = x,
-                                    y = y,
-                                    r = 0f, g = 0f, b = 0f
-                                )
+                                // Note OFF: Entferne den Eintrag einfach, ohne schwarzen Eintrag hinzuzufügen
+                                filtered
                             }
 
                         val lastIndex = frames.lastIndex
