@@ -16,7 +16,7 @@ object ShortcutManager {
     fun handleShortcut(keyEvent: KeyEvent): Boolean {
         if (keyEvent.type != KeyEventType.KeyDown) return false
 
-        // Undo/Redo Shortcuts
+
         if ((keyEvent.isCtrlPressed || keyEvent.isMetaPressed) && keyEvent.key == Key.Z) {
             return if (keyEvent.isShiftPressed) {
                 // Ctrl+Shift+Z = Redo
@@ -35,7 +35,7 @@ object ShortcutManager {
             return true
         }
 
-        if ((keyEvent.isCtrlPressed || keyEvent.isMetaPressed) || keyEvent.key == Key.Delete) {
+        if ((keyEvent.isCtrlPressed || keyEvent.isMetaPressed) && keyEvent.key == Key.Delete) {
             return handleDeletionShortcut()
         }
 
@@ -60,7 +60,7 @@ object ShortcutManager {
             return true
         }
 
-        if (keyEvent.key == Key.DirectionDown || keyEvent.key == Key.DirectionUp) {
+        if (keyEvent.key == Key.DirectionDown || keyEvent.key == Key.DirectionUp || keyEvent.key == Key.DirectionLeft || keyEvent.key == Key.DirectionRight) {
             return handleNavigationShortcut(keyEvent)
         }
 
