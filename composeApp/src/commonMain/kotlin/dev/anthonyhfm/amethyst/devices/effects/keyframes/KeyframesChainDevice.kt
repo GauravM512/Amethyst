@@ -309,6 +309,23 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
                 }
             }
 
+            is Event.OnChangeMultiFrameTiming -> {
+                state.update {
+                    it.copy(
+                        frames = it.frames.toMutableList().apply {
+                            event.frameIndices.forEach { frameIndex ->
+                                if (frameIndex in 0 until size) {
+                                    set(
+                                        index = frameIndex,
+                                        element = get(frameIndex).copy(timing = event.timing, gate = event.gate)
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+
             is Event.OnImportMidiFile -> {
                 runBlocking {
                     val file = FileKit.openFilePicker(
@@ -521,10 +538,8 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
     override fun midiEnter(n: List<Signal>) {
         n.forEach {
             if (it.color != Color.Black) {
-                // Cancel alle vorherigen Animation-Jobs für dieses Device
                 Heaven.cancelJobsForOwner(this)
 
-                // Starte neue Animation
                 state.value.renderedAnimation.forEach {
                     Heaven.schedule(it.first.toDouble(), owner = this) {
                         midiExit?.invoke(it.second)
@@ -567,7 +582,6 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
             addFrameInternal(duplication.duplicatedIndex, duplication.duplicatedFrame)
         }
 
-        // Select the newly duplicated frames
         SelectionManager.clear()
         duplications.forEach { duplication ->
             SelectionManager.select(
@@ -585,7 +599,6 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         val baseTargetIndex = targetStartIndex ?: state.value.currentFrameIndex + 1
         val pastedFrameInfos = mutableListOf<UndoableAction.KeyframePasteInfo>()
 
-        // Prepare paste info for all frames
         frames.forEachIndexed { index, frame ->
             val targetIndex = baseTargetIndex + index
             val newFrame = frame.copy(_internalUuid = UUID.randomUUID())
@@ -598,7 +611,6 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
             )
         }
 
-        // Add to UndoManager as single action
         UndoManager.addAction(
             UndoableAction.KeyframePaste(
                 device = this,
@@ -606,12 +618,10 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
             )
         )
 
-        // Perform the actual paste operations
         pastedFrameInfos.forEach { pasteInfo ->
             addFrameInternal(pasteInfo.frameIndex, pasteInfo.frame)
         }
 
-        // Select the newly pasted frames
         SelectionManager.clear()
         pastedFrameInfos.forEach { pasteInfo ->
             SelectionManager.select(

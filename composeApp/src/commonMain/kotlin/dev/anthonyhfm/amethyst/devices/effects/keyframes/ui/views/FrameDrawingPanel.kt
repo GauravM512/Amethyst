@@ -2,7 +2,6 @@ package dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.views
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,11 +11,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
+import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.components.ColorControls
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.components.TimingControls
@@ -26,6 +29,9 @@ fun BoxScope.FrameDrawingPanel(
     state: KeyframesChainDeviceContract.KeyframesChainDeviceState,
     onEvent: (KeyframesChainDeviceContract.Event) -> Unit
 ) {
+    val selections by SelectionManager.selections.collectAsState()
+    val selectedKeyframes = selections.filterIsInstance<Selectable.KeyframeItem>()
+
     Column(
         modifier = Modifier
             .align(Alignment.TopEnd)
@@ -52,23 +58,43 @@ fun BoxScope.FrameDrawingPanel(
         TimingControls(
             timing = state.frames[state.currentFrameIndex].timing,
             onTimingChanged = { timing ->
-                onEvent(
-                    KeyframesChainDeviceContract.Event.OnChangeFrameTiming(
-                        frameIndex = state.currentFrameIndex,
-                        timing = timing,
-                        gate = state.frames[state.currentFrameIndex].gate
+                if (selectedKeyframes.size > 1) {
+                    onEvent(
+                        KeyframesChainDeviceContract.Event.OnChangeMultiFrameTiming(
+                            frameIndices = selectedKeyframes.map { it.frameIndex },
+                            timing = timing,
+                            gate = state.frames[state.currentFrameIndex].gate
+                        )
                     )
-                )
+                } else {
+                    onEvent(
+                        KeyframesChainDeviceContract.Event.OnChangeFrameTiming(
+                            frameIndex = state.currentFrameIndex,
+                            timing = timing,
+                            gate = state.frames[state.currentFrameIndex].gate
+                        )
+                    )
+                }
             },
             gate = state.frames[state.currentFrameIndex].gate,
-            onGateChanged = {
-                onEvent(
-                    KeyframesChainDeviceContract.Event.OnChangeFrameTiming(
-                        frameIndex = state.currentFrameIndex,
-                        timing = state.frames[state.currentFrameIndex].timing,
-                        gate = it
+            onGateChanged = { gate ->
+                if (selectedKeyframes.size > 1) {
+                    onEvent(
+                        KeyframesChainDeviceContract.Event.OnChangeMultiFrameTiming(
+                            frameIndices = selectedKeyframes.map { it.frameIndex },
+                            timing = state.frames[state.currentFrameIndex].timing,
+                            gate = gate
+                        )
                     )
-                )
+                } else {
+                    onEvent(
+                        KeyframesChainDeviceContract.Event.OnChangeFrameTiming(
+                            frameIndex = state.currentFrameIndex,
+                            timing = state.frames[state.currentFrameIndex].timing,
+                            gate = gate
+                        )
+                    )
+                }
             }
         )
     }

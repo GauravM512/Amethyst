@@ -22,6 +22,7 @@ sealed interface KeyframesChainDeviceContract {
         data class OnAddFrame(val atIndex: Int? = null) : Event
         data class OnDuplicateFrame(val frameIndex: Int? = null) : Event
         data class OnChangeFrameTiming(val frameIndex: Int, val timing: Timing, val gate: Float) : Event
+        data class OnChangeMultiFrameTiming(val frameIndices: List<Int>, val timing: Timing, val gate: Float) : Event
         data class OnChangeFramePosition(
             val from: Int,
             val to: Int
