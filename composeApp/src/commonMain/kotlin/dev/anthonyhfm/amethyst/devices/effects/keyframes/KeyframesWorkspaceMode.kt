@@ -77,6 +77,21 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
                     return true
                 }
 
+                Key.A -> {
+                    if (event.isCtrlPressed || event.isMetaPressed) {
+                        SelectionManager.clear()
+
+                        state.value.frames.indices.forEach { frameIndex ->
+                            SelectionManager.select(
+                                Selectable.KeyframeItem(parent = parentDevice!!, frameIndex = frameIndex),
+                                single = false
+                            )
+                        }
+
+                        return true
+                    }
+                }
+
                 Key.D -> {
                     if (event.isCtrlPressed || event.isMetaPressed) {
                         val selectedKeyframes = SelectionManager.selections.value.filterIsInstance<Selectable.KeyframeItem>()
@@ -84,10 +99,8 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
                             val frameIndices = selectedKeyframes.map { it.frameIndex }
                             val highest = frameIndices.maxOrNull() ?: 0
 
-                            // Use duplicateFrames which handles selection automatically
                             parentDevice?.duplicateFrames(frameIndices, highest + 1)
 
-                            // Update current frame index to the last duplicated frame
                             parentDevice?.state?.update { currentState ->
                                 currentState.copy(currentFrameIndex = highest + selectedKeyframes.size)
                             }
@@ -103,11 +116,8 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
                     if (selectedKeyframes.isNotEmpty()) {
                         val frameIndices = selectedKeyframes.map { it.frameIndex }
 
-                        // Use the new removeFrames method for multi-deletion
                         parentDevice?.removeFrames(frameIndices)
 
-                        // After deletion, select the frame at the position of the lowest deleted index
-                        // or the last frame if we deleted beyond the end
                         val lowestDeletedIndex = frameIndices.minOrNull() ?: 0
                         val newFrameCount = (parentDevice?.state?.value?.frames?.size ?: 1)
                         val newSelectionIndex = minOf(lowestDeletedIndex, newFrameCount - 1)
