@@ -7,53 +7,151 @@ import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.sound.sampled.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.*
+import java.util.concurrent.*
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.min
 
 actual object AudioPlayer {
     private var isInitialized = false
-    private val audioClips = ConcurrentHashMap<String, LoadedAudioClip>()
-    private val playingClips = ConcurrentHashMap<String, Clip>()
-    private var mixer: Mixer? = null
-    private val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(6)
-    private val cleanupScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val audioClips = ConcurrentHashMap<String, ReadyAudioClip>()
+    private val activePlayers = ConcurrentHashMap<String, PlaybackInstance>()
 
-    private data class LoadedAudioClip(
-        val audioFormat: AudioFormat,
-        val audioData: ByteArray,
-        val duration: Long
+    // High-performance audio system
+    private var mixer: Mixer? = null
+    private lateinit var targetFormat: AudioFormat
+    private val playbackExecutor = Executors.newCachedThreadPool { r ->
+        Thread(r, "AudioPlayer-Instant").apply {
+            isDaemon = true
+            priority = Thread.MAX_PRIORITY - 1
+        }
+    }
+
+    // Professional audio settings (Ableton Live standard)
+    private val bufferSize = 512 // 512 samples = ~11.6ms latency @ 44.1kHz (Ableton standard)
+    private val maxConcurrentPlayers = 64
+    private val playbackCounter = AtomicInteger(0)
+
+    private data class ReadyAudioClip(
+        val pcmData: ByteArray,
+        val duration: Long,
+        val format: AudioFormat
     )
+
+    private class PlaybackInstance(
+        private val line: SourceDataLine,
+        private val data: ByteArray
+    ) {
+        @Volatile private var isPlaying = false
+        @Volatile private var shouldStop = false
+
+        fun play() {
+            if (isPlaying) return
+            isPlaying = true
+
+            line.start()
+
+            // Stream data in kleine Chunks für minimale Latenz
+            var offset = 0
+            val chunkSize = 512 // Sehr kleine Chunks
+
+            while (offset < data.size && !shouldStop) {
+                val remaining = data.size - offset
+                val writeSize = min(chunkSize, remaining)
+
+                try {
+                    val written = line.write(data, offset, writeSize)
+                    offset += written
+
+                    // Micro-pause to prevent CPU hogging while maintaining low latency
+                    if (written < writeSize) {
+                        Thread.sleep(0, 100) // 0.1ms
+                    }
+                } catch (e: Exception) {
+                    break
+                }
+            }
+
+            line.drain()
+            line.stop()
+            isPlaying = false
+        }
+
+        fun stop() {
+            shouldStop = true
+            if (isPlaying) {
+                line.stop()
+                line.flush()
+            }
+        }
+
+        fun close() {
+            stop()
+            line.close()
+        }
+
+        fun isActive(): Boolean = isPlaying
+    }
 
     private fun ensureInitialized() {
         if (!isInitialized) {
             try {
                 initializeAudioSystem()
             } catch (e: Exception) {
-                println("Failed to initialize audio system: ${e.message}")
+                println("Critical: Failed to initialize high-performance audio system: ${e.message}")
                 throw RuntimeException("Audio system initialization failed.", e)
             }
         }
     }
 
     private fun initializeAudioSystem() {
+        // Find the best mixer for low-latency audio
         val mixerInfos = AudioSystem.getMixerInfo()
 
         mixer = mixerInfos.find { info ->
-            info.name.contains("DirectSound", ignoreCase = true) ||
-            info.name.contains("CoreAudio", ignoreCase = true) ||
-            info.name.contains("Primary Sound Driver", ignoreCase = true)
+            val mixer = AudioSystem.getMixer(info)
+            try {
+                // Test if mixer supports our target format
+                val testFormat = AudioFormat(44100f, 16, 2, true, false)
+                val lineInfo = DataLine.Info(SourceDataLine::class.java, testFormat)
+                mixer.isLineSupported(lineInfo) && (
+                    info.name.contains("DirectSound", ignoreCase = true) ||
+                    info.name.contains("CoreAudio", ignoreCase = true) ||
+                    info.name.contains("Primary", ignoreCase = true) ||
+                    info.name.contains("Default", ignoreCase = true)
+                )
+            } catch (e: Exception) {
+                false
+            }
         }?.let { AudioSystem.getMixer(it) } ?: AudioSystem.getMixer(null)
 
+        // Standard-Format für minimale Konvertierung
+        targetFormat = AudioFormat(
+            AudioFormat.Encoding.PCM_SIGNED,
+            44100f, // Standard sample rate
+            16,     // 16-bit für gute Performance/Quality balance
+            2,      // Stereo
+            4,      // 2 channels * 2 bytes
+            44100f,
+            false   // Little endian
+        )
+
         isInitialized = true
+        println("High-performance audio system initialized:")
+        println("  Mixer: ${mixer?.mixerInfo?.name ?: "Default"}")
+        println("  Format: ${targetFormat.sampleRate.toInt()}Hz, ${targetFormat.sampleSizeInBits}bit, ${targetFormat.channels}ch")
+        println("  Buffer size: ${bufferSize} samples")
+    }
 
-        executor.scheduleAtFixedRate({
-            cleanupFinishedClips()
-        }, 1, 1, TimeUnit.SECONDS)
-
-        println("Java Sound API initialized with mixer: ${mixer?.mixerInfo?.name ?: "Default"}")
+    private fun createReadyToPlayLine(): SourceDataLine? {
+        return try {
+            val lineInfo = DataLine.Info(SourceDataLine::class.java, targetFormat)
+            val line = (mixer?.getLine(lineInfo) ?: AudioSystem.getLine(lineInfo)) as SourceDataLine
+            line.open(targetFormat, bufferSize * targetFormat.frameSize)
+            line
+        } catch (e: Exception) {
+            println("Failed to create audio line: ${e.message}")
+            null
+        }
     }
 
     actual fun loadAudio(data: ByteArray, uuid: String?): String {
@@ -62,25 +160,107 @@ actual object AudioPlayer {
 
         try {
             val audioInfo = decodeAudioData(data)
-            audioClips[audioId] = LoadedAudioClip(
-                audioFormat = audioInfo.format,
-                audioData = audioInfo.pcmData,
-                duration = audioInfo.duration
+
+            // Convert to target format for immediate playback
+            val convertedData = convertToTargetFormat(audioInfo)
+
+            audioClips[audioId] = ReadyAudioClip(
+                pcmData = convertedData.pcmData,
+                duration = convertedData.duration,
+                format = targetFormat
             )
 
             val clip = AudioClip(
                 name = "Audio_${audioId.take(8)}",
-                length = audioInfo.duration,
+                length = convertedData.duration,
                 data = data,
                 key = audioId
             )
             WorkspaceRepository.audioRegistry[audioId] = clip
 
-            println("Audio loaded: $audioId (${audioInfo.duration}ms, ${audioInfo.format.sampleRate.toInt()}Hz)")
+            println("Audio ready for instant playback: $audioId (${convertedData.duration}ms)")
             return audioId
         } catch (e: Exception) {
             audioClips.remove(audioId)
+            println("Failed to prepare audio for instant playback: ${e.message}")
             throw e
+        }
+    }
+
+    private fun convertToTargetFormat(audioInfo: AudioInfo): AudioInfo {
+        // Check if formats are compatible
+        if (audioInfo.format.encoding == targetFormat.encoding &&
+            audioInfo.format.sampleRate == targetFormat.sampleRate &&
+            audioInfo.format.sampleSizeInBits == targetFormat.sampleSizeInBits &&
+            audioInfo.format.channels == targetFormat.channels &&
+            audioInfo.format.isBigEndian == targetFormat.isBigEndian) {
+            return audioInfo
+        }
+
+        return try {
+            val sourceStream = AudioInputStream(
+                ByteArrayInputStream(audioInfo.pcmData),
+                audioInfo.format,
+                audioInfo.pcmData.size / audioInfo.format.frameSize.toLong()
+            )
+
+            val convertedStream = AudioSystem.getAudioInputStream(targetFormat, sourceStream)
+            val convertedData = convertedStream.readAllBytes()
+
+            val frameLength = convertedData.size / targetFormat.frameSize
+            val duration = (frameLength * 1000L / targetFormat.sampleRate).toLong()
+
+            convertedStream.close()
+            sourceStream.close()
+
+            AudioInfo(targetFormat, convertedData, duration)
+        } catch (e: Exception) {
+            println("Audio format conversion failed, using original: ${e.message}")
+            audioInfo
+        }
+    }
+
+    actual fun playAudio(audioKey: String) {
+        ensureInitialized()
+        val readyClip = audioClips[audioKey] ?: run {
+            println("Audio clip not found or not ready: $audioKey")
+            return
+        }
+
+        if (playbackCounter.get() >= maxConcurrentPlayers) {
+            println("Max concurrent players reached ($maxConcurrentPlayers)")
+            return
+        }
+
+        // Immediate playback - no delays, no blocking operations
+        playbackExecutor.submit {
+            val line = createReadyToPlayLine() ?: return@submit
+
+            val playId = "${audioKey}_${System.nanoTime()}"
+            val player = PlaybackInstance(line, readyClip.pcmData)
+
+            activePlayers[playId] = player
+            playbackCounter.incrementAndGet()
+
+            try {
+                player.play() // This starts immediately
+            } finally {
+                activePlayers.remove(playId)
+                playbackCounter.decrementAndGet()
+                player.close()
+            }
+        }
+    }
+
+    actual fun stopAudio(audioKey: String) {
+        ensureInitialized()
+
+        // Immediate stop - no executor needed
+        activePlayers.entries.removeAll { (playId, player) ->
+            if (playId.startsWith(audioKey)) {
+                player.stop()
+                true
+            } else false
         }
     }
 
@@ -88,21 +268,17 @@ actual object AudioPlayer {
         ensureInitialized()
         val audioId = UUID.randomUUID()
 
-        try {
+        return try {
             val audioInfo = decodeAudioData(data)
-
-            val clip = AudioClip(
+            AudioClip(
                 name = "Audio_${audioId.take(8)}",
                 length = audioInfo.duration,
                 data = data,
                 key = audioId
             )
-
-            println("Audio loaded: $audioId (${audioInfo.duration}ms, ${audioInfo.format.sampleRate.toInt()}Hz)")
-
-            return clip
         } catch (e: Exception) {
-            return null
+            println("Failed to create audio clip: ${e.message}")
+            null
         }
     }
 
@@ -110,140 +286,48 @@ actual object AudioPlayer {
         ensureInitialized()
         val audioId = UUID.randomUUID()
 
-        try {
+        return try {
             val audioInfo = decodeAudioData(data)
 
-            // Validiere die Sample-Parameter
             val totalSamples = audioInfo.pcmData.size / audioInfo.format.frameSize
             if (sampleStart < 0 || sampleEnd <= sampleStart || sampleEnd > totalSamples) {
                 println("Invalid sample range: start=$sampleStart, end=$sampleEnd, totalSamples=$totalSamples")
                 return null
             }
 
-            // Berechne Byte-Positionen basierend auf Frame-Grenzen
             val frameSize = audioInfo.format.frameSize
             val startByte = (sampleStart * frameSize).toInt()
             val endByte = (sampleEnd * frameSize).toInt()
-            val extractedLength = endByte - startByte
 
-            // Extrahiere den gewünschten Datenbereich
             val extractedPcmData = audioInfo.pcmData.copyOfRange(startByte, endByte)
-
-            // Erstelle neue WAV-Datei aus den extrahierten PCM-Daten
             val extractedWavData = createWavFromPcm(extractedPcmData, audioInfo.format)
 
-            // Berechne die Dauer des extrahierten Samples
             val extractedSamples = sampleEnd - sampleStart
             val extractedDuration = (extractedSamples * 1000L) / audioInfo.format.sampleRate.toLong()
 
-            val clip = AudioClip(
+            AudioClip(
                 name = "Sample_${audioId.take(8)}_${sampleStart}-${sampleEnd}",
                 length = extractedDuration,
                 data = extractedWavData,
                 key = audioId
             )
-
-            println("Audio sample extracted: $audioId (${extractedDuration}ms, samples: $sampleStart-$sampleEnd)")
-
-            return clip
         } catch (e: Exception) {
             println("Failed to extract audio sample: ${e.message}")
-            return null
-        }
-    }
-
-    actual fun playAudio(audioKey: String) {
-        ensureInitialized()
-        val loadedClip = audioClips[audioKey] ?: return
-
-        try {
-            val clip = AudioSystem.getClip(mixer?.mixerInfo)
-            val audioInputStream = AudioInputStream(
-                ByteArrayInputStream(loadedClip.audioData),
-                loadedClip.audioFormat,
-                loadedClip.audioData.size / loadedClip.audioFormat.frameSize.toLong()
-            )
-
-            clip.open(audioInputStream)
-
-            if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
-                val gainControl = clip.getControl(FloatControl.Type.MASTER_GAIN) as FloatControl
-                gainControl.value = 0.0f
-            }
-
-            val playId = "${audioKey}_${System.currentTimeMillis()}"
-            playingClips[playId] = clip
-
-            clip.addLineListener { event ->
-                if (event.type == LineEvent.Type.STOP) {
-                    cleanupScope.launch {
-                        delay(100)
-                        playingClips.remove(playId)?.close()
-                    }
-                }
-            }
-
-            clip.start()
-        } catch (e: Exception) {
-            println("Failed to play audio $audioKey: ${e.message}")
-        }
-    }
-
-    actual fun stopAudio(audioKey: String) {
-        ensureInitialized()
-
-        cleanupScope.launch {
-            playingClips.entries.removeAll { (playId, clip) ->
-                if (playId.startsWith(audioKey)) {
-                    clip.stop()
-                    clip.close()
-                    true
-                } else false
-            }
+            null
         }
     }
 
     actual fun preloadFromAudioClip(audioClip: AudioClip) {
-        ensureInitialized()
-        try {
-            val audioInfo = decodeAudioData(audioClip.data)
-            audioClips[audioClip.key] = LoadedAudioClip(
-                audioFormat = audioInfo.format,
-                audioData = audioInfo.pcmData,
-                duration = audioInfo.duration
-            )
-            WorkspaceRepository.audioRegistry[audioClip.key] = audioClip
-        } catch (e: Exception) {
-            audioClips.remove(audioClip.key)
-            println("Failed to preload audio clip ${audioClip.key}: ${e.message}")
-        }
+        loadAudio(audioClip.data, audioClip.key)
     }
 
     fun removeAudio(audioKey: String) {
         audioClips.remove(audioKey)
         WorkspaceRepository.audioRegistry.remove(audioKey)
-
-        playingClips.entries.removeAll { (playId, clip) ->
-            if (playId.startsWith(audioKey)) {
-                clip.stop()
-                clip.close()
-                true
-            } else false
-        }
+        stopAudio(audioKey)
     }
 
-    private fun cleanupFinishedClips() {
-        playingClips.entries.removeAll { (_, clip) ->
-            if (!clip.isRunning) {
-                try {
-                    clip.close()
-                } catch (e: Exception) { }
-
-                true
-            } else false
-        }
-    }
-
+    // ...existing decode methods...
     private fun decodeAudioData(data: ByteArray): AudioInfo = when {
         isWav(data) -> decodeWav(data)
         isMp3(data) -> decodeMp3(data)
@@ -271,11 +355,10 @@ actual object AudioPlayer {
         val buf = ByteBuffer.wrap(audioData).order(ByteOrder.LITTLE_ENDIAN)
         require(buf.limit() >= 44) { "Invalid WAV: too short" }
 
-        // Verify RIFF header
         val riffHeader = ByteArray(4).also { buf.get(it) }
         require(String(riffHeader, Charsets.US_ASCII) == "RIFF") { "Not a valid RIFF file" }
 
-        val fileSize = buf.int // File size (can be ignored)
+        buf.int // Skip file size
 
         val waveHeader = ByteArray(4).also { buf.get(it) }
         require(String(waveHeader, Charsets.US_ASCII) == "WAVE") { "Not a valid WAVE file" }
@@ -287,7 +370,6 @@ actual object AudioPlayer {
         var dataStartPos = 0
         var fmtFound = false
 
-        // Parse chunks
         while (buf.remaining() >= 8) {
             val chunkId = ByteArray(4).also { buf.get(it) }
             val chunkSize = buf.int
@@ -296,28 +378,25 @@ actual object AudioPlayer {
             when (chunkIdStr) {
                 "fmt " -> {
                     val chunkStart = buf.position()
-                    val audioFormat = buf.short.toInt() // Should be 1 for PCM
+                    val audioFormat = buf.short.toInt()
                     require(audioFormat == 1) { "Only PCM format is supported, got format: $audioFormat" }
 
                     channels = buf.short.toInt()
                     sampleRate = buf.int
-                    val byteRate = buf.int // Can be ignored
-                    val blockAlign = buf.short.toInt() // Can be ignored
+                    buf.int // Skip byte rate
+                    buf.short // Skip block align
                     bitsPerSample = buf.short.toInt()
 
                     fmtFound = true
-
-                    // Skip any remaining bytes in the fmt chunk
                     buf.position(chunkStart + chunkSize)
                 }
                 "data" -> {
                     require(fmtFound) { "fmt chunk must come before data chunk" }
                     dataSize = chunkSize
                     dataStartPos = buf.position()
-                    break // Stop parsing, we found the data
+                    break
                 }
                 else -> {
-                    // Skip unknown chunks
                     buf.position(buf.position() + chunkSize)
                 }
             }
@@ -331,9 +410,8 @@ actual object AudioPlayer {
         val encoding = if (bitsPerSample == 8) AudioFormat.Encoding.PCM_UNSIGNED else AudioFormat.Encoding.PCM_SIGNED
         val frameSize = channels * (bitsPerSample / 8)
         val frameRate = sampleRate.toFloat()
-        val bigEndian = false
 
-        val audioFormat = AudioFormat(encoding, frameRate, bitsPerSample, channels, frameSize, frameRate, bigEndian)
+        val audioFormat = AudioFormat(encoding, frameRate, bitsPerSample, channels, frameSize, frameRate, false)
 
         buf.position(dataStartPos)
         val audioBytes = ByteArray(dataSize)
@@ -351,7 +429,6 @@ actual object AudioPlayer {
             val audioInputStream = AudioSystem.getAudioInputStream(inputStream)
 
             val sourceFormat = audioInputStream.format
-            println("MP3 Source format: $sourceFormat")
 
             val targetFormat = AudioFormat(
                 AudioFormat.Encoding.PCM_SIGNED,
@@ -364,7 +441,6 @@ actual object AudioPlayer {
             )
 
             val pcmStream = AudioSystem.getAudioInputStream(targetFormat, audioInputStream)
-
             val pcmData = pcmStream.readAllBytes()
 
             val frameLength = pcmData.size / targetFormat.frameSize
@@ -383,28 +459,23 @@ actual object AudioPlayer {
     fun cleanup() {
         if (!isInitialized) return
 
-        playingClips.values.forEach { clip ->
-            try {
-                clip.stop()
-                clip.close()
-            } catch (e: Exception) { }
-        }
-        playingClips.clear()
+        // Stop all active players immediately
+        activePlayers.values.forEach { it.stop() }
+        activePlayers.clear()
+
         audioClips.clear()
 
-        cleanupScope.cancel()
-
-        executor.shutdown()
+        playbackExecutor.shutdown()
         try {
-            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
-                executor.shutdownNow()
+            if (!playbackExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                playbackExecutor.shutdownNow()
             }
         } catch (e: InterruptedException) {
-            executor.shutdownNow()
+            playbackExecutor.shutdownNow()
         }
 
         isInitialized = false
-        println("Audio system cleaned up")
+        println("High-performance audio system cleaned up")
     }
 }
 
@@ -417,21 +488,20 @@ private data class AudioInfo(
 private fun createWavFromPcm(pcmData: ByteArray, audioFormat: AudioFormat): ByteArray {
     val byteArrayOutputStream = java.io.ByteArrayOutputStream()
 
-    // WAV Header
     val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
     header.put("RIFF".toByteArray(Charsets.US_ASCII))
-    header.putInt(36 + pcmData.size) // File size - 8 bytes
+    header.putInt(36 + pcmData.size)
     header.put("WAVE".toByteArray(Charsets.US_ASCII))
     header.put("fmt ".toByteArray(Charsets.US_ASCII))
-    header.putInt(16) // Subchunk1 size (16 for PCM)
-    header.putShort(1) // Audio format (1 for PCM)
-    header.putShort(audioFormat.channels.toShort()) // Number of channels
-    header.putInt(audioFormat.sampleRate.toInt()) // Sample rate
-    header.putInt(audioFormat.sampleRate.toInt() * audioFormat.channels * (audioFormat.sampleSizeInBits / 8)) // Byte rate
-    header.putShort((audioFormat.channels * (audioFormat.sampleSizeInBits / 8)).toShort()) // Block align
-    header.putShort(audioFormat.sampleSizeInBits.toShort()) // Bits per sample
+    header.putInt(16)
+    header.putShort(1)
+    header.putShort(audioFormat.channels.toShort())
+    header.putInt(audioFormat.sampleRate.toInt())
+    header.putInt(audioFormat.sampleRate.toInt() * audioFormat.channels * (audioFormat.sampleSizeInBits / 8))
+    header.putShort((audioFormat.channels * (audioFormat.sampleSizeInBits / 8)).toShort())
+    header.putShort(audioFormat.sampleSizeInBits.toShort())
     header.put("data".toByteArray(Charsets.US_ASCII))
-    header.putInt(pcmData.size) // Subchunk2 size (data size)
+    header.putInt(pcmData.size)
 
     byteArrayOutputStream.write(header.array())
     byteArrayOutputStream.write(pcmData)
