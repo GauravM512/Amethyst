@@ -104,6 +104,7 @@ private fun ModeSwitchDialog(
         WorkspaceContract.WorkspaceMode.Preview(),
         WorkspaceContract.WorkspaceMode.LightsChain(),
         WorkspaceContract.WorkspaceMode.SamplingChain(),
+        WorkspaceContract.WorkspaceMode.Timeline(),
     )
 
     DropdownMenu(

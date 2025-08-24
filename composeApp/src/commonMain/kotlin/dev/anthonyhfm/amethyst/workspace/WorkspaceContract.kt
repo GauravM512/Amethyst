@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.KeyEvent
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.timeline.TimelineKeyHandler
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.workspace.modes.chain.ChainModeKeyHandler
 import dev.anthonyhfm.amethyst.workspace.modes.layout.LayoutModeKeyHandler
@@ -86,6 +87,15 @@ interface WorkspaceContract {
         ) : WorkspaceMode {
             override fun onKeyEvent(event: KeyEvent): Boolean {
                 return ChainModeKeyHandler.handleKeyInput(event)
+            }
+        }
+
+        data class Timeline(
+            override val displayName: String = "Timeline",
+            override val selectable: Boolean = true
+        ) : WorkspaceMode {
+            override fun onKeyEvent(event: KeyEvent): Boolean {
+                return TimelineKeyHandler.handleKeyInput(event)
             }
         }
     }

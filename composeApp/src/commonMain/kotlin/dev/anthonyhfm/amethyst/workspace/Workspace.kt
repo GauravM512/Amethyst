@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
+import dev.anthonyhfm.amethyst.timeline.Timeline
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract.Event
 import dev.anthonyhfm.amethyst.workspace.ui.components.DeviceSettingsDialog
 import dev.anthonyhfm.amethyst.workspace.chain.ui.WorkspaceChainEditor
@@ -119,6 +120,16 @@ fun Workspace() {
                     devices = WorkspaceRepository.samplingChain.heavenChain.devices.value,
                     onEvent = { viewModel.onEvent(it) }
                 )
+            }
+
+            AnimatedVisibility(
+                visible = state.mode is WorkspaceContract.WorkspaceMode.Timeline,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+            ) {
+                Timeline()
             }
 
             if (state.mode is KeyframesWorkspaceMode) {
