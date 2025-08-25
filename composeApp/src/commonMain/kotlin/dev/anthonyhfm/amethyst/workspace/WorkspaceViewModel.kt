@@ -267,8 +267,21 @@ class WorkspaceViewModel(
                         if (WorkspaceRepository.mode.value.claimInputs) {
                             WorkspaceRepository.mode.value.onMidiInput(it)
                         } else {
-                            WorkspaceRepository.lightsChain.onMidiInput(it, this@apply.position.value)
-                            WorkspaceRepository.samplingChain.onMidiInput(it, this@apply.position.value)
+                            WorkspaceRepository.lightsChain.onMidiInput(
+                                inputData = it,
+                                offset = this@apply.position.value.copy(
+                                    x = this@apply.position.value.x - this@apply.layout.offsetX,
+                                    y = this@apply.position.value.y - this@apply.layout.offsetY
+                                )
+                            )
+
+                            WorkspaceRepository.samplingChain.onMidiInput(
+                                inputData = it,
+                                offset = this@apply.position.value.copy(
+                                    x = this@apply.position.value.x - this@apply.layout.offsetX,
+                                    y = this@apply.position.value.y - this@apply.layout.offsetY
+                                )
+                            )
                         }
                     }
                 }
