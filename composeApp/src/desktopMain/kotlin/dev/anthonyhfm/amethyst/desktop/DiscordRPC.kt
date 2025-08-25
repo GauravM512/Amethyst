@@ -13,7 +13,7 @@ class DiscordRPC {
 
             client.update {
                 type = ActivityType.GAME
-                details = "Private Beta 2"
+                details = "Private Beta 3"
                 state = "Development Mode"
 
                 assets {

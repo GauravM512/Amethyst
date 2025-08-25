@@ -32,7 +32,10 @@ fun Timeline() {
             )
         }
     ) { paddingValues ->
-        Box {
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+        ) {
             TimelineView()
         }
     }
