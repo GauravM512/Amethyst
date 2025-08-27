@@ -86,15 +86,7 @@ class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
 
     override fun midiEnter(n: List<Signal>) {
         n.forEach { signal ->
-            // Create unique owner for this specific signal/button combination
             val signalOwner = Pair(this, "${signal.x},${signal.y}")
-
-            // Cancel nur die Jobs für diesen spezifischen Button
-            Heaven.cancelJobs { job ->
-                job.owner is Pair<*, *> &&
-                (job.owner as Pair<*, *>).first == this &&
-                (job.owner as Pair<*, *>).second == "${signal.x},${signal.y}"
-            }
 
             Heaven.schedule(
                 delayInMs = state.value.delayMs.toDouble() * (state.value.gate * 2),
