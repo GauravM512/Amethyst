@@ -19,21 +19,35 @@ class GenericMidiExtAdapter(
             return emptyList()
         }
 
-        val relativePathElements = fileRef.first().localQuerySelector("FileRef").first().children.first()
-            .localQuerySelector("RelativePath").first()
+        val projectPath = AbletonConverter.file!!.parent()!!.path
 
-        val fileName = fileRef.first().localQuerySelector("FileRef").first().children.first()
-            .localQuerySelector("Name").first()
-            .attributes["Value"] ?: ""
+        val filePath: String = when (AbletonConverter.liveVersion) {
+            AbletonConverter.LiveVersion.LIVE_11 -> {
+                val relativePath = fileRef[0].querySelector("RelativePath")[0].attributes["Value"] ?: ""
 
-        var pathString = AbletonConverter.file!!.parent()!!.path
+                "$projectPath/$relativePath"
+            }
 
-        relativePathElements.children.forEach {
-            pathString += "/${it.attributes["Dir"]}"
+            else -> {
+                val relativePathElements = fileRef.first().localQuerySelector("FileRef").first().children.first()
+                    .localQuerySelector("RelativePath").first()
+
+                val fileName = fileRef.first().localQuerySelector("FileRef").first().children.first()
+                    .localQuerySelector("Name").first()
+                    .attributes["Value"] ?: ""
+
+                var pathString = projectPath
+
+                relativePathElements.children.forEach {
+                    pathString += "/${it.attributes["Dir"]}"
+                }
+
+                "$pathString/$fileName"
+            }
         }
 
         return listOf(
-            MidiFileImporter.loadFile(PlatformFile("$pathString/$fileName"))
+            MidiFileImporter.loadFile(PlatformFile(filePath))
         )
     }
 }

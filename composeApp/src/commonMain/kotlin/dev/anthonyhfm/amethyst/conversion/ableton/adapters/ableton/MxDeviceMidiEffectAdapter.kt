@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton
 
+import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.LPXPagesAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiExtAdapter
@@ -11,7 +12,6 @@ class MxDeviceMidiEffectAdapter(
     private val xml: XmlElement
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val name = xml.querySelector("Name")[0].attributes["Value"]
         val patchSlot = xml.localQuerySelector("PatchSlot")[0]
             .localQuerySelector("Value")[0]
             .localQuerySelector("MxDPatchRef")[0]
@@ -21,19 +21,33 @@ class MxDeviceMidiEffectAdapter(
             .localQuerySelector("MxDBlob")[0]
             .localQuerySelector("Blob")[0]
 
-        val fileRef = patchSlot.localQuerySelector("FileRef")[0]
-        val searchHint = fileRef.localQuerySelector("SearchHint")[0]
+        var fileSize: Int = 0
+        var crc: Int = 0
 
-        val fileSize: Int = searchHint.localQuerySelector("FileSize")[0].attributes["Value"]?.toInt() ?: 0
-        val crc: Int = searchHint.localQuerySelector("Crc")[0].attributes["Value"]?.toInt() ?: 0
+        when (AbletonConverter.liveVersion) {
+            AbletonConverter.LiveVersion.LIVE_11 -> {
+                val fileRef = patchSlot.querySelector("FileRef")[0]
+
+                fileSize = fileRef.querySelector("OriginalFileSize")[0].attributes["Value"]?.toInt() ?: 0
+                crc = fileRef.querySelector("OriginalCrc")[0].attributes["Value"]?.toInt() ?: 0
+            }
+
+            else -> {
+                val fileRef = patchSlot.localQuerySelector("FileRef")[0]
+                val searchHint = fileRef.localQuerySelector("SearchHint")[0]
+
+                fileSize = searchHint.localQuerySelector("FileSize")[0].attributes["Value"]?.toInt() ?: 0
+                crc = searchHint.localQuerySelector("Crc")[0].attributes["Value"]?.toInt() ?: 0
+            }
+        }
 
         when (MaxDeviceMatcher(fileSize, crc)) {
             MaxDeviceMatcher(55316, 55855) -> { // Depths Selector
                 return DepthsSelectorAdapter(readDataBlob(blob.text!!)).toDeviceStates()
             }
 
-            MaxDeviceMatcher(91230, 33545), // Lightweight
-            MaxDeviceMatcher(134927, 42016), // Generic MidiExt
+            MaxDeviceMatcher(91230, 33545),
+            MaxDeviceMatcher(134927, 42016),
             MaxDeviceMatcher(23292, 61071),
             MaxDeviceMatcher(134924, 38265),
             MaxDeviceMatcher(159503, 62613),-> {
@@ -46,7 +60,18 @@ class MxDeviceMidiEffectAdapter(
             }
 
             else -> {
-                println("Max device not supported: $name. File size: $fileSize, CRC: $crc")
+                when (AbletonConverter.liveVersion) {
+                    AbletonConverter.LiveVersion.LIVE_11 -> {
+                        val name = patchSlot.localQuerySelector("FileRef")[0].querySelector("Path")[0].attributes["Value"]?.split("/")?.last()
+                        println("Max device not supported: $name. $fileSize, CRC: $crc")
+                    }
+
+                    else -> {
+                        val name = xml.querySelector("Name")[0].attributes["Value"]
+                        println("Max device not supported: $name. File size: $fileSize, CRC: $crc")
+                    }
+                }
+
                 return emptyList()
             }
         }

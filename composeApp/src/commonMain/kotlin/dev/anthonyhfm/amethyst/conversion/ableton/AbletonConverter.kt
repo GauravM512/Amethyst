@@ -22,6 +22,9 @@ object AbletonConverter : AmethystConverter {
 
     val audioClips: MutableList<AudioClip> = mutableListOf()
 
+    var liveVersion: LiveVersion? = null
+        private set
+
     override fun convertToWorkspace(path: String): SaveableWorkspaceData {
         file = PlatformFile(path)
 
@@ -30,8 +33,14 @@ object AbletonConverter : AmethystConverter {
 
         bpm = BPMReader().readBPM(abletonXml)
 
-        if (abletonXml.attributes["MajorVersion"]?.toInt() != 5) {
-            throw IllegalArgumentException("Unsupported Ableton Live version: ${abletonXml.attributes["MajorVersion"]}")
+        val minorVersion: String = abletonXml.attributes["MinorVersion"]!!
+
+        liveVersion = when {
+            minorVersion.startsWith("9") -> LiveVersion.LIVE_9
+            minorVersion.startsWith("10") -> LiveVersion.LIVE_10
+            minorVersion.startsWith("11") -> LiveVersion.LIVE_11
+
+            else -> null
         }
 
         val xmlTracks: List<XmlElement> = abletonXml.querySelector("MidiTrack")
@@ -65,5 +74,12 @@ object AbletonConverter : AmethystConverter {
                 )
             )
         )
+    }
+
+    enum class LiveVersion {
+        LIVE_12, // Bro who uses Live 12 fr
+        LIVE_11,
+        LIVE_10,
+        LIVE_9
     }
 }
