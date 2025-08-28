@@ -363,6 +363,7 @@ actual object AudioPlayer {
         val waveHeader = ByteArray(4).also { buf.get(it) }
         require(String(waveHeader, Charsets.US_ASCII) == "WAVE") { "Not a valid WAVE file" }
 
+        var formatCode = 0
         var channels = 0
         var sampleRate = 0
         var bitsPerSample = 0
@@ -378,8 +379,7 @@ actual object AudioPlayer {
             when (chunkIdStr) {
                 "fmt " -> {
                     val chunkStart = buf.position()
-                    val audioFormat = buf.short.toInt()
-                    require(audioFormat == 1) { "Only PCM format is supported, got format: $audioFormat" }
+                    formatCode = buf.short.toInt() and 0xFFFF
 
                     channels = buf.short.toInt()
                     sampleRate = buf.int
@@ -404,23 +404,80 @@ actual object AudioPlayer {
 
         require(fmtFound) { "No fmt chunk found in WAV file" }
         require(dataSize > 0) { "No data chunk found in WAV file" }
-        require(bitsPerSample in listOf(8, 16, 24, 32)) { "Unsupported bit depth: $bitsPerSample" }
         require(channels in 1..2) { "Unsupported channel count: $channels" }
 
-        val encoding = if (bitsPerSample == 8) AudioFormat.Encoding.PCM_UNSIGNED else AudioFormat.Encoding.PCM_SIGNED
-        val frameSize = channels * (bitsPerSample / 8)
-        val frameRate = sampleRate.toFloat()
-
-        val audioFormat = AudioFormat(encoding, frameRate, bitsPerSample, channels, frameSize, frameRate, false)
-
         buf.position(dataStartPos)
-        val audioBytes = ByteArray(dataSize)
-        buf.get(audioBytes, 0, minOf(dataSize, buf.remaining()))
+        val sourceBytes = ByteArray(dataSize)
+        buf.get(sourceBytes, 0, minOf(dataSize, buf.remaining()))
 
-        val samples = dataSize / frameSize
-        val duration = (samples * 1000L) / sampleRate
+        return when (formatCode) {
+            1 -> {
+                // Linear PCM (already supported)
+                require(bitsPerSample in listOf(8, 16, 24, 32)) { "Unsupported bit depth: $bitsPerSample" }
+                val encoding = if (bitsPerSample == 8) AudioFormat.Encoding.PCM_UNSIGNED else AudioFormat.Encoding.PCM_SIGNED
+                val frameSize = channels * (bitsPerSample / 8)
+                val frameRate = sampleRate.toFloat()
+                val audioFormat = AudioFormat(encoding, frameRate, bitsPerSample, channels, frameSize, frameRate, false)
 
-        return AudioInfo(audioFormat, audioBytes, duration)
+                val samples = dataSize / frameSize
+                val duration = (samples * 1000L) / sampleRate
+                AudioInfo(audioFormat, sourceBytes, duration)
+            }
+            3 -> {
+                // IEEE float PCM -> convert to 16-bit signed PCM
+                println("Converting IEEE float WAV to 16-bit PCM for playback...")
+                require(bitsPerSample == 32 || bitsPerSample == 64) { "Unsupported IEEE float bit depth: $bitsPerSample" }
+
+                val bytesPerSample = bitsPerSample / 8
+                val srcFrameSize = channels * bytesPerSample
+                require(srcFrameSize > 0) { "Invalid frame size" }
+
+                val frames = dataSize / srcFrameSize
+                val dstFrameSize = channels * 2 // 16-bit per sample
+                val dstBytes = ByteArray(frames * dstFrameSize)
+
+                val floatBuf = ByteBuffer.wrap(sourceBytes).order(ByteOrder.LITTLE_ENDIAN)
+                var outIndex = 0
+
+                if (bitsPerSample == 32) {
+                    repeat(frames * channels) {
+                        var f = floatBuf.float
+                        if (f.isNaN()) f = 0f
+                        f = f.coerceIn(-1.0f, 1.0f)
+                        val s = (f * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                        dstBytes[outIndex++] = (s.toInt() and 0xFF).toByte()
+                        dstBytes[outIndex++] = ((s.toInt() ushr 8) and 0xFF).toByte()
+                    }
+                } else {
+                    repeat(frames * channels) {
+                        var d = floatBuf.double
+                        if (d.isNaN()) d = 0.0
+                        d = d.coerceIn(-1.0, 1.0)
+                        val s = (d * 32767.0).toInt().coerceIn(-32768, 32767).toShort()
+                        dstBytes[outIndex++] = (s.toInt() and 0xFF).toByte()
+                        dstBytes[outIndex++] = ((s.toInt() ushr 8) and 0xFF).toByte()
+                    }
+                }
+
+                val frameRate = sampleRate.toFloat()
+                val audioFormat = AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    frameRate,
+                    16,
+                    channels,
+                    dstFrameSize,
+                    frameRate,
+                    false
+                )
+
+                val duration = (frames * 1000L) / sampleRate
+                println()
+                AudioInfo(audioFormat, dstBytes, duration)
+            }
+            else -> {
+                throw IllegalArgumentException("Unsupported WAV audio format code: $formatCode")
+            }
+        }
     }
 
     private fun decodeMp3(audioData: ByteArray): AudioInfo {
