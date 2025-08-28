@@ -5,6 +5,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.LPXPagesAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiExtAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DepthsSelectorAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.InfinityAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.XmlElement
 import dev.anthonyhfm.amethyst.devices.DeviceState
 
@@ -44,6 +45,10 @@ class MxDeviceMidiEffectAdapter(
         when (MaxDeviceMatcher(fileSize, crc)) {
             MaxDeviceMatcher(55316, 55855) -> { // Depths Selector
                 return DepthsSelectorAdapter(readDataBlob(blob.text!!)).toDeviceStates()
+            }
+
+            MaxDeviceMatcher(53085, 10065) -> { // Infinity
+                return InfinityAdapter().toDeviceStates()
             }
 
             MaxDeviceMatcher(91230, 33545),
