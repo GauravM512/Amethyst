@@ -1,8 +1,8 @@
 package dev.anthonyhfm.amethyst.core.midi.devices
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
-import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
+import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.elements.Screen
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.atsushieno.ktmidi.MidiOutput
 import kotlinx.coroutines.CoroutineScope

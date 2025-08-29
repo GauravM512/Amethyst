@@ -1,8 +1,8 @@
 package dev.anthonyhfm.amethyst.workspace.chain.data
 
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
@@ -73,7 +73,7 @@ data class StateChain(
             return stateChain
         }
 
-        fun packDevice(device: ChainDevice<*>): DeviceState {
+        fun packDevice(device: GenericChainDevice<*>): DeviceState {
             return when (device) {
                 is GroupChainDevice -> {
                     device.packState()
@@ -93,7 +93,7 @@ data class StateChain(
             }
         }
 
-        fun unpackDevice(device: DeviceState): ChainDevice<*> {
+        fun unpackDevice(device: DeviceState): GenericChainDevice<*> {
             return when (device) {
                 is CoordinateFilterChainDeviceState -> {
                     CoordinateFilterChainDevice().apply {

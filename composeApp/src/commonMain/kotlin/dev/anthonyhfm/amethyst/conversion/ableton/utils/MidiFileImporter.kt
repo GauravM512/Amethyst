@@ -1,18 +1,15 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.utils
 
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
 import dev.anthonyhfm.amethyst.core.util.Palettes
-import dev.anthonyhfm.amethyst.core.util.Palettes.novation
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
-import kotlinx.io.Buffer
 import kotlin.math.round
 import kotlin.time.Duration.Companion.milliseconds
 

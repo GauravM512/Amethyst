@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.core.controls.undo
 
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.Frame
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
@@ -10,18 +10,18 @@ import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 sealed interface UndoableAction {
     data class ChainDeviceCreation(
         val parent: Chain,
-        val device: dev.anthonyhfm.amethyst.devices.ChainDevice<*>,
+        val device: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>,
     ) : UndoableAction
 
     data class ChainDeviceRemoval(
         val parent: Chain,
-        val device: dev.anthonyhfm.amethyst.devices.ChainDevice<*>,
+        val device: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>,
     ) : UndoableAction
 
     data class MovedChainDevice(
         val chainBefore: Chain,
         val chainAfter: Chain,
-        val device: dev.anthonyhfm.amethyst.devices.ChainDevice<*>,
+        val device: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>,
         val fromIndex: Int,
         val toIndex: Int,
     ) : UndoableAction
@@ -107,7 +107,7 @@ sealed interface UndoableAction {
     )
 
     data class MultiGroupDeletion(
-        val device: dev.anthonyhfm.amethyst.devices.ChainDevice<*>, // Typsicherer als Any
+        val device: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>, // Typsicherer als Any
         val deletions: List<GroupDeletionInfo>
     ) : UndoableAction
 

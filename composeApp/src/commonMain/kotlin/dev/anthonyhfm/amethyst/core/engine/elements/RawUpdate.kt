@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.core.heaven.elements
+package dev.anthonyhfm.amethyst.core.engine.elements
 
 import androidx.compose.ui.graphics.Color
 

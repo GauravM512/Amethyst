@@ -11,10 +11,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.Timing
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import dev.anthonyhfm.amethyst.ui.components.TimeDial
@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class HoldChainDevice : ChainDevice<HoldChainDeviceState>() {
+class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>() {
     override val state = MutableStateFlow(HoldChainDeviceState())
 
     @Composable
@@ -142,41 +142,60 @@ class HoldChainDevice : ChainDevice<HoldChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun signalEnter(n: List<Signal>) {
         n.forEach { signal ->
-            if (signal.color != Color.Black) {
-                val signalOwner = Pair(this, "${signal.x},${signal.y}")
+            val down: Boolean = when (signal) {
+                is Signal.LED -> signal.color != Color.Black
+                is Signal.Midi -> signal.velocity != 0
+                else -> false
+            }
 
+            if (down) {
                 if (state.value.onRelease) {
-                    midiExit?.invoke(listOf(signal.copy(color = Color.Black)))
+                    if (signal is Signal.LED) {
+                        signalExit?.invoke(listOf(signal.copy(color = Color.Black)))
+                    } else if (signal is Signal.Midi) {
+                        signalExit?.invoke(listOf(signal.copy(velocity = 0)))
+                    }
+
                     return@forEach
                 }
 
-                midiExit?.invoke(listOf(signal))
+                signalExit?.invoke(listOf(signal))
 
                 if (state.value.infinite) {
                     return@forEach;
                 }
 
-                Heaven.schedule(state.value.delayMs.toDouble() * (state.value.gate * 2), owner = signalOwner) {
-                    midiExit?.invoke(listOf(signal.copy(color = Color.Black)))
+                Heaven.schedule(state.value.delayMs.toDouble() * (state.value.gate * 2)) {
+                    if (signal is Signal.LED) {
+                        signalExit?.invoke(listOf(signal.copy(color = Color.Black)))
+                    } else if (signal is Signal.Midi) {
+                        signalExit?.invoke(listOf(signal.copy(velocity = 0)))
+                    }
                 }
             }
             else {
-                val signalOwner = Pair(this, "${signal.x},${signal.y}")
-
                 if (!state.value.onRelease) {
                     return@forEach
                 }
 
-                midiExit?.invoke(listOf(signal.copy(color = Color.White)))
+                if (signal is Signal.LED) {
+                    signalExit?.invoke(listOf(signal.copy(color = Color.White)))
+                } else if (signal is Signal.Midi) {
+                    signalExit?.invoke(listOf(signal.copy(velocity = 127)))
+                }
 
                 if (state.value.infinite) {
                     return@forEach;
                 }
 
-                Heaven.schedule(state.value.delayMs.toDouble() * (state.value.gate * 2), owner = signalOwner) {
-                    midiExit?.invoke(listOf(signal.copy(color = Color.Black)))
+                Heaven.schedule(state.value.delayMs.toDouble() * (state.value.gate * 2)) {
+                    if (signal is Signal.LED) {
+                        signalExit?.invoke(listOf(signal.copy(color = Color.Black)))
+                    } else if (signal is Signal.Midi) {
+                        signalExit?.invoke(listOf(signal.copy(velocity = 0)))
+                    }
                 }
             }
         }

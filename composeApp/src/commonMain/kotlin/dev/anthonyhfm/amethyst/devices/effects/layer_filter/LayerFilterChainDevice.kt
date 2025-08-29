@@ -9,17 +9,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.LEDChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.StepTextDial
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class LayerFilterChainDevice : ChainDevice<LayerFilterChainDeviceState>() {
+class LayerFilterChainDevice : LEDChainDevice<LayerFilterChainDeviceState>() {
     override val state = MutableStateFlow(LayerFilterChainDeviceState())
 
     @Composable
@@ -66,8 +66,8 @@ class LayerFilterChainDevice : ChainDevice<LayerFilterChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
-        midiExit?.invoke(
+    override fun ledSignalEnter(n: List<Signal.LED>) {
+        signalExit?.invoke(
             n.filter {
                 it.layer == state.value.layer
             }

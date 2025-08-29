@@ -15,10 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.StepTextDial
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class MacroFilterChainDevice : ChainDevice<MacroFilterChainDeviceState>() {
+class MacroFilterChainDevice : GenericChainDevice<MacroFilterChainDeviceState>() {
     override val state = MutableStateFlow(MacroFilterChainDeviceState())
 
     @Composable
@@ -120,9 +120,9 @@ class MacroFilterChainDevice : ChainDevice<MacroFilterChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun signalEnter(n: List<Signal>) {
         if (WorkspaceRepository.macros.value.getOrNull(state.value.macro)?.value == state.value.value) {
-            midiExit?.invoke(n)
+            signalExit?.invoke(n)
         }
     }
 }

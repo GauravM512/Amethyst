@@ -26,13 +26,13 @@ import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.LEDChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.gradient.ui.GradientEditorBar
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
@@ -44,7 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
+class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>() {
     override val state = MutableStateFlow(GradientChainDeviceState())
 
     @Composable
@@ -56,18 +56,14 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
             .find { it.parent == this }
             ?.selectionUUID
 
-        // Create a new controller for each selected color to avoid state pollution
-        // Use selectedColor as key to force recreation when selection changes
         val controller = key(selectedColor) {
             rememberColorPickerController()
         }
 
-        // Reset and initialize controller when selection changes
         LaunchedEffect(selectedColor) {
             if (selectedColor != null) {
                 val color = deviceState.gradientData.find { it.selectionUUID == selectedColor }
                 if (color != null) {
-                    // Force a complete reset of the controller
                     controller.selectByColor(Color(color.r, color.g, color.b), false)
                 }
             }
@@ -256,7 +252,7 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
         )
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun ledSignalEnter(n: List<Signal.LED>) {
         val bpm = WorkspaceRepository.bpm.value
         val totalDuration = state.value.timing.toMsValue(bpm) * (state.value.gate * 2)
         val gradientSteps = ((GlobalSettings.perforanceFPS / GlobalSettings.gradientSmoothness) * (state.value.durationMs * (state.value.gate * 2)).toInt() / 1000).toInt()
@@ -288,7 +284,7 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
                         delayInMs = (stepLength * step).toDouble(),
                         owner = signalOwner
                     ) {
-                        midiExit?.invoke(
+                        signalExit?.invoke(
                             listOf(signal.copy(color = color))
                         )
                     }
@@ -298,7 +294,7 @@ class GradientChainDevice : ChainDevice<GradientChainDeviceState>() {
                     delayInMs = totalDuration.toDouble(),
                     owner = signalOwner
                 ) {
-                    midiExit?.invoke(
+                    signalExit?.invoke(
                         listOf(signal.copy(color = Color.Black))
                     )
                 }

@@ -1,22 +1,16 @@
 package dev.anthonyhfm.amethyst.workspace.chain.ui
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.twotone.Adjust
 import androidx.compose.material.icons.twotone.AudioFile
 import androidx.compose.material.icons.twotone.Audiotrack
-import androidx.compose.material.icons.twotone.Close
 import androidx.compose.material.icons.twotone.ColorLens
 import androidx.compose.material.icons.twotone.ContentCopy
 import androidx.compose.material.icons.twotone.DataArray
-import androidx.compose.material.icons.twotone.DeleteSweep
-import androidx.compose.material.icons.twotone.FileCopy
 import androidx.compose.material.icons.twotone.Filter
-import androidx.compose.material.icons.twotone.FilterCenterFocus
 import androidx.compose.material.icons.twotone.FilterTiltShift
 import androidx.compose.material.icons.twotone.Flip
 import androidx.compose.material.icons.twotone.Gradient
-import androidx.compose.material.icons.twotone.Grid3x3
 import androidx.compose.material.icons.twotone.Group
 import androidx.compose.material.icons.twotone.Layers
 import androidx.compose.material.icons.twotone.LineAxis
@@ -30,15 +24,8 @@ import androidx.compose.material.icons.twotone.Timeline
 import androidx.compose.material.icons.twotone.Timer
 import androidx.compose.material.icons.twotone.Transform
 import androidx.compose.material.icons.twotone._123
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDevice
@@ -221,12 +208,12 @@ fun getSamplingMenu(): MenuItem<String> {
 fun ChainDevicePicker(
     visible: Boolean,
     sampling: Boolean,
-    onPickComponent: (ChainDevice<*>) -> Unit,
+    onPickComponent: (GenericChainDevice<*>) -> Unit,
     onDismiss: () -> Unit
 ) {
     val menu = if (!sampling) getLightsMenu() else getSamplingMenu()
 
-    val registry = mapOf<String, ChainDevice<*>>(
+    val registry = mapOf<String, GenericChainDevice<*>>(
         "device_color" to ColorChainDevice(),
         "device_coordinate_filter" to CoordinateFilterChainDevice(),
         "device_delay" to DelayChainDevice(),

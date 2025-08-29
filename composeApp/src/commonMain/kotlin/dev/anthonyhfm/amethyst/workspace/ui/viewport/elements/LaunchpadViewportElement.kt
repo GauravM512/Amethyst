@@ -13,9 +13,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import dev.anthonyhfm.amethyst.core.midi.data.ProjectDeviceConfig
-import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
+import dev.anthonyhfm.amethyst.core.engine.elements.Screen
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
@@ -83,14 +83,6 @@ abstract class LaunchpadViewportElement(
 
         if (mode is WorkspaceContract.WorkspaceMode.Layout) return
 
-        val signal = Signal(
-            origin = this,
-            x = x + position.value.x.toInt(),
-            y = (layout.rows - 1) - y + position.value.y.toInt(),
-            color = if (down) Color.White else Color.Black,
-            layer = 0
-        )
-
         when (mode) {
             is KeyframesWorkspaceMode -> {
                 if (down) {
@@ -105,8 +97,24 @@ abstract class LaunchpadViewportElement(
             }
 
             else -> {
-                WorkspaceRepository.lightsChain.heavenChain.midiEnter(signal)
-                WorkspaceRepository.samplingChain.heavenChain.midiEnter(signal)
+                WorkspaceRepository.lightsChain.signalEnter(
+                    Signal.LED(
+                        origin = this,
+                        x = x + position.value.x.toInt(),
+                        y = (layout.rows - 1) - y + position.value.y.toInt(),
+                        color = if (down) Color.White else Color.Black,
+                        layer = 0
+                    )
+                )
+
+                WorkspaceRepository.samplingChain.signalEnter(
+                    Signal.Midi(
+                        origin = this,
+                        x = x + position.value.x.toInt(),
+                        y = (layout.rows - 1) - y + position.value.y.toInt(),
+                        velocity = 127
+                    )
+                )
             }
         }
     }

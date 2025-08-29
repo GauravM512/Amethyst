@@ -1,10 +1,11 @@
 package dev.anthonyhfm.amethyst.core.heaven
 
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
-import dev.anthonyhfm.amethyst.core.heaven.elements.Screen
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Screen
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import dev.anthonyhfm.amethyst.core.util.StopWatch
+import kotlinx.atomicfu.atomic
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -14,8 +15,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.concurrent.Volatile
 import kotlin.math.abs
 import kotlin.math.max
-import java.util.*
-import java.util.concurrent.atomic.AtomicLong
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 data class ScheduledJob(
     val id: String,
@@ -31,7 +32,7 @@ object Heaven {
             wake()
         }
 
-    private val signalQueue = Channel<List<Signal>>(UNLIMITED)
+    private val signalQueue = Channel<List<Signal.LED>>(UNLIMITED)
     private val jobQueue = Channel<ScheduledJob>(UNLIMITED)
 
     private val jobsMutex = Mutex()
@@ -55,7 +56,7 @@ object Heaven {
 
     private fun msToTicks(ms: Double): Long = (ms / 1000 * stopWatch.frequency).toLong()
 
-    fun midiEnter(signals: List<Signal>) {
+    fun midiEnter(signals: List<Signal.LED>) {
         renderScope.launch {
             signalQueue.send(signals)
             cancel()
@@ -63,10 +64,11 @@ object Heaven {
         wake()
     }
 
-    private val jobIdCounter = AtomicLong(0)
+    private val jobIdCounter = atomic(0)
 
+    @OptIn(ExperimentalTime::class)
     fun schedule(delayInMs: Double, owner: Any? = null, job: () -> Unit): String {
-        val jobId = "job_${jobIdCounter.incrementAndGet()}_${System.currentTimeMillis()}"
+        val jobId = "job_${jobIdCounter.incrementAndGet()}_${Clock.System.now().toEpochMilliseconds()}"
         val targetTime = prev + msToTicks(delayInMs)
         val scheduledJob = ScheduledJob(jobId, targetTime, job, owner)
 
@@ -235,7 +237,7 @@ object Heaven {
         while (!signalQueue.isEmpty) {
             val signals = signalQueue.tryReceive().getOrNull() ?: break
 
-            data class MidiCall(val device: LaunchpadViewportElement, val signal: Signal)
+            data class MidiCall(val device: LaunchpadViewportElement, val signal: Signal.LED)
             val midiCalls = mutableListOf<MidiCall>()
 
             deviceMutex.withLock {
@@ -266,7 +268,7 @@ object Heaven {
         return changed
     }
 
-    private fun isSignalInDevice(signal: Signal, device: LaunchpadViewportElement): Boolean {
+    private fun isSignalInDevice(signal: Signal.LED, device: LaunchpadViewportElement): Boolean {
         val deviceX = device.position.value.x.toInt()
         val deviceY = device.position.value.y.toInt()
         return signal.x in deviceX until deviceX + device.layout.cols &&

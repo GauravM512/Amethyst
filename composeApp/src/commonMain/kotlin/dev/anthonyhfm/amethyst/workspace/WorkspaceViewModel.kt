@@ -1,10 +1,12 @@
 package dev.anthonyhfm.amethyst.workspace
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.midi.AmethystMidiManager
 import dev.anthonyhfm.amethyst.core.midi.data.getMidiInputData
@@ -225,9 +227,9 @@ class WorkspaceViewModel(
 
             is WorkspaceContract.Event.AddChainDevice -> {
                 if (state.value.mode is WorkspaceContract.WorkspaceMode.LightsChain) {
-                    WorkspaceRepository.lightsChain.heavenChain.add(event.device, event.atIndex)
+                    WorkspaceRepository.lightsChain.add(event.device, event.atIndex)
                 } else if (state.value.mode is WorkspaceContract.WorkspaceMode.SamplingChain) {
-                    WorkspaceRepository.samplingChain.heavenChain.add(event.device, event.atIndex)
+                    WorkspaceRepository.samplingChain.add(event.device, event.atIndex)
                 }
             }
         }
@@ -267,19 +269,32 @@ class WorkspaceViewModel(
                         if (WorkspaceRepository.mode.value.claimInputs) {
                             WorkspaceRepository.mode.value.onMidiInput(it)
                         } else {
-                            WorkspaceRepository.lightsChain.onMidiInput(
-                                inputData = it,
-                                offset = this@apply.position.value.copy(
-                                    x = this@apply.position.value.x - this@apply.layout.offsetX,
-                                    y = this@apply.position.value.y - this@apply.layout.offsetY
+                            val offset = this@apply.position.value.copy(
+                                x = this@apply.position.value.x - this@apply.layout.offsetX,
+                                y = this@apply.position.value.y - this@apply.layout.offsetY
+                            )
+
+                            val x = it.pitch % 10
+                            val y = it.pitch / 10
+                            val posX = offset.x.toInt()
+                            val posY = offset.y.toInt()
+
+                            WorkspaceRepository.lightsChain.signalEnter(
+                                Signal.LED(
+                                    origin = null,
+                                    x = posX + x,
+                                    y = posY + (9 - y),
+                                    color = if (it.velocity == 0) Color.Black else Color.White,
+                                    layer = 0
                                 )
                             )
 
-                            WorkspaceRepository.samplingChain.onMidiInput(
-                                inputData = it,
-                                offset = this@apply.position.value.copy(
-                                    x = this@apply.position.value.x - this@apply.layout.offsetX,
-                                    y = this@apply.position.value.y - this@apply.layout.offsetY
+                            WorkspaceRepository.samplingChain.signalEnter(
+                                Signal.Midi(
+                                    origin = null,
+                                    x = posX + x,
+                                    y = posY + (9 - y),
+                                    velocity = it.velocity
                                 )
                             )
                         }

@@ -6,9 +6,9 @@ import androidx.compose.ui.unit.IntSize
 import dev.anthonyhfm.amethyst.core.audio.AudioClip
 import dev.anthonyhfm.amethyst.core.audio.AudioPlayer
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
-import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
@@ -19,14 +19,12 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadX
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMidiFighter64
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMystrix
-import dev.anthonyhfm.amethyst.workspace.chain.WorkspaceChain
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.data.Macro
 import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
 import dev.anthonyhfm.amethyst.workspace.data.WorkspaceSettings
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -35,10 +33,10 @@ import kotlinx.coroutines.runBlocking
 object WorkspaceRepository {
     val deviceRefresh: MutableSharedFlow<Unit> = MutableSharedFlow()
 
-    var lightsChain: WorkspaceChain = WorkspaceChain()
+    var lightsChain: Chain = Chain()
         private set
 
-    var samplingChain: WorkspaceChain = WorkspaceChain(isSampling = true)
+    var samplingChain: Chain = Chain()
         private set
 
     var bounds: Pair<IntOffset, IntSize> = Pair(IntOffset(0, 0), IntSize(0, 0))
@@ -59,6 +57,12 @@ object WorkspaceRepository {
 
     // Keep track of the previous mode
     private var previousMode: WorkspaceContract.WorkspaceMode = WorkspaceContract.WorkspaceMode.Layout()
+
+    init {
+        lightsChain.signalExit = {
+            Heaven.midiEnter(it.filterIsInstance<Signal.LED>())
+        }
+    }
 
     fun switchMode(mode: WorkspaceContract.WorkspaceMode) {
         previousMode = _mode.value
@@ -155,8 +159,8 @@ object WorkspaceRepository {
             }
         }
 
-        recursiveResetMulti(lightsChain.heavenChain)
-        recursiveResetMulti(samplingChain.heavenChain)
+        recursiveResetMulti(lightsChain)
+        recursiveResetMulti(samplingChain)
     }
 
     fun loadWorkspace(workspaceData: SaveableWorkspaceData) {
@@ -166,8 +170,12 @@ object WorkspaceRepository {
             AudioPlayer.preloadFromAudioClip(it)
         }
 
-        lightsChain.heavenChain = workspaceData.lights.unpack()
-        samplingChain.heavenChain = workspaceData.sampling.unpack()
+        lightsChain = workspaceData.lights.unpack()
+        samplingChain = workspaceData.sampling.unpack()
+
+        lightsChain.signalExit = {
+            Heaven.midiEnter(it.filterIsInstance<Signal.LED>())
+        }
 
         fun recursiveRenderingKeyframes(chain: Chain) {
             chain.devices.value.forEach { device ->
@@ -195,7 +203,7 @@ object WorkspaceRepository {
             }
         }
 
-        recursiveRenderingKeyframes(lightsChain.heavenChain)
+        recursiveRenderingKeyframes(lightsChain)
 
         _macros.update { workspaceData.macros }
 
@@ -228,8 +236,8 @@ object WorkspaceRepository {
     fun saveWorkspace(): SaveableWorkspaceData {
         return SaveableWorkspaceData(
             title = saveableWorkspaceData?.title ?: "Untitled Project",
-            lights = StateChain.pack(lightsChain.heavenChain),
-            sampling = StateChain.pack(samplingChain.heavenChain),
+            lights = StateChain.pack(lightsChain),
+            sampling = StateChain.pack(samplingChain),
             macros = _macros.value,
             settings = WorkspaceSettings(
                 bpm = _bpm.value

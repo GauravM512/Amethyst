@@ -45,12 +45,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.util.Timing
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.LEDChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import dev.anthonyhfm.amethyst.ui.components.TimeDial
@@ -62,7 +62,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.abs
 
-class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
+class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>() {
     override val state = MutableStateFlow(CopyChainDeviceState())
 
     @Composable
@@ -453,7 +453,7 @@ class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
         return points
     }
 
-    private fun animateSignalThroughOffsetsWithIsolation(originalSignal: Signal, offsets: List<Pair<Int, Int>>) {
+    private fun animateSignalThroughOffsetsWithIsolation(originalSignal: Signal.LED, offsets: List<Pair<Int, Int>>) {
         val signalOwner = Pair(this, "${originalSignal.x},${originalSignal.y}")
 
         val targets = mutableListOf<Pair<Int, Int>>()
@@ -482,7 +482,7 @@ class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
                         delayInMs = (state.value.delayMs * globalStepIndex).toDouble(),
                         owner = signalOwner
                     ) {
-                        midiExit?.invoke(listOf(copiedSignal))
+                        signalExit?.invoke(listOf(copiedSignal))
                     }
                 }
                 globalStepIndex++
@@ -494,7 +494,7 @@ class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
         }
     }
 
-    private fun isSignalWithinDeviceBounds(signal: Signal, isolationType: CopyChainDeviceState.IsolationType): Boolean {
+    private fun isSignalWithinDeviceBounds(signal: Signal.LED, isolationType: CopyChainDeviceState.IsolationType): Boolean {
         if (isolationType == CopyChainDeviceState.IsolationType.NONE) {
             return true
         }
@@ -529,13 +529,13 @@ class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
         }
     }
 
-    private fun filterSignalsForIsolation(signals: List<Signal>): List<Signal> {
+    private fun filterSignalsForIsolation(signals: List<Signal.LED>): List<Signal> {
         return signals.filter { signal ->
             isSignalWithinDeviceBounds(signal, state.value.isolate)
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun ledSignalEnter(n: List<Signal.LED>) {
         when (state.value.type) {
             CopyChainDeviceState.CopyType.STATIC -> {
                 state.value.offsets.forEach { offset ->
@@ -549,7 +549,7 @@ class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
                     val filteredSignals = filterSignalsForIsolation(copiedSignals)
 
                     if (filteredSignals.isNotEmpty()) {
-                        midiExit?.invoke(filteredSignals)
+                        signalExit?.invoke(filteredSignals)
                     }
                 }
             }
@@ -563,7 +563,7 @@ class CopyChainDevice : ChainDevice<CopyChainDeviceState>() {
             }
         }
 
-        midiExit?.invoke(n)
+        signalExit?.invoke(n)
     }
 
 

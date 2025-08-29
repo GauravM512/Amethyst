@@ -1,40 +1,40 @@
-package dev.anthonyhfm.amethyst.core.heaven.elements
+package dev.anthonyhfm.amethyst.core.engine.elements
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 
 class Chain : SignalReceiver() {
-    val devices: MutableState<List<ChainDevice<*>>> = mutableStateOf(emptyList())
+    val devices: MutableState<List<GenericChainDevice<*>>> = mutableStateOf(emptyList())
 
-    override fun midiEnter(input: List<Signal>) {
+    override fun signalEnter(input: List<Signal>) {
         if (devices.value.isEmpty()) {
-            midiExit?.invoke(input)
+            signalExit?.invoke(input)
         } else {
-            devices.value[0].midiEnter(input)
+            devices.value[0].signalEnter(input)
         }
     }
 
     fun reroute() {
         if (devices.value.isNotEmpty()) {
             for (i in 1..devices.value.size) {
-                devices.value[i - 1].midiExit = {
-                    devices.value[i].midiEnter(it)
+                devices.value[i - 1].signalExit = {
+                    devices.value[i].signalEnter(it)
                 }
             }
 
-            devices.value[devices.value.lastIndex].midiExit = {
-                midiExit?.invoke(it)
+            devices.value[devices.value.lastIndex].signalExit = {
+                signalExit?.invoke(it)
             }
         }
     }
 
-    fun add(device: ChainDevice<*>, atIndex: Int? = null, fromUser: Boolean = true) {
+    fun add(device: GenericChainDevice<*>, atIndex: Int? = null, fromUser: Boolean = true) {
         devices.value = devices.value.toMutableList().apply {
             if (atIndex != null) {
                 add(index = atIndex, device)
@@ -125,18 +125,11 @@ class Chain : SignalReceiver() {
         reroute()
     }
 
-    /**
-     * Findet rekursiv die Chain, die ein Device mit der angegebenen UUID enthält
-     * @param deviceUUID Die UUID des gesuchten Devices
-     * @return Die Chain die das Device enthält, oder null falls nicht gefunden
-     */
     fun findDeviceChain(deviceUUID: String): Chain? {
-        // Prüfe zuerst diese Chain
         if (devices.value.any { it.selectionUUID == deviceUUID }) {
             return this
         }
 
-        // Suche rekursiv in verschachtelten Chains
         devices.value.forEach { device ->
             when (device) {
                 is GroupChainDevice -> {
@@ -163,7 +156,6 @@ class Chain : SignalReceiver() {
             }
         }
 
-        // Device nicht gefunden
         return null
     }
 }

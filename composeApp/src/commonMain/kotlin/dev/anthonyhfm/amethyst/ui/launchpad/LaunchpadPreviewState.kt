@@ -5,7 +5,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
 
 class LaunchpadPreviewState { // TODO: Replace with Heaven's screen-class
     val grid: MutableState<List<RawUpdate>> = mutableStateOf(

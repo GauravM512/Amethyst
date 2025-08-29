@@ -1,14 +1,10 @@
 package dev.anthonyhfm.amethyst.core.midi.devices
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
+import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.atsushieno.ktmidi.MidiOutput
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlin.collections.chunked
 
 @OptIn(ExperimentalUnsignedTypes::class)
 class LaunchpadDevicePush2(

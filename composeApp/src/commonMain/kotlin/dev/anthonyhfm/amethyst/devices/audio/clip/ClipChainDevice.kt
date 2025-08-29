@@ -13,12 +13,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.audio.AudioPlayer
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.AudioChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
@@ -33,10 +32,9 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
-class ClipChainDevice : ChainDevice<ClipChainDeviceState>() {
+class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
     override val state = MutableStateFlow(ClipChainDeviceState())
 
     @Composable
@@ -96,9 +94,9 @@ class ClipChainDevice : ChainDevice<ClipChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
-        n.forEach {
-            if (it.color != Color.Black) {
+    override fun signalEnter(n: List<Signal>) {
+        n.filterIsInstance<Signal.Midi>().forEach {
+            if (it.velocity != 0) {
                 if (WorkspaceRepository.audioRegistry[state.value.audioKey] != null) {
                     CoroutineScope(Dispatchers.IO).launch {
                         AudioPlayer.stopAudio(state.value.audioKey)
@@ -108,7 +106,7 @@ class ClipChainDevice : ChainDevice<ClipChainDeviceState>() {
             }
         }
 
-        midiExit?.invoke(n)
+        signalExit?.invoke(n)
     }
 }
 

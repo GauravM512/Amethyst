@@ -10,7 +10,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -41,24 +40,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isShiftPressed
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
@@ -74,7 +68,7 @@ import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
+class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
     override val state = MutableStateFlow(GroupChainDeviceState())
 
     init {
@@ -87,7 +81,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
 
     @Composable
     fun Content(
-        dragAndDropState: DragAndDropState<ChainDevice<*>> = rememberDragAndDropState()
+        dragAndDropState: DragAndDropState<GenericChainDevice<*>> = rememberDragAndDropState()
     ) {
         val selections by SelectionManager.selections.collectAsState()
         val isSelected = selections.any { it.selectionUUID == this.selectionUUID }
@@ -331,7 +325,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
     }
 
     @Composable
-    private fun GroupContent(dragAndDropState: DragAndDropState<ChainDevice<*>>) {
+    private fun GroupContent(dragAndDropState: DragAndDropState<GenericChainDevice<*>>) {
         val groupsState by state.collectAsState()
         val devices by groupsState.groups[groupsState.openedGroupIndex].chain.devices
 
@@ -483,12 +477,12 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
             )
 
             if (atIndex != null) {
-                out.groups[atIndex].chain.midiExit = {
-                    midiExit?.invoke(it)
+                out.groups[atIndex].chain.signalExit = {
+                    signalExit?.invoke(it)
                 }
             } else {
-                out.groups.last().chain.midiExit = {
-                    midiExit?.invoke(it)
+                out.groups.last().chain.signalExit = {
+                    signalExit?.invoke(it)
                 }
             }
 
@@ -496,9 +490,9 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun signalEnter(n: List<Signal>) {
         state.value.groups.forEach {
-            it.chain.midiEnter(n)
+            it.chain.signalEnter(n)
         }
     }
 
@@ -570,8 +564,8 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
                 openedGroupIndex = toIndex ?: index
             )
 
-            out.groups[toIndex ?: index].chain.midiExit = {
-                midiExit?.invoke(it)
+            out.groups[toIndex ?: index].chain.signalExit = {
+                signalExit?.invoke(it)
             }
 
             out
@@ -581,8 +575,8 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
     fun loadFromState(state: GroupChainDeviceState) {
         val unpackedGroups = state.groups.map { group ->
             val unpackedChain = group.stateChain.unpack()
-            unpackedChain.midiExit = {
-                midiExit?.invoke(it)
+            unpackedChain.signalExit = {
+                signalExit?.invoke(it)
             }
 
             Group(
@@ -607,7 +601,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         state.update {
             val newGroups = it.groups.toMutableList().apply {
                 add(index, group.copy(chain = StateChain.pack(group.chain).unpack().apply {
-                    midiExit = { signal -> this@GroupChainDevice.midiExit?.invoke(signal) }
+                    signalExit = { signal -> this@GroupChainDevice.signalExit?.invoke(signal) }
                 }))
             }
 
@@ -656,7 +650,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
             val duplicatedGroup = Group(
                 name = "Chain #",
                 chain = StateChain.pack(group.chain).unpack().apply {
-                    midiExit = { signal -> this@GroupChainDevice.midiExit?.invoke(signal) }
+                    signalExit = { signal -> this@GroupChainDevice.signalExit?.invoke(signal) }
                 }
             )
 
@@ -705,7 +699,7 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
             val pastedGroup = Group(
                 name = group.name,
                 chain = StateChain.pack(group.chain).unpack().apply {
-                    midiExit = { signal -> this@GroupChainDevice.midiExit?.invoke(signal) }
+                    signalExit = { signal -> this@GroupChainDevice.signalExit?.invoke(signal) }
                 }
             )
 
@@ -770,8 +764,8 @@ class GroupChainDevice : ChainDevice<GroupChainDeviceState>() {
         val insertIndex = index ?: state.value.groups.size
         val newGroup = Group(
             name = "Chain #",
-            chain = dev.anthonyhfm.amethyst.core.heaven.elements.Chain().apply {
-                midiExit = { signal -> this@GroupChainDevice.midiExit?.invoke(signal) }
+            chain = Chain().apply {
+                signalExit = { signal -> this@GroupChainDevice.signalExit?.invoke(signal) }
             }
         )
 

@@ -104,7 +104,7 @@ fun Workspace() {
                     .align(Alignment.BottomCenter)
             ) {
                 WorkspaceChainEditor(
-                    devices = WorkspaceRepository.lightsChain.heavenChain.devices.value,
+                    devices = WorkspaceRepository.lightsChain.devices.value,
                     onEvent = { viewModel.onEvent(it) }
                 )
             }
@@ -117,7 +117,7 @@ fun Workspace() {
                     .align(Alignment.BottomCenter)
             ) {
                 WorkspaceChainEditor(
-                    devices = WorkspaceRepository.samplingChain.heavenChain.devices.value,
+                    devices = WorkspaceRepository.samplingChain.devices.value,
                     onEvent = { viewModel.onEvent(it) }
                 )
             }

@@ -18,16 +18,16 @@ import androidx.compose.ui.unit.dp
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.LEDChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class ColorChainDevice : ChainDevice<ColorChainDeviceState>() {
+class ColorChainDevice : LEDChainDevice<ColorChainDeviceState>() {
     override val state = MutableStateFlow(ColorChainDeviceState())
 
     @Composable
@@ -86,8 +86,8 @@ class ColorChainDevice : ChainDevice<ColorChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
-        midiExit?.invoke(
+    override fun ledSignalEnter(n: List<Signal.LED>) {
+        signalExit?.invoke(
             n.map {
                 if (it.color != Color.Black) {
                     it.copy(

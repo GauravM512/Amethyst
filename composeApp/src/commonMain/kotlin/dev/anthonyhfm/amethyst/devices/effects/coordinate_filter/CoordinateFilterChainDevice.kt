@@ -10,22 +10,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState>() {
+class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDeviceState>() {
     override val state = MutableStateFlow(CoordinateFilterChainDeviceState())
 
     private val customMode: CoordinateFilterWorkspaceMode = CoordinateFilterWorkspaceMode()
@@ -77,7 +75,7 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
 
         Heaven.midiEnter(
             state.value.filters.map {
-                Signal(
+                Signal.LED(
                     origin = this,
                     x = it.first,
                     y = it.second,
@@ -107,7 +105,7 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
 
         Heaven.midiEnter(
             listOf(
-                Signal(
+                Signal.LED(
                     origin = this,
                     x = x,
                     y = y,
@@ -118,13 +116,23 @@ class CoordinateFilterChainDevice : ChainDevice<CoordinateFilterChainDeviceState
         )
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun signalEnter(n: List<Signal>) {
         val filteredSignals = n.filter { signal ->
-            state.value.filters.contains(Pair(signal.x, signal.y))
+            when (signal) {
+                is Signal.LED -> {
+                    state.value.filters.contains(Pair(signal.x, signal.y))
+                }
+
+                is Signal.Midi -> {
+                    state.value.filters.contains(Pair(signal.x, signal.y))
+                }
+
+                else -> false
+            }
         }
 
         if (filteredSignals.isNotEmpty()) {
-            midiExit?.invoke(filteredSignals)
+            signalExit?.invoke(filteredSignals)
         }
     }
 }

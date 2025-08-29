@@ -15,17 +15,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.LEDChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class RotateChainDevice : ChainDevice<RotateChainDeviceState>() {
+class RotateChainDevice : LEDChainDevice<RotateChainDeviceState>() {
     override val state = MutableStateFlow(RotateChainDeviceState())
 
     @Composable
@@ -119,7 +119,7 @@ class RotateChainDevice : ChainDevice<RotateChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun ledSignalEnter(n: List<Signal.LED>) {
         val bounds = WorkspaceRepository.bounds
         val rightEdgeX = bounds.first.x + bounds.second.width - 1
         val bottomEdgeY = bounds.first.y + bounds.second.height - 1
@@ -164,7 +164,7 @@ class RotateChainDevice : ChainDevice<RotateChainDeviceState>() {
             }
         }
 
-        midiExit?.invoke(rotatedSignals.toMutableList().apply {
+        signalExit?.invoke(rotatedSignals.toMutableList().apply {
             if (state.value.bypass) {
                 addAll(n)
             }

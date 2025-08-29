@@ -16,10 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.StepTextDial
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class SwitchChainDevice : ChainDevice<SwitchChainDeviceState>() {
+class SwitchChainDevice : GenericChainDevice<SwitchChainDeviceState>() {
     override val state = MutableStateFlow(SwitchChainDeviceState())
 
     @Composable
@@ -121,11 +121,17 @@ class SwitchChainDevice : ChainDevice<SwitchChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
-        midiExit?.invoke(n)
+    override fun signalEnter(n: List<Signal>) {
+        signalExit?.invoke(n)
 
         n.forEach {
-            if (it.color != Color.Black) {
+            val down: Boolean = when (it) {
+                is Signal.LED -> it.color != Color.Black
+                is Signal.Midi -> it.velocity != 0
+                else -> false
+            }
+
+            if (down) {
                 WorkspaceRepository.setMacroValue(
                     index = state.value.macro,
                     macro = WorkspaceRepository.macros.value[state.value.macro].copy(

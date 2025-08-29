@@ -10,7 +10,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -32,7 +31,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
@@ -57,14 +55,15 @@ import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
@@ -73,16 +72,14 @@ import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ExpandingChainDevicePicker
 import dev.anthonyhfm.amethyst.workspace.chain.ui.TitleBarModifierProvider
-import io.androidpoet.dropdown.MenuItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import kotlin.math.exp
 
-class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
+class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
     override val state = MutableStateFlow(MultiGroupChainDeviceState())
 
     init {
@@ -97,7 +94,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
 
     @Composable
     fun Content(
-        dragAndDropState: DragAndDropState<ChainDevice<*>> = rememberDragAndDropState()
+        dragAndDropState: DragAndDropState<GenericChainDevice<*>> = rememberDragAndDropState()
     ) {
         val deviceState by state.collectAsState()
         val selections by SelectionManager.selections.collectAsState()
@@ -417,7 +414,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
     }
 
     @Composable
-    private fun GroupContent(dragAndDropState: DragAndDropState<ChainDevice<*>>) {
+    private fun GroupContent(dragAndDropState: DragAndDropState<GenericChainDevice<*>>) {
         val groupsState by state.collectAsState()
         val devices by groupsState.groups[groupsState.openedGroupIndex].chain.devices
 
@@ -569,12 +566,12 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
             )
 
             if (atIndex != null) {
-                out.groups[atIndex].chain.midiExit = {
-                    midiExit?.invoke(it)
+                out.groups[atIndex].chain.signalExit = {
+                    signalExit?.invoke(it)
                 }
             } else {
-                out.groups.last().chain.midiExit = {
-                    midiExit?.invoke(it)
+                out.groups.last().chain.signalExit = {
+                    signalExit?.invoke(it)
                 }
             }
 
@@ -582,12 +579,24 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun signalEnter(n: List<Signal>) {
         n.forEach {
+            val down: Boolean = when (it) {
+                is Signal.LED -> it.color != Color.Black
+                is Signal.Midi -> it.velocity != 0
+                else -> return
+            }
+
+            val coords: Pair<Int, Int> = when (it) {
+                is Signal.LED -> Pair(it.x, it.y)
+                is Signal.Midi -> Pair(it.x, it.y)
+                else -> return
+            }
+
             when (state.value.type) {
                 MultiGroupChainDeviceState.TYPE.FORWARD -> {
-                    if (it.color != Color.Black) {
-                        multiMap[Pair(it.x, it.y)] = state.value.currentMultiIndex
+                    if (down) {
+                        multiMap[coords] = state.value.currentMultiIndex
 
                         if (state.value.currentMultiIndex < state.value.groups.size - 1) {
                             state.update {
@@ -599,21 +608,21 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
                             }
                         }
 
-                        multiMap[Pair(it.x, it.y)]?.let { index ->
-                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        multiMap[coords]?.let { index ->
+                            state.value.groups[index].chain.signalEnter(listOf(it))
                         }
                     } else {
-                        multiMap[Pair(it.x, it.y)]?.let { index ->
-                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        multiMap[coords]?.let { index ->
+                            state.value.groups[index].chain.signalEnter(listOf(it))
                         }
 
-                        multiMap.remove(Pair(it.x, it.y))
+                        multiMap.remove(coords)
                     }
                 }
 
                 MultiGroupChainDeviceState.TYPE.BACKWARD -> {
-                    if (it.color != Color.Black) {
-                        multiMap[Pair(it.x, it.y)] = state.value.currentMultiIndex
+                    if (down) {
+                        multiMap[coords] = state.value.currentMultiIndex
 
                         if (state.value.currentMultiIndex > 0) {
                             state.update {
@@ -625,35 +634,35 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
                             }
                         }
 
-                        multiMap[Pair(it.x, it.y)]?.let { index ->
-                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        multiMap[coords]?.let { index ->
+                            state.value.groups[index].chain.signalEnter(listOf(it))
                         }
                     } else {
-                        multiMap[Pair(it.x, it.y)]?.let { index ->
-                            state.value.groups[index].chain.midiEnter(listOf(it))
+                        multiMap[coords]?.let { index ->
+                            state.value.groups[index].chain.signalEnter(listOf(it))
                         }
 
-                        multiMap.remove(Pair(it.x, it.y))
+                        multiMap.remove(coords)
                     }
                 }
 
                 MultiGroupChainDeviceState.TYPE.RANDOM -> {
                     if (state.value.groups.isNotEmpty()) {
                         val randomIndex = (state.value.currentMultiIndex + (0..state.value.groups.size - 1).random()) % state.value.groups.size
-                        state.value.groups[randomIndex].chain.midiEnter(listOf(it))
+                        state.value.groups[randomIndex].chain.signalEnter(listOf(it))
 
-                        if (it.color != Color.Black) {
-                            multiMap[Pair(it.x, it.y)] = randomIndex
+                        if (down) {
+                            multiMap[coords] = randomIndex
 
-                            multiMap[Pair(it.x, it.y)]?.let { index ->
-                                state.value.groups[index].chain.midiEnter(listOf(it))
+                            multiMap[coords]?.let { index ->
+                                state.value.groups[index].chain.signalEnter(listOf(it))
                             }
                         } else {
-                            multiMap[Pair(it.x, it.y)]?.let { index ->
-                                state.value.groups[index].chain.midiEnter(listOf(it))
+                            multiMap[coords]?.let { index ->
+                                state.value.groups[index].chain.signalEnter(listOf(it))
                             }
 
-                            multiMap.remove(Pair(it.x, it.y))
+                            multiMap.remove(coords)
                         }
                     }
                 }
@@ -729,8 +738,8 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
                 openedGroupIndex = toIndex ?: index
             )
 
-            out.groups[toIndex ?: index].chain.midiExit = {
-                midiExit?.invoke(it)
+            out.groups[toIndex ?: index].chain.signalExit = {
+                signalExit?.invoke(it)
             }
 
             out
@@ -740,8 +749,8 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
     fun loadFromState(state: MultiGroupChainDeviceState) {
         val unpackedGroups = state.groups.map { group ->
             val unpackedChain = group.stateChain.unpack()
-            unpackedChain.midiExit = {
-                midiExit?.invoke(it)
+            unpackedChain.signalExit = {
+                signalExit?.invoke(it)
             }
 
             Group(
@@ -802,7 +811,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
         state.update {
             val newGroups = it.groups.toMutableList().apply {
                 add(index, group.copy(chain = StateChain.pack(group.chain).unpack().apply {
-                    midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+                    signalExit = { signal -> this@MultiGroupChainDevice.signalExit?.invoke(signal) }
                 }))
             }
 
@@ -851,7 +860,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
             val duplicatedGroup = Group(
                 name = "Chain #",
                 chain = StateChain.pack(group.chain).unpack().apply {
-                    midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+                    signalExit = { signal -> this@MultiGroupChainDevice.signalExit?.invoke(signal) }
                 }
             )
 
@@ -900,7 +909,7 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
             val pastedGroup = Group(
                 name = group.name,
                 chain = StateChain.pack(group.chain).unpack().apply {
-                    midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+                    signalExit = { signal -> this@MultiGroupChainDevice.signalExit?.invoke(signal) }
                 }
             )
 
@@ -964,8 +973,8 @@ class MultiGroupChainDevice : ChainDevice<MultiGroupChainDeviceState>() {
         val insertIndex = index ?: state.value.groups.size
         val newGroup = Group(
             name = "Chain #",
-            chain = dev.anthonyhfm.amethyst.core.heaven.elements.Chain().apply {
-                midiExit = { signal -> this@MultiGroupChainDevice.midiExit?.invoke(signal) }
+            chain = Chain().apply {
+                signalExit = { signal -> this@MultiGroupChainDevice.signalExit?.invoke(signal) }
             }
         )
 

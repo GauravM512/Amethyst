@@ -34,29 +34,28 @@ import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.platform
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
-import dev.anthonyhfm.amethyst.ui.components.DeviceDraggingPreview
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
 @Composable
 fun WorkspaceChainEditor(
-    devices: List<ChainDevice<*>>,
+    devices: List<GenericChainDevice<*>>,
     onEvent: (WorkspaceContract.Event) -> Unit
 ) {
-    val dragAndDropState = rememberDragAndDropState<ChainDevice<*>>()
+    val dragAndDropState = rememberDragAndDropState<GenericChainDevice<*>>()
     val scrollState = rememberScrollState()
     var chain: Chain? by remember { mutableStateOf(null) }
 
     LaunchedEffect(WorkspaceRepository.mode.collectAsState().value) {
         chain = when (WorkspaceRepository.mode.value) {
-            is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain.heavenChain
-            else -> WorkspaceRepository.lightsChain.heavenChain
+            is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain
+            else -> WorkspaceRepository.lightsChain
         }
     }
 
@@ -122,10 +121,10 @@ fun WorkspaceChainEditor(
                                                 SelectionManager.select(
                                                     Selectable.ChainDevice(
                                                         parent = when (WorkspaceRepository.mode.value) {
-                                                            is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain.heavenChain
+                                                            is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain
 
                                                             else -> {
-                                                                WorkspaceRepository.lightsChain.heavenChain
+                                                                WorkspaceRepository.lightsChain
                                                             }
                                                         },
                                                         device = device

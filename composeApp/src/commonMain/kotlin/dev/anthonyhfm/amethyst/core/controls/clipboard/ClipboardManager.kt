@@ -94,7 +94,7 @@ object ClipboardManager {
                     if ((clipboardData.value as ClipboardData.ChainDevice).type != ClipboardData.ChainDevice.ChainType.Lights) return
 
                     (clipboardData.value as ClipboardData.ChainDevice).states.forEach {
-                        WorkspaceRepository.lightsChain.heavenChain.add(
+                        WorkspaceRepository.lightsChain.add(
                             device = StateChain.unpackDevice(it),
                             atIndex = index
                         )
@@ -103,7 +103,7 @@ object ClipboardManager {
                     if ((clipboardData.value as ClipboardData.ChainDevice).type != ClipboardData.ChainDevice.ChainType.Sampling) return
 
                     (clipboardData.value as ClipboardData.ChainDevice).states.forEach {
-                        WorkspaceRepository.samplingChain.heavenChain.add(
+                        WorkspaceRepository.samplingChain.add(
                             device = StateChain.unpackDevice(it),
                             atIndex = index
                         )

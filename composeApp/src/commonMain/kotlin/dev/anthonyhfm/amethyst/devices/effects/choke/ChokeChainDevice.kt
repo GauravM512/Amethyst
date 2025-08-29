@@ -6,18 +6,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
-class ChokeChainDevice : ChainDevice<ChokeChainDeviceState>() {
+class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>() {
     override val state = MutableStateFlow(ChokeChainDeviceState())
 
     @Composable
@@ -34,8 +34,8 @@ class ChokeChainDevice : ChainDevice<ChokeChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
-        midiExit?.invoke(n)
+    override fun signalEnter(n: List<Signal>) {
+        signalExit?.invoke(n)
     }
 }
 

@@ -14,11 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.util.Timing
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.StepTextDial
 import dev.anthonyhfm.amethyst.ui.components.TextDial
@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class LoopChainDevice : ChainDevice<LoopChainDeviceState>() {
+class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>() {
     override val state = MutableStateFlow(LoopChainDeviceState())
 
     @Composable
@@ -123,26 +123,36 @@ class LoopChainDevice : ChainDevice<LoopChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun signalEnter(n: List<Signal>) {
         val bpm = WorkspaceRepository.bpm.value
 
         n.forEach { signal ->
-            if (signal.color != Color.Black) {
-                // Create unique owner for this specific signal/button combination
-                val signalOwner = Pair(this, "${signal.x},${signal.y}")
+            val down: Boolean = when (signal) {
+                is Signal.LED -> signal.color != Color.Black
+                is Signal.Midi -> signal.velocity != 0
+                else -> return
+            }
 
-                // Cancel nur die Jobs für diesen spezifischen Button
+            val coords: Pair<Int, Int> = when (signal) {
+                is Signal.LED -> Pair(signal.x, signal.y)
+                is Signal.Midi -> Pair(signal.x, signal.y)
+                else -> return
+            }
+
+            if (down) {
+                val signalOwner = Pair(this, "${coords.first},${coords.second}")
+
                 Heaven.cancelJobs { job ->
                     job.owner is Pair<*, *> &&
-                    (job.owner as Pair<*, *>).first == this &&
-                    (job.owner as Pair<*, *>).second == "${signal.x},${signal.y}"
+                    job.owner.first == this &&
+                    job.owner.second == "${coords.first},${coords.second}"
                 }
 
                 for (i in 0..state.value.repeat - 1) {
                     val delay = i * (state.value.timing.toMsValue(bpm) * (state.value.gate * 2))
 
                     Heaven.schedule(delay.toDouble(), owner = signalOwner) {
-                        midiExit?.invoke(listOf(signal))
+                        signalExit?.invoke(listOf(signal))
                     }
                 }
             }

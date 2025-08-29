@@ -9,11 +9,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.util.Timing
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import dev.anthonyhfm.amethyst.ui.components.TimeDial
@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
+class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>() {
     override val state = MutableStateFlow(DelayChainDeviceState())
 
     @Composable
@@ -84,15 +84,12 @@ class DelayChainDevice : ChainDevice<DelayChainDeviceState>() {
         }
     }
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun signalEnter(n: List<Signal>) {
         n.forEach { signal ->
-            val signalOwner = Pair(this, "${signal.x},${signal.y}")
-
             Heaven.schedule(
                 delayInMs = state.value.delayMs.toDouble() * (state.value.gate * 2),
-                owner = signalOwner
             ) {
-                midiExit?.invoke(listOf(signal))
+                signalExit?.invoke(listOf(signal))
             }
         }
     }

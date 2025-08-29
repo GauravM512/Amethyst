@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.devices.effects.group.data
 
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient

@@ -1,7 +1,7 @@
 package dev.anthonyhfm.amethyst.devices.effects.keyframes
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID

@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.core.controls.selection
 
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientChainDevice
@@ -16,7 +16,7 @@ interface Selectable {
 
     data class ChainDevice(
         val parent: Chain,
-        val device: dev.anthonyhfm.amethyst.devices.ChainDevice<*>,
+        val device: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>,
         override val selectionUUID: String = device.selectionUUID
     ) : Selectable
 
@@ -27,7 +27,7 @@ interface Selectable {
     ) : Selectable
 
     data class GroupChainItem(
-        val parent: dev.anthonyhfm.amethyst.devices.ChainDevice<*>,
+        val parent: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>,
         val groupIndex: Int,
         override val selectionUUID: String = UUID.randomUUID()
     ) : Selectable

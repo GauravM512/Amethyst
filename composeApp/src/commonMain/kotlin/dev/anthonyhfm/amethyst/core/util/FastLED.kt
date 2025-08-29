@@ -1,7 +1,7 @@
 package dev.anthonyhfm.amethyst.core.util
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
 
 object FastLED {
     fun compress(updates: List<RawUpdate>, factor: Int = 63): ByteArray {

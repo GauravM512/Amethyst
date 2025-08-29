@@ -31,10 +31,10 @@ import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drop.dropTarget
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
-import dev.anthonyhfm.amethyst.core.heaven.elements.Chain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
@@ -48,12 +48,12 @@ import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain.Companion.pack
 
 @Composable
 fun ExpandingChainDevicePicker(
-    dragAndDropState: DragAndDropState<ChainDevice<*>> = rememberDragAndDropState(),
+    dragAndDropState: DragAndDropState<GenericChainDevice<*>> = rememberDragAndDropState(),
     expanded: Boolean = false,
     forceOff: Boolean = false,
     expandedWidth: Dp = 56.dp,
-    onAddComponent: (ChainDevice<*>) -> Unit,
-    onDropDevice: (device: ChainDevice<*>, Pair<Int, String>, originChain: Chain) -> Unit
+    onAddComponent: (GenericChainDevice<*>) -> Unit,
+    onDropDevice: (device: GenericChainDevice<*>, Pair<Int, String>, originChain: Chain) -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovering: Boolean by interaction.collectIsHoveredAsState()
@@ -96,11 +96,11 @@ fun ExpandingChainDevicePicker(
 
                     var originChain: Chain?
                     if (WorkspaceRepository.mode.value is WorkspaceContract.WorkspaceMode.SamplingChain) {
-                        originChain = WorkspaceRepository.samplingChain.heavenChain.findDeviceChain(state.data.selectionUUID)
-                        WorkspaceRepository.samplingChain.heavenChain.remove(state.data.selectionUUID, false)
+                        originChain = WorkspaceRepository.samplingChain.findDeviceChain(state.data.selectionUUID)
+                        WorkspaceRepository.samplingChain.remove(state.data.selectionUUID, false)
                     } else {
-                        originChain = WorkspaceRepository.lightsChain.heavenChain.findDeviceChain(state.data.selectionUUID)
-                        WorkspaceRepository.lightsChain.heavenChain.remove(state.data.selectionUUID, false)
+                        originChain = WorkspaceRepository.lightsChain.findDeviceChain(state.data.selectionUUID)
+                        WorkspaceRepository.lightsChain.remove(state.data.selectionUUID, false)
                     }
 
                     onDropDevice(device, Pair(originChain!!.devices.value.indexOfFirst { it.selectionUUID == state.data.selectionUUID }, state.data.selectionUUID), originChain)

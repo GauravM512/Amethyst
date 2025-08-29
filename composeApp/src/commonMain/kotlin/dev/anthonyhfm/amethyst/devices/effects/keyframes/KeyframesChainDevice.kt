@@ -16,12 +16,11 @@ import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.MidiFileImporter
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.heaven.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
-import dev.anthonyhfm.amethyst.devices.ChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.*
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.toMsValue
@@ -31,14 +30,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
-import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
+import dev.anthonyhfm.amethyst.devices.LEDChainDevice
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
-import io.github.vinceglb.filekit.dialogs.openFileSaver
 import kotlinx.coroutines.runBlocking
 
-class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
+class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>() {
     override val state = MutableStateFlow(KeyframesChainDeviceState())
 
     private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode()
@@ -129,7 +127,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
 
                                         Heaven.midiEnter(
                                             listOf(
-                                                Signal(
+                                                Signal.LED(
                                                     origin = this,
                                                     x = event.x,
                                                     y = event.y,
@@ -448,7 +446,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
 
         Heaven.midiEnter(
             state.value.frames[state.value.currentFrameIndex].entries.map {
-                Signal(
+                Signal.LED(
                     origin = this,
                     x = it.x,
                     y = it.y,
@@ -497,7 +495,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         state.update { it.copy(renderedAnimation = renderedAnimation) }
     }
 
-    private fun KeyframesEntry.toSignal() = Signal(
+    private fun KeyframesEntry.toSignal() = Signal.LED(
         origin = this,
         x = x,
         y = y,
@@ -505,7 +503,7 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         layer = 0
     )
 
-    private fun KeyframesEntry.toOffSignal() = Signal(
+    private fun KeyframesEntry.toOffSignal() = Signal.LED(
         origin = this,
         x = x,
         y = y,
@@ -513,14 +511,14 @@ class KeyframesChainDevice : ChainDevice<KeyframesChainDeviceState>() {
         layer = 0
     )
 
-    override fun midiEnter(n: List<Signal>) {
+    override fun ledSignalEnter(n: List<Signal.LED>) {
         n.forEach {
             if (it.color != Color.Black) {
                 Heaven.cancelJobsForOwner(this)
 
                 state.value.renderedAnimation.forEach {
                     Heaven.schedule(it.first.toDouble(), owner = this) {
-                        midiExit?.invoke(it.second)
+                        signalExit?.invoke(it.second)
                     }
                 }
             }

@@ -3,14 +3,12 @@ package dev.anthonyhfm.amethyst.workspace
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.KeyEvent
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
-import dev.anthonyhfm.amethyst.devices.ChainDevice
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.timeline.TimelineKeyHandler
-import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.workspace.modes.chain.ChainModeKeyHandler
 import dev.anthonyhfm.amethyst.workspace.modes.layout.LayoutModeKeyHandler
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import dev.atsushieno.ktmidi.MidiPortDetails
-
 interface WorkspaceContract {
     sealed interface Event {
         data object OpenVirtualDevicePicker : Event
@@ -34,7 +32,7 @@ interface WorkspaceContract {
 
         data class AddDeviceToViewport(val device: LaunchpadViewportElement) : Event
 
-        data class AddChainDevice(val device: ChainDevice<*>, val atIndex: Int? = null) : Event
+        data class AddChainDevice(val device: GenericChainDevice<*>, val atIndex: Int? = null) : Event
     }
 
     data class State(

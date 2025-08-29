@@ -16,12 +16,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.heaven.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadSurfaceDetectionOverlay
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
-import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 
 class ViewportMystrix(

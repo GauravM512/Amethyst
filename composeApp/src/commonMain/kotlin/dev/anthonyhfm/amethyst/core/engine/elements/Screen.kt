@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.core.heaven.elements
+package dev.anthonyhfm.amethyst.core.engine.elements
 
 import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.heaven.utils.SortedList
@@ -10,14 +10,14 @@ class Screen : AutoCloseable {
     private class Pixel(
         private val index: Byte
     ) {
-        private val signals = SortedList<Int, Signal>()
+        private val signals = SortedList<Int, Signal.LED>()
         private val currentColor = atomic(Color.Black)
 
         private val locker = Mutex()
 
         suspend fun clear() = locker.withLock {
             signals.clear()
-            signals[10000] = Signal(null, x = index % 10, y = index / 10, color = Color.Black, layer = -100)
+            signals[10000] = Signal.LED(null, x = index % 10, y = index / 10, color = Color.Black, layer = -100)
             currentColor.value = Color.Black
         }
 
@@ -27,28 +27,28 @@ class Screen : AutoCloseable {
             for (i in 0 until signals.size) {
                 val signal = signals.getValueAt(i)
 
-                if (signal.blendingMode != BlendingMode.Normal &&
+                if (signal.blendingMode != Signal.LED.BlendingMode.Normal &&
                     (i == signals.size - 1 ||
                      signal.layer - signals.getValueAt(i + 1).layer > signal.blendingRange)) {
                     continue
                 }
 
-                if (signal.blendingMode == BlendingMode.Mask) break
+                if (signal.blendingMode == Signal.LED.BlendingMode.Mask) break
 
                 val multiply = i > 0 &&
-                              signals.getValueAt(i - 1).blendingMode == BlendingMode.Multiply &&
+                              signals.getValueAt(i - 1).blendingMode == Signal.LED.BlendingMode.Multiply &&
                               signals.getValueAt(i - 1).layer - signal.layer <= signals.getValueAt(i - 1).blendingRange
 
                 ret = ret.mix(signal.color, multiply)
 
-                if (signal.blendingMode == BlendingMode.Normal) break
+                if (signal.blendingMode == Signal.LED.BlendingMode.Normal) break
             }
 
             currentColor.value = ret
             ret
         }
 
-        suspend fun midiEnter(n: Signal) = locker.withLock {
+        suspend fun midiEnter(n: Signal.LED) = locker.withLock {
             if (n.y * 10 + n.x != index.toInt()) return@withLock
 
             val layer = -n.layer
@@ -121,7 +121,7 @@ class Screen : AutoCloseable {
 
     fun getColor(index: Int): Color = snapshot[index]
 
-    suspend fun midiEnter(n: Signal) {
+    suspend fun midiEnter(n: Signal.LED) {
         screen[n.x + n.y * 10].midiEnter(n)
     }
 
