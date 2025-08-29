@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -35,12 +36,15 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.ui.modifier.gesturesDisabled
 import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import kotlin.math.roundToInt
 
@@ -52,6 +56,7 @@ fun <T> StepDial(
     containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(32.dp),
     dialColor: Color = MaterialTheme.colorScheme.tertiary,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     var dialValue by remember { mutableStateOf(0f) }
     var displayValue by remember { mutableStateOf(0f) }
@@ -76,6 +81,8 @@ fun <T> StepDial(
 
     Box(
         modifier = modifier
+            .gesturesDisabled(!enabled)
+            .alpha(if (!enabled) 0.4f else 1f)
             .clip(CircleShape)
             .size(52.dp)
             .pointerInput(Unit) {
@@ -134,7 +141,8 @@ fun <T> StepTextDial(
     onResolveTextValue: (String) -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(32.dp),
     dialColor: Color = MaterialTheme.colorScheme.tertiary,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     var editing by remember { mutableStateOf(false) }
     var textValue by remember { mutableStateOf(text) }
@@ -175,7 +183,8 @@ fun <T> StepTextDial(
             dialColor = dialColor,
             onValueChange = {
                 onValueChange(it)
-            }
+            },
+            enabled = enabled
         )
 
         if (!editing) {

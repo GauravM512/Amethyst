@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.ui.modifier.gesturesDisabled
 
 @Composable
 fun Dial(
@@ -57,6 +59,7 @@ fun Dial(
     containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(32.dp),
     dialColor: Color = MaterialTheme.colorScheme.tertiary,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     var dialValue by remember { mutableStateOf(value) }
     
@@ -70,6 +73,8 @@ fun Dial(
 
     Box(
         modifier = modifier
+            .gesturesDisabled(!enabled)
+            .alpha(if (!enabled) 0.4f else 1f)
             .clip(CircleShape)
             .size(52.dp)
             .pointerInput(Unit) {
@@ -120,7 +125,8 @@ fun TextDial(
     onResolveTextValue: (String) -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(32.dp),
     dialColor: Color = MaterialTheme.colorScheme.tertiary,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     var editing by remember { mutableStateOf(false) }
     var textValue by remember { mutableStateOf(text) }
@@ -160,7 +166,8 @@ fun TextDial(
             dialColor = dialColor,
             onValueChange = {
                 onValueChange(it)
-            }
+            },
+            enabled = enabled
         )
 
         if (!editing) {
