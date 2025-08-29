@@ -1,10 +1,19 @@
 package dev.anthonyhfm.amethyst.devices.effects.loop
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -45,39 +54,75 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>() {
             modifier = Modifier.width(200.dp)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxSize()
             ) {
-                StepTextDial(
-                    headline = "Repeat",
-                    text = "${deviceState.repeat}",
-                    steps = IntArray(128) { it + 1 }.toList(),
-                    value = deviceState.repeat,
-                    onResolveTextValue = {
-                        val repeatText = it.trim().toIntOrNull()
+                Column (
+                    modifier = Modifier
+                        .fillMaxHeight().padding(start = 8.dp, top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp, alignment = Alignment.CenterVertically),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Column (
+                        Modifier.offset(x = 2.dp)
+                    ){
+                        StepTextDial(
+                            headline = "Repeat",
+                            text = "${deviceState.repeat}",
+                            steps = IntArray(128) { it + 1 }.toList(),
+                            value = deviceState.repeat,
+                            onResolveTextValue = {
+                                val repeatText = it.trim().toIntOrNull()
 
-                        repeatText?.let { repeat ->
-                            if (repeat in 1..128) {
-                                state.update {
-                                    it.copy(repeat = repeat)
+                                repeatText?.let { repeat ->
+                                    if (repeat in 1..128) {
+                                        state.update {
+                                            it.copy(repeat = repeat)
+                                        }
+                                    }
                                 }
-                            }
+                            },
+                            onValueChange = { value ->
+                                state.update {
+                                    it.copy(repeat = value)
+                                }
+                            },
+                        )
+                    }
+
+                    Column (
+                        horizontalAlignment = Alignment.Start,
+                    ){
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.offset(x = -4.dp)
+                        ) {
+                            Checkbox(
+                                checked = deviceState.onHold,
+                                onCheckedChange = { checked ->
+                                    state.update {
+                                        it.copy(onHold = checked)
+                                    }
+                                },
+                            )
+
+                            Text(
+                                text = "Hold",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                         }
-                    },
-                    onValueChange = { value ->
-                        state.update {
-                            it.copy(repeat = value)
-                        }
-                    },
-                )
+                    }
+                }
 
                 VerticalDivider(
                     modifier = Modifier
-                        .height(80.dp),
+                        .height(160.dp),
                 )
 
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier.padding(start = 8.dp)
                 ) {
                     TimeDial(
                         headline = "Delay",
@@ -148,13 +193,45 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>() {
                     job.owner.second == "${coords.first},${coords.second}"
                 }
 
-                for (i in 0..state.value.repeat - 1) {
-                    val delay = i * (state.value.timing.toMsValue(bpm) * (state.value.gate * 2))
+                if (!state.value.onHold) {
+                    // Non-hold mode: schedule all signals at once
+                    for (i in 0..state.value.repeat - 1) {
+                        val delay = i * (state.value.timing.toMsValue(bpm) * (state.value.gate * 2))
 
-                    Heaven.schedule(delay.toDouble(), owner = signalOwner) {
-                        signalExit?.invoke(listOf(signal))
+                        Heaven.schedule(delay.toDouble(), owner = signalOwner) {
+                            signalExit?.invoke(listOf(signal))
+                        }
                     }
+                } else {
+                    // Hold mode: send first signal immediately
+                    signalExit?.invoke(listOf(signal))
+
+                    // Then start recursive scheduling for subsequent signals
+                    val baseDelay = state.value.timing.toMsValue(bpm) * (state.value.gate * 2)
+                    scheduleSignals(signal, signalOwner, baseDelay.toDouble())
                 }
+            } else { // key up
+                if (!state.value.onHold) {
+                    return@forEach
+                }
+
+                // Cancel any ongoing loops for this key
+                Heaven.cancelJobs { job ->
+                    job.owner is Pair<*, *> &&
+                    job.owner.first == this &&
+                    job.owner.second == "${coords.first},${coords.second}"
+                }
+            }
+        }
+    }
+
+    fun scheduleSignals(signal: Signal, signalOwner: Any, delay: Double) {
+        Heaven.schedule(delay, owner = signalOwner) {
+            if (state.value.onHold) { // if onHold is unchecked, we immediately stop looping, do we want this?
+                signalExit?.invoke(listOf(signal))
+
+                // Schedule the next iteration
+                scheduleSignals(signal, signalOwner, delay)
             }
         }
     }
@@ -164,5 +241,6 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>() {
 data class LoopChainDeviceState(
     val repeat: Int = 2,
     val timing: Timing = Timing.Rythm(Timing.Rythm.RythmTiming._1_4),
-    val gate: Float = 0.5f
+    val gate: Float = 0.5f,
+    val onHold: Boolean = false,
 ) : DeviceState()
