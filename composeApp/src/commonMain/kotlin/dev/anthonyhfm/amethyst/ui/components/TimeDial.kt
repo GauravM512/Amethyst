@@ -45,7 +45,7 @@ fun TimeDial(
             },
             headline = headline,
             dialColor = MaterialTheme.colorScheme.secondary,
-            text = text ?: "${timing.duration.inMs} ms",
+            text = text ?: "${timing.duration.inMs.toInt()} ms",
             onResolveTextValue = {
                 val timing = it.asTiming()
 
