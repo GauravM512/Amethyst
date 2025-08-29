@@ -22,7 +22,9 @@ import kotlin.time.Duration.Companion.milliseconds
 fun TimeDial(
     headline: String = "Duration",
     timing: Timing,
-    onSelectTiming: (timing: Timing, msValue: Int) -> Unit
+    onSelectTiming: (timing: Timing, msValue: Int) -> Unit,
+    enabled: Boolean = true,
+    text: String? = null,
 ) {
     val millisecondMode by remember { derivedStateOf { timing is Timing.Duration } }
     val bpm by WorkspaceRepository.bpm.collectAsState()
@@ -43,7 +45,7 @@ fun TimeDial(
             },
             headline = headline,
             dialColor = MaterialTheme.colorScheme.secondary,
-            text = "${timing.toMsValue(bpm)} ms",
+            text = text ?: "${timing.duration.inMs.toInt()} ms",
             onResolveTextValue = {
                 val timing = it.asTiming()
 
@@ -56,11 +58,12 @@ fun TimeDial(
                     }
                 }
             },
+            enabled = enabled
         )
     } else {
         StepTextDial(
             text = if (timing is Timing.Rythm) {
-                timing.timing.text
+                text ?: timing.timing.text
             } else {
                 ""
             },
@@ -82,7 +85,8 @@ fun TimeDial(
                         timing.toMsValue(bpm)
                     )
                 }
-            }
+            },
+            enabled = enabled
         )
         // TODO: add back right click to switch to ms mode
     }
