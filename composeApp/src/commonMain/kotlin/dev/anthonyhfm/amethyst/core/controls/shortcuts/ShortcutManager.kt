@@ -34,6 +34,7 @@ object ShortcutManager {
         }
 
         if (keyEvent.key == Key.Delete || keyEvent.key == Key.Backspace) {
+            println("Delete/Backspace pressed")
             return handleDeletionShortcut()
         }
 

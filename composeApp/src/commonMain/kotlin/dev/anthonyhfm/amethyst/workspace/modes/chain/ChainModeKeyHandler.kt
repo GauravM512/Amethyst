@@ -31,18 +31,15 @@ object ChainModeKeyHandler {
 
                         SelectionManager.clear()
 
-                        // Wähle das nächste verfügbare Device aus
                         if (sortedDevicesToDelete.isNotEmpty()) {
                             val (_, firstChain, firstIndex) = sortedDevicesToDelete.last() // Nimm das Device mit dem niedrigsten Index
 
-                            // Bestimme den neuen Index für die Auswahl
                             val newSelectionIndex = when {
                                 firstChain.devices.value.isEmpty() -> -1 // Keine Devices mehr vorhanden
                                 firstIndex >= firstChain.devices.value.size -> firstChain.devices.value.size - 1 // Letztes Device wurde gelöscht
-                                else -> firstIndex // Device an der gleichen Position
+                                else -> firstIndex
                             }
 
-                            // Wähle das neue Device aus, falls vorhanden
                             if (newSelectionIndex >= 0 && newSelectionIndex < firstChain.devices.value.size) {
                                 val newSelectedDevice = firstChain.devices.value[newSelectionIndex]
                                 SelectionManager.select(
@@ -54,9 +51,11 @@ object ChainModeKeyHandler {
                                 )
                             }
                         }
-                    }
 
-                    return true
+                        if (devicesToDelete.isNotEmpty()) {
+                            return true
+                        }
+                    }
                 }
 
                 Key.Escape -> {
