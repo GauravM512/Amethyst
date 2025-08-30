@@ -70,7 +70,9 @@ object WorkspaceRepository {
     }
 
     fun switchMode(mode: WorkspaceContract.WorkspaceMode) {
-        previousMode = _mode.value
+        if (mode.selectable) {
+            previousMode = _mode.value
+        }
 
         _mode.update {
             mode

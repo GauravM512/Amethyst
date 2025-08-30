@@ -15,7 +15,6 @@ interface WorkspaceContract {
         data object DismissVirtualDevicePicker : Event
         data object OnDismissDeviceConfigure : Event
 
-        data class ChangeWorkspaceMode(val mode: WorkspaceMode) : Event
         data class ChangeViewportElementPosition(
             val index: Int,
             val offset: Offset

@@ -153,10 +153,6 @@ class WorkspaceViewModel(
                 }
             }
 
-            is WorkspaceContract.Event.ChangeWorkspaceMode -> {
-                WorkspaceRepository.switchMode(event.mode)
-            }
-
             is WorkspaceContract.Event.ChangeViewportElementPosition -> {
                 if (state.value.mode !is WorkspaceContract.WorkspaceMode.Layout) return
 
