@@ -195,8 +195,6 @@ actual object AudioDecoder {
         val sourceChannels = streamInfo.channels
         val sourceBitsPerSample = streamInfo.bitsPerSample
 
-        println("FLAC source format: ${sourceSampleRate}Hz, ${sourceChannels}ch, ${sourceBitsPerSample}bit")
-
         // Target format
         val targetSampleRate = 44100
         val targetChannels = 2
