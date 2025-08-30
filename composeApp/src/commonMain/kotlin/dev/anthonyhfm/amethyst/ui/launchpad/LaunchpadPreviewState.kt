@@ -5,19 +5,19 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 
 class LaunchpadPreviewState { // TODO: Replace with Heaven's screen-class
-    val grid: MutableState<List<RawUpdate>> = mutableStateOf(
+    val grid: MutableState<List<RawLEDUpdate>> = mutableStateOf(
         List(100) {
-            RawUpdate(
+            RawLEDUpdate(
                 index = it,
                 color = Color.Black
             )
         }
     )
 
-    fun sendToPreview(updates: List<RawUpdate>) {
+    fun sendToPreview(updates: List<RawLEDUpdate>) {
         grid.value = grid.value.toMutableList().apply {
             updates.forEach {
                 this[it.index.toInt()] = it
@@ -27,7 +27,7 @@ class LaunchpadPreviewState { // TODO: Replace with Heaven's screen-class
 
     fun clear() {
         grid.value = List(100) {
-            RawUpdate(
+            RawLEDUpdate(
                 index = it,
                 color = Color.Black
             )

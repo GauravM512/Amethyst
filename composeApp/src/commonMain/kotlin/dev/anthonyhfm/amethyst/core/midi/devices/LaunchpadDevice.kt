@@ -1,8 +1,8 @@
 package dev.anthonyhfm.amethyst.core.midi.devices
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
-import dev.anthonyhfm.amethyst.core.engine.elements.Screen
+import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
+import dev.anthonyhfm.amethyst.core.engine.heaven.Screen
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.atsushieno.ktmidi.MidiOutput
 import kotlinx.coroutines.CoroutineScope
@@ -23,9 +23,9 @@ abstract class LaunchpadDevice {
 
     abstract fun clear()
 
-    abstract fun sendUpdate(updates: List<RawUpdate>, colors: Array<Color>)
+    abstract fun sendUpdate(updates: List<RawLEDUpdate>, colors: Array<Color>)
 
-    abstract fun getEffectSysEx(updates: List<RawUpdate>): ByteArray
+    abstract fun getEffectSysEx(updates: List<RawLEDUpdate>): ByteArray
 
     open fun handleMidiInput(inputData: ByteArray): MidiInputData? {
         return null

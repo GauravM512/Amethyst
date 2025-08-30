@@ -1,7 +1,7 @@
 package dev.anthonyhfm.amethyst.core.midi.devices
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 import dev.atsushieno.ktmidi.MidiOutput
 import kotlinx.coroutines.launch
 
@@ -14,13 +14,13 @@ class LaunchpadDeviceMK2(
         sendMidi(clearSysEx)
     }
 
-    override fun sendUpdate(updates: List<RawUpdate>, colors: Array<Color>) {
+    override fun sendUpdate(updates: List<RawLEDUpdate>, colors: Array<Color>) {
         updates.chunked(78).forEach { chunked ->
             sendMidi(getEffectSysEx(chunked))
         }
     }
 
-    override fun getEffectSysEx(updates: List<RawUpdate>): ByteArray {
+    override fun getEffectSysEx(updates: List<RawLEDUpdate>): ByteArray {
         return mutableListOf<Byte>().apply {
             addAll(arrayOf(240.toByte(), 0.toByte(), 32.toByte(), 41.toByte(), 2.toByte(), 24.toByte(), 11.toByte()))
 

@@ -4,6 +4,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.LPXPagesAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiExtAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator2Adapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DepthsSelectorAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.InfinityAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.IrisAdapter
@@ -67,6 +68,10 @@ class MxDeviceMidiEffectAdapter(
             MaxDeviceMatcher(758577, 2479),
             MaxDeviceMatcher(123814, 44049) -> {
                 return LPXPagesAdapter().toDeviceStates()
+            }
+
+            MaxDeviceMatcher(1105205, 43348) -> { // Resonator v2
+                return Resonator2Adapter(readDataBlob(blob.text!!), xml).toDeviceStates()
             }
 
             else -> {

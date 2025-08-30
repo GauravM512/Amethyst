@@ -18,7 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadSurfaceDetectionOverlay
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
@@ -90,7 +90,7 @@ class ViewportLaunchpadPro(
 private fun GridPad(
     x: Int,
     y: Int,
-    effectData: RawUpdate,
+    effectData: RawLEDUpdate,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -121,7 +121,7 @@ private fun GridPad(
 }
 
 @Composable
-private fun CircularPad(effectData: RawUpdate) {
+private fun CircularPad(effectData: RawLEDUpdate) {
     Box(
         modifier = Modifier.fillMaxSize(0.8f),
         contentAlignment = Alignment.Center
@@ -148,7 +148,7 @@ private fun ClippedPad(
     topRight: Boolean,
     bottomLeft: Boolean,
     bottomRight: Boolean,
-    effectData: RawUpdate
+    effectData: RawLEDUpdate
 ) {
     GenericLaunchpadButton(
         sizeModifier = Modifier

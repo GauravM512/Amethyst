@@ -1,4 +1,4 @@
-package dev.anthonyhfm.amethyst.core.echo
+package dev.anthonyhfm.amethyst.core.engine.echo
 
 /**
  * # Echo

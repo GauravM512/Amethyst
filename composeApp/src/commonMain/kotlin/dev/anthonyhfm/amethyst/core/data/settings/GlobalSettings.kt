@@ -1,7 +1,7 @@
 package dev.anthonyhfm.amethyst.core.data.settings
 
 import com.russhwolf.settings.Settings
-import dev.anthonyhfm.amethyst.core.heaven.Heaven
+import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import kotlinx.serialization.json.Json
 

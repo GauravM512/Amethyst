@@ -7,9 +7,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
-import dev.anthonyhfm.amethyst.core.heaven.Heaven
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
-import kotlinx.coroutines.runBlocking
 
 object LayoutModeKeyHandler {
     fun handleKeyInput(keyEvent: KeyEvent): Boolean {

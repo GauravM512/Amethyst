@@ -10,11 +10,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 
 @Composable
 fun GenericLaunchpadButton(
-    effect: RawUpdate = RawUpdate(0, Color.Black),
+    effect: RawLEDUpdate = RawLEDUpdate(0, Color.Black),
     sizeModifier: Modifier,
     enableLightSpot: Boolean = true,
     shape: Shape = RoundedCornerShape(10)
@@ -46,7 +46,7 @@ fun GenericLaunchpadButton(
     }
 }
 
-private fun computeColor(effectData: RawUpdate): Color {
+private fun computeColor(effectData: RawLEDUpdate): Color {
     val minComponent = 0x3C
     val maxComponent = 0xFF
 

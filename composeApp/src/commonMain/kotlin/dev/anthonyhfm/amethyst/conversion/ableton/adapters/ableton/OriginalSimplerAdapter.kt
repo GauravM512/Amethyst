@@ -51,6 +51,8 @@ class OriginalSimplerAdapter(
 
         val audioFile = PlatformFile(filePath)
 
+        println()
+
         var clipKey = ""
         runBlocking {
             val clip = AudioPlayer.getAudioClip(audioFile.readBytes(), sampleStart, sampleEnd)

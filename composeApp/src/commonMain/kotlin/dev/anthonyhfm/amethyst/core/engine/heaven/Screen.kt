@@ -1,7 +1,8 @@
-package dev.anthonyhfm.amethyst.core.engine.elements
+package dev.anthonyhfm.amethyst.core.engine.heaven
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.heaven.utils.SortedList
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
+import dev.anthonyhfm.amethyst.core.engine.utils.SortedList
 import kotlinx.atomicfu.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -61,7 +62,7 @@ class Screen : AutoCloseable {
         }
     }
 
-    var screenExit: ((List<RawUpdate>, Array<Color>) -> Unit)? = null
+    var screenExit: ((List<RawLEDUpdate>, Array<Color>) -> Unit)? = null
 
     private val screen = Array(101) { Pixel(it.toByte()) }
     private val snapshot = Array(101) { Color.Black }
@@ -72,13 +73,13 @@ class Screen : AutoCloseable {
     }
 
     private suspend fun snapshot() {
-        val updates = mutableListOf<RawUpdate>()
+        val updates = mutableListOf<RawLEDUpdate>()
 
         for (i in screen.indices) {
             val newColor = screen[i].getColor()
 
             if (snapshot[i] != newColor) {
-                updates.add(RawUpdate(i, newColor.copy()))
+                updates.add(RawLEDUpdate(i, newColor.copy()))
                 snapshot[i] = newColor
             }
         }
@@ -89,7 +90,6 @@ class Screen : AutoCloseable {
     }
 
     companion object {
-        // Use atomic list for thread-safe drawing handlers
         private val drawingHandlers = atomic(listOf<suspend () -> Unit>())
 
         suspend fun draw() {
@@ -151,11 +151,4 @@ fun Color.mix(other: Color, multiply: Boolean = false): Color {
 
 fun Color.isLit(): Boolean = red > 0f || green > 0f || blue > 0f
 
-// Assuming these enums exist
-enum class BlendingType {
-    Normal, Multiply, Mask
-}
-
-// Extension for Signal class to add blending properties
-val Signal.blendingMode: BlendingType get() = BlendingType.Normal // Default implementation
-val Signal.blendingRange: Int get() = 1 // Default implementation
+val Signal.LED.blendingRange: Int get() = 1 // Default implementation

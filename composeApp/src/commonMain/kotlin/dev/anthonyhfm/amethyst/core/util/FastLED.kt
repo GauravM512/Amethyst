@@ -1,10 +1,10 @@
 package dev.anthonyhfm.amethyst.core.util
 
 import androidx.compose.ui.graphics.Color
-import dev.anthonyhfm.amethyst.core.engine.elements.RawUpdate
+import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 
 object FastLED {
-    fun compress(updates: List<RawUpdate>, factor: Int = 63): ByteArray {
+    fun compress(updates: List<RawLEDUpdate>, factor: Int = 63): ByteArray {
         val mapped: MutableMap<Color, Array<Byte>> = mutableMapOf()
 
         updates.forEach { update ->
