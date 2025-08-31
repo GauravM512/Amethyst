@@ -526,8 +526,10 @@ actual object AudioDecoder {
         sampleStart: Long?,
         sampleEnd: Long?
     ): Signal.AudioSignal {
+        val rawData = signal.rawData ?: return signal
+
         val bytesPerSample = (signal.bitDepth / 8) * signal.channels
-        val totalSamples = signal.rawData!!.size / bytesPerSample
+        val totalSamples = rawData.size / bytesPerSample
 
         val startSample = (sampleStart ?: 0L).coerceAtLeast(0L)
         val endSample = (sampleEnd ?: totalSamples.toLong()).coerceAtMost(totalSamples.toLong())
@@ -543,9 +545,27 @@ actual object AudioDecoder {
             )
         }
 
+        // Ensure byte alignment for proper audio samples
         val startByte = (startSample * bytesPerSample).toInt()
-        val endByte = (endSample * bytesPerSample).toInt()
-        val trimmedData = signal.rawData.sliceArray(startByte until endByte)
+        val endByte = (endSample * bytesPerSample).toInt().coerceAtMost(rawData.size)
+
+        // Ensure we don't go beyond array bounds and maintain frame alignment
+        val alignedStartByte = (startByte / bytesPerSample) * bytesPerSample
+        val alignedEndByte = (endByte / bytesPerSample) * bytesPerSample
+
+        if (alignedStartByte >= rawData.size || alignedEndByte <= alignedStartByte) {
+            return Signal.AudioSignal(
+                origin = signal.origin,
+                rawData = ByteArray(0),
+                sampleRate = signal.sampleRate,
+                channels = signal.channels,
+                bitDepth = signal.bitDepth
+            )
+        }
+
+        val trimmedData = rawData.sliceArray(alignedStartByte until alignedEndByte)
+
+        println("Audio trimmed: ${totalSamples} samples -> ${trimmedData.size / bytesPerSample} samples (${startSample} to ${endSample})")
 
         return Signal.AudioSignal(
             origin = signal.origin,
