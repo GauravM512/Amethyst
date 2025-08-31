@@ -1,8 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -18,10 +16,10 @@ kotlin {
     androidTarget {
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
+            jvmTarget.set(JvmTarget.JVM_17)
         }
     }
-    
+
     listOf(
         iosX64(),
         iosArm64(),
@@ -32,12 +30,17 @@ kotlin {
             isStatic = true
         }
     }
-    
-    jvm("desktop")
-    
+
+    jvm("desktop") {
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
     sourceSets {
         val desktopMain by getting
-        
+
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
@@ -86,17 +89,20 @@ kotlin {
             implementation(libs.flatlaf)
             implementation("io.github.vyfor:kpresence:0.6.5")
 
-            // LWJGL OpenAL für Low-Latency Audio
-            implementation("org.lwjgl:lwjgl:3.3.3")
-            implementation("org.lwjgl:lwjgl-openal:3.3.3")
-            runtimeOnly("org.lwjgl:lwjgl:3.3.3:natives-macos")
-            runtimeOnly("org.lwjgl:lwjgl:3.3.3:natives-macos-arm64")
-            runtimeOnly("org.lwjgl:lwjgl-openal:3.3.3:natives-macos")
-            runtimeOnly("org.lwjgl:lwjgl-openal:3.3.3:natives-macos-arm64")
-            runtimeOnly("org.lwjgl:lwjgl:3.3.3:natives-windows")
-            runtimeOnly("org.lwjgl:lwjgl:3.3.3:natives-linux")
-            runtimeOnly("org.lwjgl:lwjgl-openal:3.3.3:natives-windows")
-            runtimeOnly("org.lwjgl:lwjgl-openal:3.3.3:natives-linux")
+            // LWJGL Platform Detection
+            val lwjglVersion = "3.3.4"
+            val lwjglNatives = when (org.gradle.internal.os.OperatingSystem.current()) {
+                org.gradle.internal.os.OperatingSystem.LINUX -> "natives-linux"
+                org.gradle.internal.os.OperatingSystem.MAC_OS -> if (System.getProperty("os.arch") == "aarch64") "natives-macos-arm64" else "natives-macos"
+                org.gradle.internal.os.OperatingSystem.WINDOWS -> "natives-windows"
+                else -> throw GradleException("Unsupported OS")
+            }
+
+            // LWJGL Core Dependencies
+            implementation("org.lwjgl:lwjgl:$lwjglVersion")
+            implementation("org.lwjgl:lwjgl-openal:$lwjglVersion")
+            runtimeOnly("org.lwjgl:lwjgl:$lwjglVersion:$lwjglNatives")
+            runtimeOnly("org.lwjgl:lwjgl-openal:$lwjglVersion:$lwjglNatives")
 
             // Audio Decoding Libraries
             implementation("com.googlecode.soundlibs:mp3spi:1.9.5.4")
@@ -130,8 +136,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
@@ -143,11 +149,26 @@ compose.desktop {
     application {
         mainClass = "dev.anthonyhfm.amethyst.MainKt"
 
+        jvmArgs += listOf(
+            "--add-opens=java.base/java.lang=ALL-UNNAMED",
+            "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+            "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+            "--add-opens=java.base/java.io=ALL-UNNAMED",
+            "--add-opens=java.base/java.net=ALL-UNNAMED",
+            "--add-opens=java.base/java.nio=ALL-UNNAMED",
+            "--add-opens=java.base/java.util=ALL-UNNAMED",
+            "--add-opens=java.base/jdk.internal.loader=ALL-UNNAMED",
+            "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+            "-Dorg.lwjgl.util.Debug=false"
+        )
+
         nativeDistributions {
             packageName = "Amethyst"
             packageVersion = "1.0.0"
 
             targetFormats(TargetFormat.Pkg, TargetFormat.Msi, TargetFormat.Deb)
+
+            includeAllModules = true
 
             macOS {
                 iconFile.set(project.file("../icons/amethyst_macos.icns"))
@@ -161,8 +182,7 @@ compose.desktop {
             }
 
             linux {
-                modules("jdk.security.auth") // Required for FileKit
-
+                modules("jdk.security.auth")
                 iconFile.set(project.file("../icons/amethyst_linux.png"))
             }
         }

@@ -4,6 +4,8 @@ import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import kotlinx.coroutines.*
 import org.lwjgl.openal.*
 import org.lwjgl.system.MemoryUtil
+import java.awt.Desktop
+import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -33,9 +35,13 @@ actual object AudioOutput {
         val origin: Any?
     ) {
         fun cleanup() {
-            AL10.alSourceStop(sourceId)
-            AL10.alDeleteSources(sourceId)
-            AL10.alDeleteBuffers(bufferIds)
+            try {
+                AL10.alSourceStop(sourceId)
+                AL10.alDeleteSources(sourceId)
+                AL10.alDeleteBuffers(bufferIds)
+            } catch (e: Exception) {
+                println("Error during AudioSource cleanup: ${e.message}")
+            }
         }
     }
 
@@ -45,6 +51,16 @@ actual object AudioOutput {
 
     private fun initializeOpenAL() {
         try {
+            // Überprüfe LWJGL natives
+            println("Initializing OpenAL with LWJGL...")
+
+            // Wichtig: Erst prüfen ob LWJGL korrekt geladen ist
+            try {
+                System.loadLibrary("lwjgl")
+            } catch (e: UnsatisfiedLinkError) {
+                println("LWJGL native library loading failed, trying alternative method...")
+            }
+
             device = ALC10.alcOpenDevice(null as ByteBuffer?)
             if (device == 0L) {
                 println("Failed to open OpenAL device")
@@ -58,9 +74,22 @@ actual object AudioOutput {
                 return
             }
 
-            ALC10.alcMakeContextCurrent(context)
+            if (!ALC10.alcMakeContextCurrent(context)) {
+                println("Failed to make OpenAL context current")
+                ALC10.alcDestroyContext(context)
+                ALC10.alcCloseDevice(device)
+                return
+            }
 
-            AL.createCapabilities(ALC.createCapabilities(device))
+            // Wichtig: AL und ALC Capabilities erstellen
+            val alcCapabilities = ALC.createCapabilities(device)
+            val alCapabilities = AL.createCapabilities(alcCapabilities)
+
+            if (!alCapabilities.OpenAL10) {
+                println("OpenAL 1.0 not supported")
+                cleanup()
+                return
+            }
 
             isInitialized = true
             println("OpenAL Audio Output initialized successfully")
@@ -70,6 +99,7 @@ actual object AudioOutput {
         } catch (e: Exception) {
             println("OpenAL initialization failed: ${e.message}")
             e.printStackTrace()
+            cleanup()
         }
     }
 
