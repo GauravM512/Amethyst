@@ -8,6 +8,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator2Ada
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DepthsSelectorAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.InfinityAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.IrisAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.TwistAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.XmlElement
 import dev.anthonyhfm.amethyst.devices.DeviceState
 
@@ -55,6 +56,11 @@ class MxDeviceMidiEffectAdapter(
 
             MaxDeviceMatcher(157993, 26896) -> {
                 return IrisAdapter(readDataBlob(blob.text!!)).toDeviceStates()
+            }
+
+            MaxDeviceMatcher(453469, 2928),
+            MaxDeviceMatcher(380840, 40553) -> {
+                return TwistAdapter(readDataBlob(blob.text!!)).toDeviceStates()
             }
 
             MaxDeviceMatcher(91230, 33545),
