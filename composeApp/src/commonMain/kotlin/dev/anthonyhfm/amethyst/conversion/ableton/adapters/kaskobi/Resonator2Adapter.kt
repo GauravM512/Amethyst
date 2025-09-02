@@ -65,7 +65,7 @@ class Resonator2Adapter(
             .querySelector("MxDIntParameter").find {
                 it.attributes["Id"] == "1"
             }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0)
+            .attributes["Value"]?.toIntOrNull()?.minus(1) ?: 0)
 
         val isolation: CopyChainDeviceState.IsolationType = (parameterList
             .querySelector("MxDEnumParameter").find {
