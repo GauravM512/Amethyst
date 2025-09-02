@@ -4,6 +4,8 @@ import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
 import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.core.util.Timing
+import dev.anthonyhfm.amethyst.core.util.UUID
+import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import io.github.vinceglb.filekit.PlatformFile
@@ -104,7 +106,8 @@ object MidiFileImporter {
         // ---- Prepare frames ----
         val frames = mutableListOf<KeyframesChainDeviceContract.Frame>()
         var currentFrame = KeyframesChainDeviceContract.Frame(
-            timing = Timing.Duration(100.milliseconds)
+            timing = Timing.Duration(100.milliseconds),
+            _internalUuid = UUID.randomUUID()
         )
         frames.add(currentFrame)
 
@@ -126,10 +129,10 @@ object MidiFileImporter {
             val lastIndex = frames.lastIndex
             val last = frames[lastIndex]
             // finalize previous frame
-            frames[lastIndex] = last.copy(timing = Timing.Duration(elapsedMs.milliseconds))
+            frames[lastIndex] = last.copy(timing = Timing.Duration(elapsedMs.milliseconds), _internalUuid = UUID.randomUUID())
             // clone for next edits
             val newEntries = last.entries.map { it.copy() }
-            currentFrame = last.copy(timing = Timing.Duration(100.milliseconds), entries = newEntries)
+            currentFrame = last.copy(timing = Timing.Duration(100.milliseconds), entries = newEntries, _internalUuid = UUID.randomUUID())
             frames.add(currentFrame)
         }
 
