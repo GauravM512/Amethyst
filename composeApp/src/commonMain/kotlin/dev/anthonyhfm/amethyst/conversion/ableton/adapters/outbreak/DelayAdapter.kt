@@ -28,8 +28,6 @@ class DelayAdapter(
             rythmIndexToDuration(timingString, bpm, 1).inWholeMilliseconds.toInt()
         }
 
-        println("Calculated Gate: ${(dataObj.gatePercentage.first() / 100).toFloat()}")
-
         return listOf(
             DelayChainDeviceState(
                 timing = Timing.Duration(delayMs.milliseconds),
