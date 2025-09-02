@@ -275,6 +275,15 @@ class WorkspaceViewModel(
                             val posX = offset.x.toInt()
                             val posY = offset.y.toInt()
 
+                            WorkspaceRepository.samplingChain.signalEnter(
+                                Signal.Midi(
+                                    origin = null,
+                                    x = posX + x,
+                                    y = posY + (9 - y),
+                                    velocity = it.velocity
+                                )
+                            )
+
                             WorkspaceRepository.lightsChain.signalEnter(
                                 Signal.LED(
                                     origin = null,
@@ -282,15 +291,6 @@ class WorkspaceViewModel(
                                     y = posY + (9 - y),
                                     color = if (it.velocity == 0) Color.Black else Color.White,
                                     layer = 0
-                                )
-                            )
-
-                            WorkspaceRepository.samplingChain.signalEnter(
-                                Signal.Midi(
-                                    origin = null,
-                                    x = posX + x,
-                                    y = posY + (9 - y),
-                                    velocity = it.velocity
                                 )
                             )
                         }
