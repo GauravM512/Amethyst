@@ -5,6 +5,8 @@ import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.blur.BlurChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.blur.BlurChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDevice
@@ -209,6 +211,12 @@ data class StateChain(
 
                 is SwitchChainDeviceState -> {
                     SwitchChainDevice().apply {
+                        state.update { device }
+                    }
+                }
+
+                is BlurChainDeviceState -> {
+                    BlurChainDevice().apply {
                         state.update { device }
                     }
                 }

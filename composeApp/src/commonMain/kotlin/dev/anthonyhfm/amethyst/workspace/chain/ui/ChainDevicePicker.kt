@@ -4,12 +4,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Adjust
 import androidx.compose.material.icons.twotone.AudioFile
 import androidx.compose.material.icons.twotone.Audiotrack
+import androidx.compose.material.icons.twotone.BlurOn
 import androidx.compose.material.icons.twotone.ColorLens
 import androidx.compose.material.icons.twotone.ContentCopy
 import androidx.compose.material.icons.twotone.DataArray
 import androidx.compose.material.icons.twotone.Filter
 import androidx.compose.material.icons.twotone.FilterTiltShift
 import androidx.compose.material.icons.twotone.Flip
+import androidx.compose.material.icons.twotone.Functions
 import androidx.compose.material.icons.twotone.Gradient
 import androidx.compose.material.icons.twotone.Group
 import androidx.compose.material.icons.twotone.Layers
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.twotone._123
 import androidx.compose.runtime.Composable
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.blur.BlurChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.copy.CopyChainDevice
@@ -136,6 +139,13 @@ fun getLightsMenu(): MenuItem<String> {
                 icon(Icons.TwoTone.RotateLeft)
             }
         }
+        item("cat_fx", "Fx") {
+            icon(Icons.TwoTone.Functions)
+
+            item("device_blur", "Blur") {
+                icon(Icons.TwoTone.BlurOn)
+            }
+        }
         item("cat_misc", "Misc") {
             icon(Icons.TwoTone.Science)
 
@@ -231,7 +241,8 @@ fun ChainDevicePicker(
         "device_copy" to CopyChainDevice(),
         "device_macro_filter" to MacroFilterChainDevice(),
         "device_clip" to ClipChainDevice(),
-        "device_switch" to SwitchChainDevice()
+        "device_switch" to SwitchChainDevice(),
+        "device_blur" to BlurChainDevice(),
     )
 
     Dropdown(
