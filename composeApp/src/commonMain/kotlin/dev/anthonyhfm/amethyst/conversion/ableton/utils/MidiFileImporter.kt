@@ -88,20 +88,7 @@ object MidiFileImporter {
         val smpteFps = if (isSmpte) (256 - ((divisionRaw ushr 8) and 0xFF)) else 0 // two's complement
         val smpteTicksPerFrame = if (isSmpte) (divisionRaw and 0xFF) else 0
 
-        var bpm = bpm // PPQ mode default; ignored in SMPTE mode
-
-        fun ticksToMs(deltaTicks: Long): Int {
-            return if (!isSmpte) {
-                if (ppq <= 0) 0 else {
-                    val msPerQuarter = 60000.0 / bpm
-                    val msPerTick = msPerQuarter / ppq
-                    round(deltaTicks * msPerTick).toInt()
-                }
-            } else {
-                val tps = smpteFps * smpteTicksPerFrame // ticks per second
-                if (tps <= 0) 0 else round(deltaTicks * 1000.0 / tps).toInt()
-            }
-        }
+        var usPerQuarter = (60000000.0 / bpm).toLong()
 
         // ---- Prepare frames ----
         val frames = mutableListOf<KeyframesChainDeviceContract.Frame>()
@@ -110,6 +97,12 @@ object MidiFileImporter {
             _internalUuid = UUID.randomUUID()
         )
         frames.add(currentFrame)
+
+        // NEU: absolute Tick-Position jedes Frames (Start-Tick). Erstes Frame startet bei 0.
+        val frameTicks = mutableListOf<Long>(0L)
+
+        // NEU: Tempo-Änderungen als (Tick, usPerQuarter)
+        val tempoChanges = mutableListOf(0L to usPerQuarter)
 
         var runningStatus: Int? = null
 
@@ -122,26 +115,30 @@ object MidiFileImporter {
         }
         val trackEnd = offset + trackLength
 
+        // NEU: nur noch absolute Tick-Zeit (kein fehleranfälliges Mikrosekunden-Cycling)
         var currentTick = 0L
 
-        fun cloneLastFrameWithDuration(elapsedMs: Int) {
-            if (frames.isEmpty()) return
-            val lastIndex = frames.lastIndex
-            val last = frames[lastIndex]
-            // finalize previous frame
-            frames[lastIndex] = last.copy(timing = Timing.Duration(elapsedMs.milliseconds), _internalUuid = UUID.randomUUID())
-            // clone for next edits
+        // ENTFERNT: totalMicroseconds / usRemainder / msRemainder / accumulateAndClone()
+
+        // Frame-Klon ohne Dauerberechnung (Dauer wird nachträglich im zweiten Pass gesetzt)
+        fun cloneFrameAfterTickAdvance() {
+            val last = frames.last()
             val newEntries = last.entries.map { it.copy() }
-            currentFrame = last.copy(timing = Timing.Duration(100.milliseconds), entries = newEntries, _internalUuid = UUID.randomUUID())
+            currentFrame = last.copy(
+                timing = Timing.Duration(100.milliseconds), // Platzhalter
+                entries = newEntries,
+                _internalUuid = UUID.randomUUID()
+            )
             frames.add(currentFrame)
         }
 
         while (offset < trackEnd) {
-            // Delta time
-            val delta = readVarLen().toLong()
+            val delta = readVarLen()
             if (delta > 0) {
                 currentTick += delta
-                cloneLastFrameWithDuration(ticksToMs(delta))
+                // Vor Delta-End: vorheriges Frame bekommt später seine Dauer (post processing)
+                frameTicks.add(currentTick)
+                cloneFrameAfterTickAdvance()
             }
 
             if (!requireBytes(1)) break
@@ -150,7 +147,6 @@ object MidiFileImporter {
             var handledRunning = false
 
             if (statusByte < 0x80) {
-                // Running status: first data byte already consumed into statusByte
                 eventType = runningStatus ?: continue
                 handledRunning = true
             } else {
@@ -159,7 +155,7 @@ object MidiFileImporter {
             }
 
             when (eventType and 0xF0) {
-                0x80, 0x90 -> { // Note Off / Note On
+                0x80, 0x90 -> {
                     val isNoteOn = (eventType and 0xF0) == 0x90
                     val pitch: Int
                     val velocity: Int
@@ -193,14 +189,12 @@ object MidiFileImporter {
                                 filtered
                             }
 
-                        val lastIndex = frames.lastIndex
-                        val frame = frames[lastIndex]
-                        frames[lastIndex] = frame.copy(entries = updatedEntries)
-                        currentFrame = frames[lastIndex]
+                        frames[frames.lastIndex] = frames.last().copy(entries = updatedEntries)
+                        currentFrame = frames.last()
                     }
                 }
 
-                0xA0, 0xB0, 0xE0 -> { // two data bytes
+                0xA0, 0xB0, 0xE0 -> {
                     if (handledRunning) {
                         if (requireBytes(1)) readByte()
                     } else {
@@ -208,32 +202,34 @@ object MidiFileImporter {
                     }
                 }
 
-                0xC0, 0xD0 -> { // one data byte
+                0xC0, 0xD0 -> {
                     if (!handledRunning && requireBytes(1)) readByte()
                 }
 
                 else -> {
                     when (eventType and 0xFF) {
-                        0xFF -> { // Meta
+                        0xFF -> {
                             if (!requireBytes(1)) break
                             val metaType = readByte()
                             val length = readVarLen().toInt()
                             when (metaType) {
-                                0x2F -> { // End of track
-                                    // consume remaining declared length, if any
+                                0x2F -> {
                                     if (length > 0 && requireBytes(length)) offset += length
                                     offset = trackEnd // stop
                                 }
-                                0x51 -> { // Set Tempo (microseconds per quarter note; length MUST be 3)
+                                0x51 -> {
                                     if (length >= 3 && requireBytes(3)) {
                                         val b1 = readByte()
                                         val b2 = readByte()
                                         val b3 = readByte()
                                         if (!isSmpte) {
                                             val tempo = (b1 shl 16) or (b2 shl 8) or b3
-                                            if (tempo != 0) bpm = 60000000.0 / tempo.toDouble()
+                                            if (tempo > 0) {
+                                                usPerQuarter = tempo.toLong()
+                                                // Tempo-Wechsel an aktueller Tick-Position registrieren
+                                                tempoChanges.add(currentTick to usPerQuarter)
+                                            }
                                         }
-                                        // skip any over-declared extra bytes, if present
                                         val skip = length - 3
                                         if (skip > 0 && requireBytes(skip)) offset += skip
                                     } else {
@@ -245,18 +241,17 @@ object MidiFileImporter {
                                 }
                             }
                         }
-                        0xF0, 0xF7 -> { // SysEx
+                        0xF0, 0xF7 -> {
                             val length = readVarLen().toInt()
                             if (length > 0 && requireBytes(length)) offset += length
                         }
-                        0xF2 -> { // Song Position Pointer: two data bytes
+                        0xF2 -> {
                             if (!handledRunning && requireBytes(2)) { readByte(); readByte() }
                         }
-                        0xF1, 0xF3 -> { // one data byte
+                        0xF1, 0xF3 -> {
                             if (!handledRunning && requireBytes(1)) readByte()
                         }
                         else -> {
-                            // Unknown system message — best-effort skip one byte if present
                             if (!handledRunning && requireBytes(1)) readByte()
                         }
                     }
@@ -264,6 +259,70 @@ object MidiFileImporter {
             }
         }
 
+        // POST-PROCESS: exakte Dauern aus Ticks + Tempo-Segmenten
+        if (frames.size > 1) {
+            // Sortieren (Sicherheit)
+            tempoChanges.sortBy { it.first }
+
+            fun intervalMicros(startTick: Long, endTick: Long): Long {
+                if (endTick <= startTick) return 0L
+                var acc = 0L
+                var pos = startTick
+                var tempoIndex = tempoChanges.indexOfLast { it.first <= startTick }
+                if (tempoIndex < 0) tempoIndex = 0
+                while (pos < endTick) {
+                    val (tempoTick, tempoUSPQ) = tempoChanges[tempoIndex]
+                    val nextTempoTick = if (tempoIndex + 1 < tempoChanges.size) tempoChanges[tempoIndex + 1].first else Long.MAX_VALUE
+                    val segmentEnd = minOf(endTick, nextTempoTick)
+                    val ticks = segmentEnd - pos
+                    // (ticks * usPerQuarter) / ppq  => Mikrosekunden
+                    acc += (ticks * tempoUSPQ) / ppq
+                    pos = segmentEnd
+                    if (segmentEnd == nextTempoTick && tempoIndex + 1 < tempoChanges.size) tempoIndex++
+                }
+                return acc
+            }
+
+            var cumulativeUs = 0L
+            var prevRoundedMs = 0L
+            for (i in 0 until frames.size - 1) {
+                val startTick = frameTicks[i]
+                val endTick = frameTicks[i + 1]
+                val intervalUs = intervalMicros(startTick, endTick)
+                cumulativeUs += intervalUs
+                val roundedTotalMs = (cumulativeUs + 500) / 1000 // nearest ms
+                val frameMs = (roundedTotalMs - prevRoundedMs).toInt()
+                prevRoundedMs = roundedTotalMs
+                if (frameMs > 0) {
+                    frames[i] = frames[i].copy(
+                        timing = Timing.Duration(frameMs.milliseconds),
+                        _internalUuid = UUID.randomUUID()
+                    )
+                } else {
+                    // Null-Dauern vermeiden
+                    frames[i] = frames[i].copy(
+                        timing = Timing.Duration(1.milliseconds),
+                        _internalUuid = UUID.randomUUID()
+                    )
+                }
+            }
+            // Letztes (placeholder) Frame entfernen falls ohne Notenänderung oder 0 Dauer
+            if (frames.isNotEmpty()) {
+                val last = frames.last()
+                val penultimate = if (frames.size >= 2) frames[frames.size - 2] else null
+                if (penultimate != null && last.entries == penultimate.entries) {
+                    frames.removeLast()
+                } else {
+                    // Falls behalten: Dauer minimal setzen
+                    frames[frames.lastIndex] = last.copy(
+                        timing = Timing.Duration(50.milliseconds),
+                        _internalUuid = UUID.randomUUID()
+                    )
+                }
+            }
+        }
+
+        // ...existing code (renderAnimation)...
         var renderedAnimation: List<Pair<Int, List<Signal>>> = emptyList()
         KeyframesChainDevice().apply {
             state.update { it.copy(frames = frames) }
