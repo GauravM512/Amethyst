@@ -19,6 +19,14 @@ class MidiEffectGroupAdapter(
         return listOf(
             GroupChainDeviceState(
                 groups = branches.mapIndexed { index, branch ->
+                    val enabled = branch.querySelector("Speaker")
+                        .first()
+                        .querySelector("Manual")
+                        .first()
+                        .attributes["Value"]?.toBoolean() ?: true
+
+                    if (!enabled) return@mapIndexed null
+
                     Group(
                         name = branch.querySelector("UserName")[0].attributes["Value"].let {
                             if (it != null) {
@@ -78,7 +86,7 @@ class MidiEffectGroupAdapter(
                             }
                         )
                     )
-                }
+                }.filterNotNull()
             )
         )
     }
