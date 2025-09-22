@@ -9,6 +9,7 @@ import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.macro_filter.MacroFilterChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import kotlin.math.abs
 
 class MidiEffectGroupAdapter(
     private val xml: XmlElement
@@ -48,13 +49,39 @@ class MidiEffectGroupAdapter(
                                 val minKey = zoneSettings.localQuerySelector("KeyRange")[0].localQuerySelector("Min")[0].attributes["Value"]?.toInt() ?: 0
                                 val maxKey = zoneSettings.localQuerySelector("KeyRange")[0].localQuerySelector("Max")[0].attributes["Value"]?.toInt() ?: 127
 
-                                if ((branch.querySelector("UserName")[0].attributes["Value"]).toString().lowercase().contains("page")) {
-                                    add(
-                                        MacroFilterChainDeviceState(
-                                            macro = 0,
-                                            value = minMacro,
+                                val hasChains = xml.localQuerySelector("ChainSelector")
+                                    .first()
+                                    .querySelector("KeyMidi")
+                                    .firstOrNull() != null
+
+                                if (hasChains) {
+                                    if (maxMacro - minMacro == 0) {
+                                        add(
+                                            MacroFilterChainDeviceState(
+                                                macro = 0,
+                                                value = minMacro,
+                                            )
                                         )
-                                    )
+                                    } else {
+                                        add(
+                                            GroupChainDeviceState(
+                                                groups = (minMacro..maxMacro).map { key ->
+
+                                                    Group(
+                                                        name = "Key $key",
+                                                        stateChain = StateChain(
+                                                            devices = listOf(
+                                                                MacroFilterChainDeviceState(
+                                                                    macro = 0,
+                                                                    value = key,
+                                                                )
+                                                            )
+                                                        )
+                                                    )
+                                                }
+                                            )
+                                        )
+                                    }
                                 }
 
                                 if (maxKey - minKey != 127 || minKey == maxKey) {
