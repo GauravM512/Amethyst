@@ -3,7 +3,8 @@ package dev.anthonyhfm.amethyst.conversion.ableton
 import dev.anthonyhfm.amethyst.conversion.AmethystConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.reader.BPMReader
 import dev.anthonyhfm.amethyst.conversion.ableton.reader.MidiChainReader
-import dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonImporterConfig
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonLayout
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonLayoutDetector
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.PaletteFileParser
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.SimpleXmlParser
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.XmlElement
@@ -39,10 +40,14 @@ object AbletonConverter : AmethystConverter {
 
         bpm = BPMReader().readBPM(abletonXml)
 
-        val paletteFile = PlatformFile(palettePath ?: "")
-        runBlocking {
-            val content = paletteFile.readString()
-            palette = PaletteFileParser.parsePaletteFileContent(content)
+        if (palettePath == null) {
+            palette = Palettes.novation
+        } else {
+            val paletteFile = PlatformFile(palettePath ?: "")
+            runBlocking {
+                val content = paletteFile.readString()
+                palette = PaletteFileParser.parsePaletteFileContent(content)
+            }
         }
 
         val minorVersion: String = abletonXml.attributes["MinorVersion"]!!
@@ -57,6 +62,8 @@ object AbletonConverter : AmethystConverter {
         }
 
         val xmlTracks: List<XmlElement> = abletonXml.querySelector("MidiTrack")
+
+        AbletonLayoutDetector.detectLayout(xmlTracks)
 
         val sortedTracks = xmlTracks.sortedByDescending {
             MidiChainReader()

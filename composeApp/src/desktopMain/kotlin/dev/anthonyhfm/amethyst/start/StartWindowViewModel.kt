@@ -4,6 +4,7 @@ import androidx.compose.runtime.MutableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
+import dev.anthonyhfm.amethyst.conversion.apollo.ApolloConverter
 import dev.anthonyhfm.amethyst.conversion.unipad.UnipadConverter
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf
@@ -11,10 +12,12 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
 import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import io.github.vinceglb.filekit.dialogs.openFileSaver
+import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.readBytes
@@ -99,6 +102,18 @@ class StartWindowViewModel() : ViewModel() {
                     openProjectFile(file.path)
                 }
 
+                "approj" -> {
+                    loadingState.update { "Converting Apollo Project.." }
+
+                    GlobalScope.launch {
+                        WorkspaceRepository.loadWorkspace(
+                            workspaceData = ApolloConverter.convertToWorkspace(file.path)
+                        )
+
+                        onOpenEditor?.invoke()
+                    }
+                }
+
                 "als" -> {
                     abletonSetPath.value = file.path
                     showAbletonImportWizard.value = true
@@ -148,9 +163,11 @@ class StartWindowViewModel() : ViewModel() {
     fun startAbletonConversion(customPalettePath: String) {
         loadingState.update { "Converting Ableton Live-Set.." }
 
+        val palette = PlatformFile(customPalettePath).exists()
+
         GlobalScope.launch {
             WorkspaceRepository.loadWorkspace(
-                workspaceData = AbletonConverter.convertToWorkspace(abletonSetPath.value, customPalettePath)
+                workspaceData = AbletonConverter.convertToWorkspace(abletonSetPath.value, if (palette) customPalettePath else null)
             )
 
             onOpenEditor?.invoke()
