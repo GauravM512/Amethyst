@@ -2,7 +2,6 @@ package dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton
 
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
-import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.LPXPagesAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiExtAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator2Adapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DelayAdapter
@@ -92,11 +91,6 @@ class MxDeviceMidiEffectAdapter(
             MaxDeviceMatcher(54578, 48303),
             MaxDeviceMatcher(159503, 62613),-> {
                 return GenericMidiExtAdapter(xml).toDeviceStates()
-            }
-
-            MaxDeviceMatcher(758577, 2479),
-            MaxDeviceMatcher(123814, 44049) -> {
-                return LPXPagesAdapter().toDeviceStates()
             }
 
             MaxDeviceMatcher(1105205, 43348) -> { // Resonator v2
