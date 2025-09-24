@@ -10,8 +10,13 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.FlipAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.InfinityAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.IrisAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.TwistAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.FileRef
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.XmlElement
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.getFileHash
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.bookmarkData
+import io.github.vinceglb.filekit.nameWithoutExtension
 
 class MxDeviceMidiEffectAdapter(
     private val xml: XmlElement
@@ -29,25 +34,23 @@ class MxDeviceMidiEffectAdapter(
         var fileSize: Int = 0
         var crc: Int = 0
 
-        when (AbletonConverter.liveVersion) {
-            AbletonConverter.LiveVersion.LIVE_11 -> {
-                val fileRef = patchSlot.querySelector("FileRef")[0]
+        val path = FileRef.resolveFileReference(patchSlot.localQuerySelector("FileRef").first())
 
-                fileSize = fileRef.querySelector("OriginalFileSize")[0].attributes["Value"]?.toInt() ?: 0
-                crc = fileRef.querySelector("OriginalCrc")[0].attributes["Value"]?.toInt() ?: 0
-            }
+        val hash: String = fileHashMap[path].let {
+            if (it != null) {
+                return@let it
+            } else {
+                val maxFile = PlatformFile(path)
+                val hash = maxFile.getFileHash()
 
-            else -> {
-                val fileRef = patchSlot.localQuerySelector("FileRef")[0]
-                val searchHint = fileRef.localQuerySelector("SearchHint")[0]
+                fileHashMap[path] = hash
 
-                fileSize = searchHint.localQuerySelector("FileSize")[0].attributes["Value"]?.toInt() ?: 0
-                crc = searchHint.localQuerySelector("Crc")[0].attributes["Value"]?.toInt() ?: 0
+                return@let hash
             }
         }
 
-        when (MaxDeviceMatcher(fileSize, crc)) {
-            MaxDeviceMatcher(55316, 55855),
+        when (hash) {
+            /*MaxDeviceMatcher(55316, 55855),
             MaxDeviceMatcher(35337, 2349), -> { // Depths Selector
                 return DepthsSelectorAdapter(readDataBlob(blob.text!!)).toDeviceStates()
             }
@@ -95,20 +98,16 @@ class MxDeviceMidiEffectAdapter(
 
             MaxDeviceMatcher(1105205, 43348) -> { // Resonator v2
                 return Resonator2Adapter(readDataBlob(blob.text!!), xml).toDeviceStates()
+            }*/
+
+            "25a0f03868c45af4d06bcead0a1bc6ce" -> {
+                return GenericMidiExtAdapter(xml).toDeviceStates()
             }
 
             else -> {
-                when (AbletonConverter.liveVersion) {
-                    AbletonConverter.LiveVersion.LIVE_11 -> {
-                        val name = patchSlot.localQuerySelector("FileRef")[0].querySelector("Path")[0].attributes["Value"]?.split("/")?.last()
-                        println("Max device not supported: $name. $fileSize, CRC: $crc")
-                    }
+                val maxFile = PlatformFile(path)
 
-                    else -> {
-                        val name = xml.querySelector("Name")[0].attributes["Value"]
-                        println("Max device not supported: $name. File size: $fileSize, CRC: $crc")
-                    }
-                }
+                println("Max device not supported: ${maxFile.nameWithoutExtension} - Hash: $hash")
 
                 return emptyList()
             }
@@ -121,6 +120,8 @@ class MxDeviceMidiEffectAdapter(
     )
 
     companion object {
+        val fileHashMap: MutableMap<String, String> = mutableMapOf()
+
         fun readDataBlob(blob: String): ByteArray {
             val cleanHex = blob.replace("\\s".toRegex(), "")
             require(cleanHex.length % 2 == 0) { "" }

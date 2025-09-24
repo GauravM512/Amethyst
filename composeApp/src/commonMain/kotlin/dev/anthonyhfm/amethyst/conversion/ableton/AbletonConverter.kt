@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.conversion.ableton
 
 import dev.anthonyhfm.amethyst.conversion.AmethystConverter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MxDeviceMidiEffectAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.reader.BPMReader
 import dev.anthonyhfm.amethyst.conversion.ableton.reader.MidiChainReader
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonLayout
@@ -33,6 +34,8 @@ object AbletonConverter : AmethystConverter {
         private set
 
     override fun convertToWorkspace(path: String, palettePath: String?): SaveableWorkspaceData {
+        MxDeviceMidiEffectAdapter.fileHashMap.clear()
+
         file = PlatformFile(path)
 
         val file = Zip.decode(path) // Decompresses the .als GZIP format
