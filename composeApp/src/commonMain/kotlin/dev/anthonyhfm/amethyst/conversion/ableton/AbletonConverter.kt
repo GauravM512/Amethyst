@@ -39,6 +39,9 @@ object AbletonConverter : AmethystConverter {
     var liveVersion: LiveVersion? = null
         private set
 
+    var projectLayout: AbletonLayout? = null
+        private set
+
     var palette: Array<Triple<Int, Int, Int>> = Palettes.novation
         private set
 
@@ -54,9 +57,11 @@ object AbletonConverter : AmethystConverter {
         val abletonXml = SimpleXmlParser.parse(file.decodeToString())
         val audioRenderer = OriginalSimplerPrerenderer()
 
-        val layout: AbletonLayout = AbletonLayoutDetector.detectLayout(
+        val layout = AbletonLayoutDetector.detectLayout(
             tracks = abletonXml.querySelector("MidiTrack")
         )
+
+        projectLayout = layout
 
         when (layout) {
             is AbletonLayout.Single -> {
@@ -209,6 +214,10 @@ object AbletonConverter : AmethystConverter {
         } else {
             (layout as AbletonLayout.Single).audioTrack?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
         }
+
+        audioMap = mapOf()
+        MxDeviceMidiEffectAdapter.fileHashMap.clear()
+        projectLayout = null
 
         return SaveableWorkspaceData(
             title = this.file?.nameWithoutExtension ?: "Ableton Converted Workspace",

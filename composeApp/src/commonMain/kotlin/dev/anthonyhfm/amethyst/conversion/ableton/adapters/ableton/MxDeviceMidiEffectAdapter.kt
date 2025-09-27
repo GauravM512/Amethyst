@@ -9,6 +9,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.PageSwitcherA
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator2Adapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.nev.WormholeAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DelayAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DepthsMixerAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DepthsSelectorAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.FlipAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.InfinityAdapter
@@ -75,7 +76,11 @@ class MxDeviceMidiEffectAdapter(
 
                 "7bd5bf9ea8431c5697b226aa906d87ac",
                 "af7c8717c232587ecea9ee2105eca17c" -> {
-                    return DepthsSelectorAdapter(readDataBlob(blob.text!!)).toDeviceStates()
+                    return DepthsSelectorAdapter(readDataBlob(blob.text!!), offset).toDeviceStates()
+                }
+
+                "11d58c1fb5d3ba0593e905ee8940652c" -> { // Special Handling for Dual covers only
+                    return DepthsMixerAdapter(readDataBlob(blob.text!!), offset).toDeviceStates()
                 }
 
                 "4daa43e6e4704693794cb14a33cc00fa" -> {
