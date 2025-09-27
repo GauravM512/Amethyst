@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton
 
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MULTI_HASHES
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiExtAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.PageSwitcherAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator2Adapter
@@ -109,7 +110,9 @@ class MxDeviceMidiEffectAdapter(
                 else -> {
                     val maxFile = PlatformFile(path)
 
-                    println("Max device not supported: ${maxFile.nameWithoutExtension} - Hash: $hash")
+                    if (!MULTI_HASHES.contains(hash)) { // Multi is handled in DrumGroupDeviceAdapter/MidiEffectGroupDeviceAdapter
+                        println("Max device not supported: ${maxFile.nameWithoutExtension} - Hash: $hash")
+                    }
 
                     return emptyList()
                 }
