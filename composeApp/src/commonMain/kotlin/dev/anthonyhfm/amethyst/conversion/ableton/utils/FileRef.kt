@@ -15,7 +15,7 @@ object FileRef {
             3 -> {
                 var pathString: String = projectPath
 
-                if (AbletonConverter.liveVersion == AbletonConverter.LiveVersion.LIVE_11) {
+                if (refXml.querySelector("Type").firstOrNull()?.attributes["Value"] == "2") {
                     val path = refXml.querySelector("RelativePath")[0].attributes["Value"] ?: ""
                     return "$projectPath/$path"
                 }
@@ -25,7 +25,7 @@ object FileRef {
                         pathString += "/${it.attributes["Dir"]}"
                     }
 
-                refXml.querySelector("Name").first().attributes["Value"]?.let {
+                refXml.querySelector("Name").firstOrNull()?.attributes["Value"]?.let {
                     pathString += "/$it"
                 }
 

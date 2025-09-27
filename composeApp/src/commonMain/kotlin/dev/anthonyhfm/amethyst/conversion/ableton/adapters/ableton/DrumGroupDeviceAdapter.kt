@@ -42,7 +42,7 @@ class DrumGroupDeviceAdapter(
                                 add(
                                     CoordinateFilterChainDeviceState(
                                         filters = listOf(
-                                            Pair(x,  y)
+                                            Pair(x + offset.x,  y + offset.y)
                                         )
                                     )
                                 )

@@ -5,6 +5,7 @@ import dev.anthonyhfm.amethyst.core.engine.echo.AudioDecoder
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDeviceState
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.exists
+import io.github.vinceglb.filekit.isRegularFile
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.*
@@ -38,7 +39,8 @@ class OriginalSimplerPrerenderer {
         withContext(Dispatchers.IO) {
             val audioFile = PlatformFile(data.filePath)
 
-            if (!audioFile.exists()) {
+            if (!audioFile.exists() || !audioFile.isRegularFile()) {
+                println("Error with decoding OriginalSimpler $data")
                 return@withContext ClipChainDeviceState()
             }
 

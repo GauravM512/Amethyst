@@ -84,9 +84,9 @@ class MxDeviceMidiEffectAdapter(
 
                 "feecaed62c2637a73325446a1ed1e25e",
                 "32b6bec96552a6e40f6743787a20b9df" -> {
-                    /*AbletonConverter.special = ProjectSpecials(
+                    AbletonConverter.special = ProjectSpecials(
                         useKaskobiPageSwitcher = true
-                    )*/
+                    )
 
                     return emptyList()
                 }
