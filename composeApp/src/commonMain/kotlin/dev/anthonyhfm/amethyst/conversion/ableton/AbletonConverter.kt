@@ -14,14 +14,16 @@ import dev.anthonyhfm.amethyst.conversion.ableton.utils.XmlElement
 import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
 import dev.anthonyhfm.amethyst.workspace.data.WorkspaceSettings
 import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.exists
+import io.github.vinceglb.filekit.nameWithoutExtension
 import io.github.vinceglb.filekit.readString
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.decodeFromString
 
 object AbletonConverter : AmethystConverter {
     var file: PlatformFile? = null
@@ -46,6 +48,7 @@ object AbletonConverter : AmethystConverter {
 
         val file = Zip.decode(path) // Decompresses the .als GZIP format
         val abletonXml = SimpleXmlParser.parse(file.decodeToString())
+        val audioRenderer = OriginalSimplerPrerenderer()
 
         bpm = BPMReader().readBPM(abletonXml)
 
@@ -70,52 +73,130 @@ object AbletonConverter : AmethystConverter {
             else -> null
         }
 
-        val xmlTracks: List<XmlElement> = abletonXml.querySelector("MidiTrack")
+        val layout: AbletonLayout = AbletonLayoutDetector.detectLayout(
+            tracks = abletonXml.querySelector("MidiTrack")
+        )
 
-        AbletonLayoutDetector.detectLayout(xmlTracks)
-
-        val sortedTracks = xmlTracks.sortedByDescending {
-            MidiChainReader()
-                .getChainWeight(it)
-        }.chunked(2).first()
-
-        val lightsTrackXML = sortedTracks.find {
-            it.querySelector("InstrumentGroupDevice").isEmpty() && it.querySelector("OriginalSimpler").isEmpty()
+        val lights = if (layout is AbletonLayout.Dual2Light || layout is AbletonLayout.Dual4Light) {
+            StateChain(
+                devices = listOf(
+                    GroupChainDeviceState(
+                        groups = if (layout is AbletonLayout.Dual2Light) {
+                            listOf(
+                                Group(
+                                    name = "Left",
+                                    stateChain = layout.lightsLeft?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                ),
+                                Group(
+                                    name = "Right",
+                                    stateChain = layout.lightsRight?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                )
+                            )
+                        } else if (layout is AbletonLayout.Dual4Light) {
+                            listOf(
+                                Group(
+                                    name = "Left",
+                                    stateChain = layout.lightsLeft?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                ),
+                                Group(
+                                    name = "Left to Right",
+                                    stateChain = layout.lightsLeftToRight?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                ),
+                                Group(
+                                    name = "Right",
+                                    stateChain = layout.lightsRight?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                ),
+                                Group(
+                                    name = "Right to Left",
+                                    stateChain = layout.lightsRightToLeft?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                )
+                            )
+                        } else error("This should never happen")
+                    )
+                )
+            )
+        } else {
+            (layout as AbletonLayout.Single).lightsTrack?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
         }
 
-        val audioTrackXML = sortedTracks.find {
-            it.querySelector("OriginalSimpler").isNotEmpty()
+        if (layout is AbletonLayout.Dual2Light) {
+            audioMap = layout.audioLeft?.let { audioRenderer.decodeAll(listOf(it)) } ?: mapOf()
+            audioMap = audioMap + (layout.audioRight?.let { audioRenderer.decodeAll(listOf(it)) } ?: mapOf())
+        } else if (layout is AbletonLayout.Dual4Light) {
+            audioMap = layout.audioLeft?.let { audioRenderer.decodeAll(listOf(it)) } ?: mapOf()
+            audioMap = audioMap + (layout.audioRight?.let { audioRenderer.decodeAll(listOf(it)) } ?: mapOf())
+        } else {
+            (layout as AbletonLayout.Single).audioTrack?.let { audioRenderer.decodeAll(listOf(it)) }
         }
 
-        audioTrackXML?.let {
-            val simpler = OriginalSimplerPrerenderer()
-
-            audioMap = simpler.decodeAll(listOf(it))
+        val samples = if (layout is AbletonLayout.Dual2Light || layout is AbletonLayout.Dual4Light) {
+            StateChain(
+                devices = listOf(
+                    GroupChainDeviceState(
+                        groups = if (layout is AbletonLayout.Dual2Light) {
+                            listOf(
+                                Group(
+                                    name = "Left",
+                                    stateChain = layout.audioLeft?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                ),
+                                Group(
+                                    name = "Right",
+                                    stateChain = layout.audioRight?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                )
+                            )
+                        } else if (layout is AbletonLayout.Dual4Light) {
+                            listOf(
+                                Group(
+                                    name = "Left",
+                                    stateChain = layout.audioLeft?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                ),
+                                Group(
+                                    name = "Right",
+                                    stateChain = layout.audioRight?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
+                                ),
+                            )
+                        } else error("This should never happen")
+                    )
+                )
+            )
+        } else {
+            (layout as AbletonLayout.Single).audioTrack?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
         }
-
-        val lights = lightsTrackXML?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
-        val samples = audioTrackXML?.let { MidiChainReader().readMidiChain(it) } ?: StateChain(emptyList())
 
         audioMap = mapOf() // Clear the map to free memory after conversion is done
         MxDeviceMidiEffectAdapter.fileHashMap.clear()
 
         return SaveableWorkspaceData(
+            title = this.file?.nameWithoutExtension ?: "Ableton Converted Workspace",
             lights = lights,
             sampling = samples,
             settings = WorkspaceSettings(
                 bpm = bpm
             ),
-            launchpadDevices = listOf(
-                SaveableWorkspaceData.SavableViewportLaunchpad(
-                    positionX = 0f,
-                    positionY = 0f,
-                    type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+            launchpadDevices = if (layout is AbletonLayout.Single) {
+                listOf(
+                    SaveableWorkspaceData.SavableViewportLaunchpad(
+                        positionX = 0f,
+                        positionY = 0f,
+                        type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                    )
                 )
-            )
+            } else {
+                listOf(
+                    SaveableWorkspaceData.SavableViewportLaunchpad(
+                        positionX = 0f,
+                        positionY = 0f,
+                        type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                    ),
+                    SaveableWorkspaceData.SavableViewportLaunchpad(
+                        positionX = 10f,
+                        positionY = 0f,
+                        type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                    )
+                )
+            }
         )
     }
-
-
 
     enum class LiveVersion {
         LIVE_12, // Bro who uses Live 12 fr

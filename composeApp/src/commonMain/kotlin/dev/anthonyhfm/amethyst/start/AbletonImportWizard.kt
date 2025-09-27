@@ -28,12 +28,10 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AbletonImportWizard(
     abletonSetName: String,
