@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton
 
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MULTI_HASHES
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiExtAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.PageSwitcherAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator2Adapter
@@ -101,6 +102,7 @@ class MxDeviceMidiEffectAdapter(
                     return GenericMidiExtAdapter(xml).toDeviceStates()
                 }
 
+                "9f50358372279f946cae0fdac0cfbf56", // Wormhole Lite, unsure if this actually works!
                 "3d3de9b05506f279ad6cfe14d26e0084" -> {
                     return WormholeAdapter(readDataBlob(blob.text!!)).toDeviceStates()
                 }
@@ -108,7 +110,9 @@ class MxDeviceMidiEffectAdapter(
                 else -> {
                     val maxFile = PlatformFile(path)
 
-                    println("Max device not supported: ${maxFile.nameWithoutExtension} - Hash: $hash")
+                    if (!MULTI_HASHES.contains(hash)) { // Multi is handled in DrumGroupDeviceAdapter/MidiEffectGroupDeviceAdapter
+                        println("Max device not supported: ${maxFile.nameWithoutExtension} - Hash: $hash")
+                    }
 
                     return emptyList()
                 }
