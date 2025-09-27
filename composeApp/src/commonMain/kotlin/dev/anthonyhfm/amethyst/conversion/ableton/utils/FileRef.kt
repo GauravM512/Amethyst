@@ -15,7 +15,7 @@ object FileRef {
             3 -> {
                 var pathString: String = projectPath
 
-                if (refXml.querySelector("Type").firstOrNull()?.attributes["Value"] == "2") {
+                if (refXml.querySelector("RelativePath").first().children.isEmpty()) {
                     val path = refXml.querySelector("RelativePath")[0].attributes["Value"] ?: ""
                     return "$projectPath/$path"
                 }
