@@ -23,7 +23,7 @@ object AbletonLayoutDetector {
         }
 
         val maxAudio = audioTracks.firstOrNull()?.first ?: 0
-        val audioCandidates = audioTracks.filter { it.first >= maxAudio * 0.3 }
+        val audioCandidates = audioTracks.filter { it.first >= maxAudio * 0.2 }
             .sortedBy {
                 it.second.querySelector("EffectiveName")
                     .firstOrNull()
@@ -34,7 +34,7 @@ object AbletonLayoutDetector {
             }
 
         val maxLight = lightsTracks.firstOrNull()?.first ?: 0
-        val lightCandidates = lightsTracks.filter { it.first >= maxLight * 0.3 }
+        val lightCandidates = lightsTracks.filter { it.first >= maxLight * 0.2 }
             .sortedBy {
                 it.second.querySelector("EffectiveName")
                     .firstOrNull()
@@ -56,7 +56,7 @@ object AbletonLayoutDetector {
                 lightsLeft = lightCandidates[0].second,
                 lightsRight = lightCandidates[1].second
             )
-        } else if (audioCandidates.size == 2 && lightCandidates.size == 2) {
+        } else if (audioCandidates.size == 2 && lightCandidates.size == 4) {
             return AbletonLayout.Dual4Light(
                 audioLeft = audioCandidates[0].second,
                 audioRight = audioCandidates[1].second,
