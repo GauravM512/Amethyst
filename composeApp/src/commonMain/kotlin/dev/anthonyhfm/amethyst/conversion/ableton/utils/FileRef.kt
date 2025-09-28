@@ -16,17 +16,17 @@ object FileRef {
                 var pathString: String = projectPath
 
                 if (refXml.querySelector("RelativePath").first().children.isEmpty()) {
-                    val path = refXml.querySelector("RelativePath")[0].attributes["Value"] ?: ""
+                    val path = refXml.querySelector("RelativePath")[0].attributes["Value"] ?: refXml.querySelector("Name").firstOrNull()?.attributes["Value"] ?: ""
                     return "$projectPath/$path"
-                }
+                } else {
+                    refXml.querySelector("RelativePath").first()
+                        .children.forEach {
+                            pathString += "/${it.attributes["Dir"]}"
+                        }
 
-                refXml.querySelector("RelativePath").first()
-                    .children.forEach {
-                        pathString += "/${it.attributes["Dir"]}"
+                    refXml.querySelector("Name").firstOrNull()?.attributes["Value"]?.let {
+                        pathString += "/$it"
                     }
-
-                refXml.querySelector("Name").firstOrNull()?.attributes["Value"]?.let {
-                    pathString += "/$it"
                 }
 
                 return pathString
