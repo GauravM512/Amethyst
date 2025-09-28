@@ -116,8 +116,19 @@ private fun computeColor(effectData: RawLEDUpdate): Color {
         newL = (newL + (1f - newL) * highlightBoost * curve).coerceIn(0f, 1f)
     }
 
-    val (rFinal, gFinal, bFinal) = hslToRgb(h, newS, newL)
-    return Color(rFinal.coerceIn(0f,1f), gFinal.coerceIn(0f,1f), bFinal.coerceIn(0f,1f), 1f)
+    val (rFinalRaw, gFinalRaw, bFinalRaw) = hslToRgb(h, newS, newL)
+
+    var rFinal = rFinalRaw
+    var gFinal = gFinalRaw
+    var bFinal = bFinalRaw
+
+    val globalDimFactor = 0.82f
+
+    rFinal = (rFinal * globalDimFactor).coerceIn(0f, 1f)
+    gFinal = (gFinal * globalDimFactor).coerceIn(0f, 1f)
+    bFinal = (bFinal * globalDimFactor).coerceIn(0f, 1f)
+
+    return Color(rFinal, gFinal, bFinal, 1f)
 }
 
 private fun rgbToHsl(r: Float, g: Float, b: Float): Triple<Float, Float, Float> {
