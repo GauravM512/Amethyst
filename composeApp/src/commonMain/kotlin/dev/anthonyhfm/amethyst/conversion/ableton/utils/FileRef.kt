@@ -49,6 +49,10 @@ object FileRef {
             else -> {
                 println("Unknown RelativePathType: $relativePathType")
             }
+
+            5 -> {
+                println("Relative to User Library - Not implemented")
+            }
         }
 
         return ""
