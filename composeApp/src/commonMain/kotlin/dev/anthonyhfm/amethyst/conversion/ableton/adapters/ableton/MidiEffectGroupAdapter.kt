@@ -161,20 +161,32 @@ class MidiEffectGroupAdapter(
                                         .localQuerySelector("Blob")[0]
 
                                     addAll(
-                                        MultiAdapter(
-                                            blob = readDataBlob(multiDataBlob.text!!),
-                                            containerXml = lightsContainer
-                                        ).toDeviceStates()
+                                        try {
+                                            MultiAdapter(
+                                                blob = readDataBlob(multiDataBlob.text!!),
+                                                containerXml = lightsContainer
+                                            ).toDeviceStates()
+                                        } catch (e: Exception) {
+                                            println("Error reading multi plugin with hash $potentialMultiDeviceHash, falling back to normal chain")
+                                            println("Error: ${e.message}")
+                                            listOf()
+                                        }
                                     )
 
                                     return@apply
                                 } else if (randomDevice != null && lightsContainer != null) {
                                     println("Found random and container, using RandomDeviceMultisamplingAdapter")
                                     addAll(
-                                        RandomDeviceMultisamplingAdapter(
-                                            randomDeviceXml = randomDevice,
-                                            containerXml = lightsContainer
-                                        ).toDeviceStates()
+                                        try {
+                                            RandomDeviceMultisamplingAdapter(
+                                                randomDeviceXml = randomDevice,
+                                                containerXml = lightsContainer
+                                            ).toDeviceStates()
+                                        } catch (e: Exception) {
+                                            println("Error reading random multisampling plugin, falling back to normal chain")
+                                            println("Error: ${e.message}")
+                                            listOf()
+                                        }
                                     )
 
                                     return@apply

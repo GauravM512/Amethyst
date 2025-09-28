@@ -86,20 +86,32 @@ class DrumGroupDeviceAdapter(
                                             .localQuerySelector("Blob")[0]
 
                                         addAll(
-                                            MultiAdapter(
-                                                blob = readDataBlob(multiDataBlob.text!!),
-                                                containerXml = samplesContainer
-                                            ).toDeviceStates()
+                                            try {
+                                                MultiAdapter(
+                                                    blob = readDataBlob(multiDataBlob.text!!),
+                                                    containerXml = samplesContainer
+                                                ).toDeviceStates()
+                                            } catch (e: Exception) {
+                                                println("Error parsing Multi plugin with hash $potentialMultiDeviceHash")
+                                                println("Error: ${e.message}")
+                                                listOf()
+                                            }
                                         )
 
                                         return@apply
                                     } else if (randomDevice != null && samplesContainer != null) {
                                         println("Found random and container, using RandomDeviceMultisamplingAdapter")
                                         addAll(
-                                            RandomDeviceMultisamplingAdapter(
-                                                randomDeviceXml = randomDevice,
-                                                containerXml = samplesContainer
-                                            ).toDeviceStates()
+                                            try {
+                                                RandomDeviceMultisamplingAdapter(
+                                                    randomDeviceXml = randomDevice,
+                                                    containerXml = samplesContainer
+                                                ).toDeviceStates()
+                                            } catch (e: Exception) {
+                                                println("Error parsing Random multisampling")
+                                                println("Error: ${e.message}")
+                                                listOf()
+                                            }
                                         )
 
                                         return@apply
