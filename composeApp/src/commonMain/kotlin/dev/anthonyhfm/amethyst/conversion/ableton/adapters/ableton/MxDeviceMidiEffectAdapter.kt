@@ -82,6 +82,7 @@ class MxDeviceMidiEffectAdapter(
                     return FlipAdapter(readDataBlob(blob.text!!)).toDeviceStates()
                 }
 
+                // "1123f889d9f60562ca63945c5a823665", NEEDS EXTRA HANDLING, OLDER VERSION
                 "4ab1f1c29a3ac9e447756a9d075c2a6b",
                 "4feeb78db6367007b1badf8f9d2c1cae",
                 "bcfb325a212a70bdd0acdbf740114389",
