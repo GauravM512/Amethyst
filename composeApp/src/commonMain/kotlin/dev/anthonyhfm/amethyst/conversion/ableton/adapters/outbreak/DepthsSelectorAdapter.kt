@@ -23,12 +23,22 @@ class DepthsSelectorAdapter(
 
         if (AbletonConverter.projectLayout is AbletonLayout.Dual2Light) {
             if (dataObj.channelField.isNotEmpty()) {
-                val offset = DepthsMixerAdapter.mixerReceivers[dataObj.channelField.first()]
+                val offset = DepthsMixerAdapter.mixerReceivers[dataObj.channelField.first()]?.let {
+                    if (it == null) {
+                        return@let IntOffset.Zero
+                    } else {
+                        if (it == IntOffset.Zero && offset != IntOffset.Zero) {
+                            return@let -offset
+                        } else {
+                            return@let it
+                        }
+                    }
+                }
 
                 println("Found selector with channel ${dataObj.channelField.first()} at offset $offset")
 
                 return listOf(
-                    OffsetChainDeviceState(offsetX = offset?.x ?: 0, offsetY = offset?.y ?: 0),
+                    OffsetChainDeviceState(offsetX = offset!!.x, offsetY = offset!!.y),
                     LayerChainDeviceState(layer = dataObj.layerField.first())
                 )
             }
