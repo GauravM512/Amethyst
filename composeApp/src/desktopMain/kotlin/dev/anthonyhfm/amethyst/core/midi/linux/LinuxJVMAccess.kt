@@ -1,66 +1,118 @@
 package dev.anthonyhfm.amethyst.core.midi.linux
 
-import dev.atsushieno.ktmidi.MidiAccess
-import dev.atsushieno.ktmidi.MidiInput
-import dev.atsushieno.ktmidi.MidiOutput
-import dev.atsushieno.ktmidi.MidiPortConnectionState
-import dev.atsushieno.ktmidi.MidiPortDetails
-import dev.atsushieno.ktmidi.OnMidiReceivedEventListener
-import dev.atsushieno.ktmidi.PortCreatorContext
+import dev.atsushieno.ktmidi.*
+import javax.sound.midi.*
 import java.lang.IllegalArgumentException
 import java.lang.UnsupportedOperationException
-import javax.sound.midi.MetaMessage
-import javax.sound.midi.MidiDevice
-import javax.sound.midi.MidiSystem
-import javax.sound.midi.Receiver
-import javax.sound.midi.ShortMessage
-import javax.sound.midi.SysexMessage
-import javax.sound.midi.Transmitter
 
 internal typealias JvmMidiMessage = javax.sound.midi.MidiMessage
 
+// --- ALSA Pretty Name Resolver ---
+private object AlsaNameResolver {
+    private var initialized = false
+    private val clientNameByCard = mutableMapOf<Int, String>()
+    private val portNameByCardPort = mutableMapOf<Pair<Int, Int>, String>() // (card, port) -> name
+
+    private fun parseAconnect(output: String) {
+        clientNameByCard.clear()
+        portNameByCardPort.clear()
+        val clientRegex = Regex("""client\s+(\d+):\s+'([^']+)'\s+\[.*?card=(\d+)""")
+        val portRegex = Regex("""\s+(\d+)\s+'([^']+)'""")
+        var currentCard: Int? = null
+        for (line in output.lineSequence()) {
+            val c = clientRegex.find(line)
+            if (c != null) {
+                val clientName = c.groupValues[2]
+                val card = c.groupValues[3].toInt()
+                clientNameByCard[card] = clientName
+                currentCard = card
+                continue
+            }
+            val p = portRegex.find(line)
+            if (p != null && currentCard != null) {
+                val port = p.groupValues[1].toInt()
+                val name = p.groupValues[2]
+                portNameByCardPort[currentCard!! to port] = name
+            }
+        }
+    }
+
+    @Synchronized
+    private fun ensure() {
+        if (initialized) return
+        initialized = true
+        try {
+            val proc = ProcessBuilder("aconnect", "-l")
+                .redirectErrorStream(true)
+                .start()
+            val text = proc.inputStream.bufferedReader().readText()
+            proc.waitFor()
+            parseAconnect(text)
+        } catch (_: Exception) {
+            // kein aconnect? Dann halt ohne Pretty Names.
+        }
+    }
+
+    fun prettyNameFor(deviceInfoName: String?): String? {
+        // erwartet sowas wie: "Open [hw:3,0,1]"
+        if (deviceInfoName == null) return null
+        val m = Regex(""".*\[hw:(\d+),(\d+),(\d+)]""").find(deviceInfoName) ?: return null
+        val card = m.groupValues[1].toInt()
+        val sub = m.groupValues[3].toInt() // subdevice ~ ALSA sequencer port index in den üblichen USB-MIDI Fällen
+        ensure()
+        return portNameByCardPort[card to sub]
+            ?: clientNameByCard[card] // Fallback: wenigstens der Clientname
+    }
+}
+
+// --- Access ---
 class LinuxJVMAccess : MidiAccess() {
-    override val name: String
-        get() = "Linux JVM"
+    override val name: String get() = "Linux JVM"
 
     override val inputs: Iterable<MidiPortDetails>
-        get() = MidiSystem.getMidiDeviceInfo().map { i -> MidiSystem.getMidiDevice(i) }
-            .flatMap {
-                // make sure the device has an input port that can be retrieved
-                if (it.maxTransmitters == -1 || it.maxTransmitters > it.transmitters.count()) {
-                    listOf(it to it.transmitter)
-                } else {
-                    emptyList()
-                }
+        get() = MidiSystem.getMidiDeviceInfo()
+            .map { MidiSystem.getMidiDevice(it) }
+            .filter { dev -> dev.maxTransmitters != 0 }
+            .filter { dev ->
+                // Software-Geräte rausfiltern
+                val n = dev.deviceInfo.name ?: ""
+                !n.contains("Real Time Sequencer", ignoreCase = true) &&
+                        !n.contains("Gervill", ignoreCase = true)
             }
-            .mapIndexed { i, p -> JvmMidiTransmitterPortDetails(p.first, i, p.second) }
+            .filter { dev -> dev.maxTransmitters == -1 || dev.transmitters.size < dev.maxTransmitters }
+            .mapIndexed { i, dev ->
+                val pretty = AlsaNameResolver.prettyNameFor(dev.deviceInfo.name)
+                JvmMidiTransmitterPortDetails(dev, "hw-in-$i", pretty)
+            }
+
     override val outputs: Iterable<MidiPortDetails>
-        get() = MidiSystem.getMidiDeviceInfo().map { i -> MidiSystem.getMidiDevice(i) }
-            .flatMap {
-                // make sure the device has an output port that can be retrieved
-                if (it.maxReceivers == -1 || it.maxReceivers > it.receivers.count()) {
-                    listOf(it to it.receiver)
-                } else {
-                    emptyList()
-                }
+        get() = MidiSystem.getMidiDeviceInfo()
+            .map { MidiSystem.getMidiDevice(it) }
+            .filter { dev -> dev.maxReceivers != 0 }
+            .filter { dev ->
+                val n = dev.deviceInfo.name ?: ""
+                !n.contains("Real Time Sequencer", ignoreCase = true) &&
+                        !n.contains("Gervill", ignoreCase = true)
             }
-            .mapIndexed { i, p -> JvmMidiReceiverPortDetails(p.first, i, p.second) }
+            .filter { dev -> dev.maxReceivers == -1 || dev.receivers.size < dev.maxReceivers }
+            .mapIndexed { i, dev ->
+                val pretty = AlsaNameResolver.prettyNameFor(dev.deviceInfo.name)
+                JvmMidiReceiverPortDetails(dev, "hw-out-$i", pretty)
+            }
 
     override suspend fun openInput(portId: String): MidiInput {
-        val port = inputs.firstOrNull { i -> i.id == portId }
-        if (port == null || port !is JvmMidiTransmitterPortDetails)
+        val port = inputs.firstOrNull { it.id == portId }
+        if (port !is JvmMidiTransmitterPortDetails)
             throw IllegalArgumentException("Input port $portId was not found")
-        if (!port.device.isOpen)
-            port.device.open()
+        if (!port.device.isOpen) port.device.open()
         return JvmMidiInput(port)
     }
 
     override suspend fun openOutput(portId: String): MidiOutput {
-        val port = outputs.firstOrNull { i -> i.id == portId }
-        if (port == null || port !is JvmMidiReceiverPortDetails)
+        val port = outputs.firstOrNull { it.id == portId }
+        if (port !is JvmMidiReceiverPortDetails)
             throw IllegalArgumentException("Output port $portId was not found")
-        if (!port.device.isOpen)
-            port.device.open()
+        if (!port.device.isOpen) port.device.open()
         return JvmMidiOutput(port)
     }
 
@@ -73,105 +125,134 @@ class LinuxJVMAccess : MidiAccess() {
     }
 }
 
-internal abstract class JvmMidiPortDetails(override val id: String, info: MidiDevice.Info) : MidiPortDetails {
+// --- Port Details ---
+internal abstract class JvmMidiPortDetails(
+    override val id: String,
+    private val info: MidiDevice.Info,
+    private val prettyName: String?
+) : MidiPortDetails {
     override val manufacturer: String? = info.vendor
-    override val name: String? = info.name
+    override val name: String? = prettyName ?: info.name
     override val version: String? = info.version
-    override val midiTransportProtocol = 1
+    override val midiTransportProtocol = 1 // MIDI 1.0
 }
 
-private class JvmMidiTransmitterPortDetails(val device: MidiDevice, portIndex: Int, val transmitter: Transmitter) :
-    JvmMidiPortDetails("InPort$portIndex", device.deviceInfo)
+private class JvmMidiTransmitterPortDetails(
+    val device: MidiDevice,
+    id: String,
+    prettyName: String?
+) : JvmMidiPortDetails(id, device.deviceInfo, prettyName)
 
-private class JvmMidiReceiverPortDetails(val device: MidiDevice, portIndex: Int, val receiver: Receiver) :
-    JvmMidiPortDetails("OutPort$portIndex", device.deviceInfo)
+private class JvmMidiReceiverPortDetails(
+    val device: MidiDevice,
+    id: String,
+    prettyName: String?
+) : JvmMidiPortDetails(id, device.deviceInfo, prettyName)
 
+// --- Message utils ---
 private fun toJvmMidiMessage(data: ByteArray, start: Int, length: Int): JvmMidiMessage {
-    if (length <= 0) throw IllegalArgumentException("non-positive length")
-    val arr = if (start == 0 && length == data.size) data else data.drop(start).take(length - start).toByteArray()
-    return when (arr[0]) {
-        0xF0.toByte(), 0xF7.toByte() -> SysexMessage(arr, length)
-        0xFF.toByte() -> MetaMessage(arr[1].toInt(), arr.drop(2).toByteArray(), length - 2)
-        else -> ShortMessage(
-            arr[0].toUByte().toInt(),
-            arr.getOrElse(1) { _ -> 0 }.toInt(),
-            arr.getOrElse(2) { _ -> 0 }.toInt()
-        )
+    require(length > 0) { "non-positive length" }
+    val end = start + length
+    require(start in 0..data.lastIndex && end <= data.size) { "slice OOB" }
+    val arr = data.copyOfRange(start, end)
+    val status = arr[0].toInt() and 0xFF
+
+    return when {
+        status == 0xF0 || status == 0xF7 -> SysexMessage(arr, arr.size)
+        status == 0xFF -> {
+            val type = if (arr.size > 1) arr[1].toInt() and 0xFF else 0
+            val meta = if (arr.size > 2) arr.copyOfRange(2, arr.size) else ByteArray(0)
+            MetaMessage(type, meta, meta.size)
+        }
+        else -> {
+            val sm = ShortMessage()
+            when (arr.size) {
+                1 -> sm.setMessage(status)
+                2 -> sm.setMessage(status, arr[1].toInt() and 0xFF, 0)
+                else -> sm.setMessage(status, arr[1].toInt() and 0xFF, arr[2].toInt() and 0xFF)
+            }
+            sm
+        }
     }
 }
 
-private class JvmMidiInput(val port: JvmMidiTransmitterPortDetails) : MidiInput {
-
+// --- I/O ---
+private class JvmMidiInput(private val port: JvmMidiTransmitterPortDetails) : MidiInput {
     override val details: MidiPortDetails = port
-
-    private val state: MidiPortConnectionState = MidiPortConnectionState.OPEN
-
-    override val connectionState: MidiPortConnectionState
-        get() = state
-
-    override fun close() {
-        port.transmitter.close()
-    }
+    private val state = MidiPortConnectionState.OPEN
+    override val connectionState get() = state
 
     private var listener: OnMidiReceivedEventListener? = null
+    private var transmitter: Transmitter? = null
+
+    init {
+        transmitter = port.device.transmitter
+        transmitter?.receiver = object : Receiver {
+            override fun close() {}
+            override fun send(msg: JvmMidiMessage?, timestampUs: Long) {
+                if (msg == null) return
+                var start = 0
+                var len = msg.length
+                if (msg.message.isNotEmpty() && msg.message[0] == 0xF7.toByte()) {
+                    start = 1
+                    len -= 1
+                }
+                val tsNs = if (timestampUs > 0) timestampUs * 1000 else 0L
+                listener?.onEventReceived(msg.message, start, len, tsNs)
+            }
+        }
+    }
 
     override fun setMessageReceivedListener(listener: OnMidiReceivedEventListener) {
         this.listener = listener
     }
 
-    init {
-        port.transmitter.receiver = object : Receiver {
-            override fun close() {}
-
-            override fun send(msg: JvmMidiMessage?, timestampInMicroseconds: Long) {
-                if (msg == null)
-                    return
-                var start = 0
-                var length = msg.length
-                // Message begins with 0xF7 is an additional sysex message
-                if (msg.message[0] == 0xF7.toByte()) {
-                    start = 1
-                    length--
-                }
-                listener?.onEventReceived(msg.message, start, length, timestampInMicroseconds * 1000)
+    override fun close() {
+        try {
+            transmitter?.close()
+        } finally {
+            transmitter = null
+            if (port.device.transmitters.isEmpty() && port.device.receivers.isEmpty()) {
+                port.device.close()
             }
         }
     }
 }
 
-private class JvmMidiOutput(val port: JvmMidiReceiverPortDetails) : MidiOutput {
+private class JvmMidiOutput(private val port: JvmMidiReceiverPortDetails) : MidiOutput {
+    override val details: MidiPortDetails get() = port
+    private val state = MidiPortConnectionState.OPEN
+    override val connectionState get() = state
 
-    override val details: MidiPortDetails
-        get() = port
-
-    private val state: MidiPortConnectionState = MidiPortConnectionState.OPEN
-
-    override val connectionState: MidiPortConnectionState
-        get() = state
-
-    override fun close() {
-        port.receiver.close()
-    }
-
+    private var receiver: Receiver? = port.device.receiver
     private var multiPacketSysex = false
-    override fun send(mevent: ByteArray, offset: Int, length: Int, timestampInNanoseconds: Long) {
-        val msg: JvmMidiMessage
-        if (multiPacketSysex) {
-            // If a multi-packet sysex message ends with 0xF7, it means that it is the last packet.
-            if (mevent[offset + length - 1] == 0xF7.toByte())
-                multiPacketSysex = false
 
-            // JVM requires that an additional sysex message must begin with 0xF7.
+    override fun send(mevent: ByteArray, offset: Int, length: Int, timestampNs: Long) {
+        if (length <= 0) return
+        val first = mevent[offset]
+        val last = mevent[offset + length - 1]
+        val msg: JvmMidiMessage = if (multiPacketSysex) {
             val buffer = ByteArray(length + 1)
             buffer[0] = 0xF7.toByte()
-            mevent.copyInto(buffer, 1, offset, length)
-            msg = toJvmMidiMessage(buffer, 0, length + 1)
+            mevent.copyInto(buffer, 1, offset, offset + length)
+            if (last == 0xF7.toByte()) multiPacketSysex = false
+            toJvmMidiMessage(buffer, 0, buffer.size)
         } else {
-            // If a sysex doesn't end with 0xF7, it is a multi-packet sysex message.
-            if (mevent[offset] == 0xF0.toByte() && mevent[offset + length - 1] != 0xF7.toByte())
-                multiPacketSysex = true
-            msg = toJvmMidiMessage(mevent, offset, length)
+            if (first == 0xF0.toByte() && last != 0xF7.toByte()) multiPacketSysex = true
+            toJvmMidiMessage(mevent, offset, length)
         }
-        port.receiver.send(msg, timestampInNanoseconds)
+        val tsUs = if (timestampNs > 0) timestampNs / 1000 else -1L
+        receiver?.send(msg, tsUs)
+    }
+
+    override fun close() {
+        try {
+            receiver?.close()
+        } finally {
+            receiver = null
+            if (port.device.transmitters.isEmpty() && port.device.receivers.isEmpty()) {
+                port.device.close()
+            }
+        }
     }
 }
