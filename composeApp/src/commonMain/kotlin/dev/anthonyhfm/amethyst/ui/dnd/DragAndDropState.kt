@@ -73,6 +73,9 @@ class DragAndDropState<T>(
      */
     internal var enabled by mutableStateOf(true)
 
+    // Flag used to animate shrink/fade of the drag shadow while dropping
+    internal var finishingDrop by mutableStateOf(false)
+
     // Drop Target
 
     /**
@@ -245,6 +248,9 @@ class DragAndDropState<T>(
 
         val dropTarget = dropTargetMap.values.find { it.key == hoveredDropTargetKey }
 
+        // Trigger finishing shrink animation for shadow
+        finishingDrop = true
+
         if (dropTarget == null || dropTarget.dropAnimationEnabled) {
             val draggedItem = draggableItemMap[currentDraggableItem.key]
 
@@ -286,7 +292,9 @@ class DragAndDropState<T>(
         draggedItem?.let {
             dropTarget?.onDrop?.invoke(it)
         }
+        // Do NOT reset finishingDrop before clearing state so shrink/fade completes
         clearDragState()
+        finishingDrop = false
     }
 
     /**

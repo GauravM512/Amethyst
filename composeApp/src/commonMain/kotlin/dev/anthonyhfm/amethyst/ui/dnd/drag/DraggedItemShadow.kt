@@ -59,15 +59,23 @@ internal fun <T> DraggedItemShadow(
     var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(state.draggedItem) { appeared = state.draggedItem != null }
     val scale by animateFloatAsState(
-        targetValue = if (appeared) 1.05f else 0.95f,
+        targetValue = when {
+            state.finishingDrop -> 0.6f
+            appeared -> 1.05f
+            else -> 0.95f
+        },
         animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = 0.7f), label = "dragScale"
     )
     val alpha by animateFloatAsState(
-        targetValue = if (appeared) 1f else 0f,
+        targetValue = when {
+            state.finishingDrop -> 0f
+            appeared -> 1f
+            else -> 0f
+        },
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow), label = "dragAlpha"
     )
     val elevation by animateFloatAsState(
-        targetValue = if (appeared) 18f else 0f,
+        targetValue = if (appeared && !state.finishingDrop) 18f else 0f,
         animationSpec = spring(stiffness = Spring.StiffnessLow), label = "dragElevation"
     )
 

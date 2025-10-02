@@ -70,6 +70,8 @@ import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import dev.anthonyhfm.amethyst.workspace.chain.ui.AnimatedInsertedDevice
+import dev.anthonyhfm.amethyst.workspace.chain.ui.DeviceInsertionAnimator
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ExpandingChainDevicePicker
 import dev.anthonyhfm.amethyst.workspace.chain.ui.TitleBarModifierProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -430,6 +432,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                 onDropDevice = { device, (originalIndex, originalUUID), originChain ->
                     if (originalUUID == selectionUUID) return@ExpandingChainDevicePicker
 
+                    DeviceInsertionAnimator.register(device.selectionUUID)
                     val targetChain = groupsState.groups[groupsState.openedGroupIndex].chain
                     val insertionIndex = 0
                     val finalIndex = if (originChain === targetChain) {
@@ -468,7 +471,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                     },
                     onDropDevice = { device, (originalIndex, originalUUID), originChain ->
                         if (originalUUID == selectionUUID) return@ExpandingChainDevicePicker
-
+                        DeviceInsertionAnimator.register(device.selectionUUID)
                         val targetChain = groupsState.groups[groupsState.openedGroupIndex].chain
                         val insertionIndex = 0
                         val finalIndex = if (originChain === targetChain) {
@@ -519,19 +522,25 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
 
                             when (device) {
                                 is GroupChainDevice -> {
-                                    device.Content(
-                                        dragAndDropState = dragAndDropState
-                                    )
+                                    AnimatedInsertedDevice(device.selectionUUID) {
+                                        device.Content(
+                                            dragAndDropState = dragAndDropState
+                                        )
+                                    }
                                 }
 
                                 is MultiGroupChainDevice -> {
-                                    device.Content(
-                                        dragAndDropState = dragAndDropState
-                                    )
+                                    AnimatedInsertedDevice(device.selectionUUID) {
+                                        device.Content(
+                                            dragAndDropState = dragAndDropState
+                                        )
+                                    }
                                 }
 
                                 else -> {
-                                    device.Content()
+                                    AnimatedInsertedDevice(device.selectionUUID) {
+                                        device.Content()
+                                    }
                                 }
                             }
                         }
@@ -545,7 +554,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                         },
                         onDropDevice = { device, (originalIndex, originalUUID), originChain ->
                             if (originalUUID == selectionUUID) return@ExpandingChainDevicePicker
-
+                            DeviceInsertionAnimator.register(device.selectionUUID)
                             val targetChain = groupsState.groups[groupsState.openedGroupIndex].chain
                             val insertionIndex = index + 1
                             val finalIndex = if (originChain === targetChain) {

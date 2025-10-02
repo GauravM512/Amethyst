@@ -87,7 +87,6 @@ object TimelineRepository {
     private fun updatePlayingEntries() {
         val currentPosition = _playheadPositionMs.value
         val allEntries = mutableListOf<AudioEntry>()
-
         tracks.value.forEach { track ->
             if (track is AudioTimelineTrack) {
                 allEntries.addAll(track.entries.values)
