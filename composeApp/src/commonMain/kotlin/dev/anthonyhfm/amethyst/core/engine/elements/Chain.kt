@@ -35,13 +35,11 @@ class Chain : SignalReceiver() {
     }
 
     fun add(device: GenericChainDevice<*>, atIndex: Int? = null, fromUser: Boolean = true) {
-        devices.value = devices.value.toMutableList().apply {
-            if (atIndex != null) {
-                add(index = atIndex, device)
-            } else {
-                add(device)
-            }
-        }
+        // Defensive: Index einklammern, falls externe Aufrufer (zukünftig) unvalidierte Werte liefern
+        val current = devices.value.toMutableList()
+        val insertIndex = atIndex?.let { it.coerceIn(0, current.size) } ?: current.size
+        current.add(insertIndex, device)
+        devices.value = current
 
         if (fromUser) {
             UndoManager.addAction(
