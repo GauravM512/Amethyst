@@ -18,6 +18,7 @@ import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceProMk3
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevicePush2
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceX
+import dev.anthonyhfm.amethyst.core.midi.platformMidiAccess
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadMk2
@@ -26,6 +27,7 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadX
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMidiFighter64
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMystrix
+import dev.atsushieno.ktmidi.EmptyMidiAccess
 import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiInput
 import dev.atsushieno.ktmidi.MidiOutput
@@ -36,8 +38,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class WorkspaceViewModel(
-    private val midiAccess: MidiAccess,
-    private val amethystMidiManager: AmethystMidiManager
+    private val midiAccess: MidiAccess = platformMidiAccess ?: EmptyMidiAccess(),
+    private val amethystMidiManager: AmethystMidiManager = AmethystMidiManager()
 ) : ViewModel() {
     val state = MutableStateFlow(
         WorkspaceContract.State(

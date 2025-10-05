@@ -55,13 +55,10 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.lifecycle.viewmodel.compose)
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.ktmidi)
 
-            runtimeOnly(libs.koin.core)
-            runtimeOnly(libs.koin.compose)
-            runtimeOnly(libs.koin.compose.viewmodel)
-            implementation(libs.koin.compose.viewmodel.navigation)
             implementation("org.jetbrains.androidx.navigation:navigation-compose:2.9.0")
 
             implementation(libs.colorpicker.compose)

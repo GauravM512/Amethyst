@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.timeline.Timeline
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract.Event
@@ -30,11 +31,10 @@ import dev.anthonyhfm.amethyst.workspace.chain.ui.WorkspaceChainEditor
 import dev.anthonyhfm.amethyst.workspace.ui.components.InsertLaunchpadDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceTopAppBar
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.WorkspaceViewport
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun Workspace() {
-    val viewModel: WorkspaceViewModel = koinViewModel()
+    val viewModel: WorkspaceViewModel = viewModel { WorkspaceViewModel() }
 
     val state by viewModel.state.collectAsState()
 

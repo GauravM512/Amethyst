@@ -7,14 +7,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.application
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.engine.echo.AudioOutput
-import dev.anthonyhfm.amethyst.core.koin.amethystKoinModule
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.DiscordRPC
 import dev.anthonyhfm.amethyst.desktop.about.setupAboutHandler
 import dev.anthonyhfm.amethyst.start.StartWindow
 import dev.anthonyhfm.amethyst.workspace.WorkspaceWindow
 import io.github.vinceglb.filekit.FileKit
-import org.koin.compose.KoinApplication
 
 fun main() {
     val platform = DesktopPlatform.get()
@@ -36,22 +34,16 @@ fun main() {
 
         FileKit.init(appId = "Amethyst")
 
-        KoinApplication(
-            application = {
-                modules(amethystKoinModule)
-            }
-        ) {
-            var showEditor: Boolean by remember { mutableStateOf(false) }
+        var showEditor: Boolean by remember { mutableStateOf(false) }
 
-            if (!showEditor) {
-                StartWindow(
-                    onOpenEditor = {
-                        showEditor = true
-                    }
-                )
-            } else {
-                WorkspaceWindow()
-            }
+        if (!showEditor) {
+            StartWindow(
+                onOpenEditor = {
+                    showEditor = true
+                }
+            )
+        } else {
+            WorkspaceWindow()
         }
     }
 }

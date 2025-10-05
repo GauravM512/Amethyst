@@ -7,15 +7,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.timeline.TimelineViewModel
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun TimelineView() {
-    val viewModel: TimelineViewModel = koinViewModel()
+fun TimelineView(
+    viewModel: TimelineViewModel
+) {
     val scrollState = rememberScrollState()
+    val tracks by viewModel.tracks.collectAsState()
 
     // Set scroll state in ViewModel
     LaunchedEffect(scrollState) {
@@ -29,7 +32,10 @@ fun TimelineView() {
             .padding(bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        TrackListView()
-        TimelineLaneView(scrollState)
+        TrackListView(
+            tracks = tracks
+        )
+
+        TimelineLaneView(viewModel, scrollState)
     }
 }

@@ -40,12 +40,13 @@ import dev.anthonyhfm.amethyst.timeline.data.TimelineTrack
 import dev.anthonyhfm.amethyst.ui.dnd.fileDropTarget
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.extension
-import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.roundToInt
 
 @Composable
-fun TimelineLaneView(scrollState: ScrollState) {
-    val viewModel: TimelineViewModel = koinViewModel()
+fun TimelineLaneView(
+    viewModel: TimelineViewModel,
+    scrollState: ScrollState
+) {
     val tracks by viewModel.tracks.collectAsState()
     val zoomLevel by viewModel.zoomLevel.collectAsState()
     val playheadPositionMs by viewModel.playheadPositionMs.collectAsState()

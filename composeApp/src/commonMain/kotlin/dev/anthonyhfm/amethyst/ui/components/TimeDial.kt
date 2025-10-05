@@ -1,21 +1,14 @@
 package dev.anthonyhfm.amethyst.ui.components
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import dev.anthonyhfm.amethyst.core.util.Timing
-import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
-import org.koin.compose.koinInject
-import org.koin.core.time.inMs
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -36,7 +29,7 @@ fun TimeDial(
 
     if (millisecondMode) {
         TextDial(
-            value = (timing as Timing.Duration).duration.inMs.toFloat() / 1000,
+            value = (timing as Timing.Duration).duration.inWholeMilliseconds.toFloat() / 1000,
             onValueChange = {
                 onSelectTiming(
                     Timing.Duration((it * 1000).toInt().milliseconds),
@@ -45,7 +38,7 @@ fun TimeDial(
             },
             headline = headline,
             dialColor = MaterialTheme.colorScheme.secondary,
-            text = text ?: "${timing.duration.inMs.toInt()} ms",
+            text = text ?: "${timing.duration.inWholeMilliseconds.toInt()} ms",
             onResolveTextValue = {
                 val timing = it.asTiming()
 

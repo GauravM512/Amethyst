@@ -11,12 +11,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.timeline.ui.views.TimelineView
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun Timeline() {
-    val viewModel: TimelineViewModel = koinViewModel()
+    val viewModel: TimelineViewModel = viewModel { TimelineViewModel() }
 
     Scaffold(
         modifier = Modifier
@@ -35,7 +35,7 @@ fun Timeline() {
             modifier = Modifier
                 .padding(paddingValues)
         ) {
-            TimelineView()
+            TimelineView(viewModel)
         }
     }
 }

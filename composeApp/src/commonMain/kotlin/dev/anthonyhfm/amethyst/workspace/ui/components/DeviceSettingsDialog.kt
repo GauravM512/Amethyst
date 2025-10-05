@@ -23,10 +23,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
+import dev.anthonyhfm.amethyst.core.midi.platformMidiAccess
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
+import dev.atsushieno.ktmidi.EmptyMidiAccess
 import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiPortDetails
-import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,7 +35,7 @@ fun DeviceSettingsDialog(
     uuid: String,
     onEvent: (WorkspaceContract.Event) -> Unit
 ) {
-    val midiAccess = koinInject<MidiAccess>()
+    val midiAccess = platformMidiAccess ?: EmptyMidiAccess()
 
     val device = Heaven.devices.find { it.selectionUUID == uuid }
 

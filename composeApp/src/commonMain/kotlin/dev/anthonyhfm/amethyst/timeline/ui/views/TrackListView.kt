@@ -18,23 +18,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.timeline.TimelineViewModel
 import dev.anthonyhfm.amethyst.timeline.data.AudioTimelineTrack
 import dev.anthonyhfm.amethyst.timeline.data.TimelineTrack
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun TrackListView() {
-    val viewModel: TimelineViewModel = koinViewModel()
-    val tracks by viewModel.tracks.collectAsState()
-
+fun TrackListView(
+    tracks: List<TimelineTrack<*>>,
+) {
     Column(
         modifier = Modifier
             .fillMaxHeight()

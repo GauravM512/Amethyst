@@ -8,5 +8,4 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-actual val platformMidiAccess: MidiAccess
-    get() = TraditionalCoreMidiAccess()
+actual var platformMidiAccess: MidiAccess? = TraditionalCoreMidiAccess()

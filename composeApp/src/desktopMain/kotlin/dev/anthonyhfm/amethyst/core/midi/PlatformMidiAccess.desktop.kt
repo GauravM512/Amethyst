@@ -7,7 +7,7 @@ import dev.atsushieno.ktmidi.MidiAccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
-actual val platformMidiAccess: MidiAccess =
+actual var platformMidiAccess: MidiAccess? =
     if (System.getProperty("os.name").contains("Linux"))
         LinuxJVMAccess()
     else if (System.getProperty("os.name").contains("Windows"))
