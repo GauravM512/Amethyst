@@ -117,7 +117,7 @@ fun MacroControls() {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Macros",
+                        text = "Global Macros",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )

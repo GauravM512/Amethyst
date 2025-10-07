@@ -51,13 +51,12 @@ fun GenericLaunchpadButton(
             val src = effect.color
             val srcLuma = 0.2126f * src.red + 0.7152f * src.green + 0.0722f * src.blue
             if (srcLuma > 0.02f) {
-                val spotBase = (srcLuma * 1.1f).coerceIn(0f, 1f)
+                val spotBase = (srcLuma * 0.9f).coerceIn(0f, 1f)
                 val coreAlpha = 0.65f * spotBase + 0.10f
                 val tintAlpha = (coreAlpha * 0.95f).coerceIn(0f, 1f)
 
                 val (eh, es, el) = rgbToHsl(src.red, src.green, src.blue)
                 val tintRgb = hslToRgb(eh, (es * 0.6f).coerceIn(0f, 1f), el)
-                val tintColor = Color(tintRgb.first, tintRgb.second, tintRgb.third, tintAlpha)
 
                 val spotBrush = Brush.radialGradient(
                     colors = listOf(

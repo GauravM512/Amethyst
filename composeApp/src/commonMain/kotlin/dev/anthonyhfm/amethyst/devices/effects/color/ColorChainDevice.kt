@@ -1,22 +1,10 @@
 package dev.anthonyhfm.amethyst.devices.effects.color
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.DeviceState
@@ -25,6 +13,7 @@ import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.ColorPicker
 import dev.anthonyhfm.amethyst.ui.components.HexColorEditor
 import dev.anthonyhfm.amethyst.ui.components.HuePickerBar
+import dev.anthonyhfm.amethyst.ui.components.rememberColorPickerState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 
@@ -34,49 +23,57 @@ class ColorChainDevice : LEDChainDevice<ColorChainDeviceState>() {
     @Composable
     override fun Content() {
         val selections by SelectionManager.selections.collectAsState()
-        val controller = rememberColorPickerController()
+        val deviceState by state.collectAsState()
 
-        LaunchedEffect(Unit) {
-            controller.selectByColor(
-                color = Color(
-                    red = state.value.r,
-                    green = state.value.g,
-                    blue = state.value.b
-                ),
-                fromUser = false
-            )
+        val colorPickerState = rememberColorPickerState(
+            initialColor = Color(deviceState.r, deviceState.g, deviceState.b)
+        )
+
+        LaunchedEffect(deviceState.r, deviceState.g, deviceState.b) {
+            val current = colorPickerState.color
+            if (!colorsRoughlyEqual(current, deviceState)) {
+                colorPickerState.setColor(Color(deviceState.r, deviceState.g, deviceState.b))
+            }
+        }
+
+        LaunchedEffect(colorPickerState.color) {
+            val c = colorPickerState.color
+            val current = state.value
+            if (!colorsRoughlyEqual(c, current)) {
+                state.value = current.copy(r = c.red, g = c.green, b = c.blue)
+            }
         }
 
         AmethystDevice(
             title = "Color",
             isSelected = selections.any { it.selectionUUID == this.selectionUUID },
             isDragging = isDragging.value,
-            modifier = Modifier
-                .width(220.dp),
+            modifier = Modifier.width(220.dp),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
-
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                    .padding(16.dp),
             ) {
                 Row(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
 
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     ColorPicker(
-                        modifier = Modifier
-                            .weight(1f)
+                        modifier = Modifier,
+                        state = colorPickerState
                     )
 
                     HuePickerBar(
-                        vertical = true
+                        vertical = true,
+                        state = colorPickerState
                     )
                 }
+
+                Spacer(Modifier.height(12.dp))
 
                 Box(
                     modifier = Modifier
@@ -84,15 +81,18 @@ class ColorChainDevice : LEDChainDevice<ColorChainDeviceState>() {
                         .fillMaxWidth()
                 ) {
                     HexColorEditor(
-                        hex = "#ffffff",
-                        onEditHex = {
-
-                        }
+                        state = colorPickerState
                     )
                 }
             }
         }
     }
+
+    private fun colorsRoughlyEqual(c: Color, s: ColorChainDeviceState, eps: Float = 0.0005f): Boolean =
+        kotlin.math.abs(c.red - s.r) < eps &&
+                kotlin.math.abs(c.green - s.g) < eps &&
+                kotlin.math.abs(c.blue - s.b) < eps
+
 
     override fun ledSignalEnter(n: List<Signal.LED>) {
         signalExit?.invoke(
