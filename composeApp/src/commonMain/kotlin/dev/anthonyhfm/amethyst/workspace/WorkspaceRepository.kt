@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
+import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.core.data.settings.RecentColorRGB
 
 object WorkspaceRepository {
     val deviceRefresh: MutableSharedFlow<Unit> = MutableSharedFlow()
@@ -51,6 +53,11 @@ object WorkspaceRepository {
 
     private val _bpm = MutableStateFlow(120.00)
     val bpm: StateFlow<Double> = _bpm.asStateFlow()
+
+    // Recently used colors; initialize from GlobalSettings for persistence
+    private val _recentColors: MutableStateFlow<List<Triple<Float, Float, Float>>> =
+        MutableStateFlow(GlobalSettings.recentColors.map { Triple(it.r, it.g, it.b) })
+    val recentColors: StateFlow<List<Triple<Float, Float, Float>>> = _recentColors.asStateFlow()
 
     // Keep track of the previous mode
     private var previousMode: WorkspaceContract.WorkspaceMode = WorkspaceContract.WorkspaceMode.Layout()
@@ -262,5 +269,19 @@ object WorkspaceRepository {
                 )
             },
         ).also { saveableWorkspaceData = it }
+    }
+
+    fun addRecentColor(color: Triple<Float, Float, Float>, maxSize: Int = 24) {
+        _recentColors.update { current ->
+            // skip if the color is already the most recent one we added
+            if (current.isNotEmpty() && current.first() == color) return@update current
+
+            val newList = buildList {
+                add(color)
+                addAll(current.filterNot { it == color })
+            }.take(maxSize)
+            GlobalSettings.recentColors = newList.map { RecentColorRGB(it.first, it.second, it.third) }
+            newList
+        }
     }
 }

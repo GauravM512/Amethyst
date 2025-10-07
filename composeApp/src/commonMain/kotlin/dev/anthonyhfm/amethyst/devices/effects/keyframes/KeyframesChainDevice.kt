@@ -100,7 +100,6 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>() {
     }
 
     fun onEvent(event: Event) {
-        println("Event: $event")
         when (event) {
             is Event.OnPaintButton -> {
                 state.update { state ->
@@ -112,6 +111,9 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>() {
                                     entries = state.frames[state.currentFrameIndex].entries.toMutableList().apply {
                                         val index: Int = indexOfFirst { it.x == event.x && it.y == event.y }
                                         val selectedColor = Triple(state.selectedColor.first, state.selectedColor.second, state.selectedColor.third)
+
+                                        // Send to recently added colors
+                                        WorkspaceRepository.addRecentColor(Triple(selectedColor.first, selectedColor.second, selectedColor.third))
 
                                         if (index != -1) {
                                             val entry = get(index)

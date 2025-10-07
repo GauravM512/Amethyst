@@ -22,7 +22,9 @@ import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.components.ColorControls
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.components.RecentColorsRow
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.components.TimingControls
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
 @Composable
 fun BoxScope.FrameDrawingPanel(
@@ -31,6 +33,7 @@ fun BoxScope.FrameDrawingPanel(
 ) {
     val selections by SelectionManager.selections.collectAsState()
     val selectedKeyframes = selections.filterIsInstance<Selectable.KeyframeItem>()
+    val recentColors by WorkspaceRepository.recentColors.collectAsState()
 
     Column(
         modifier = Modifier
@@ -50,6 +53,16 @@ fun BoxScope.FrameDrawingPanel(
                 onEvent(
                     KeyframesChainDeviceContract.Event.OnColorUpdate(it)
                 )
+            }
+        )
+
+        Spacer(Modifier.weight(0.15f))
+
+        RecentColorsRow(
+            colors = recentColors,
+            selected = state.selectedColor,
+            onPick = { color ->
+                onEvent(KeyframesChainDeviceContract.Event.OnColorUpdate(color))
             }
         )
 
