@@ -584,6 +584,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
                         ExpandingChainDevicePicker(
                             destinationChain = groupsState.groups[groupsState.openedGroupIndex].chain,
                             dragAndDropState = dragAndDropState,
+                            expanded = index == devices.lastIndex,
                             onAddComponent = {
                                 groupsState.groups[groupsState.openedGroupIndex].chain.add(it, index + 1)
                             },
