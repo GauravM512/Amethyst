@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -25,11 +26,11 @@ import kotlin.math.min
 fun WaveformView(
     signal: Signal.AudioSignal,
     modifier: Modifier = Modifier,
+    waveColor: Color = Color.White,
     onSeek: ((Float) -> Unit)? = null,
 ) {
-    val bg = MaterialTheme.colorScheme.surfaceVariant
-    val wave = MaterialTheme.colorScheme.primary
-    val baseline = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    val wave = waveColor
+    val baseline = waveColor.copy(alpha = 0.6f)
 
     val bucketWidthPx = 2f
 
@@ -40,7 +41,6 @@ fun WaveformView(
 
     Box(
         modifier = modifier
-            .background(bg)
     ) {
         Canvas(
             Modifier

@@ -16,7 +16,7 @@ class TimelineViewModel : ViewModel() {
     private val _tracks = MutableStateFlow<List<TimelineTrack<*>>>(emptyList())
     val tracks: StateFlow<List<TimelineTrack<*>>> = _tracks.asStateFlow()
 
-    private val _zoomLevel = MutableStateFlow(0.01f) // Deutlich kleinerer Standard-Zoom für bessere Sichtbarkeit
+    private val _zoomLevel = MutableStateFlow(0.025f)
     val zoomLevel: StateFlow<Float> = _zoomLevel.asStateFlow()
 
     private val _scrollState = MutableStateFlow<ScrollState?>(null)

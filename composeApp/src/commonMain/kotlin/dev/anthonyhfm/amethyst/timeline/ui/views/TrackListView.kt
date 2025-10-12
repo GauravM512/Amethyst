@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import dev.anthonyhfm.amethyst.timeline.data.AudioTimelineTrack
 import dev.anthonyhfm.amethyst.timeline.data.TimelineTrack
 
@@ -32,7 +33,9 @@ fun TrackListView(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxHeight(),
+            .fillMaxHeight()
+            .zIndex(10f)
+            .background(MaterialTheme.colorScheme.surface),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         tracks.forEachIndexed { index, track ->

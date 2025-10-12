@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 object TimelineRepository {
@@ -28,23 +29,26 @@ object TimelineRepository {
 
     private val activeEntries = mutableSetOf<AudioEntry>()
 
+    // Basis für Zeitberechnung (wird nur bei Play & Seek aktualisiert)
+    private var baselineMark: TimeMark? = null
+    private var baselinePlayheadMs: Long = 0L
+
     fun addTrack(track: TimelineTrack<*>) {
-        tracks.update {
-            tracks.value + track
-        }
+        tracks.update { tracks.value + track }
     }
 
     fun play() {
         if (_isPlaying.value) return
-
         _isPlaying.value = true
+        baselinePlayheadMs = _playheadPositionMs.value
+        baselineMark = TimeSource.Monotonic.markNow()
         updatePlayingEntries()
         startPlayback()
     }
 
     fun pause() {
+        if (!_isPlaying.value) return
         _isPlaying.value = false
-
         stopPlayback()
         activeEntries.forEach { it.stop() }
         activeEntries.clear()
@@ -56,25 +60,28 @@ object TimelineRepository {
     }
 
     fun setPlayheadPosition(positionMs: Long) {
-        _playheadPositionMs.value = positionMs.coerceAtLeast(0L)
-        // Always update playing entries, whether playing or not
+        val coerced = positionMs.coerceAtLeast(0L)
+        _playheadPositionMs.value = coerced
+        if (_isPlaying.value) {
+            // Seek während Playback: Baseline neu setzen, damit Playhead nicht springt oder driftet
+            baselinePlayheadMs = coerced
+            baselineMark = TimeSource.Monotonic.markNow()
+        }
         updatePlayingEntries()
     }
 
     private fun startPlayback() {
-        val startMark = TimeSource.Monotonic.markNow()
-        val startPosition = _playheadPositionMs.value
-
         playbackJob = playbackScope.launch {
             while (_isPlaying.value) {
-                val elapsedMs = startMark.elapsedNow().inWholeMilliseconds
-                val newPosition = startPosition + elapsedMs
-
-                _playheadPositionMs.value = newPosition
-                updatePlayingEntries()
-
-                // Use more precise timing (1ms instead of 4ms)
-                delay(1L)
+                val mark = baselineMark
+                if (mark != null) {
+                    val elapsed = mark.elapsedNow().inWholeMilliseconds
+                    val newPos = baselinePlayheadMs + elapsed
+                    _playheadPositionMs.value = newPos
+                    updatePlayingEntries()
+                }
+                // 8ms tick ~125Hz. Für weniger CPU ggf. 10-16ms testen.
+                delay(8L)
             }
         }
     }
@@ -82,18 +89,18 @@ object TimelineRepository {
     private fun stopPlayback() {
         playbackJob?.cancel()
         playbackJob = null
+        baselineMark = null
     }
 
     private fun updatePlayingEntries() {
         val currentPosition = _playheadPositionMs.value
-        val allEntries = mutableListOf<AudioEntry>()
-        tracks.value.forEach { track ->
-            if (track is AudioTimelineTrack) {
-                allEntries.addAll(track.entries.values)
+        val allEntries = buildList {
+            tracks.value.forEach { track ->
+                if (track is AudioTimelineTrack) addAll(track.entries.values)
             }
         }
 
-        // Stop entries that should no longer be playing
+        // Stop entries die nicht mehr laufen sollen
         activeEntries.removeAll { entry ->
             val shouldStop = currentPosition < entry.startTimeMs || currentPosition >= entry.endTimeMs
             if (shouldStop) {
@@ -103,14 +110,12 @@ object TimelineRepository {
             shouldStop
         }
 
-        // Start entries that should be playing
+        // Start neue passende Entries
         allEntries.forEach { entry ->
             val shouldPlay = currentPosition >= entry.startTimeMs &&
-                           currentPosition < entry.endTimeMs &&
-                           !activeEntries.contains(entry)
-
+                currentPosition < entry.endTimeMs &&
+                !activeEntries.contains(entry)
             if (shouldPlay) {
-                // CRITICAL FIX: Pass currentPosition, not offset
                 entry.start(startAt = currentPosition)
                 activeEntries.add(entry)
                 println("Timeline: Started ${entry.fileName} at ${currentPosition}ms (entry starts at ${entry.startTimeMs}ms)")

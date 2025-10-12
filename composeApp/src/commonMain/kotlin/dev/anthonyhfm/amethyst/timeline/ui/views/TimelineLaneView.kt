@@ -2,12 +2,9 @@ package dev.anthonyhfm.amethyst.timeline.ui.views
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,19 +21,23 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draganddrop.DragAndDropTarget
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import dev.anthonyhfm.amethyst.core.engine.echo.AudioDecoder
+import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.timeline.TimelineViewModel
 import dev.anthonyhfm.amethyst.timeline.data.AudioEntry
 import dev.anthonyhfm.amethyst.timeline.data.AudioTimelineTrack
 import dev.anthonyhfm.amethyst.timeline.data.TimelineTrack
+import dev.anthonyhfm.amethyst.ui.components.WaveformView
 import dev.anthonyhfm.amethyst.ui.dnd.fileDropTarget
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.extension
@@ -51,19 +52,17 @@ fun TimelineLaneView(
     val zoomLevel by viewModel.zoomLevel.collectAsState()
     val playheadPositionMs by viewModel.playheadPositionMs.collectAsState()
 
-    println("TimelineLaneView: Recomposing with ${tracks.size} tracks, zoomLevel: $zoomLevel")
+    val density = LocalDensity.current
 
-    // Calculate content width based on the longest track
     val maxDurationMs = tracks.maxOfOrNull { track ->
         when (track) {
             is AudioTimelineTrack -> track.entries.values.maxOfOrNull { it.endTimeMs } ?: 0L
             else -> 0L
         }
-    } ?: 10000L // Default minimum width
+    } ?: 10000L
 
-    val contentWidth = (maxDurationMs * zoomLevel + 1000).dp // Add some padding
-
-    println("TimelineLaneView: maxDurationMs: $maxDurationMs, contentWidth: $contentWidth")
+    val contentWidthPx = maxDurationMs * zoomLevel + 1000
+    val contentWidth = with(density) { contentWidthPx.toDp() }
 
     Box(
         modifier = Modifier
@@ -74,7 +73,6 @@ fun TimelineLaneView(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             tracks.forEachIndexed { index, track ->
-                println("TimelineLaneView: Rendering track $index")
                 TimelineLane(
                     track = track,
                     zoomLevel = zoomLevel,
@@ -84,14 +82,13 @@ fun TimelineLaneView(
                         viewModel.addAudioFileToTrack(
                             trackIndex = index,
                             file = file,
-                            at = (playheadPositionMs ?: 0L)
+                            at = playheadPositionMs
                         )
                     }
                 )
             }
         }
 
-        // Playhead cursor - positioned over the timeline lanes
         PlayheadCursor(
             positionMs = playheadPositionMs,
             zoomLevel = zoomLevel,
@@ -107,9 +104,8 @@ fun PlayheadCursor(
     scrollState: ScrollState
 ) {
     val playheadPixelPosition = (positionMs * zoomLevel).roundToInt()
-    val scrollOffset = scrollState.value
-
-    val cursorXPosition = playheadPixelPosition - scrollOffset
+    val scrollOffsetPx = scrollState.value
+    val cursorXPosition = playheadPixelPosition - scrollOffsetPx
 
     Box(
         modifier = Modifier
@@ -117,8 +113,15 @@ fun PlayheadCursor(
             .width(2.dp)
             .fillMaxHeight()
             .background(
-                color = Color.Red,
+                color = Color(0xff93ff93),
                 shape = RoundedCornerShape(1.dp)
+            )
+            .dropShadow(
+                shape = RectangleShape,
+                shadow = Shadow(
+                    radius = 4.dp,
+                    color = Color(0xff93ff93).copy(alpha = 0.6f)
+                )
             )
     )
 }
@@ -126,7 +129,7 @@ fun PlayheadCursor(
 @Composable
 fun TimelineLane(
     track: TimelineTrack<*>,
-    zoomLevel: Float,
+    zoomLevel: Float, // px per ms
     contentWidth: androidx.compose.ui.unit.Dp,
     scrollState: ScrollState,
     onDropInFile: (file: PlatformFile) -> Unit = {}
@@ -137,12 +140,9 @@ fun TimelineLane(
             .height(140.dp)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .fileDropTarget(
-                onHover = { isHovering, offset, files ->
-                    // Optional: Handle hover state if needed
-                },
+                onHover = { _, _, _ -> },
                 onDrop = { files ->
                     val audioFiles = files.filter { it.extension.lowercase() in AudioDecoder.getSupportedFormats() }
-
                     if (audioFiles.isNotEmpty()) {
                         onDropInFile(audioFiles.first())
                     }
@@ -150,18 +150,14 @@ fun TimelineLane(
             )
             .horizontalScroll(scrollState)
     ) {
-        // Content container with proper width
         Box(
             modifier = Modifier
                 .width(contentWidth)
-                .height(84.dp)
+                .height(140.dp)
         ) {
-            // Render all entries in this track
             when (track) {
                 is AudioTimelineTrack -> {
-                    println("TimelineLane: Rendering AudioTimelineTrack with ${track.entries.size} entries")
                     track.entries.values.forEach { audioEntry ->
-                        println("TimelineLane: Found audio entry: ${audioEntry.fileName}, duration: ${audioEntry.durationMs}ms")
                         AudioClip(
                             audioEntry = audioEntry,
                             zoomLevel = zoomLevel
@@ -176,39 +172,50 @@ fun TimelineLane(
 @Composable
 fun AudioClip(
     audioEntry: AudioEntry,
-    zoomLevel: Float
+    zoomLevel: Float // px per ms
 ) {
+    val density = LocalDensity.current
     val startOffsetPx = (audioEntry.startTimeMs * zoomLevel).roundToInt()
-    val widthPx = (audioEntry.durationMs * zoomLevel).roundToInt()
+    val widthDp = with(density) { (audioEntry.durationMs * zoomLevel).toDp() }
 
     Box(
         modifier = Modifier
             .offset { IntOffset(startOffsetPx, 0) }
-            .clip(RoundedCornerShape(4.dp))
-            .height(84.dp)
-            .width(widthPx.dp)
-            .background(MaterialTheme.colorScheme.secondaryContainer)
-            .padding(8.dp),
+            .height(140.dp)
+            .width(widthDp)
+            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(4.dp)),
         contentAlignment = Alignment.CenterStart
     ) {
-        Column {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
             Text(
                 text = audioEntry.fileName.substringBeforeLast('.'),
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(4.dp)
+                    .zIndex(1f),
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
+                    lineHeight = MaterialTheme.typography.labelSmall.fontSize,
                 ),
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = "${audioEntry.durationMs}ms",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 8.sp
-                ),
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
-                maxLines = 1
+
+            WaveformView(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 4.dp),
+                waveColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                signal = Signal.AudioSignal(
+                    origin = null,
+                    rawData = audioEntry.rawData,
+                    bitDepth = audioEntry.bitDepth,
+                    channels = audioEntry.channels,
+                    sampleRate = audioEntry.sampleRate,
+                )
             )
         }
     }
