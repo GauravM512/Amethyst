@@ -21,12 +21,15 @@ import io.github.vinceglb.filekit.dialogs.deprecated.openFileSaver
 import io.github.vinceglb.filekit.dialogs.openFileSaver
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.write
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToByteArray
 
 object ShortcutManager {
-    @OptIn(ExperimentalSerializationApi::class)
+    @OptIn(ExperimentalSerializationApi::class, DelicateCoroutinesApi::class)
     fun handleShortcut(keyEvent: KeyEvent): Boolean {
         if (keyEvent.type != KeyEventType.KeyDown) return false
 
@@ -71,17 +74,15 @@ object ShortcutManager {
         if ((keyEvent.isCtrlPressed || keyEvent.isMetaPressed) && keyEvent.key == Key.S) {
             var path = WorkspaceRepository.saveableWorkspaceData?.path
 
-            if (path == null) {
-                runBlocking {
+            GlobalScope.launch {
+                if (path == null) {
                     path = FileKit.openFileSaver(
                         suggestedName = "project",
                         extension = "amproj"
-                    )?.path
+                    )?.path ?: return@launch
                 }
-            }
 
-            runBlocking {
-                PlatformFile(path ?: return@runBlocking).write(
+                PlatformFile(path).write(
                     AmethystProtoBuf.encodeToByteArray(WorkspaceRepository.saveWorkspace())
                 )
             }
