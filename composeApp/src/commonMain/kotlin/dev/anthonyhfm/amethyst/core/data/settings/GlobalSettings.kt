@@ -2,6 +2,8 @@ package dev.anthonyhfm.amethyst.core.data.settings
 
 import com.russhwolf.settings.Settings
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
+import dev.anthonyhfm.amethyst.core.util.Platform
+import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -19,8 +21,15 @@ object GlobalSettings {
             settings.putString("recentWorkspaces", Json.encodeToString(value.distinctBy { it.path }))
         }
 
-    var perforanceFPS: Int
-        get() = settings.getInt("framesPerSecond", 120)
+    var performanceFPS: Int
+        get() = settings.getInt(
+            key = "framesPerSecond",
+            defaultValue = if (platform is Platform.iOS || platform is Platform.Android) {
+                90
+            } else {
+                120
+            }
+        )
         set(value) {
             settings.putInt("framesPerSecond", value)
 

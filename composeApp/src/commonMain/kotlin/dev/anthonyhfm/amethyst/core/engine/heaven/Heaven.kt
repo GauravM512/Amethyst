@@ -48,7 +48,7 @@ object Heaven {
 
     private val deviceMutex = Mutex()
 
-    var fps: Int = GlobalSettings.perforanceFPS
+    var fps: Int = GlobalSettings.performanceFPS
 
     private val stopWatch = StopWatch()
     private val renderScope = CoroutineScope(Dispatchers.Main.limitedParallelism(1) + SupervisorJob())

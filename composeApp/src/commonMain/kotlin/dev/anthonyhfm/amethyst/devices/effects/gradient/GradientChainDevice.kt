@@ -273,7 +273,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>() {
     override fun ledSignalEnter(n: List<Signal.LED>) {
         val bpm = WorkspaceRepository.bpm.value
         val totalDuration = state.value.timing.toMsValue(bpm) * (state.value.gate * 2)
-        val gradientSteps = ((GlobalSettings.perforanceFPS / GlobalSettings.gradientSmoothness) * (state.value.durationMs * (state.value.gate * 2)).toInt() / 1000).toInt()
+        val gradientSteps = ((GlobalSettings.performanceFPS / GlobalSettings.gradientSmoothness) * (state.value.durationMs * (state.value.gate * 2)).toInt() / 1000).toInt()
         val stepLength = totalDuration / gradientSteps
 
         val gradient = state.value.gradientData

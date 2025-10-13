@@ -84,8 +84,6 @@ object AbletonConverter : AmethystConverter {
             }
         }
 
-        bpm = BPMReader().readBPM(abletonXml)
-
         if (palettePath == null) {
             palette = Palettes.novation
         } else {
@@ -106,6 +104,8 @@ object AbletonConverter : AmethystConverter {
 
             else -> null
         }
+
+        bpm = BPMReader().readBPM(abletonXml)
 
         if (layout is AbletonLayout.Dual2Light) {
             layout.lightsLeft?.let { Dual2LightLayoutScanner.scanTrackForMixer(it, IntOffset.Zero) }
