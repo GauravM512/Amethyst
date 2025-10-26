@@ -85,12 +85,10 @@ class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>() {
     }
 
     override fun signalEnter(n: List<Signal>) {
-        n.forEach { signal ->
-            Heaven.schedule(
-                delayInMs = state.value.delayMs.toDouble() * (state.value.gate * 2),
-            ) {
-                signalExit?.invoke(listOf(signal))
-            }
+        Heaven.schedule(
+            delayInMs = state.value.delayMs.toDouble() * (state.value.gate * 2),
+        ) {
+            signalExit?.invoke(n)
         }
     }
 }

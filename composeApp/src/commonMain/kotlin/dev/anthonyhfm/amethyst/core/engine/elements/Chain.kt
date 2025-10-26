@@ -8,11 +8,14 @@ import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
+import dev.anthonyhfm.amethyst.workspace.chain.ui.SignalIndicatorManager
 
 class Chain : SignalReceiver() {
     val devices: MutableState<List<GenericChainDevice<*>>> = mutableStateOf(emptyList())
 
     override fun signalEnter(input: List<Signal>) {
+        SignalIndicatorManager.trigger(this@Chain, 0)
+
         if (devices.value.isEmpty()) {
             signalExit?.invoke(input)
         } else {
@@ -21,26 +24,25 @@ class Chain : SignalReceiver() {
     }
 
     fun reroute() {
-        val list = devices.value
-        if (list.isEmpty()) {
+        if (devices.value.isEmpty()) {
             return
         }
-        // Verkette alle Geräte in Reihenfolge
-        for (i in 0 until list.lastIndex) {
-            val current = list[i]
-            val next = list[i + 1]
+
+        for (i in 0 until devices.value.lastIndex) {
+            val current = devices.value[i]
+            val next = devices.value[i + 1]
             current.signalExit = { signals ->
+                SignalIndicatorManager.trigger(this@Chain, i + 1)
                 next.signalEnter(signals)
             }
         }
-        // Letztes Gerät leitet nach außen weiter
-        list.last().signalExit = { signals ->
+        devices.value.last().signalExit = { signals ->
+            SignalIndicatorManager.trigger(this@Chain, devices.value.size)
             signalExit?.invoke(signals)
         }
     }
 
     fun add(device: GenericChainDevice<*>, atIndex: Int? = null, fromUser: Boolean = true) {
-        // Defensive: Index einklammern, falls externe Aufrufer (zukünftig) unvalidierte Werte liefern
         val current = devices.value.toMutableList()
         val insertIndex = atIndex?.let { it.coerceIn(0, current.size) } ?: current.size
         current.add(insertIndex, device)

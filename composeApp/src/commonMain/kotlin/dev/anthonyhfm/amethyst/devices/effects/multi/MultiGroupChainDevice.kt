@@ -268,13 +268,11 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
 
         val renamingGroupIndex = remember { mutableStateOf<Int?>(null) }
 
-        // React to external rename requests via SelectionManager
         val renameRequest = SelectionManager.renameRequest.collectAsState().value
         LaunchedEffect(renameRequest) {
             renameRequest?.let { req ->
                 if (req.parentUUID == this@MultiGroupChainDevice.selectionUUID) {
                     renamingGroupIndex.value = req.groupIndex
-                    // Clear the request so it doesn't retrigger
                     SelectionManager.renameRequest.value = null
                 }
             }
@@ -531,6 +529,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
             if (devices.isEmpty()) {
                 ExpandingChainDevicePicker(
                     destinationChain = groupsState.groups[groupsState.openedGroupIndex].chain,
+                    slotIndex = 0,
                     dragAndDropState = dragAndDropState,
                     expanded = true,
                     expandedWidth = 100.dp,
@@ -573,6 +572,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                 ) {
                     ExpandingChainDevicePicker(
                         destinationChain = groupsState.groups[groupsState.openedGroupIndex].chain,
+                        slotIndex = 0,
                         dragAndDropState = dragAndDropState,
                         onAddComponent = {
                             groupsState.groups[groupsState.openedGroupIndex].chain.add(it, 0)
@@ -610,7 +610,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                             state = dragAndDropState,
                             key = device.selectionUUID,
                             data = device,
-                            useDragAnchor = true, // Enable drag anchor mode
+                            useDragAnchor = true,
                         ) {
                             TitleBarModifierProvider(
                                 Modifier
@@ -656,6 +656,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
 
                         ExpandingChainDevicePicker(
                             destinationChain = groupsState.groups[groupsState.openedGroupIndex].chain,
+                            slotIndex = index + 1,
                             dragAndDropState = dragAndDropState,
                             expanded = index == devices.lastIndex,
                             onAddComponent = {

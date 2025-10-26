@@ -28,6 +28,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,17 +42,21 @@ import com.mohamedrejeb.compose.dnd.drop.dropTarget
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.util.UUID
-import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import dev.anthonyhfm.amethyst.core.util.randomUUID
 
 @Composable
 fun ExpandingChainDevicePicker(
     destinationChain: Chain,
+    slotIndex: Int, // NEU: Slot für Signal-Indikator
     dragAndDropState: DragAndDropState<GenericChainDevice<*>> = rememberDragAndDropState(),
     expanded: Boolean = false,
     forceOff: Boolean = false,
@@ -70,12 +76,27 @@ fun ExpandingChainDevicePicker(
 
     val hasGlobalDrag = dragAndDropState.draggedItem != null
 
+    val pulseFlow = SignalIndicatorManager.observe(destinationChain, slotIndex)
+    val pulseTimestamp by pulseFlow.collectAsState()
+
+    val pulseAlpha = remember { Animatable(0f) }
+
+    LaunchedEffect(pulseTimestamp) {
+        if (pulseTimestamp != 0L) {
+            pulseAlpha.snapTo(1f)
+            pulseAlpha.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 600, easing = LinearEasing)
+            )
+        }
+    }
+
     val targetWidth by animateDpAsState(
         targetValue = when {
             forceOff -> collapsedWidth
-            isDropHover -> expandedWidth                          // FULL size only on real drop hover
-            hovering || pickerVisible || expanded -> hoverWidth   // pointer / explicit hover
-            hasGlobalDrag -> dragPresenceWidth                    // global drag but not over this zone
+            isDropHover -> expandedWidth
+            hovering || pickerVisible || expanded -> hoverWidth
+            hasGlobalDrag -> dragPresenceWidth
             else -> collapsedWidth
         }, label = "ExpandingPickerWidth"
     )
@@ -114,7 +135,7 @@ fun ExpandingChainDevicePicker(
                         return@dropTarget
                     }
 
-                    val device = dragged // reuse original instance to keep state
+                    val device = dragged
 
                     if (WorkspaceRepository.mode.value is WorkspaceContract.WorkspaceMode.SamplingChain) {
                         val oc = WorkspaceRepository.samplingChain.findDeviceChain(dragged.selectionUUID) ?: run {
@@ -154,14 +175,18 @@ fun ExpandingChainDevicePicker(
                 .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            if(indicatorAlpha < 0.01f) {
+            if (indicatorAlpha < 0.01f) {
                 Box(
                     modifier = Modifier
                         .offset(y = 8.dp)
                         .align(Alignment.TopCenter)
                         .clip(CircleShape)
                         .size(5.dp)
-                        .background(MaterialTheme.colorScheme.surfaceTint)
+                        .graphicsLayer(alpha = pulseAlpha.value.coerceAtLeast(0f))
+                        .background(
+                            if (pulseAlpha.value > 0.5f) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceTint
+                        )
                 )
             }
 

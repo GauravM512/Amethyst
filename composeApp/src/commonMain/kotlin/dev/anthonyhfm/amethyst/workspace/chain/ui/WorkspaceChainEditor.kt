@@ -86,12 +86,12 @@ fun WorkspaceChainEditor(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Picker vor dem ersten Element: Einfügen an Index 0
                             ExpandingChainDevicePicker(
                                 destinationChain = when (WorkspaceRepository.mode.value) {
                                     is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain
                                     else -> WorkspaceRepository.lightsChain
                                 },
+                                slotIndex = 0,
                                 dragAndDropState = dragAndDropState,
                                 expanded = false,
                                 onAddComponent = {
@@ -165,13 +165,13 @@ fun WorkspaceChainEditor(
                                         }
                                     }
 
-                                    // Picker nach jedem Element: Einfügen an Index index+1
                                     val insertionIndex = index + 1
                                     ExpandingChainDevicePicker(
                                         destinationChain = when (WorkspaceRepository.mode.value) {
                                             is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain
                                             else -> WorkspaceRepository.lightsChain
                                         },
+                                        slotIndex = insertionIndex,
                                         dragAndDropState = dragAndDropState,
                                         expanded = index == devices.lastIndex,
                                         onAddComponent = {
@@ -206,6 +206,7 @@ fun WorkspaceChainEditor(
                             is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain
                             else -> WorkspaceRepository.lightsChain
                         },
+                        slotIndex = 0,
                         dragAndDropState = dragAndDropState,
                         expanded = true,
                         onAddComponent = {

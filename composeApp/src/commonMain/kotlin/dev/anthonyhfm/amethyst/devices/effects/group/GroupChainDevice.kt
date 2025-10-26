@@ -459,6 +459,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
             if (devices.isEmpty()) {
                 ExpandingChainDevicePicker(
                     destinationChain = groupsState.groups[groupsState.openedGroupIndex].chain,
+                    slotIndex = 0,
                     dragAndDropState = dragAndDropState,
                     expanded = true,
                     expandedWidth = 100.dp,
@@ -500,6 +501,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
                 ) {
                     ExpandingChainDevicePicker(
                         destinationChain = groupsState.groups[groupsState.openedGroupIndex].chain,
+                        slotIndex = 0,
                         dragAndDropState = dragAndDropState,
                         onAddComponent = {
                             groupsState.groups[groupsState.openedGroupIndex].chain.add(it, 0)
@@ -583,6 +585,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
 
                         ExpandingChainDevicePicker(
                             destinationChain = groupsState.groups[groupsState.openedGroupIndex].chain,
+                            slotIndex = index + 1,
                             dragAndDropState = dragAndDropState,
                             expanded = index == devices.lastIndex,
                             onAddComponent = {
