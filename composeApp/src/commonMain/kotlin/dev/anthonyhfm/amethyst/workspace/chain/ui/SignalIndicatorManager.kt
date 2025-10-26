@@ -5,9 +5,12 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
- * Event-basierter Signal-Indikator Manager:
- * Jeder trigger(chain, slotIndex) emittiert genau ein Event in einen SharedFlow ohne Replay.
- * Recomposition ohne neuem Event führt nicht zu einem künstlichen Aufblitzen.
+ * # SignalIndicatorManager
+ *
+ * Used to subscribe to signal events for chains and their device slots.
+ *
+ * @see [Chain]
+ * @see [ExpandingChainDevicePicker]
  */
 object SignalIndicatorManager {
     private val chainSlotFlows: MutableMap<Chain, MutableMap<Int, MutableSharedFlow<Unit>>> = mutableMapOf()
@@ -15,9 +18,9 @@ object SignalIndicatorManager {
     fun trigger(chain: Chain, slotIndex: Int) {
         val slotMap = chainSlotFlows.getOrPut(chain) { mutableMapOf() }
         val flow = slotMap.getOrPut(slotIndex) {
-            MutableSharedFlow(extraBufferCapacity = 32) // ausreichend Buffer für schnelle Bursts
+            MutableSharedFlow(extraBufferCapacity = 32)
         }
-        flow.tryEmit(Unit) // Event feuern; bei vollem Buffer älteste droppen (Default: SUSPEND, aber mit Buffer passt es)
+        flow.tryEmit(Unit)
     }
 
     fun events(chain: Chain, slotIndex: Int): SharedFlow<Unit> {
