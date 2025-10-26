@@ -71,7 +71,6 @@ fun ExpandingChainDevicePicker(
 
     val hasGlobalDrag = dragAndDropState.draggedItem != null
 
-    // Event-Stream für Pulse
     val pulseEvents = remember(destinationChain, slotIndex) {
         SignalIndicatorManager.events(destinationChain, slotIndex)
     }
@@ -79,7 +78,6 @@ fun ExpandingChainDevicePicker(
 
     LaunchedEffect(pulseEvents) {
         pulseEvents.collectLatest {
-            // Neue Pulse unterbrechen laufende Animation sofort
             pulseAlpha.snapTo(1f)
             pulseAlpha.animateTo(
                 targetValue = 0f,
@@ -175,7 +173,7 @@ fun ExpandingChainDevicePicker(
             if (indicatorAlpha < 0.01f) {
                 Box(
                     modifier = Modifier
-                        .offset(y = 8.dp)
+                        .offset(y = 12.dp)
                         .align(Alignment.TopCenter)
                         .clip(CircleShape)
                         .size(5.dp)
