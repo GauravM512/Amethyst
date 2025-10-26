@@ -3,8 +3,9 @@ package dev.anthonyhfm.amethyst.workspace.chain.ui
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -29,7 +29,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,29 +40,25 @@ import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drop.dropTarget
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.engine.elements.Chain
-import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
-import kotlinx.coroutines.delay
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import dev.anthonyhfm.amethyst.core.util.randomUUID
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun ExpandingChainDevicePicker(
     destinationChain: Chain,
-    slotIndex: Int, // NEU: Slot für Signal-Indikator
+    slotIndex: Int,
     dragAndDropState: DragAndDropState<GenericChainDevice<*>> = rememberDragAndDropState(),
     expanded: Boolean = false,
     forceOff: Boolean = false,
-    expandedWidth: Dp = 56.dp, // width when actual dragged item hovers (drop target focus)
-    collapsedWidth: Dp = 12.dp, // default gap
-    hoverWidth: Dp = 56.dp,     // width on normal pointer hover / explicit expand
-    dragPresenceWidth: Dp = 18.dp, // width for all slots while a drag is happening elsewhere
+    expandedWidth: Dp = 56.dp,
+    collapsedWidth: Dp = 12.dp,
+    hoverWidth: Dp = 56.dp,
+    dragPresenceWidth: Dp = 18.dp,
     indicatorWidth: Dp = 3.dp,
     onAddComponent: (GenericChainDevice<*>) -> Unit,
     onDropDevice: (device: GenericChainDevice<*>, Pair<Int, String>, originChain: Chain) -> Unit
@@ -71,18 +66,20 @@ fun ExpandingChainDevicePicker(
     val interaction = remember { MutableInteractionSource() }
     val hovering: Boolean by interaction.collectIsHoveredAsState()
     var pickerVisible: Boolean by remember { mutableStateOf(false) }
-    val dropKey = remember { UUID.randomUUID() }
+    val dropKey = remember(destinationChain, slotIndex) { "picker-${'$'}{destinationChain.hashCode()}-${'$'}slotIndex" }
     var isDropHover by remember { mutableStateOf(false) }
 
     val hasGlobalDrag = dragAndDropState.draggedItem != null
 
-    val pulseFlow = SignalIndicatorManager.observe(destinationChain, slotIndex)
-    val pulseTimestamp by pulseFlow.collectAsState()
-
+    // Event-Stream für Pulse
+    val pulseEvents = remember(destinationChain, slotIndex) {
+        SignalIndicatorManager.events(destinationChain, slotIndex)
+    }
     val pulseAlpha = remember { Animatable(0f) }
 
-    LaunchedEffect(pulseTimestamp) {
-        if (pulseTimestamp != 0L) {
+    LaunchedEffect(pulseEvents) {
+        pulseEvents.collectLatest {
+            // Neue Pulse unterbrechen laufende Animation sofort
             pulseAlpha.snapTo(1f)
             pulseAlpha.animateTo(
                 targetValue = 0f,
@@ -182,7 +179,7 @@ fun ExpandingChainDevicePicker(
                         .align(Alignment.TopCenter)
                         .clip(CircleShape)
                         .size(5.dp)
-                        .graphicsLayer(alpha = pulseAlpha.value.coerceAtLeast(0f))
+                        .graphicsLayer(alpha = pulseAlpha.value)
                         .background(
                             if (pulseAlpha.value > 0.5f) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.surfaceTint
