@@ -1,13 +1,17 @@
 package dev.anthonyhfm.amethyst.core.util
 
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.path
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 
 actual object Zip {
-    actual fun getEntries(file: String): List<ZipEntry> {
-        val fis = File(file).let {
+    actual fun getEntries(file: PlatformFile): List<ZipEntry> {
+        val path = file.path
+        if (path.isBlank()) return emptyList()
+        val fis = File(path).let {
             if (!it.exists() || !it.isFile) return emptyList()
             FileInputStream(it)
         }
@@ -15,30 +19,12 @@ actual object Zip {
         val result = mutableListOf<ZipEntry>()
         var e = zis.nextEntry
         while (e != null) {
-            result.add(ZipEntry(path = e.name, isDirectory = e.isDirectory))
+            val data = if (!e.isDirectory) zis.readBytes() else ByteArray(0)
+            result.add(ZipEntry(path = e.name, data = data, isDirectory = e.isDirectory))
             e = zis.nextEntry
         }
         zis.close()
         return result
-    }
-
-    actual fun getInputStream(zipPath: String, file: String): ByteArray {
-        val fis = File(zipPath).let {
-            if (!it.exists() || !it.isFile) return ByteArray(0)
-            FileInputStream(it)
-        }
-        val zis = ZipInputStream(fis)
-        var e = zis.nextEntry
-        while (e != null) {
-            if (e.name == file) {
-                val bytes = zis.readBytes()
-                zis.close()
-                return bytes
-            }
-            e = zis.nextEntry
-        }
-        zis.close()
-        return ByteArray(0)
     }
 
     actual fun decode(file: String): ByteArray {
@@ -49,4 +35,3 @@ actual object Zip {
         return GZIPInputStream(fis).use { it.readBytes() }
     }
 }
-

@@ -160,6 +160,8 @@ object KeyLED {
 
             val keyLED = UnipadConverter.entries[entry]?.data ?: return@forEachIndexed
 
+            println("Decoding KeyLED: ${entry}")
+
             groups.add(
                 Group(
                     name = "Single ${index + 1}",

@@ -1,222 +1,181 @@
 package dev.anthonyhfm.amethyst.core.engine.echo
 
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
-import platform.AVFAudio.*
-import platform.Foundation.*
 import kotlinx.cinterop.*
-import platform.posix.memcpy
-import platform.darwin.*
-import kotlin.math.min
+import platform.AVFAudio.*
+import kotlinx.cinterop.BetaInteropApi
+import platform.Foundation.*
+import kotlin.math.abs
+import kotlin.time.TimeSource
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 actual object AudioOutput {
     private const val MAX_SOURCES = 16
-    private const val QUEUE_BUFFERS = 3
-    private const val CHUNK_FRAMES_DEFAULT = 256
-    private const val IO_BUFFER_TARGET_SEC = 0.005
+    private const val TARGET_BIT_DEPTH = 16
+    private const val NORMALIZE_THRESHOLD_RATIO = 0.95
+    private const val NORMALIZE_REDUCTION = 0.85
 
-    private var audioEngine: AVAudioEngine? = null
-    private var isInitialized = false
+    private var sessionConfigured = false
 
-    private val activeSources = mutableMapOf<String, StreamingSource>()
-
-    private data class StreamingSource(
+    private data class PlayerHolder(
         val id: String,
-        val node: AVAudioPlayerNode,
-        val format: AVAudioFormat,
-        val data: ByteArray,
-        val bytesPerFrame: Int,
-        val totalFrames: Int,
-        var readFrames: Int,
-        val chunkFrames: Int
+        val player: AVAudioPlayer,
+        val origin: Any?
     )
 
-    init { initializeAVAudioEngine() }
+    private val activePlayers = mutableMapOf<String, PlayerHolder>()
 
-    private fun initializeAVAudioEngine() {
-        if (isInitialized) return
+    private fun ensureSession() {
+        if (sessionConfigured) return
         try {
             val session = AVAudioSession.sharedInstance()
-
             memScoped {
                 val err = alloc<ObjCObjectVar<NSError?>>()
-
-                session.setCategory(
-                    AVAudioSessionCategoryPlayback,
-                    withOptions = AVAudioSessionCategoryOptionMixWithOthers,
-                    error = err.ptr
-                )
-
-                session.setPreferredIOBufferDuration(IO_BUFFER_TARGET_SEC, error = err.ptr)
-                session.setActive(true, err.ptr)
-            }
-
-            val engine = AVAudioEngine()
-            audioEngine = engine
-
-            memScoped {
-                val err = alloc<ObjCObjectVar<NSError?>>()
-                engine.startAndReturnError(err.ptr)
-                if (err.value != null) {
-                    engine.stop()
-                    engine.reset()
-                    engine.startAndReturnError(err.ptr)
-                    if (err.value != null) return
+                // Verwende String statt Konstante für Kategorie (falls Konstante nicht verfügbar)
+                session.setCategory("AVAudioSessionCategoryPlayback", error = err.ptr)
+                if (err.value == null) {
+                    session.setActive(true, err.ptr)
                 }
             }
-
-            val center = NSNotificationCenter.defaultCenter
-            center.addObserverForName(
-                name = AVAudioSessionInterruptionNotification,
-                `object` = null,
-                queue = null
-            ) { _ ->
-                restartEngine()
-            }
-            center.addObserverForName(
-                name = AVAudioSessionRouteChangeNotification,
-                `object` = null,
-                queue = null
-            ) { _ ->
-                restartEngine()
-            }
-
-            isInitialized = true
+            sessionConfigured = true
         } catch (_: Throwable) {
-            isInitialized = false
+            sessionConfigured = false
         }
     }
 
-    private fun restartEngine() {
-        val eng = audioEngine ?: return
-        try {
-            memScoped {
-                eng.stop()
-                eng.reset()
-                val err = alloc<ObjCObjectVar<NSError?>>()
-                eng.startAndReturnError(err.ptr)
-            }
-        } catch (_: Throwable) {}
-    }
-
-    private fun generateSourceKey(origin: Any?): String =
-        (origin?.hashCode()?.toString() ?: "src") + "_" + (activeSources.size + 1)
-
-    private fun engineOrNull(): AVAudioEngine? {
-        if (!isInitialized) initializeAVAudioEngine()
-        return audioEngine
-    }
+    private fun generateSourceKey(signal: Signal.AudioSignal): String =
+        "aud_${signal.origin?.hashCode() ?: 0}_${TimeSource.Monotonic.markNow().elapsedNow().inWholeNanoseconds}"
 
     actual fun play(audioSignal: Signal.AudioSignal): String? {
-        val eng = engineOrNull() ?: return null
+        ensureSession()
         val raw = audioSignal.rawData ?: return null
         if (raw.isEmpty()) return null
+        if (audioSignal.bitDepth != TARGET_BIT_DEPTH) return null // Nur 16-bit PCM unterstützt
 
-        if (activeSources.size >= MAX_SOURCES) {
-            activeSources.keys.firstOrNull()?.let { stop(it) }
+        val channels = audioSignal.channels.coerceIn(1, 2)
+        val bytesPerSample = TARGET_BIT_DEPTH / 8
+        val frameBytes = channels * bytesPerSample
+        val validSize = (raw.size / frameBytes) * frameBytes
+        if (validSize <= 0) return null
+
+        val trimmed = if (validSize == raw.size) raw else raw.copyOf(validSize)
+        val maybeNormalized = normalizeIfNeeded(trimmed, TARGET_BIT_DEPTH)
+
+        val wavData = buildWav(maybeNormalized, channels, audioSignal.sampleRate, TARGET_BIT_DEPTH)
+        val nsData = wavData.toNSData() ?: return null
+
+        val id = generateSourceKey(audioSignal)
+
+        // Limit: entferne ältesten Player
+        if (activePlayers.size >= MAX_SOURCES) {
+            activePlayers.keys.firstOrNull()?.let { stop(it) }
         }
 
-        if (audioSignal.bitDepth != 16) return null
-        val ch = audioSignal.channels.coerceIn(1, 2)
-        val bytesPerFrame = ch * 2
-        val validBytes = (raw.size / bytesPerFrame) * bytesPerFrame
-        val totalFrames = if (bytesPerFrame > 0) validBytes / bytesPerFrame else 0
-        if (totalFrames <= 0) return null
-
-        val fmt = AVAudioFormat(
-            commonFormat = AVAudioPCMFormatInt16,
-            sampleRate = audioSignal.sampleRate.toDouble(),
-            channels = ch.toUInt(),
-            interleaved = true
-        ) ?: return null
-
-        val node = AVAudioPlayerNode()
-        try {
-            eng.attachNode(node)
-            eng.connect(node, to = eng.mainMixerNode, format = fmt)
-        } catch (_: Throwable) {
-            try { eng.detachNode(node) } catch (_: Throwable) {}
-            return null
+        memScoped {
+            val err = alloc<ObjCObjectVar<NSError?>>()
+            val player = AVAudioPlayer(data = nsData, error = err.ptr)
+            if (err.value != null) return null
+            player.prepareToPlay()
+            player.play()
+            activePlayers[id] = PlayerHolder(id, player, audioSignal.origin)
         }
 
-        val key = generateSourceKey(audioSignal.origin)
-        val src = StreamingSource(
-            id = key,
-            node = node,
-            format = fmt,
-            data = if (validBytes == raw.size) raw else raw.copyOf(validBytes),
-            bytesPerFrame = bytesPerFrame,
-            totalFrames = totalFrames,
-            readFrames = 0,
-            chunkFrames = CHUNK_FRAMES_DEFAULT
-        )
-        activeSources[key] = src
-
-        var queued = 0
-        while (queued < QUEUE_BUFFERS) {
-            if (!scheduleNextChunk(src)) break
-            queued++
-        }
-
-        node.play()
-
-        if (queued == 0) {
-            stop(key)
-            return null
-        }
-
-        return key
-    }
-
-    private fun scheduleNextChunk(src: StreamingSource): Boolean {
-        val remainingFrames = src.totalFrames - src.readFrames
-        if (remainingFrames <= 0) return false
-
-        val frames = min(remainingFrames, src.chunkFrames)
-        val buf = AVAudioPCMBuffer(pCMFormat = src.format, frameCapacity = frames.toUInt()) ?: return false
-
-        val dstShorts = buf.int16ChannelData?.get(0) ?: return false
-        val dstBytes = dstShorts.reinterpret<UByteVar>()
-        val bytes = frames * src.bytesPerFrame
-
-        val byteOffset = src.readFrames * src.bytesPerFrame
-        src.data.usePinned { pinned ->
-            memcpy(dstBytes, pinned.addressOf(byteOffset), bytes.convert())
-        }
-        buf.frameLength = frames.toUInt()
-        src.readFrames += frames
-
-        src.node.scheduleBuffer(buf, atTime = null, options = 0u) {
-            dispatch_async(dispatch_get_main_queue()) {
-                val live = activeSources[src.id]
-                if (live == null || live.node != src.node) return@dispatch_async
-
-                if (!scheduleNextChunk(live)) {
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (10_000_000).convert()), dispatch_get_main_queue()) {
-                        activeSources.remove(live.id)?.let { toClose ->
-                            try {
-                                toClose.node.stop()
-                                engineOrNull()?.detachNode(toClose.node)
-                            } catch (_: Throwable) {}
-                        }
-                    }
-                }
-            }
-        }
-        return true
+        return id
     }
 
     actual fun stop(sourceId: String) {
-        activeSources.remove(sourceId)?.let { s ->
-            try {
-                s.node.stop()
-                audioEngine?.detachNode(s.node)
-            } catch (_: Throwable) {}
+        activePlayers.remove(sourceId)?.let { holder ->
+            try { holder.player.stop() } catch (_: Throwable) {}
         }
     }
 
     actual fun stopAll() {
-        val ids = activeSources.keys.toList()
+        val ids = activePlayers.keys.toList()
         ids.forEach { stop(it) }
+    }
+
+    // ---------------- WAV Aufbau & Normalisierung ----------------
+
+    private fun buildWav(pcm: ByteArray, channels: Int, sampleRate: Int, bitDepth: Int): ByteArray {
+        val dataSize = pcm.size
+        val headerSize = 44
+        val totalSize = headerSize + dataSize
+        val byteRate = sampleRate * channels * (bitDepth / 8)
+        val blockAlign = channels * (bitDepth / 8)
+
+        val out = ByteArray(totalSize)
+        var o = 0
+        fun putAscii(s: String) { s.forEach { out[o++] = it.code.toByte() } }
+        fun putIntLE(value: Int) {
+            out[o++] = (value and 0xFF).toByte()
+            out[o++] = (value shr 8 and 0xFF).toByte()
+            out[o++] = (value shr 16 and 0xFF).toByte()
+            out[o++] = (value shr 24 and 0xFF).toByte()
+        }
+        fun putShortLE(value: Int) {
+            out[o++] = (value and 0xFF).toByte()
+            out[o++] = (value shr 8 and 0xFF).toByte()
+        }
+
+        // RIFF Header
+        putAscii("RIFF")
+        putIntLE(36 + dataSize) // ChunkSize
+        putAscii("WAVE")
+        // fmt subchunk
+        putAscii("fmt ")
+        putIntLE(16) // Subchunk1Size
+        putShortLE(1) // AudioFormat PCM
+        putShortLE(channels)
+        putIntLE(sampleRate)
+        putIntLE(byteRate)
+        putShortLE(blockAlign)
+        putShortLE(bitDepth)
+        // data subchunk
+        putAscii("data")
+        putIntLE(dataSize)
+
+        // PCM Daten
+        // System.arraycopy ersetzt durch copyInto für Kotlin/Native
+        pcm.copyInto(out, destinationOffset = headerSize, startIndex = 0, endIndex = dataSize)
+        return out
+    }
+
+    private fun normalizeIfNeeded(data: ByteArray, bitDepth: Int): ByteArray {
+        if (bitDepth != 16) return data
+        val maxAmp = findMaxAmplitude(data)
+        val ratio = maxAmp / 32767.0
+        if (ratio <= NORMALIZE_THRESHOLD_RATIO) return data
+        return applyVolumeReduction(data, NORMALIZE_REDUCTION)
+    }
+
+    private fun findMaxAmplitude(data: ByteArray): Int {
+        var max = 0
+        var i = 0
+        while (i + 1 < data.size) {
+            val sample = (data[i].toInt() and 0xFF) or ((data[i + 1].toInt() and 0xFF) shl 8)
+            val signed = if (sample > 32767) sample - 65536 else sample
+            val absVal = abs(signed)
+            if (absVal > max) max = absVal
+            i += 2
+        }
+        return max
+    }
+
+    private fun applyVolumeReduction(data: ByteArray, factor: Double): ByteArray {
+        val out = ByteArray(data.size)
+        var i = 0
+        while (i + 1 < data.size) {
+            val sample = (data[i].toInt() and 0xFF) or ((data[i + 1].toInt() and 0xFF) shl 8)
+            val signed = if (sample > 32767) sample - 65536 else sample
+            val reduced = (signed * factor).toInt().coerceIn(-32768, 32767)
+            out[i] = (reduced and 0xFF).toByte()
+            out[i + 1] = ((reduced shr 8) and 0xFF).toByte()
+            i += 2
+        }
+        return out
+    }
+
+    private fun ByteArray.toNSData(): NSData = this.usePinned { pinned ->
+        NSData.dataWithBytes(pinned.addressOf(0), this.size.toULong())!!
     }
 }

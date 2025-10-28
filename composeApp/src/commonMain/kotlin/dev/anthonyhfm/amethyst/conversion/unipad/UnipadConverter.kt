@@ -20,6 +20,8 @@ object UnipadConverter : AmethystConverter {
     val entries: MutableMap<String, ZipEntry> = mutableMapOf()
 
     override fun convertZipToWorkspace(file: PlatformFile): SaveableWorkspaceData {
+        println("Starting Zip Decoding")
+
         entries.clear()
         entries.putAll(
             from = Zip.getEntries(file)
@@ -28,6 +30,8 @@ object UnipadConverter : AmethystConverter {
                 }
                 .toMutableMap()
         )
+
+        println("Entries in zip: ${entries.size}")
 
         val infoKey = entries.keys.first { it.endsWith("Info") || it.endsWith("info") }
         val infoMap: Map<String, String> = entries[infoKey]?.data
@@ -39,9 +43,13 @@ object UnipadConverter : AmethystConverter {
                     .let { (key, value) -> key to value }
             } ?: emptyMap()
 
+        println("Starting Audio-Clip Decoding")
+
         val clipMap = runBlocking {
             KeySound.loadAllAudioClips()
         }
+
+        println("Finished Audio-Clip Decoding (${clipMap.size} total).")
 
         return SaveableWorkspaceData(
             title = infoMap["title"] ?: "Untitled Workspace",
@@ -55,7 +63,9 @@ object UnipadConverter : AmethystConverter {
                     type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
                 )
             ),
-        )
+        ).also {
+            entries.clear()
+        }
     }
 
     // still accept old function
@@ -99,7 +109,9 @@ object UnipadConverter : AmethystConverter {
                                 page = index,
                                 entries = entries.filter { it.key.startsWith("keyLED/${index + 1}") }.map { it.key }
                             )
-                        )
+                        ).also {
+                            println("Created group ${it.name}")
+                        }
                     }.plus(
                         Group(
                             name = "Page Switch",
