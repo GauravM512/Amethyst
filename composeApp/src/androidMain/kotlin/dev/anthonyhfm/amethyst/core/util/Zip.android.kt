@@ -1,37 +1,58 @@
 package dev.anthonyhfm.amethyst.core.util
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.path
+import io.github.vinceglb.filekit.absoluteFile
+import io.github.vinceglb.filekit.readBytes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 
 actual object Zip {
-    actual fun getEntries(file: PlatformFile): List<ZipEntry> {
-        val path = file.path
-        if (path.isBlank()) return emptyList()
-        val fis = File(path).let {
-            if (!it.exists() || !it.isFile) return emptyList()
-            FileInputStream(it)
+    actual fun getEntries(
+        file: PlatformFile,
+    ): List<ZipEntry> {
+        val data: ByteArray = runBlocking(Dispatchers.IO) {
+            file.readBytes()
         }
-        val zis = ZipInputStream(fis)
-        val result = mutableListOf<ZipEntry>()
-        var e = zis.nextEntry
-        while (e != null) {
-            val data = if (!e.isDirectory) zis.readBytes() else ByteArray(0)
-            result.add(ZipEntry(path = e.name, data = data, isDirectory = e.isDirectory))
-            e = zis.nextEntry
+
+        val zipFile = ZipInputStream(data.inputStream())
+
+        val entries = mutableListOf<ZipEntry>()
+
+        var entry = zipFile.nextEntry
+        while (entry != null) {
+            entries.add(
+                ZipEntry(
+                    path = entry.name,
+                    data = zipFile.readBytes(),
+                    isDirectory = entry.isDirectory,
+                )
+            )
+            entry = zipFile.nextEntry
         }
-        zis.close()
-        return result
+
+        zipFile.close()
+
+        return entries
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     actual fun decode(file: String): ByteArray {
-        val fis = File(file).let {
-            if (!it.exists() || !it.isFile) return ByteArray(0)
-            FileInputStream(it)
+        val _file = File(file).let {
+            if (!it.exists() || !it.isFile) {
+                return ByteArray(0)
+            }
+
+            return@let it.inputStream()
         }
-        return GZIPInputStream(fis).use { it.readBytes() }
+
+        val zipFile = GZIPInputStream(_file)
+
+        return zipFile.readAllBytes()
     }
 }

@@ -235,7 +235,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
             }
 
             key( // Trigger recomposition on selected group change
-                deviceState.groups, deviceState.openedGroupIndex
+                state.collectAsState().value.groups.getOrNull(state.collectAsState().value.openedGroupIndex)?.id
             ) {
                 GroupContent(dragAndDropState)
             }
@@ -298,14 +298,14 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
             modifier = Modifier
                 .padding(horizontal = 8.dp)
         ) {
-            itemsIndexed(groupsState.groups, key = { _, group -> group }) { index, group ->
+            itemsIndexed(groupsState.groups, key = { _, group -> group.id }) { index, group ->
                 AddGroupButton(
                     onAddGroup = {
                         createGroup(index)
                     }
                 )
 
-                ReorderableItem(reorderableLazyListState, key = group) {
+                ReorderableItem(reorderableLazyListState, key = group.id) {
                     ContextMenuArea(
                         items = listOf(
                             ContextMenuItem("Copy") { copyGroup(group) },
@@ -933,7 +933,9 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
 
             Group(
                 name = group.name,
-                chain = unpackedChain
+                chain = unpackedChain,
+                stateChain = group.stateChain,
+                id = group.id
             )
         }
 
@@ -959,7 +961,8 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
             groups = state.value.groups.map { group ->
                 Group(
                     name = group.name,
-                    stateChain = StateChain.pack(group.chain)
+                    stateChain = StateChain.pack(group.chain),
+                    id = group.id
                 )
             }
         )
@@ -1076,7 +1079,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
         }
     }
 
-    fun pasteGroups(groups: List<dev.anthonyhfm.amethyst.devices.effects.group.data.Group>, targetIndex: Int?) {
+    fun pasteGroups(groups: List<Group>, targetIndex: Int?) {
         if (groups.isEmpty()) return
 
         val pastedGroups = mutableListOf<UndoableAction.GroupPasteInfo>()

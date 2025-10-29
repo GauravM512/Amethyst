@@ -49,14 +49,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -89,12 +87,9 @@ import dev.anthonyhfm.amethyst.workspace.chain.ui.DeviceInsertionAnimator
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ExpandingChainDevicePicker
 import dev.anthonyhfm.amethyst.workspace.chain.ui.SignalIndicatorManager
 import dev.anthonyhfm.amethyst.workspace.chain.ui.TitleBarModifierProvider
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -152,7 +147,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
             }
 
             key( // Trigger recomposition on selected group change
-                state.collectAsState().value
+                state.collectAsState().value.groups.getOrNull(state.collectAsState().value.openedGroupIndex)?.id
             ) {
                 GroupContent(dragAndDropState)
             }
@@ -217,14 +212,14 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
             modifier = Modifier
                 .padding(horizontal = 8.dp)
         ) {
-            itemsIndexed(groupsState.groups, key = { _, group -> group }) { index, group ->
+            itemsIndexed(groupsState.groups, key = { _, group -> group.id }) { index, group ->
                 AddGroupButton(
                     onAddGroup = {
                         createGroup(index)
                     }
                 )
 
-                ReorderableItem(reorderableLazyListState, key = group) {
+                ReorderableItem(reorderableLazyListState, key = group.id) {
                     ContextMenuArea(
                         items = listOf(
                             ContextMenuItem("Copy") { copyGroup(group) },
@@ -767,7 +762,9 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
 
             Group(
                 name = group.name,
-                chain = unpackedChain
+                chain = unpackedChain,
+                stateChain = group.stateChain,
+                id = group.id
             )
         }
 
@@ -874,7 +871,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
         }
     }
 
-    fun pasteGroups(groups: List<dev.anthonyhfm.amethyst.devices.effects.group.data.Group>, targetIndex: Int?) {
+    fun pasteGroups(groups: List<Group>, targetIndex: Int?) {
         if (groups.isEmpty()) return
 
         val pastedGroups = mutableListOf<UndoableAction.GroupPasteInfo>()
@@ -971,7 +968,8 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
             groups = state.value.groups.map { group ->
                 Group(
                     name = group.name,
-                    stateChain = StateChain.pack(group.chain)
+                    stateChain = StateChain.pack(group.chain),
+                    id = group.id
                 )
             }
         )
