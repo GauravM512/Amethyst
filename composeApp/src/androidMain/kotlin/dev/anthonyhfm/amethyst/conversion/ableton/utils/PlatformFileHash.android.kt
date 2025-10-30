@@ -21,5 +21,15 @@ actual fun PlatformFile.getFileHash(): String {
 }
 
 actual fun ByteArray.toFileHash(): String {
-    TODO("Not yet implemented")
+    val digest = MessageDigest.getInstance("MD5")
+
+    this.inputStream().use { input ->
+        val buffer = ByteArray(8192)
+        var bytesRead: Int
+        while (input.read(buffer).also { bytesRead = it } != -1) {
+            digest.update(buffer, 0, bytesRead)
+        }
+    }
+
+    return digest.digest().joinToString("") { "%02x".format(it) }
 }

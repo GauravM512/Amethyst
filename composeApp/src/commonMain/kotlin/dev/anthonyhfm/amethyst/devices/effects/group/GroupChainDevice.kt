@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,10 +59,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
@@ -81,8 +84,12 @@ import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
 import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
 import dev.anthonyhfm.amethyst.ui.modifier.onFocusSelectAll
+import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
+import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.chain.ui.AnimatedInsertedDevice
+import dev.anthonyhfm.amethyst.workspace.chain.ui.ChainDeviceContextMenu
 import dev.anthonyhfm.amethyst.workspace.chain.ui.DeviceInsertionAnimator
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ExpandingChainDevicePicker
 import dev.anthonyhfm.amethyst.workspace.chain.ui.SignalIndicatorManager
@@ -473,6 +480,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
 
     @Composable
     private fun GroupContent(dragAndDropState: DragAndDropState<GenericChainDevice<*>>) {
+        val density = LocalDensity.current.density
         val groupsState by state.collectAsState()
         val devices by groupsState.groups[groupsState.openedGroupIndex].chain.devices
 
@@ -562,6 +570,9 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
                             data = device,
                             useDragAnchor = true, // Enable drag anchor mode
                         ) {
+                            var showRightClickMenu: Boolean by remember { mutableStateOf(false) }
+                            var rightClickMenuOffset: DpOffset by remember { mutableStateOf(DpOffset.Zero) }
+
                             TitleBarModifierProvider(
                                 Modifier
                                     .clickable {
@@ -572,33 +583,41 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
                                             )
                                         )
                                     }
+                                    .rightClickable {
+                                        rightClickMenuOffset = DpOffset((it.x / density).dp, (it.y / density).dp)
+
+                                        println(it)
+                                        showRightClickMenu = true
+                                    }
                                     .dragAnchor() // Add drag anchor to title bar
                             ) {
                                 LaunchedEffect(dragAndDropState.draggedItem) {
+                                    showRightClickMenu = false
+
                                     device.isDragging.value = device.selectionUUID == dragAndDropState.draggedItem?.key
                                 }
 
-                                when (device) {
-                                    is GroupChainDevice -> {
-                                        AnimatedInsertedDevice(device.selectionUUID) {
-                                            device.Content(
-                                                dragAndDropState = dragAndDropState
-                                            )
-                                        }
+                                ChainDeviceContextMenu(
+                                    chain = groupsState.groups[groupsState.openedGroupIndex].chain,
+                                    device = device,
+                                    visible = showRightClickMenu,
+                                    offset = rightClickMenuOffset,
+                                    onDismiss = {
+                                        showRightClickMenu = false
                                     }
+                                )
 
-                                    is MultiGroupChainDevice -> {
-                                        AnimatedInsertedDevice(device.selectionUUID) {
-                                            device.Content(
-                                                dragAndDropState = dragAndDropState
-                                            )
-                                        }
-                                    }
+                                AnimatedInsertedDevice(device.selectionUUID) {
+                                    when (device) {
+                                        is GroupChainDevice -> device.Content(
+                                            dragAndDropState = dragAndDropState
+                                        )
 
-                                    else -> {
-                                        AnimatedInsertedDevice(device.selectionUUID) {
-                                            device.Content()
-                                        }
+                                        is MultiGroupChainDevice -> device.Content(
+                                            dragAndDropState = dragAndDropState
+                                        )
+
+                                        else -> device.Content()
                                     }
                                 }
                             }

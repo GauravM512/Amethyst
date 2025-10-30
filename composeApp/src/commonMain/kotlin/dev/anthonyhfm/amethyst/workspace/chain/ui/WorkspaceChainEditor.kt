@@ -13,6 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.ControlPointDuplicate
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.FindReplace
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
@@ -27,10 +34,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastForEachReversed
 import com.mohamedrejeb.compose.dnd.DragAndDropContainer
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardData
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
@@ -41,14 +53,19 @@ import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
+import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import io.androidpoet.dropdown.Dropdown
+import io.androidpoet.dropdown.dropDownMenu
 
 @Composable
 fun WorkspaceChainEditor(
     devices: List<GenericChainDevice<*>>,
     onEvent: (WorkspaceContract.Event) -> Unit
 ) {
+    val density = LocalDensity.current.density
     val dragAndDropState = rememberDragAndDropState<GenericChainDevice<*>>()
     val scrollState = rememberScrollState()
     var chain: Chain? by remember { mutableStateOf(null) }
@@ -126,6 +143,9 @@ fun WorkspaceChainEditor(
                                         data = device,
                                         useDragAnchor = true,
                                     ) {
+                                        var showRightClickMenu: Boolean by remember { mutableStateOf(false) }
+                                        var rightClickMenuOffset: DpOffset by remember { mutableStateOf(DpOffset.Zero) }
+
                                         TitleBarModifierProvider(
                                             Modifier
                                                 .clickable {
@@ -139,11 +159,32 @@ fun WorkspaceChainEditor(
                                                         )
                                                     )
                                                 }
+                                                .rightClickable {
+                                                    rightClickMenuOffset = DpOffset((it.x / density).dp, (it.y / density).dp)
+
+                                                    println(it)
+                                                    showRightClickMenu = true
+                                                }
                                                 .dragAnchor()
                                         ) {
                                             LaunchedEffect(dragAndDropState.draggedItem) {
+                                                showRightClickMenu = false
+
                                                 device.isDragging.value = device.selectionUUID == dragAndDropState.draggedItem?.key
                                             }
+
+                                            ChainDeviceContextMenu(
+                                                chain = when (WorkspaceRepository.mode.value) {
+                                                    is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain
+                                                    else -> WorkspaceRepository.lightsChain
+                                                },
+                                                device = device,
+                                                visible = showRightClickMenu,
+                                                offset = rightClickMenuOffset,
+                                                onDismiss = {
+                                                    showRightClickMenu = false
+                                                }
+                                            )
 
                                             AnimatedInsertedDevice(id = device.selectionUUID) {
                                                 when (device) {
@@ -242,4 +283,106 @@ fun WorkspaceChainEditor(
             )
         }
     }
+}
+
+@Composable
+fun ChainDeviceContextMenu(
+    chain: Chain,
+    device: GenericChainDevice<*>,
+    visible: Boolean,
+    offset: DpOffset,
+    onDismiss: () -> Unit
+) {
+    val currentClipboard by ClipboardManager.clipboardData.collectAsState()
+
+    Dropdown(
+        isOpen = visible,
+        menu = dropDownMenu {
+            item("copy", "Copy") {
+                icon(Icons.Default.ContentCopy)
+            }
+
+            item("duplicate", "Duplicate") {
+                icon(Icons.Default.ControlPointDuplicate)
+            }
+
+            if (currentClipboard is ClipboardData.ChainDevice) {
+                item("paste", "Paste") {
+                    icon(Icons.Default.ContentPaste)
+                }
+
+                item("replace", "Paste Replace") {
+                    icon(Icons.Default.FindReplace)
+                }
+            }
+
+            horizontalDivider()
+
+            item("delete", "Delete") {
+                icon(Icons.Default.DeleteOutline)
+            }
+        },
+        offset = offset,
+        onItemSelected = {
+            when (it) {
+                "copy" -> {
+                    ClipboardManager.setClipboardData(
+                        ClipboardData.ChainDevice(
+                            states = listOf(device.state.value),
+                            type = when (WorkspaceRepository.mode.value) {
+                                is WorkspaceContract.WorkspaceMode.SamplingChain -> ClipboardData.ChainDevice.ChainType.Sampling
+                                else -> ClipboardData.ChainDevice.ChainType.Lights
+                            }
+                        )
+                    )
+                }
+
+                "duplicate" -> {
+                    val index = chain.devices.value.indexOfFirst { it.selectionUUID == device.selectionUUID }
+
+                    chain.add(
+                        device = StateChain.unpackDevice(StateChain.packDevice(device)),
+                        atIndex = index + 1
+                    )
+                }
+
+                "paste" -> {
+                    val index = chain.devices.value.indexOfFirst { it.selectionUUID == device.selectionUUID }
+
+                    (currentClipboard as ClipboardData.ChainDevice).states.map {
+                        StateChain.unpackDevice(it)
+                    }.fastForEachReversed {
+                        chain.add(
+                            device = it,
+                            atIndex = index + 1
+                        )
+                    }
+                }
+
+                "replace" -> {
+                    val index = chain.devices.value.indexOfFirst { it.selectionUUID == device.selectionUUID }
+
+                    chain.remove(device.selectionUUID)
+
+                    (currentClipboard as ClipboardData.ChainDevice).states.map {
+                        StateChain.unpackDevice(it)
+                    }.fastForEachReversed {
+                        chain.add(
+                            device = it,
+                            atIndex = index
+                        )
+                    }
+                }
+
+                "delete" -> {
+                    chain.remove(device.selectionUUID)
+                }
+            }
+
+            onDismiss()
+        },
+        onDismiss = {
+            onDismiss()
+        }
+    )
 }

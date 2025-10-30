@@ -20,11 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,12 +35,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.zIndex
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drop.dropTarget
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardData
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
@@ -46,8 +53,12 @@ import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
+import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import io.androidpoet.dropdown.Dropdown
+import io.androidpoet.dropdown.dropDownMenu
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -65,11 +76,16 @@ fun ExpandingChainDevicePicker(
     onAddComponent: (GenericChainDevice<*>) -> Unit,
     onDropDevice: (device: GenericChainDevice<*>, Pair<Int, String>, originChain: Chain) -> Unit
 ) {
+    val density = LocalDensity.current.density
     val interaction = remember { MutableInteractionSource() }
     val hovering: Boolean by interaction.collectIsHoveredAsState()
     var pickerVisible: Boolean by remember { mutableStateOf(false) }
     val dropKey = remember { UUID.randomUUID() }
     var isDropHover by remember { mutableStateOf(false) }
+    val clipboard by ClipboardManager.clipboardData.collectAsState()
+
+    var showRightClickMenu by remember { mutableStateOf(false) }
+    var rightClickMenuOffset by remember { mutableStateOf(DpOffset.Zero) }
 
     val hasGlobalDrag = dragAndDropState.draggedItem != null
 
@@ -77,7 +93,7 @@ fun ExpandingChainDevicePicker(
         targetValue = when {
             forceOff -> collapsedWidth
             isDropHover -> expandedWidth                          // FULL size only on real drop hover
-            hovering || pickerVisible || expanded -> hoverWidth   // pointer / explicit hover
+            hovering || pickerVisible || showRightClickMenu || expanded -> hoverWidth   // pointer / explicit hover
             hasGlobalDrag -> dragPresenceWidth                    // global drag but not over this zone
             else -> collapsedWidth
         }, label = "ExpandingPickerWidth"
@@ -164,10 +180,48 @@ fun ExpandingChainDevicePicker(
                     isDropHover = false
                 }
             )
-            .hoverable(interaction),
+            .hoverable(interaction)
+            .rightClickable {
+                if (clipboard is ClipboardData.ChainDevice) {
+                    showRightClickMenu = true
+                }
+
+                rightClickMenuOffset = DpOffset((it.x / density).dp, (it.y / density).dp)
+            },
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        if (clipboard is ClipboardData.ChainDevice) {
+            Dropdown(
+                isOpen = showRightClickMenu,
+                offset = rightClickMenuOffset,
+                menu = dropDownMenu {
+                    item("paste", "Paste") {
+                        icon(Icons.Default.ContentPaste)
+                    }
+                },
+                onItemSelected = {
+                    when (it) {
+                        "paste" -> {
+                            (clipboard as ClipboardData.ChainDevice).states.map {
+                                StateChain.unpackDevice(it)
+                            }.fastForEachReversed {
+                                destinationChain.add(
+                                    device = it,
+                                    atIndex = slotIndex
+                                )
+                            }
+                        }
+                    }
+
+                    showRightClickMenu = false
+                },
+                onDismiss = {
+                    showRightClickMenu = false
+                }
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize(),
