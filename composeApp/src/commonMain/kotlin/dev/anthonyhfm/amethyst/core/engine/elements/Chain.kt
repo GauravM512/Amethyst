@@ -52,7 +52,8 @@ class Chain : SignalReceiver() {
             UndoManager.addAction(
                 UndoableAction.ChainDeviceCreation(
                     parent = this@Chain,
-                    device = device
+                    device = device,
+                    creationIndex = insertIndex
                 )
             )
         }

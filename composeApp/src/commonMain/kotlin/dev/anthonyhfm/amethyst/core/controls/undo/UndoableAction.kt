@@ -11,6 +11,7 @@ sealed interface UndoableAction {
     data class ChainDeviceCreation(
         val parent: Chain,
         val device: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>,
+        val creationIndex: Int,
     ) : UndoableAction
 
     data class ChainDeviceRemoval(

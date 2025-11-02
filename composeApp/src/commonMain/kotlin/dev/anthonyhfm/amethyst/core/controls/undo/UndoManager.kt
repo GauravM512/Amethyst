@@ -192,7 +192,7 @@ object UndoManager {
 
             when (action) {
                 is UndoableAction.ChainDeviceCreation -> {
-                    action.parent.add(action.device, fromUser = false)
+                    action.parent.add(action.device, atIndex = action.creationIndex, fromUser = false)
                     undoStack.add(action)
                 }
 
