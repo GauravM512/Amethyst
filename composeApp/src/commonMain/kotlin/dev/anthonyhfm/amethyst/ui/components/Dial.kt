@@ -55,7 +55,9 @@ import dev.anthonyhfm.amethyst.ui.modifier.gesturesDisabled
 @Composable
 fun Dial(
     value: Float,
+    onStartValueChange: (Float) -> Unit = { },
     onValueChange: (Float) -> Unit,
+    onFinishValueChange: (Float) -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(32.dp),
     dialColor: Color = MaterialTheme.colorScheme.tertiary,
     modifier: Modifier = Modifier,
@@ -78,9 +80,17 @@ fun Dial(
             .clip(CircleShape)
             .size(52.dp)
             .pointerInput(Unit) {
-                detectVerticalDragGestures { input, offset ->
-                    dialValue = (dialValue + (offset * -1) * 0.005f).coerceIn(0f, 1f)
-                }
+                detectDragGestures(
+                    onDragStart = {
+                        onStartValueChange(dialValue)
+                    },
+                    onDrag = { _, offset ->
+                        dialValue = (dialValue + (offset.y * -1) * 0.005f).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = {
+                        onFinishValueChange(dialValue)
+                    }
+                )
             }
             .background(containerColor)
             .border(1.dp, MaterialTheme.colorScheme.surfaceColorAtElevation(48.dp), CircleShape)
@@ -122,6 +132,8 @@ fun TextDial(
     headline: String? = null,
     value: Float,
     onValueChange: (Float) -> Unit,
+    onStartValueChange: (Float) -> Unit = { },
+    onFinishValueChange: (Float) -> Unit = { },
     onResolveTextValue: (String) -> Unit,
     containerColor: Color = MaterialTheme.colorScheme.surfaceColorAtElevation(32.dp),
     dialColor: Color = MaterialTheme.colorScheme.tertiary,
@@ -151,7 +163,6 @@ fun TextDial(
                 style = MaterialTheme.typography.labelSmall
             )
         }
-
         Dial(
             modifier = modifier
                 .pointerInput(Unit) {
@@ -164,11 +175,12 @@ fun TextDial(
             value = value,
             containerColor = containerColor,
             dialColor = dialColor,
-            onValueChange = {
-                onValueChange(it)
-            },
+            onStartValueChange = onStartValueChange,
+            onValueChange = onValueChange,
+            onFinishValueChange = onFinishValueChange,
             enabled = enabled
         )
+
 
         if (!editing) {
             Text(

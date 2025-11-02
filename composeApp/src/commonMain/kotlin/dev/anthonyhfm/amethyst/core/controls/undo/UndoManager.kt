@@ -182,6 +182,13 @@ object UndoManager {
                     }
                     redoStack.add(action)
                 }
+                is UndoableAction.ChangeDeviceState<*> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val device = action.device as dev.anthonyhfm.amethyst.devices.GenericChainDevice<dev.anthonyhfm.amethyst.devices.DeviceState>
+                    // Zustand wiederherstellen
+                    (device.state as kotlinx.coroutines.flow.MutableStateFlow<dev.anthonyhfm.amethyst.devices.DeviceState>).value = action.beforeState
+                    redoStack.add(action)
+                }
             }
         }
     }
@@ -342,6 +349,12 @@ object UndoManager {
                         it.entries.remove(action.deleted.startTimeMs)
                         TimelineRepository.setTrackEntries(action.trackIndex, it.entries.values.toList())
                     }
+                    undoStack.add(action)
+                }
+                is UndoableAction.ChangeDeviceState<*> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val device = action.device as dev.anthonyhfm.amethyst.devices.GenericChainDevice<dev.anthonyhfm.amethyst.devices.DeviceState>
+                    (device.state as kotlinx.coroutines.flow.MutableStateFlow<dev.anthonyhfm.amethyst.devices.DeviceState>).value = action.afterState
                     undoStack.add(action)
                 }
             }

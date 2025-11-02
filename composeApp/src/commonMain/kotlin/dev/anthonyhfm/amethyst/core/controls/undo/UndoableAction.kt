@@ -6,6 +6,8 @@ import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceCon
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
+import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 
 sealed interface UndoableAction {
     data class ChainDeviceCreation(
@@ -173,5 +175,11 @@ sealed interface UndoableAction {
     data class TimelineClipDeletion(
         val trackIndex: Int,
         val deleted: dev.anthonyhfm.amethyst.timeline.data.AudioEntry
+    ) : UndoableAction
+
+    data class ChangeDeviceState<State: DeviceState>(
+        val device: GenericChainDevice<State>,
+        val beforeState: State,
+        val afterState: State
     ) : UndoableAction
 }
