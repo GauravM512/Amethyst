@@ -385,7 +385,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
         }
 
         val textValue = remember { mutableStateOf(TextFieldValue(group.name)) }
-        val focusRequester = FocusRequester()
+        val focusRequester = remember { FocusRequester() }
 
         val pulseAlpha = remember { Animatable(0f) }
 
