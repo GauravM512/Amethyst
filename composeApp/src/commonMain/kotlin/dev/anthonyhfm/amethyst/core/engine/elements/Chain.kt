@@ -66,7 +66,8 @@ class Chain : SignalReceiver() {
                 UndoManager.addAction(
                     UndoableAction.ChainDeviceRemoval(
                         parent = this,
-                        device = deviceToRemove
+                        device = deviceToRemove,
+                        originalIndex = index
                     )
                 )
             }
@@ -76,13 +77,15 @@ class Chain : SignalReceiver() {
     }
 
     fun remove(uuid: String, fromUser: Boolean = true) {
-        val deviceToRemove = devices.value.find { it.selectionUUID == uuid }
+        val deviceIndex = devices.value.indexOfFirst { it.selectionUUID == uuid }
+        val deviceToRemove = devices.value.getOrNull(deviceIndex)
         if (deviceToRemove != null) {
             if (fromUser) {
                 UndoManager.addAction(
                     UndoableAction.ChainDeviceRemoval(
                         parent = this,
-                        device = deviceToRemove
+                        device = deviceToRemove,
+                        originalIndex = deviceIndex
                     )
                 )
             }

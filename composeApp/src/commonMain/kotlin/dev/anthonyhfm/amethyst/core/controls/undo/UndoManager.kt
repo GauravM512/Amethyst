@@ -29,7 +29,8 @@ object UndoManager {
                 }
 
                 is UndoableAction.ChainDeviceRemoval -> {
-                    action.parent.add(action.device, fromUser = false)
+                    val safeIndex = action.originalIndex.coerceIn(0, action.parent.devices.value.size)
+                    action.parent.add(action.device, atIndex = safeIndex, fromUser = false)
                     redoStack.add(action)
                 }
 
@@ -165,8 +166,9 @@ object UndoManager {
                     track?.let {
                         action.left?.let { seg -> it.entries.remove(seg.startTimeMs) }
                         action.right?.let { seg -> it.entries.remove(seg.startTimeMs) }
-
-                        it.entries[action.original.startTimeMs] = action.original
+                        action.original?.let { orig ->
+                            it.entries[orig.startTimeMs] = orig
+                        }
                         TimelineRepository.setTrackEntries(action.trackIndex, it.entries.values.toList())
                     }
                     redoStack.add(action)
@@ -221,12 +223,12 @@ object UndoManager {
                 }
 
                 is UndoableAction.KeyframeDuplication -> {
-                    action.device.duplicateFrameInternal(action.originalIndex, action.duplicatedIndex)
+                    action.device.addFrameInternal(action.duplicatedIndex, action.duplicatedFrame)
                     undoStack.add(action)
                 }
 
                 is UndoableAction.MultiKeyframeDuplication -> {
-                    action.duplications.forEach { duplication ->
+                    action.duplications.sortedBy { it.duplicatedIndex }.forEach { duplication ->
                         action.device.addFrameInternal(duplication.duplicatedIndex, duplication.duplicatedFrame)
                     }
                     undoStack.add(action)
@@ -327,7 +329,7 @@ object UndoManager {
                 is UndoableAction.TimelineClipSplit -> {
                     val track = TimelineRepository.tracks.value.getOrNull(action.trackIndex) as? dev.anthonyhfm.amethyst.timeline.data.AudioTimelineTrack
                     track?.let {
-                        it.entries.remove(action.original.startTimeMs)
+                        action.original?.let { orig -> it.entries.remove(orig.startTimeMs) }
                         action.left?.let { seg -> it.entries[seg.startTimeMs] = seg }
                         action.right?.let { seg -> it.entries[seg.startTimeMs] = seg }
                         TimelineRepository.setTrackEntries(action.trackIndex, it.entries.values.toList())

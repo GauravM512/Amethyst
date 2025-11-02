@@ -16,6 +16,7 @@ sealed interface UndoableAction {
     data class ChainDeviceRemoval(
         val parent: Chain,
         val device: dev.anthonyhfm.amethyst.devices.GenericChainDevice<*>,
+        val originalIndex: Int,
     ) : UndoableAction
 
     data class MovedChainDevice(
@@ -163,7 +164,7 @@ sealed interface UndoableAction {
 
     data class TimelineClipSplit(
         val trackIndex: Int,
-        val original: dev.anthonyhfm.amethyst.timeline.data.AudioEntry,
+        val original: dev.anthonyhfm.amethyst.timeline.data.AudioEntry?,
         val left: dev.anthonyhfm.amethyst.timeline.data.AudioEntry?,
         val right: dev.anthonyhfm.amethyst.timeline.data.AudioEntry?
     ) : UndoableAction
