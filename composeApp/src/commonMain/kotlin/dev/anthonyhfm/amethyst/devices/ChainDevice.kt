@@ -6,8 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.SignalReceiver
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
+import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDeviceState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 
@@ -22,6 +25,18 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
     abstract fun Content()
 
     abstract override fun signalEnter(n: List<Signal>)
+
+    protected fun pushStateChange(before: State, after: State) {
+        if (before != after) {
+            UndoManager.addAction(
+                UndoableAction.ChangeDeviceState(
+                    device = this,
+                    beforeState = before,
+                    afterState = after
+                )
+            )
+        }
+    }
 }
 
 abstract class LEDChainDevice <State : @Serializable DeviceState> : GenericChainDevice<State>() {
