@@ -38,7 +38,7 @@ class TimelineViewModel : ViewModel() {
                 _tracks.value = repoTracks
             }
         }
-        // Neue Listener für GridType und BPM -> Selektion neu ausrichten
+
         viewModelScope.launch {
             WorkspaceRepository.gridType.collect { resnapTimelineSelections() }
         }
@@ -47,7 +47,6 @@ class TimelineViewModel : ViewModel() {
         }
     }
 
-    // Resnap Funktion für TimelineTime Selektionen
     private fun resnapTimelineSelections() {
         val bpm = WorkspaceRepository.bpm.value
         val gridType = WorkspaceRepository.gridType.value
@@ -149,10 +148,11 @@ class TimelineViewModel : ViewModel() {
     }
 
     private fun splitEntry(original: AudioEntry, splitStartMs: Long, splitEndMs: Long): Pair<AudioEntry?, AudioEntry?> {
-        val left = if (original.startTimeMs < splitStartMs && original.endTimeMs > original.startTimeMs) {
+        val left = if (original.startTimeMs < splitStartMs && original.endTimeMs > splitStartMs) {
             buildEntrySegment(original, original.startTimeMs, splitStartMs)
         } else null
-        val right = if (original.endTimeMs > splitEndMs && original.endTimeMs > splitEndMs) {
+
+        val right = if (original.endTimeMs > splitEndMs && original.startTimeMs < splitEndMs) {
             buildEntrySegment(original, splitEndMs, original.endTimeMs)
         } else null
         return left to right
@@ -323,16 +323,6 @@ class TimelineViewModel : ViewModel() {
     fun setZoomLevel(zoom: Float) {
         val clamped = zoom.coerceIn(0.01f, 10.0f)
         _zoomLevel.value = clamped
-        // Verwende BPM & GridType für neues Snap
-        val bpm = WorkspaceRepository.bpm.value
-        val gridType = WorkspaceRepository.gridType.value
-        val updated = SelectionManager.selections.value.map { sel ->
-            if (sel is Selectable.TimelineTime) {
-                val snapped = GridUtils.snapToGrid(sel.timeMs, clamped, bpm, gridType)
-                if (snapped != sel.timeMs) Selectable.TimelineTime(trackIndex = sel.trackIndex, timeMs = snapped) else sel
-            } else sel
-        }
-        SelectionManager.selections.value = updated
     }
 
     fun zoomBy(factor: Float) {

@@ -33,8 +33,31 @@ object TimelineRepository {
     private var baselineMark: TimeMark? = null
     private var baselinePlayheadMs: Long = 0L
 
+    private var sortedAudioEntries: List<AudioEntry> = emptyList()
+    private var nextStartIndex: Int = 0
+    private var lastPlayheadMs: Long = 0L
+
+    private fun rebuildSortedEntries() {
+        sortedAudioEntries = tracks.value
+            .filterIsInstance<AudioTimelineTrack>()
+            .flatMap { it.entries.values }
+            .sortedBy { it.startTimeMs }
+
+        nextStartIndex = binarySearchFirst(sortedAudioEntries) { it.startTimeMs >= _playheadPositionMs.value }
+    }
+
+    private inline fun <T> binarySearchFirst(list: List<T>, predicate: (T) -> Boolean): Int {
+        var low = 0; var high = list.size
+        while (low < high) {
+            val mid = (low + high) ushr 1
+            if (predicate(list[mid])) high = mid else low = mid + 1
+        }
+        return low
+    }
+
     fun addTrack(track: TimelineTrack<*>) {
         tracks.update { tracks.value + track }
+        rebuildSortedEntries()
     }
 
     fun play() {
@@ -42,7 +65,18 @@ object TimelineRepository {
         _isPlaying.value = true
         baselinePlayheadMs = _playheadPositionMs.value
         baselineMark = TimeSource.Monotonic.markNow()
-        updatePlayingEntries()
+        rebuildSortedEntries()
+        nextStartIndex = binarySearchFirst(sortedAudioEntries) { it.startTimeMs >= baselinePlayheadMs }
+        lastPlayheadMs = baselinePlayheadMs
+
+        activeEntries.forEach { it.stop() }; activeEntries.clear()
+
+        sortedAudioEntries.forEach { entry ->
+            if (baselinePlayheadMs >= entry.startTimeMs && baselinePlayheadMs < entry.endTimeMs) {
+                entry.start(startAt = baselinePlayheadMs)
+                activeEntries.add(entry)
+            }
+        }
         startPlayback()
     }
 
@@ -57,17 +91,34 @@ object TimelineRepository {
     fun stop() {
         pause()
         _playheadPositionMs.value = 0L
+        lastPlayheadMs = 0L
+        nextStartIndex = 0
     }
 
     fun setPlayheadPosition(positionMs: Long) {
         val coerced = positionMs.coerceAtLeast(0L)
         _playheadPositionMs.value = coerced
         if (_isPlaying.value) {
-            // Seek während Playback: Baseline neu setzen, damit Playhead nicht springt oder driftet
             baselinePlayheadMs = coerced
             baselineMark = TimeSource.Monotonic.markNow()
+            // Beim Seek während Playback: alle aktiven stoppen + neu bestücken
+            activeEntries.forEach { it.stop() }; activeEntries.clear()
+            lastPlayheadMs = coerced
+            rebuildSortedEntries()
+            nextStartIndex = binarySearchFirst(sortedAudioEntries) { it.startTimeMs >= coerced }
+            sortedAudioEntries.forEach { entry ->
+                if (coerced >= entry.startTimeMs && coerced < entry.endTimeMs) {
+                    entry.start(startAt = coerced)
+                    activeEntries.add(entry)
+                }
+            }
+        } else {
+            // Im Pausenmodus nur aktive Menge aktualisieren (keine Wiedergabe, aber Konsistenz)
+            activeEntries.clear()
+            sortedAudioEntries.forEach { entry ->
+                if (coerced >= entry.startTimeMs && coerced < entry.endTimeMs) activeEntries.add(entry)
+            }
         }
-        updatePlayingEntries()
     }
 
     private fun startPlayback() {
@@ -78,12 +129,47 @@ object TimelineRepository {
                     val elapsed = mark.elapsedNow().inWholeMilliseconds
                     val newPos = baselinePlayheadMs + elapsed
                     _playheadPositionMs.value = newPos
-                    updatePlayingEntries()
+                    processPlaybackIncremental(newPos)
                 }
-                // 8ms tick ~125Hz. Für weniger CPU ggf. 10-16ms testen.
                 delay(8L)
             }
         }
+    }
+
+    private fun processPlaybackIncremental(currentMs: Long) {
+        // Vorwärtsbewegung
+        if (currentMs >= lastPlayheadMs) {
+            // Starte neue Einträge zwischen lastPlayheadMs und currentMs
+            while (nextStartIndex < sortedAudioEntries.size && sortedAudioEntries[nextStartIndex].startTimeMs <= currentMs) {
+                val entry = sortedAudioEntries[nextStartIndex]
+                if (entry.startTimeMs >= lastPlayheadMs && entry.startTimeMs <= currentMs) {
+                    if (!activeEntries.contains(entry) && currentMs < entry.endTimeMs) {
+                        entry.start(startAt = currentMs)
+                        activeEntries.add(entry)
+                        println("TimelineInc: Started ${entry.fileName} at ${currentMs}ms (entry starts ${entry.startTimeMs}ms)")
+                    }
+                }
+                nextStartIndex++
+            }
+            // Stoppe Einträge deren Ende überschritten wurde
+            val iterator = activeEntries.iterator()
+            while (iterator.hasNext()) {
+                val e = iterator.next()
+                if (currentMs >= e.endTimeMs || currentMs < e.startTimeMs) {
+                    e.stop(); iterator.remove(); println("TimelineInc: Stopped ${e.fileName} @${currentMs}ms")
+                }
+            }
+        } else {
+            // Rückwärts (Scrub rückwärts): Rebuild aktive Menge
+            activeEntries.forEach { it.stop() }; activeEntries.clear()
+            nextStartIndex = binarySearchFirst(sortedAudioEntries) { it.startTimeMs >= currentMs }
+            sortedAudioEntries.forEach { e ->
+                if (currentMs >= e.startTimeMs && currentMs < e.endTimeMs) {
+                    e.start(startAt = currentMs); activeEntries.add(e)
+                }
+            }
+        }
+        lastPlayheadMs = currentMs
     }
 
     private fun stopPlayback() {
@@ -92,35 +178,7 @@ object TimelineRepository {
         baselineMark = null
     }
 
-    private fun updatePlayingEntries() {
-        val currentPosition = _playheadPositionMs.value
-        val allEntries = buildList {
-            tracks.value.forEach { track ->
-                if (track is AudioTimelineTrack) addAll(track.entries.values)
-            }
-        }
-
-        // Stop entries die nicht mehr laufen sollen
-        activeEntries.removeAll { entry ->
-            val shouldStop = currentPosition < entry.startTimeMs || currentPosition >= entry.endTimeMs
-            if (shouldStop) {
-                entry.stop()
-                println("Timeline: Stopped ${entry.fileName} at ${currentPosition}ms")
-            }
-            shouldStop
-        }
-
-        allEntries.forEach { entry ->
-            val shouldPlay = currentPosition >= entry.startTimeMs &&
-                currentPosition < entry.endTimeMs &&
-                !activeEntries.contains(entry)
-            if (shouldPlay) {
-                entry.start(startAt = currentPosition)
-                activeEntries.add(entry)
-                println("Timeline: Started ${entry.fileName} at ${currentPosition}ms (entry starts at ${entry.startTimeMs}ms)")
-            }
-        }
-    }
+    private fun updatePlayingEntries() { /* Legacy Vollscan behalten für Fallback oder Debug; jetzt ersetzt durch processPlaybackIncremental */ }
 
     fun setTrackEntries(trackIndex: Int, audioEntries: List<AudioEntry>) {
         val current = tracks.value.toMutableList()
@@ -131,5 +189,7 @@ object TimelineRepository {
         val newTrack = AudioTimelineTrack().apply { entries.putAll(track.entries) }
         current[trackIndex] = newTrack
         tracks.value = current.toList()
+        rebuildSortedEntries()
+        nextStartIndex = binarySearchFirst(sortedAudioEntries) { it.startTimeMs >= _playheadPositionMs.value }
     }
 }

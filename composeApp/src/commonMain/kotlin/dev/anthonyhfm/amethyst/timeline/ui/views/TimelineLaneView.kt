@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,7 +68,8 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 @Composable
 fun TimelineLaneView(
     viewModel: TimelineViewModel,
-    scrollState: ScrollState
+    scrollState: ScrollState,
+    selectionViewportRelative: Boolean = false
 ) {
     val tracks by viewModel.tracks.collectAsState()
     val zoomLevel by viewModel.zoomLevel.collectAsState()
@@ -173,6 +173,7 @@ fun TimelineLaneView(
                     scrollState = scrollState,
                     selectedTimeMs = laneSelectedTimeMs,
                     selectedEntryStarts = laneSelectedEntries.map { it.entryStartMs }.toSet(),
+                    selectionViewportRelative = selectionViewportRelative,
                     onDropInFile = { file ->
                         viewModel.addAudioFileToTrack(
                             trackIndex = index,
@@ -243,6 +244,7 @@ fun TimelineLane(
     scrollState: ScrollState,
     selectedTimeMs: Long?,
     selectedEntryStarts: Set<Long> = emptySet(),
+    selectionViewportRelative: Boolean = false,
     onDropInFile: (file: PlatformFile) -> Unit = {},
     onSelectTime: (Long) -> Unit = {},
     onSelectEntry: (Long) -> Unit = {},
@@ -268,7 +270,7 @@ fun TimelineLane(
             .horizontalScroll(scrollState)
             .pointerInput(zoomLevel, bpm, gridType) {
                 detectTapGestures { tapOffset ->
-                    val currentZoom = zoomLevel // immer aktueller Wert nach Neustart der Coroutine
+                    val currentZoom = zoomLevel
                     val currentBpm = WorkspaceRepository.bpm.value
                     val currentGridType = WorkspaceRepository.gridType.value
                     val intervals = GridUtils.computeWithGridType(currentZoom, currentBpm, currentGridType)
@@ -278,9 +280,10 @@ fun TimelineLane(
                     val rawTimeMsDouble = if (currentZoom > 0f) rawPx / currentZoom.toDouble() else 0.0
                     val rawTimeMs = rawTimeMsDouble.roundToLong().coerceAtLeast(0L)
                     val gridPxSpacing = gridIntervalMs * currentZoom
+                    val snapThresholdPx = (gridPxSpacing * 0.40f).coerceAtLeast(6f)
                     val shouldSnap = gridIntervalMs > 0 && gridPxSpacing >= 6f
-                    val snapped = if (shouldSnap) GridUtils.snapToGrid(rawTimeMs, currentZoom, currentBpm, currentGridType) else rawTimeMs
-                    println("[TimelineLane] click(pxPerMs) tapX=${tapOffset.x} scroll=${scrollState.value} zoom=$currentZoom rawMs=$rawTimeMs snappedMs=$snapped gridIntMs=$gridIntervalMs gridPxSpacing=$gridPxSpacing diffMs=${snapped - rawTimeMs}")
+                    val snapped = if (shouldSnap) GridUtils.snapToGridWithThreshold(rawTimeMs, currentZoom, currentBpm, currentGridType, thresholdPx = snapThresholdPx) else rawTimeMs
+                    println("[TimelineLane] click(pxPerMs) tapX=${tapOffset.x} scroll=${scrollState.value} zoom=$currentZoom rawMs=$rawTimeMs snappedMs=$snapped gridIntMs=$gridIntervalMs gridPxSpacing=$gridPxSpacing diffMs=${snapped - rawTimeMs} thresholdPx=$snapThresholdPx")
                     onSelectTime(snapped)
                 }
             }
@@ -320,7 +323,8 @@ fun TimelineLane(
             selectedTimeMs = selectedTimeMs,
             zoomLevel = zoomLevel,
             scrollState = scrollState,
-            laneHeight = 120.dp
+            laneHeight = 120.dp,
+            viewportRelative = selectionViewportRelative
         )
     }
 }
@@ -389,8 +393,9 @@ fun AudioClip(
             val candidateMsDouble = audioEntry.startTimeMs.toDouble() + rawDeltaMsDouble
             val nonNegativeCandidate = candidateMsDouble.coerceAtLeast(0.0)
             if (snapEnabled && gridIntervalMs > 0) {
-                val q = nonNegativeCandidate / gridIntervalMs.toDouble()
-                (kotlin.math.round(q) * gridIntervalMs).toLong()
+                val gridPxSpacing = gridIntervalMs * zoomLevel
+                val thresholdPx = (gridPxSpacing * 0.35f).coerceAtLeast(5f)
+                GridUtils.snapToGridWithThreshold(nonNegativeCandidate.roundToLong(), zoomLevel, WorkspaceRepository.bpm.value, WorkspaceRepository.gridType.value, thresholdPx)
             } else kotlin.math.round(nonNegativeCandidate).toLong()
         }
     }
@@ -474,11 +479,17 @@ private fun SelectionCursor(
     selectedTimeMs: Long?,
     zoomLevel: Float,
     scrollState: ScrollState,
-    laneHeight: androidx.compose.ui.unit.Dp = 120.dp
+    laneHeight: androidx.compose.ui.unit.Dp = 120.dp,
+    viewportRelative: Boolean = false
 ) {
     if (selectedTimeMs == null) return
-    val cursorXPositionPx by remember(selectedTimeMs, zoomLevel, scrollState) {
-        derivedStateOf { selectedTimeMs * zoomLevel - scrollState.value }
+
+    val scrollX = scrollState.value
+    val cursorXPositionPx by remember(selectedTimeMs, zoomLevel, viewportRelative) {
+        derivedStateOf {
+            val raw = selectedTimeMs * zoomLevel
+            if (viewportRelative) raw - scrollX else raw
+        }
     }
     Box(
         modifier = Modifier

@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.timeline.utils
 
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.round
 
 object GridUtils {
@@ -34,8 +35,31 @@ object GridUtils {
         val intervals = if (gridType == null || gridType is GridType.None) compute(zoomLevel) else computeWithGridType(zoomLevel, bpm ?: 120.0, gridType)
         val interval = intervals.intervalMs
         if (interval <= 0) return timeMs
+        // Stabileres Runden: anstatt round(quotient) -> floor(quotient + 0.5) vermeidet negative Rundungsartefakte
         val quotient = timeMs.toDouble() / interval.toDouble()
-        return round(quotient).toLong() * interval
+        val snapped = floor(quotient + 0.5).toLong() * interval
+        return if (snapped < 0) 0 else snapped
+    }
+
+    /**
+     * Erweitertes Snapping mit Pixel-Threshold: Snap nur wenn Abstand zum nächstliegenden Gridpunkt <= thresholdPx.
+     * Fallback: Rohwert (kein Snap), dadurch weniger "sprunghaftes" Verhalten bei großen Intervallen und kleiner Bewegung.
+     */
+    fun snapToGridWithThreshold(
+        timeMs: Long,
+        zoomLevel: Float,
+        bpm: Double? = null,
+        gridType: GridType? = null,
+        thresholdPx: Float = 0f
+    ): Long {
+        val intervals = if (gridType == null || gridType is GridType.None) compute(zoomLevel) else computeWithGridType(zoomLevel, bpm ?: 120.0, gridType)
+        val interval = intervals.intervalMs
+        if (interval <= 0) return timeMs
+        val quotient = timeMs.toDouble() / interval.toDouble()
+        val snappedCandidate = kotlin.math.floor(quotient + 0.5).toLong() * interval
+        val diffMs = snappedCandidate - timeMs
+        val diffPx = kotlin.math.abs(diffMs.toFloat() * zoomLevel)
+        return if (thresholdPx > 0f && diffPx > thresholdPx) timeMs.coerceAtLeast(0L) else snappedCandidate.coerceAtLeast(0L)
     }
 
     // --- Ableton-ähnliche Grid Berechnung ---
