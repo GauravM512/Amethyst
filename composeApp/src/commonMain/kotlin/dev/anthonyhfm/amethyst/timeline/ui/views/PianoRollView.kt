@@ -60,6 +60,8 @@ fun PianoRollView(
     widthPx: Float,
     heightPx: Float,
     zoomLevel: Float,
+    minPitch: Int = 0,
+    maxPitch: Int = 99,
     onNoteClick: (MidiNote) -> Unit = {},
     onNoteMove: (MidiNote, Long, Int) -> Unit = { _, _, _ -> },
     onNoteResize: (MidiNote, Long) -> Unit = { _, _ -> },
@@ -70,9 +72,7 @@ fun PianoRollView(
     val width = with(density) { widthPx.toDp() }
     val height = with(density) { heightPx.toDp() }
     
-    // Piano roll spans MIDI notes 0-99 (for launchpad compatibility)
-    val minPitch = 0
-    val maxPitch = 99
+    // Piano roll spans the specified pitch range
     val pitchRange = maxPitch - minPitch + 1
     val noteHeight = heightPx / pitchRange
     
@@ -132,8 +132,8 @@ fun PianoRollView(
                     val pitch = maxPitch - (offset.y / noteHeight).toInt()
                     val timeMs = (offset.x / zoomLevel).toLong()
                     
-                    // Check if tapped on an existing note
-                    val clickedNote = entry.notes.firstOrNull { note ->
+                    // Check if tapped on an existing note (only in this pitch range)
+                    val clickedNote = entry.notes.filter { it.pitch >= minPitch && it.pitch <= maxPitch }.firstOrNull { note ->
                         val noteY = (maxPitch - note.pitch) * noteHeight
                         val noteX = note.startTimeMs * zoomLevel
                         val noteWidth = note.durationMs * zoomLevel
@@ -145,16 +145,17 @@ fun PianoRollView(
                     if (clickedNote != null) {
                         onNoteClick(clickedNote)
                         selectedNote = clickedNote
-                    } else {
-                        // Create new note at tap position
+                    } else if (pitch >= minPitch && pitch <= maxPitch) {
+                        // Create new note at tap position (relative pitch for this launchpad)
                         val defaultDuration = 500L // 500ms default duration
-                        onNoteCreate(pitch, timeMs, defaultDuration)
+                        val relativePitch = pitch - minPitch
+                        onNoteCreate(relativePitch, timeMs, defaultDuration)
                     }
                 }
             }
     ) {
-        // Render MIDI notes
-        entry.notes.forEach { note ->
+        // Render MIDI notes (only those in this pitch range)
+        entry.notes.filter { it.pitch >= minPitch && it.pitch <= maxPitch }.forEach { note ->
             MidiNoteView(
                 note = note,
                 noteHeight = noteHeight,
