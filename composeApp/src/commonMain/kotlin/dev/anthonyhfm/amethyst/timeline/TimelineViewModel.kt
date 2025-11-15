@@ -653,4 +653,34 @@ class TimelineViewModel : ViewModel() {
         
         SelectionManager.select(Selectable.TimelineEntryItem(trackIndex = trackIndex, entryStartMs = snappedStart))
     }
+
+    /**
+     * Duplicate a MIDI entry
+     */
+    fun duplicateMidiEntry(trackIndex: Int, entryStartMs: Long) {
+        val currentTracks = _tracks.value.toMutableList()
+        val track = currentTracks.getOrNull(trackIndex)
+        
+        if (track !is MidiTimelineTrack && track !is LightsTimelineTrack) return
+        
+        val midiTrack = track as TimelineTrack<MidiEntry>
+        val entry = midiTrack.entries[entryStartMs] ?: return
+        
+        // Place duplicate right after the original
+        val newStartMs = entry.endTimeMs
+        val duplicatedEntry = entry.copy(startTimeMs = newStartMs)
+        midiTrack.entries[newStartMs] = duplicatedEntry
+        
+        // Update track
+        val newTrack = if (track is MidiTimelineTrack) {
+            MidiTimelineTrack().apply { entries.putAll(midiTrack.entries) }
+        } else {
+            LightsTimelineTrack().apply { entries.putAll(midiTrack.entries) }
+        }
+        currentTracks[trackIndex] = newTrack
+        _tracks.value = currentTracks.toList()
+        TimelineRepository.tracks.value = currentTracks.toList()
+        
+        SelectionManager.select(Selectable.TimelineEntryItem(trackIndex = trackIndex, entryStartMs = newStartMs))
+    }
 }
