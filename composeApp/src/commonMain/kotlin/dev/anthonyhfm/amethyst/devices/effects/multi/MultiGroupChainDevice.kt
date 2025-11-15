@@ -75,11 +75,18 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.ControlPointDuplicate
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardData
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
@@ -90,8 +97,6 @@ import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
-import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuArea
-import dev.anthonyhfm.amethyst.ui.contextmenu.ContextMenuItem
 import dev.anthonyhfm.amethyst.ui.modifier.onFocusSelectAll
 import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
@@ -101,6 +106,8 @@ import dev.anthonyhfm.amethyst.workspace.chain.ui.DeviceInsertionAnimator
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ExpandingChainDevicePicker
 import dev.anthonyhfm.amethyst.workspace.chain.ui.SignalIndicatorManager
 import dev.anthonyhfm.amethyst.workspace.chain.ui.TitleBarModifierProvider
+import io.androidpoet.dropdown.Dropdown
+import io.androidpoet.dropdown.dropDownMenu
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
@@ -114,10 +121,6 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
 
     init {
         createGroup()
-    }
-
-    companion object {
-        private var copiedGroupName: String? = null
     }
 
     val multiMap: MutableMap<Pair<Int, Int>, Int> = mutableMapOf()
@@ -310,49 +313,39 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                 )
 
                 ReorderableItem(reorderableLazyListState, key = group.id) {
-                    ContextMenuArea(
-                        items = listOf(
-                            ContextMenuItem("Copy") { copyGroup(group) },
-                            ContextMenuItem("Paste") { pasteGroup(index) },
-                            ContextMenuItem("Duplicate") { duplicateGroup(index) },
-                            ContextMenuItem("Rename") { renamingGroupIndex.value = index },
-                            ContextMenuItem("Remove") { removeGroup(index) }
-                        )
-                    ) {
-                        GroupItem(
-                            group = group,
-                            index = index,
-                            selected = groupsState.openedGroupIndex == index,
-                            onSelect = { shiftPressed, ctrlPressed ->
-                                val groupChainItem = Selectable.GroupChainItem(
-                                    parent = this@MultiGroupChainDevice,
-                                    groupIndex = index
-                                )
+                    GroupItem(
+                        group = group,
+                        index = index,
+                        selected = groupsState.openedGroupIndex == index,
+                        onSelect = { shiftPressed, ctrlPressed ->
+                            val groupChainItem = Selectable.GroupChainItem(
+                                parent = this@MultiGroupChainDevice,
+                                groupIndex = index
+                            )
 
-                                when {
-                                    shiftPressed -> {
-                                        performRangeSelection(index)
-                                    }
-                                    ctrlPressed -> {
-                                        SelectionManager.select(groupChainItem, single = false)
-                                    }
-                                    else -> {
-                                        SelectionManager.select(groupChainItem, single = true)
+                            when {
+                                shiftPressed -> {
+                                    performRangeSelection(index)
+                                }
+                                ctrlPressed -> {
+                                    SelectionManager.select(groupChainItem, single = false)
+                                }
+                                else -> {
+                                    SelectionManager.select(groupChainItem, single = true)
 
-                                        state.update {
-                                            it.copy(
-                                                openedGroupIndex = index
-                                            )
-                                        }
+                                    state.update {
+                                        it.copy(
+                                            openedGroupIndex = index
+                                        )
                                     }
                                 }
-                            },
-                            renameEnabled = renamingGroupIndex.value == index,
-                            onRenameChange = { enabled ->
-                                renamingGroupIndex.value = if (enabled) index else null
                             }
-                        )
-                    }
+                        },
+                        renameEnabled = renamingGroupIndex.value == index,
+                        onRenameChange = { enabled ->
+                            renamingGroupIndex.value = if (enabled) index else null
+                        }
+                    )
                 }
             }
 
@@ -377,12 +370,19 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
         renameEnabled: Boolean = false,
         onRenameChange: (Boolean) -> Unit,
     ) {
+        val density = LocalDensity.current.density
         val selections by SelectionManager.selections.collectAsState()
         val isSelectedInManager = selections.any {
             it is Selectable.GroupChainItem &&
                     it.parent == this@MultiGroupChainDevice &&
                     it.groupIndex == index
         }
+
+        var showRightClickMenu by remember { mutableStateOf(false) }
+        var rightClickMenuOffset by remember { mutableStateOf(DpOffset.Zero) }
+
+        val clipboard by ClipboardManager.clipboardData.collectAsState()
+        val hasGroupsInClipboard = clipboard is ClipboardData.GroupChainItem
 
         val textValue = remember { mutableStateOf(TextFieldValue(group.name)) }
         val focusRequester = remember { FocusRequester() }
@@ -420,6 +420,50 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
             }
         }
 
+        // Context menu
+        Dropdown(
+            isOpen = showRightClickMenu,
+            menu = dropDownMenu {
+                item("copy", "Copy") {
+                    icon(Icons.Default.ContentCopy)
+                }
+
+                if (hasGroupsInClipboard) {
+                    item("paste", "Paste") {
+                        icon(Icons.Default.ContentPaste)
+                    }
+                }
+
+                item("duplicate", "Duplicate") {
+                    icon(Icons.Default.ControlPointDuplicate)
+                }
+
+                item("rename", "Rename") {
+                    icon(Icons.Default.Edit)
+                }
+
+                horizontalDivider()
+
+                item("delete", "Delete") {
+                    icon(Icons.Default.DeleteOutline)
+                }
+            },
+            offset = rightClickMenuOffset,
+            onItemSelected = {
+                when (it) {
+                    "copy" -> copyGroup(group)
+                    "paste" -> pasteGroup(index)
+                    "duplicate" -> duplicateGroup(index)
+                    "rename" -> onRenameChange(true)
+                    "delete" -> removeGroup(index)
+                }
+                showRightClickMenu = false
+            },
+            onDismiss = {
+                showRightClickMenu = false
+            }
+        )
+
         Row(
             modifier = Modifier
                 .draggableHandle()
@@ -445,6 +489,10 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                         }
                     }
                 )
+                .rightClickable {
+                    rightClickMenuOffset = DpOffset((it.x / density).dp, (it.y / density).dp)
+                    showRightClickMenu = true
+                }
         ) {
             if (!renameEnabled) {
                 Text(
@@ -887,21 +935,13 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
     }
 
     fun copyGroup(group: Group) {
-        copiedGroupName = group.name
+        // Use ClipboardManager.copy() with the current selection
+        ClipboardManager.copy(SelectionManager.selections.value)
     }
 
     fun pasteGroup(index: Int) {
-        copiedGroupName?.let { name ->
-            createGroup(index)
-
-            state.update {
-                it.copy(
-                    groups = it.groups.toMutableList().apply {
-                        this[index] = this[index].copy(name = name)
-                    }
-                )
-            }
-        }
+        // Use ClipboardManager.paste() which handles everything
+        ClipboardManager.paste()
     }
 
     fun renameGroup(index: Int, newName: String) {
