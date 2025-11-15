@@ -85,6 +85,8 @@ import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardData
+import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
@@ -119,10 +121,6 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
 
     init {
         createGroup()
-    }
-
-    companion object {
-        private var copiedGroupName: String? = null
     }
 
     val multiMap: MutableMap<Pair<Int, Int>, Int> = mutableMapOf()
@@ -384,6 +382,9 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
         var showRightClickMenu by remember { mutableStateOf(false) }
         var rightClickMenuOffset by remember { mutableStateOf(DpOffset.Zero) }
 
+        val clipboard by ClipboardManager.clipboardData.collectAsState()
+        val hasGroupsInClipboard = clipboard is ClipboardData.GroupChainItem
+
         val textValue = remember { mutableStateOf(TextFieldValue(group.name)) }
         val focusRequester = remember { FocusRequester() }
 
@@ -428,7 +429,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                     icon(Icons.Default.ContentCopy)
                 }
 
-                if (copiedGroupName != null) {
+                if (hasGroupsInClipboard) {
                     item("paste", "Paste") {
                         icon(Icons.Default.ContentPaste)
                     }
@@ -935,19 +936,26 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
     }
 
     fun copyGroup(group: Group) {
-        copiedGroupName = group.name
+        ClipboardManager.setClipboardData(
+            ClipboardData.GroupChainItem(
+                groups = listOf(group)
+            )
+        )
     }
 
     fun pasteGroup(index: Int) {
-        copiedGroupName?.let { name ->
-            createGroup(index)
+        val clipboard = ClipboardManager.clipboardData.value
+        if (clipboard is ClipboardData.GroupChainItem) {
+            clipboard.groups.forEach { groupToPaste ->
+                createGroup(index)
 
-            state.update {
-                it.copy(
-                    groups = it.groups.toMutableList().apply {
-                        this[index] = this[index].copy(name = name)
-                    }
-                )
+                state.update {
+                    it.copy(
+                        groups = it.groups.toMutableList().apply {
+                            this[index] = this[index].copy(name = groupToPaste.name)
+                        }
+                    )
+                }
             }
         }
     }
