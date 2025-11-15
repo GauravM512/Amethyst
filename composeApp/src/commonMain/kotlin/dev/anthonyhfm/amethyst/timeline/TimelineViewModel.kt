@@ -595,26 +595,10 @@ class TimelineViewModel : ViewModel() {
      */
     private fun openPianoRollForEntry(trackIndex: Int, entry: MidiEntry) {
         val pianoRollMode = PianoRollWorkspaceMode()
+
         pianoRollMode.currentEntry = entry
         pianoRollMode.trackIndex = trackIndex
         pianoRollMode.entryStartMs = entry.startTimeMs
-        
-        pianoRollMode.onNoteAdd = { note ->
-            addMidiNote(trackIndex, entry.startTimeMs, note)
-        }
-        
-        pianoRollMode.onNoteUpdate = { oldNote, newNote ->
-            updateMidiNote(trackIndex, entry.startTimeMs, oldNote, newNote)
-        }
-        
-        pianoRollMode.onNoteDelete = { note ->
-            deleteMidiNote(trackIndex, entry.startTimeMs, note)
-        }
-        
-        pianoRollMode.modeClose = {
-            // Return to previous mode
-            WorkspaceRepository.switchMode(WorkspaceContract.WorkspaceMode.Timeline())
-        }
         
         WorkspaceRepository.switchMode(pianoRollMode)
         println("Opened Piano Roll for entry at ${entry.startTimeMs}ms on track $trackIndex")

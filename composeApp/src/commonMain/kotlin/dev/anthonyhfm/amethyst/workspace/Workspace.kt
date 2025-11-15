@@ -138,10 +138,6 @@ fun Workspace() {
                 (state.mode as KeyframesWorkspaceMode).ModeContent(paddingValues)
             }
 
-            if (state.mode is CoordinateFilterWorkspaceMode) {
-                (state.mode as CoordinateFilterWorkspaceMode).ModeContent(paddingValues)
-            }
-
             if (state.mode is PianoRollWorkspaceMode) {
                 (state.mode as PianoRollWorkspaceMode).ModeContent(paddingValues)
             }
