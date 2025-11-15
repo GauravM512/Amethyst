@@ -46,6 +46,8 @@ import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.timeline.TimelineViewModel
 import dev.anthonyhfm.amethyst.timeline.data.AudioEntry
 import dev.anthonyhfm.amethyst.timeline.data.AudioTimelineTrack
+import dev.anthonyhfm.amethyst.timeline.data.MidiEntry
+import dev.anthonyhfm.amethyst.timeline.data.MidiTimelineTrack
 import dev.anthonyhfm.amethyst.timeline.data.TimelineTrack
 import dev.anthonyhfm.amethyst.ui.components.WaveformView
 import io.github.vinceglb.filekit.extension
@@ -316,6 +318,23 @@ fun TimelineLane(
                             }
                         }
                 }
+                is MidiTimelineTrack -> {
+                    track.entries.values
+                        .sortedBy { it.startTimeMs }
+                        .forEach { midiEntry ->
+                            androidx.compose.runtime.key(midiEntry.startTimeMs) {
+                                val isSelectedEntry = midiEntry.startTimeMs in selectedEntryStarts
+                                MidiClip(
+                                    midiEntry = midiEntry,
+                                    zoomLevel = zoomLevel,
+                                    isSelected = isSelectedEntry,
+                                    onSelectEntry = { onSelectEntry(midiEntry.startTimeMs) },
+                                    onMoveEntry = { newStart -> onMoveEntry(midiEntry.startTimeMs, newStart) },
+                                    gridIntervalMs = GridUtils.computeWithGridType(zoomLevel, bpm, gridType).intervalMs
+                                )
+                            }
+                        }
+                }
             }
         }
 
@@ -499,4 +518,94 @@ private fun SelectionCursor(
             .background(color = Color.White, shape = RoundedCornerShape(1.dp))
             .zIndex(2f)
     )
+}
+
+@Composable
+fun MidiClip(
+    midiEntry: MidiEntry,
+    zoomLevel: Float,
+    isSelected: Boolean,
+    onSelectEntry: () -> Unit,
+    onMoveEntry: (newStartMs: Long) -> Unit,
+    gridIntervalMs: Long
+) {
+    val bpm by WorkspaceRepository.bpm.collectAsState()
+    val gridType by WorkspaceRepository.gridType.collectAsState()
+
+    val density = LocalDensity.current
+    val startOffsetPx = (midiEntry.startTimeMs * zoomLevel).roundToInt()
+    val widthDp = with(density) { (midiEntry.durationMs * zoomLevel).toDp() }
+    val borderColor = if (isSelected) Color.White else Color(0xFFBA3C8C)
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.tertiary else Color(0xFFEF5698)
+    val foregroundColor = if (isSelected) MaterialTheme.colorScheme.onTertiary else Color.White
+
+    val dragOffsetPx = remember(midiEntry.startTimeMs) { mutableStateOf(0f) }
+    var snapEnabled by remember { mutableStateOf(true) }
+    val previewStartMs by remember(dragOffsetPx.value, zoomLevel, snapEnabled) {
+        derivedStateOf {
+            val rawDeltaMsDouble = dragOffsetPx.value / zoomLevel
+            val candidateMsDouble = midiEntry.startTimeMs.toDouble() + rawDeltaMsDouble
+            val nonNegativeCandidate = candidateMsDouble.coerceAtLeast(0.0)
+            if (snapEnabled && gridIntervalMs > 0) {
+                val gridPxSpacing = gridIntervalMs * zoomLevel
+                val thresholdPx = (gridPxSpacing * 0.35f).coerceAtLeast(5f)
+                GridUtils.snapToGridWithThreshold(nonNegativeCandidate.roundToLong(), zoomLevel, WorkspaceRepository.bpm.value, WorkspaceRepository.gridType.value, thresholdPx)
+            } else kotlin.math.round(nonNegativeCandidate).toLong()
+        }
+    }
+    val finalOffsetPx = startOffsetPx + dragOffsetPx.value.roundToInt()
+
+    Box(
+        modifier = Modifier
+            .offset { IntOffset(finalOffsetPx, 0) }
+            .width(widthDp)
+            .height(112.dp)
+            .clip(RoundedCornerShape(4.dp))
+            .background(backgroundColor)
+            .border(2.dp, borderColor, RoundedCornerShape(4.dp))
+            .clickable { onSelectEntry() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(midiEntry.startTimeMs, zoomLevel, gridIntervalMs) {
+                    detectDragGestures(
+                        onDragStart = { snapEnabled = true },
+                        onDragEnd = {
+                            onMoveEntry(previewStartMs)
+                            dragOffsetPx.value = 0f
+                            snapEnabled = true
+                        },
+                        onDragCancel = { dragOffsetPx.value = 0f; snapEnabled = true },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragOffsetPx.value += dragAmount.x
+                        }
+                    )
+                }
+                .padding(4.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            Text(
+                text = midiEntry.name,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    lineHeight = MaterialTheme.typography.labelSmall.fontSize,
+                ),
+                color = foregroundColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Display note count
+            Text(
+                text = "${midiEntry.notes.size} notes",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize * 0.8f
+                ),
+                color = foregroundColor.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
 }
