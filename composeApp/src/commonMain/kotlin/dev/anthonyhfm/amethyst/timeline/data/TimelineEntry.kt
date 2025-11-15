@@ -154,7 +154,8 @@ data class MidiEntry(
             
             if (offsetMs >= noteStartInClip && offsetMs < noteEndInClip) {
                 // Note should already be playing
-                sendNoteOn(note.pitch, note.velocity)
+                // sendNoteOn(note.pitch, note.velocity)
+                println("MIDI Note ON at ${actualStartTime} ms (offset ${offsetMs} ms): pitch=${note.pitch}")
                 activeNotes[note.pitch] = actualStartTime
             }
         }
@@ -185,7 +186,9 @@ data class MidiEntry(
             if (clipOffsetMs >= noteStart && clipOffsetMs < noteEnd) {
                 // Note should be on
                 if (!activeNotes.containsKey(note.pitch)) {
-                    sendNoteOn(note.pitch, note.velocity)
+                    // sendNoteOn(note.pitch, note.velocity)
+
+                    println("MIDI Note ON at $currentTimeMs ms: pitch=${note.pitch}")
                     activeNotes[note.pitch] = currentTimeMs
                 }
             } else if (activeNotes.containsKey(note.pitch)) {

@@ -168,8 +168,6 @@ object MidiImporter {
                                             color = color,
                                             startTimeMs = startTime,
                                             durationMs = duration,
-                                            x = pitch % 10,
-                                            y = pitch / 10
                                         )
                                     )
                                 }
@@ -232,8 +230,6 @@ object MidiImporter {
                     color = color,
                     startTimeMs = startTime,
                     durationMs = 500, // Default 500ms
-                    x = pitch % 10,
-                    y = pitch / 10
                 )
             )
         }

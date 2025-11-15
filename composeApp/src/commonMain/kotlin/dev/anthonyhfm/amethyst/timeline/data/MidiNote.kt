@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class MidiNote(
     val pitch: Int,
-    val led: Signal.LED,
+    val led: NoteLED,
     val startTimeMs: Long,
     val durationMs: Long
 ) {
@@ -36,17 +36,15 @@ data class MidiNote(
             color: Color,
             startTimeMs: Long,
             durationMs: Long,
-            x: Int = pitch % 10,
-            y: Int = pitch / 10,
             layer: Int = 0,
             blendingMode: Signal.LED.BlendingMode = Signal.LED.BlendingMode.Normal
         ) = MidiNote(
             pitch = pitch,
-            led = Signal.LED(
-                origin = null,
-                x = x,
-                y = y,
-                color = color,
+            led = NoteLED(
+                index = pitch,
+                red = color.red,
+                green = color.green,
+                blue = color.blue,
                 layer = layer,
                 blendingMode = blendingMode
             ),
@@ -54,4 +52,14 @@ data class MidiNote(
             durationMs = durationMs
         )
     }
+
+    @Serializable
+    data class NoteLED(
+        val index: Int,
+        val red: Float,
+        val green: Float,
+        val blue: Float,
+        val layer: Int = 0,
+        val blendingMode: Signal.LED.BlendingMode = Signal.LED.BlendingMode.Normal
+    )
 }

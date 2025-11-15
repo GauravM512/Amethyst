@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.timeline
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -225,15 +226,12 @@ private fun PianoRollEditor(
                                 if (clickedNote != null) {
                                     selectedNote = clickedNote
                                 } else {
-                                    // Create new note with grid snapping
                                     val defaultDuration = 500L // One beat
                                     val newNote = MidiNote.withColor(
                                         pitch = pitch.coerceIn(0, totalPitches - 1),
-                                        color = Color(0xFFFF6B35), // Orange color
+                                        color = Color(0xFFFF6B35),
                                         startTimeMs = timeMs.coerceAtLeast(0),
                                         durationMs = defaultDuration,
-                                        x = pitch % 10,
-                                        y = pitch / 10
                                     )
                                     onNoteAdd?.invoke(newNote)
                                     notesState = notesState + newNote
@@ -289,7 +287,7 @@ private fun NoteBox(
                 if (isSelected) 
                     Color(0xFFFFAA00)
                 else 
-                    note.led.color // Use the LED color from Signal.LED
+                    Color(note.led.red, note.led.green, note.led.blue) // Use the LED color from Signal.LED
             )
             .pointerInput(note) {
                 detectDragGestures(
@@ -313,8 +311,7 @@ private fun NoteBox(
                                 startTimeMs = newTimeMs,
                                 pitch = newPitch,
                                 led = note.led.copy(
-                                    x = newPitch % 10,
-                                    y = newPitch / 10
+                                    index = newPitch
                                 )
                             )
                             onUpdate(note, updatedNote)
