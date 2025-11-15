@@ -546,4 +546,32 @@ class TimelineViewModel : ViewModel() {
             SelectionManager.select(Selectable.TimelineEntryItem(trackIndex = trackIndex, entryStartMs = snappedEntry.startTimeMs))
         }
     }
+
+    /**
+     * Handle double-click on lights track to create a new MIDI clip
+     */
+    fun onDoubleClickLightsTrack(trackIndex: Int, timeMs: Long) {
+        val track = _tracks.value.getOrNull(trackIndex) as? LightsTimelineTrack ?: return
+        
+        // Create a new empty MIDI entry at the double-click position
+        val defaultDuration = 4000L // 4 seconds default
+        val newEntry = MidiEntry(
+            startTimeMs = timeMs,
+            durationMs = defaultDuration,
+            notes = emptyList(),
+            name = "Lights Clip"
+        )
+        
+        track.addEntry(newEntry)
+        
+        val currentTracks = _tracks.value.toMutableList()
+        val newTrack = LightsTimelineTrack().apply { entries.putAll(track.entries) }
+        currentTracks[trackIndex] = newTrack
+        _tracks.value = currentTracks.toList()
+        TimelineRepository.tracks.value = currentTracks.toList()
+        
+        SelectionManager.select(Selectable.TimelineEntryItem(trackIndex = trackIndex, entryStartMs = newEntry.startTimeMs))
+        
+        println("Created new lights clip at ${timeMs}ms on track $trackIndex")
+    }
 }

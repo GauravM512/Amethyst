@@ -31,6 +31,13 @@ fun TimelineView(
             onAddAudioTrack = { viewModel.addAudioTrack() }
         )
 
-        TimelineLaneView(viewModel, scrollState, selectionViewportRelative = true)
+        TimelineLaneView(
+            viewModel = viewModel,
+            scrollState = scrollState,
+            selectionViewportRelative = true,
+            onDoubleClickLightsLane = { trackIndex, timeMs ->
+                viewModel.onDoubleClickLightsTrack(trackIndex, timeMs)
+            }
+        )
     }
 }

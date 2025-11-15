@@ -72,7 +72,8 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 fun TimelineLaneView(
     viewModel: TimelineViewModel,
     scrollState: ScrollState,
-    selectionViewportRelative: Boolean = false
+    selectionViewportRelative: Boolean = false,
+    onDoubleClickLightsLane: (trackIndex: Int, timeMs: Long) -> Unit = { _, _ -> }
 ) {
     val tracks by viewModel.tracks.collectAsState()
     val zoomLevel by viewModel.zoomLevel.collectAsState()
@@ -194,7 +195,8 @@ fun TimelineLaneView(
                     },
                     onMoveEntry = { oldStart, newStart ->
                         viewModel.moveAudioEntry(index, oldStart, newStart)
-                    }
+                    },
+                    onDoubleClickLane = { timeMs -> onDoubleClickLightsLane(index, timeMs) }
                 )
             }
         }
@@ -252,7 +254,8 @@ fun TimelineLane(
     onDropInFile: (file: PlatformFile) -> Unit = {},
     onSelectTime: (Long) -> Unit = {},
     onSelectEntry: (Long) -> Unit = {},
-    onMoveEntry: (oldStart: Long, newStart: Long) -> Unit = { _, _ -> }
+    onMoveEntry: (oldStart: Long, newStart: Long) -> Unit = { _, _ -> },
+    onDoubleClickLane: (Long) -> Unit = {}
 ) {
     val bpm by WorkspaceRepository.bpm.collectAsState()
     val gridType by WorkspaceRepository.gridType.collectAsState()
@@ -273,23 +276,35 @@ fun TimelineLane(
             )
             .horizontalScroll(scrollState)
             .pointerInput(zoomLevel, bpm, gridType) {
-                detectTapGestures { tapOffset ->
-                    val currentZoom = zoomLevel
-                    val currentBpm = WorkspaceRepository.bpm.value
-                    val currentGridType = WorkspaceRepository.gridType.value
-                    val intervals = GridUtils.computeWithGridType(currentZoom, currentBpm, currentGridType)
-                    val gridIntervalMs = intervals.intervalMs
+                detectTapGestures(
+                    onTap = { tapOffset ->
+                        val currentZoom = zoomLevel
+                        val currentBpm = WorkspaceRepository.bpm.value
+                        val currentGridType = WorkspaceRepository.gridType.value
+                        val intervals = GridUtils.computeWithGridType(currentZoom, currentBpm, currentGridType)
+                        val gridIntervalMs = intervals.intervalMs
 
-                    val rawPx = scrollState.value.toDouble() + tapOffset.x.toDouble()
-                    val rawTimeMsDouble = if (currentZoom > 0f) rawPx / currentZoom.toDouble() else 0.0
-                    val rawTimeMs = rawTimeMsDouble.roundToLong().coerceAtLeast(0L)
-                    val gridPxSpacing = gridIntervalMs * currentZoom
-                    val snapThresholdPx = (gridPxSpacing * 0.40f).coerceAtLeast(6f)
-                    val shouldSnap = gridIntervalMs > 0 && gridPxSpacing >= 6f
-                    val snapped = if (shouldSnap) GridUtils.snapToGridWithThreshold(rawTimeMs, currentZoom, currentBpm, currentGridType, thresholdPx = snapThresholdPx) else rawTimeMs
-                    println("[TimelineLane] click(pxPerMs) tapX=${tapOffset.x} scroll=${scrollState.value} zoom=$currentZoom rawMs=$rawTimeMs snappedMs=$snapped gridIntMs=$gridIntervalMs gridPxSpacing=$gridPxSpacing diffMs=${snapped - rawTimeMs} thresholdPx=$snapThresholdPx")
-                    onSelectTime(snapped)
-                }
+                        val rawPx = scrollState.value.toDouble() + tapOffset.x.toDouble()
+                        val rawTimeMsDouble = if (currentZoom > 0f) rawPx / currentZoom.toDouble() else 0.0
+                        val rawTimeMs = rawTimeMsDouble.roundToLong().coerceAtLeast(0L)
+                        val gridPxSpacing = gridIntervalMs * currentZoom
+                        val snapThresholdPx = (gridPxSpacing * 0.40f).coerceAtLeast(6f)
+                        val shouldSnap = gridIntervalMs > 0 && gridPxSpacing >= 6f
+                        val snapped = if (shouldSnap) GridUtils.snapToGridWithThreshold(rawTimeMs, currentZoom, currentBpm, currentGridType, thresholdPx = snapThresholdPx) else rawTimeMs
+                        println("[TimelineLane] click(pxPerMs) tapX=${tapOffset.x} scroll=${scrollState.value} zoom=$currentZoom rawMs=$rawTimeMs snappedMs=$snapped gridIntMs=$gridIntervalMs gridPxSpacing=$gridPxSpacing diffMs=${snapped - rawTimeMs} thresholdPx=$snapThresholdPx")
+                        onSelectTime(snapped)
+                    },
+                    onDoubleTap = { tapOffset ->
+                        // Handle double-click for lights tracks
+                        if (track is LightsTimelineTrack) {
+                            val currentZoom = zoomLevel
+                            val rawPx = scrollState.value.toDouble() + tapOffset.x.toDouble()
+                            val rawTimeMsDouble = if (currentZoom > 0f) rawPx / currentZoom.toDouble() else 0.0
+                            val timeMs = rawTimeMsDouble.roundToLong().coerceAtLeast(0L)
+                            onDoubleClickLane(timeMs)
+                        }
+                    }
+                )
             }
             .timelineGridOverlay(
                 zoomLevel = zoomLevel,

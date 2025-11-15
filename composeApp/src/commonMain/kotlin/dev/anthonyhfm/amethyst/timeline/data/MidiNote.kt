@@ -18,7 +18,7 @@ data class MidiNote(
     val durationMs: Long
 ) {
     init {
-        require(pitch in 0..127) { "MIDI pitch must be between 0 and 127, got $pitch" }
+        require(pitch in 0..127) { "MIDI pitch must be between 0 and 127, got $pitch (note: launchpad uses 0-99)" }
         require(velocity in 0..127) { "MIDI velocity must be between 0 and 127, got $velocity" }
         require(startTimeMs >= 0) { "Start time must be non-negative, got $startTimeMs" }
         require(durationMs > 0) { "Duration must be positive, got $durationMs" }

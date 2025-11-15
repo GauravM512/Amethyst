@@ -70,9 +70,9 @@ fun PianoRollView(
     val width = with(density) { widthPx.toDp() }
     val height = with(density) { heightPx.toDp() }
     
-    // Piano roll spans MIDI notes 0-127
+    // Piano roll spans MIDI notes 0-99 (for launchpad compatibility)
     val minPitch = 0
-    val maxPitch = 127
+    val maxPitch = 99
     val pitchRange = maxPitch - minPitch + 1
     val noteHeight = heightPx / pitchRange
     
