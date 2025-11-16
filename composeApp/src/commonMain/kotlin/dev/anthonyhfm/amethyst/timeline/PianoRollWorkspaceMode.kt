@@ -316,13 +316,16 @@ private fun NoteBox(
 ) {
     val density = LocalDensity.current
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var resizeLeftDelta by remember { mutableStateOf(0f) }
+    var resizeRightDelta by remember { mutableStateOf(0f) }
 
     val baseY = metrics.pitchToYPx(note.pitch)
     val baseX = metrics.timeMsToXPx(note.startTimeMs)
     val baseWidthPx = metrics.durationMsToWidthPx(note.durationMs)
 
-    val currentX = baseX + dragOffset.x
+    val currentX = baseX + dragOffset.x + resizeLeftDelta
     val currentY = baseY + dragOffset.y
+    val currentWidthPx = (baseWidthPx - resizeLeftDelta + resizeRightDelta).coerceAtLeast(20f)
 
     Box(
         modifier = Modifier
@@ -331,7 +334,7 @@ private fun NoteBox(
                 y = with(density) { currentY.toDp() }
             )
             .size(
-                width = with(density) { baseWidthPx.coerceAtLeast(10f).toDp() },
+                width = with(density) { currentWidthPx.toDp() },
                 height = 40.dp
             )
             .background(Color(note.led.red, note.led.green, note.led.blue))
@@ -364,7 +367,69 @@ private fun NoteBox(
                     }
                 )
             }
-    )
+    ) {
+        // Left resize handle
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .width(8.dp)
+                .fillMaxHeight()
+                .pointerInput(note) {
+                    detectDragGestures(
+                        onDragStart = { onSelect() },
+                        onDragEnd = {
+                            if (resizeLeftDelta != 0f) {
+                                val newX = baseX + resizeLeftDelta
+                                val newTimeMs = metrics.xPxToTimeMs(newX)
+                                val newDurationMs = (note.endTimeMs - newTimeMs).coerceAtLeast(MS_PER_BEAT / 4)
+                                
+                                val updatedNote = note.copy(
+                                    startTimeMs = newTimeMs,
+                                    durationMs = newDurationMs
+                                )
+                                onUpdate(note, updatedNote)
+                            }
+                            resizeLeftDelta = 0f
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            resizeLeftDelta += dragAmount.x
+                        }
+                    )
+                }
+        )
+        
+        // Right resize handle
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .width(8.dp)
+                .fillMaxHeight()
+                .pointerInput(note) {
+                    detectDragGestures(
+                        onDragStart = { onSelect() },
+                        onDragEnd = {
+                            if (resizeRightDelta != 0f) {
+                                val newWidthPx = baseWidthPx + resizeRightDelta
+                                val newEndX = baseX + newWidthPx
+                                val newEndTimeMs = metrics.xPxToTimeMs(newEndX)
+                                val newDurationMs = (newEndTimeMs - note.startTimeMs).coerceAtLeast(MS_PER_BEAT / 4)
+                                
+                                val updatedNote = note.copy(
+                                    durationMs = newDurationMs
+                                )
+                                onUpdate(note, updatedNote)
+                            }
+                            resizeRightDelta = 0f
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            resizeRightDelta += dragAmount.x
+                        }
+                    )
+                }
+        )
+    }
 }
 
 @Composable
