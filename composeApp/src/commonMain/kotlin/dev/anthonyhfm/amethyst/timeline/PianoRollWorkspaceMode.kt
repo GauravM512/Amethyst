@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.timeline
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -31,6 +32,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.timeline.data.MidiEntry
 import dev.anthonyhfm.amethyst.timeline.data.MidiNote
@@ -40,7 +43,7 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import kotlin.math.roundToInt
 
 private const val MS_PER_BEAT: Long = 500L
-private const val SNAP_DIVISIONS: Int = 4 // Viertel Beats
+private const val SNAP_DIVISIONS: Int = 4
 
 private class PianoRollMetrics(
     val totalPitches: Int,
@@ -170,8 +173,8 @@ private fun PianoRollEditor(
     val canvasHeightDp = noteHeightDp * totalPitches
     val canvasWidthDp = pixelsPerBeatDp * beatsPerBar * totalBars
 
-    var selectedNote by remember { mutableStateOf<MidiNote?>(null) }
     var notesState by remember { mutableStateOf(entry.notes) }
+    val selections by SelectionManager.selections.collectAsState()
 
     Box(
         modifier = Modifier
@@ -247,59 +250,96 @@ private fun PianoRollEditor(
                         .pointerInput(entry, onNoteAdd) {
                             detectTapGestures(
                                 onTap = { offset ->
-                                    // Nur Auswahl bei einfachem Klick
                                     val clickedNote = notesState.firstOrNull { note ->
                                         val noteYPx = metrics.pitchToYPx(note.pitch)
                                         val noteXPx = metrics.timeMsToXPx(note.startTimeMs)
                                         val noteWidthPx = metrics.durationMsToWidthPx(note.durationMs)
                                         offset.x >= noteXPx && offset.x <= noteXPx + noteWidthPx &&
-                                                offset.y >= noteYPx && offset.y <= noteYPx + metrics.noteRenderHeightPx
+                                            offset.y >= noteYPx && offset.y <= noteYPx + metrics.noteRenderHeightPx
                                     }
                                     if (clickedNote != null) {
-                                        selectedNote = clickedNote
+                                        SelectionManager.select(
+                                            Selectable.PianoRollNote(
+                                                trackIndex = (launchpads.size - 1), // Annahme: trackIndex außerhalb Editor, hier Dummy wenn nicht gesetzt
+                                                entryStartMs = entry.startTimeMs,
+                                                note = clickedNote
+                                            ),
+                                            single = true
+                                        )
+                                    } else {
+                                        SelectionManager.clear()
                                     }
                                 },
                                 onDoubleTap = { offset ->
-                                    // Note nur bei Double Click erstellen, exakt im Grid (Beat + Pitch-Zeile)
                                     val pitch = metrics.yPxToPitch(offset.y)
                                     val timeMs = metrics.xPxToBeatStartTimeMs(offset.x)
-
-                                    // Prüfen ob bestehende Note getroffen wurde -> dann nur auswählen
                                     val clickedNote = notesState.firstOrNull { note ->
                                         val noteYPx = metrics.pitchToYPx(note.pitch)
                                         val noteXPx = metrics.timeMsToXPx(note.startTimeMs)
                                         val noteWidthPx = metrics.durationMsToWidthPx(note.durationMs)
                                         offset.x >= noteXPx && offset.x <= noteXPx + noteWidthPx &&
-                                                offset.y >= noteYPx && offset.y <= noteYPx + metrics.noteRenderHeightPx
+                                            offset.y >= noteYPx && offset.y <= noteYPx + metrics.noteRenderHeightPx
                                     }
                                     if (clickedNote != null) {
-                                        selectedNote = clickedNote
+                                        SelectionManager.select(
+                                            Selectable.PianoRollNote(
+                                                trackIndex = (launchpads.size - 1),
+                                                entryStartMs = entry.startTimeMs,
+                                                note = clickedNote
+                                            ),
+                                            single = true
+                                        )
                                     } else {
                                         val newNote = MidiNote.withColor(
                                             pitch = pitch,
                                             color = Color(0xFFFF6B35),
                                             startTimeMs = timeMs,
-                                            durationMs = MS_PER_BEAT // exakt eine Beat-Zelle
+                                            durationMs = MS_PER_BEAT
                                         )
                                         onNoteAdd?.invoke(newNote)
                                         notesState = notesState + newNote
-                                        selectedNote = newNote
+                                        SelectionManager.select(
+                                            Selectable.PianoRollNote(
+                                                trackIndex = (launchpads.size - 1),
+                                                entryStartMs = entry.startTimeMs,
+                                                note = newNote
+                                            ),
+                                            single = true
+                                        )
                                     }
                                 }
                             )
                         }
                 ) {
-                    // Notes zeichnen
                     notesState.forEach { note ->
                         if (note.pitch in 0 until totalPitches) {
+                            val isSelected = selections.filterIsInstance<Selectable.PianoRollNote>().any { it.note == note && it.entryStartMs == entry.startTimeMs }
                             NoteBox(
                                 note = note,
                                 metrics = metrics,
-                                isSelected = note == selectedNote,
-                                onSelect = { selectedNote = note },
+                                isSelected = isSelected,
+                                onSelect = {
+                                    SelectionManager.select(
+                                        Selectable.PianoRollNote(
+                                            trackIndex = (launchpads.size - 1),
+                                            entryStartMs = entry.startTimeMs,
+                                            note = note
+                                        ),
+                                        single = true
+                                    )
+                                },
                                 onUpdate = { oldNote, newNote ->
                                     onNoteUpdate?.invoke(oldNote, newNote)
                                     notesState = notesState.map { if (it == oldNote) newNote else it }
+                                    // Auswahl auf aktualisierte Note übertragen
+                                    SelectionManager.select(
+                                        Selectable.PianoRollNote(
+                                            trackIndex = (launchpads.size - 1),
+                                            entryStartMs = entry.startTimeMs,
+                                            note = newNote
+                                        ),
+                                        single = true
+                                    )
                                 }
                             )
                         }
@@ -342,9 +382,12 @@ private fun NoteBox(
                 height = 40.dp
             )
             .background(Color(note.led.red, note.led.green, note.led.blue))
-            .border(2.dp, MaterialTheme.colorScheme.onSurface)
+            .border(2.dp, MaterialTheme.colorScheme.onSurface.copy(if (isSelected) 1f else 0.4f))
             .padding(2.dp)
             .border(2.dp, MaterialTheme.colorScheme.surfaceDim)
+            .clickable {
+                onSelect()
+            }
             .pointerInput(note) {
                 detectDragGestures(
                     onDragStart = { onSelect() },
