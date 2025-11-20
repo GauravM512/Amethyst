@@ -272,6 +272,8 @@ fun TimelineLane(
     val selections by SelectionManager.selections.collectAsState()
     val selectedRange = selections.filterIsInstance<Selectable.TimelineRange>().firstOrNull { it.trackIndex == trackIndexOf(track) }
 
+    val headerHeightPx = with(LocalDensity.current) { 24.dp.toPx() }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -281,7 +283,8 @@ fun TimelineLane(
                 zoomLevel = zoomLevel,
                 bpm = bpm,
                 gridType = gridType,
-                drawBehind = true
+                drawBehind = true,
+                scrollOffsetPx = scrollState.value.toFloat()
             )
             .fileDropTarget(
                 onHover = { _: Boolean, _: Offset?, _: List<PlatformFile> -> },
@@ -305,6 +308,15 @@ fun TimelineLane(
                             val change = event.changes.firstOrNull() ?: continue
                             val pos = change.position
                             val time = change.uptimeMillis
+
+                            val headerHit = findHeaderEntryHit(track, pos.x, pos.y, zoomLevel, scrollState.value.toFloat(), headerHeightPx)
+                            if (headerHit != null) {
+                                onSelectEntry(headerHit)
+                                lastClickTime = 0L
+                                lastClickPos = null
+                                change.consume(); continue
+                            }
+
                             val isLights = track is LightsTimelineTrack
                             val snappedMs = computeSnappedTime(pos.x, scrollState, zoomLevel, bpm, gridType)
                             val isDouble = isLights && lastClickTime != 0L &&
@@ -336,8 +348,15 @@ fun TimelineLane(
             .pointerInput(track, zoomLevel, bpm, gridType) {
                 detectDragGestures(
                     onDragStart = { offset ->
+                        val headerHit = findHeaderEntryHit(track, offset.x, offset.y, zoomLevel, scrollState.value.toFloat(), headerHeightPx)
+                        if (headerHit != null) {
+                            onSelectEntry(headerHit)
+                            rangeActive = false
+                            rangeStartMs = null
+                            rangeEndMs = null
+                            return@detectDragGestures
+                        }
                         val startMsRawStrict = computeStrictGridTime(offset.x, scrollState, zoomLevel, bpm, gridType)
-
                         if (!isPointInsideAnyEntry(track, startMsRawStrict)) {
                             rangeStartMs = startMsRawStrict
                             rangeEndMs = startMsRawStrict
@@ -492,7 +511,8 @@ private fun Modifier.timelineGridOverlay(
     bpm: Double,
     gridType: GridUtils.GridType,
     drawBehind: Boolean = false,
-    ignoreTopPx: Float = 0f
+    ignoreTopPx: Float = 0f,
+    scrollOffsetPx: Float = 0f
 ): Modifier {
     val baseLineColor = Color(0xFF000000)
     val minorColor = baseLineColor.copy(alpha = 0.55f)
@@ -509,19 +529,24 @@ private fun Modifier.timelineGridOverlay(
         if (pxPerGrid < 4f) { drawContent(); return@drawWithContent }
 
         fun drawGridLines() {
-            val contentWidthPx = size.width
-            val totalDurationMs = (contentWidthPx / zoomLevel).toLong()
-            var t = 0L
-            while (t <= totalDurationMs) {
-                val x = t * zoomLevel
-                if (x > contentWidthPx + 1f) break
-                val isMajor = (t % majorIntervalMs == 0L)
-                drawLine(
-                    color = if (isMajor) majorColor else minorColor,
-                    start = Offset(x, ignoreTopPx),
-                    end = Offset(x, size.height),
-                    strokeWidth = 1.dp.toPx()
-                )
+            val viewportWidthPx = size.width
+            val startTimeMsInclusive = (scrollOffsetPx / zoomLevel).toLong().coerceAtLeast(0L)
+
+            val firstGridTimeMs = (startTimeMsInclusive / intervalMs) * intervalMs
+            val endTimeMsExclusive = ((scrollOffsetPx + viewportWidthPx) / zoomLevel).toLong().coerceAtLeast(firstGridTimeMs)
+            var t = firstGridTimeMs
+            while (t <= endTimeMsExclusive + intervalMs) {
+                val x = t * zoomLevel - scrollOffsetPx
+                if (x > viewportWidthPx + 1f) break
+                if (x >= -1f) {
+                    val isMajor = (t % majorIntervalMs == 0L)
+                    drawLine(
+                        color = if (isMajor) majorColor else minorColor,
+                        start = Offset(x, ignoreTopPx),
+                        end = Offset(x, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
                 t += intervalMs
             }
         }
@@ -745,23 +770,7 @@ fun MidiClip(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .pointerInput(midiEntry.startTimeMs, zoomLevel, gridIntervalMs) {
-                    detectDragGestures(
-                        onDragStart = { snapEnabled = true },
-                        onDragEnd = {
-                            if (previewStartMs != midiEntry.startTimeMs) {
-                                onMoveEntry(previewStartMs)
-                            }
-                            dragOffsetPx.value = 0f
-                            snapEnabled = true
-                        },
-                        onDragCancel = { dragOffsetPx.value = 0f; snapEnabled = true },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            dragOffsetPx.value += dragAmount.x
-                        }
-                    )
-                }
+                .clickable { onSelectEntry() }
                 .padding(4.dp)
                 .drawWithContent {
                     drawContent()
@@ -839,4 +848,39 @@ private fun computeStrictGridTime(x: Float, scrollState: ScrollState, zoomLevel:
     val rawTimeMs = rawTimeMsDouble.roundToLong().coerceAtLeast(0L)
 
     return GridUtils.snapToGrid(rawTimeMs, zoomLevel, bpm, gridType)
+}
+
+private fun findHeaderEntryHit(
+    track: TimelineTrack<*>,
+    x: Float,
+    y: Float,
+    zoom: Float,
+    scrollPx: Float,
+    headerHeightPx: Float
+): Long? {
+    if (y > headerHeightPx) return null
+    return when (track) {
+        is AudioTimelineTrack -> {
+            track.entries.values.firstOrNull { entry ->
+                val left = entry.startTimeMs * zoom - scrollPx
+                val right = left + entry.durationMs * zoom
+                x in left..right
+            }?.startTimeMs
+        }
+        is MidiTimelineTrack -> {
+            track.entries.values.firstOrNull { entry ->
+                val left = entry.startTimeMs * zoom - scrollPx
+                val right = left + entry.durationMs * zoom
+                x in left..right
+            }?.startTimeMs
+        }
+        is LightsTimelineTrack -> {
+            track.entries.values.firstOrNull { entry ->
+                val left = entry.startTimeMs * zoom - scrollPx
+                val right = left + entry.durationMs * zoom
+                x in left..right
+            }?.startTimeMs
+        }
+        else -> null
+    }
 }
