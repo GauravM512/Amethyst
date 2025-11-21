@@ -65,6 +65,10 @@ object AbletonConverter : AmethystConverter {
         zipEntries.clear()
         val e = Zip.getEntries(file)
 
+        e.forEach {
+            println("File in zip: ${it.path}")
+        }
+
         zipStartPath = e.map { it.path }
             .first { it.endsWith(".als") }
             .substringBeforeLast("/")
