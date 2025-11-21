@@ -26,6 +26,7 @@ import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
+import dev.anthonyhfm.amethyst.devices.Chokeable
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.StepTextDial
 import dev.anthonyhfm.amethyst.ui.components.TextDial
@@ -37,7 +38,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>() {
+class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(LoopChainDeviceState())
 
     @Composable
@@ -270,6 +271,14 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>() {
                 // Schedule the next iteration
                 scheduleSignals(signal, signalOwner, delay)
             }
+        }
+    }
+
+    override fun onChoke() {
+        // Cancel all scheduled Heaven tasks owned by this device
+        // The loop device uses Pair(this, "${coords.first},${coords.second}") as owner
+        Heaven.cancelJobs { job ->
+            job.owner is Pair<*, *> && job.owner.first == this
         }
     }
 }

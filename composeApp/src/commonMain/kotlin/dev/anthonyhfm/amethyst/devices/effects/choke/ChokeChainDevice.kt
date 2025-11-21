@@ -27,6 +27,7 @@ import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.core.engine.elements.Chain
+import dev.anthonyhfm.amethyst.devices.Chokeable
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
@@ -49,6 +50,41 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>() {
     init {
         state.value.chain.signalExit = {
             signalExit?.invoke(it)
+        }
+        
+        // Register this choke device with its channel
+        chokeDevicesByChannel.getOrPut(state.value.target) { mutableListOf() }.add(this)
+    }
+
+    companion object {
+        // Map of choke channel to list of choke devices on that channel
+        private val chokeDevicesByChannel = mutableMapOf<Int, MutableList<ChokeChainDevice>>()
+
+        /**
+         * Choke all devices on a specific channel except the triggering device
+         */
+        fun chokeChannel(channel: Int, triggeringDevice: ChokeChainDevice) {
+            chokeDevicesByChannel[channel]?.forEach { chokeDevice ->
+                if (chokeDevice != triggeringDevice) {
+                    chokeDevice.performChoke()
+                }
+            }
+        }
+
+        /**
+         * Unregister a choke device (e.g., when it's deleted)
+         */
+        fun unregisterDevice(device: ChokeChainDevice, channel: Int) {
+            chokeDevicesByChannel[channel]?.remove(device)
+        }
+    }
+
+    private fun performChoke() {
+        // Choke all devices in this choke device's chain
+        state.value.chain.devices.value.forEach { device ->
+            if (device is Chokeable) {
+                device.onChoke()
+            }
         }
     }
 
@@ -87,15 +123,27 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>() {
 
                         chokeChannel?.let { channel ->
                             if (chokeChannel in 0..16) {
+                                val oldChannel = state.value.target
                                 state.update {
                                     it.copy(target = channel)
+                                }
+                                // Update channel registration
+                                if (oldChannel != channel) {
+                                    unregisterDevice(this, oldChannel)
+                                    chokeDevicesByChannel.getOrPut(channel) { mutableListOf() }.add(this)
                                 }
                             }
                         }
                     },
                     onValueChange = { value ->
+                        val oldChannel = state.value.target
                         state.update {
                             it.copy(target = value)
+                        }
+                        // Update channel registration
+                        if (oldChannel != value) {
+                            unregisterDevice(this, oldChannel)
+                            chokeDevicesByChannel.getOrPut(value) { mutableListOf() }.add(this)
                         }
                     }
                 )
@@ -296,6 +344,10 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>() {
     }
 
     override fun signalEnter(n: List<Signal>) {
+        // Trigger choking on all other choke devices with the same channel
+        chokeChannel(state.value.target, this)
+        
+        // Pass signals through to the chain
         state.value.chain.signalEnter(n)
     }
 }

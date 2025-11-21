@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.update
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.devices.LEDChainDevice
+import dev.anthonyhfm.amethyst.devices.Chokeable
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
@@ -39,7 +40,7 @@ import kotlin.math.pow
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.util.Pincher
 import io.github.vinceglb.filekit.readBytes
 
-class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>() {
+class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(KeyframesChainDeviceState())
 
     private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode()
@@ -693,5 +694,13 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>() {
         }
 
         refreshVirtualDevices()
+    }
+
+    override fun onChoke() {
+        // Cancel all scheduled Heaven tasks owned by this device
+        Heaven.cancelJobsForOwner(this)
+        
+        // Clear any rendered signals by clearing the Heaven display
+        Heaven.clear()
     }
 }

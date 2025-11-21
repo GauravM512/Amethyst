@@ -51,6 +51,7 @@ import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.LEDChainDevice
+import dev.anthonyhfm.amethyst.devices.Chokeable
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import dev.anthonyhfm.amethyst.ui.components.TimeDial
@@ -62,7 +63,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.abs
 
-class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>() {
+class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(CopyChainDeviceState())
 
     @Composable
@@ -589,6 +590,14 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>() {
         }
 
         signalExit?.invoke(n)
+    }
+
+    override fun onChoke() {
+        // Cancel all scheduled Heaven tasks owned by this device
+        // The copy device uses Pair(this, "${originalSignal.x},${originalSignal.y}") as owner
+        Heaven.cancelJobs { job ->
+            job.owner is Pair<*, *> && job.owner.first == this
+        }
     }
 
 
