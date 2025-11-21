@@ -31,6 +31,7 @@ import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.LEDChainDevice
+import dev.anthonyhfm.amethyst.devices.Chokeable
 import dev.anthonyhfm.amethyst.devices.effects.gradient.ui.GradientEditorBar
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
@@ -46,7 +47,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>() {
+class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(GradientChainDeviceState())
 
     @Composable
@@ -394,6 +395,14 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onChoke() {
+        // Cancel all scheduled Heaven tasks owned by this device
+        // The gradient device uses Pair(this, "${signal.x},${signal.y}") as owner
+        Heaven.cancelJobs { job ->
+            job.owner is Pair<*, *> && job.owner.first == this
         }
     }
 }

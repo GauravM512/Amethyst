@@ -14,6 +14,7 @@ import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
+import dev.anthonyhfm.amethyst.devices.Chokeable
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import dev.anthonyhfm.amethyst.ui.components.TimeDial
@@ -22,7 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>() {
+class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(DelayChainDeviceState())
 
     @Composable
@@ -112,9 +113,15 @@ class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>() {
     override fun signalEnter(n: List<Signal>) {
         Heaven.schedule(
             delayInMs = state.value.delayMs.toDouble() * (state.value.gate * 2),
+            owner = this
         ) {
             signalExit?.invoke(n)
         }
+    }
+
+    override fun onChoke() {
+        // Cancel all scheduled Heaven tasks owned by this device
+        Heaven.cancelJobsForOwner(this)
     }
 }
 

@@ -17,6 +17,7 @@ import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
+import dev.anthonyhfm.amethyst.devices.Chokeable
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import dev.anthonyhfm.amethyst.ui.components.TimeDial
@@ -26,7 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>() {
+class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(HoldChainDeviceState())
 
     @Composable
@@ -259,6 +260,14 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>() {
 
                 updateSchedule(state.value.delayMs.toDouble() * state.value.gate * 2)
             }
+        }
+    }
+
+    override fun onChoke() {
+        // Cancel all scheduled Heaven tasks owned by this device
+        // The hold device uses Pair(this, "${signalX},${signalY}") as owner
+        Heaven.cancelJobs { job ->
+            job.owner is Pair<*, *> && job.owner.first == this
         }
     }
 }
