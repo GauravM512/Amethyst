@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,8 +40,6 @@ import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.timeline.data.MidiEntry
 import dev.anthonyhfm.amethyst.timeline.data.MidiNote
-import dev.anthonyhfm.amethyst.ui.modifier.ResizeLeft
-import dev.anthonyhfm.amethyst.ui.modifier.ResizeRight
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import kotlin.math.max
 import kotlin.math.min
@@ -239,6 +236,10 @@ private fun PianoRollEditor(
 
     var marqueeStart by remember { mutableStateOf<Offset?>(null) }
     var marqueeCurrent by remember { mutableStateOf<Offset?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var resizeLeftDelta by remember { mutableStateOf(0f) }
+    var resizeRightDelta by remember { mutableStateOf(0f) }
+    var activeDragNote by remember { mutableStateOf<MidiNote?>(null) }
 
     Box(
         modifier = Modifier
@@ -288,7 +289,6 @@ private fun PianoRollEditor(
                             val heightPx = size.height
                             val darkBackground = Color(0xFF1A1A1A)
                             val lightRow = Color(0xFF242424)
-                            val gridLine = Color(0xFF333333)
                             val beatLine = Color(0xFF444444)
                             val barLine = Color(0xFF555555)
 
@@ -344,7 +344,7 @@ private fun PianoRollEditor(
                                     val subdivisions = gridResolution.subBeatsPerBeat
                                     val cellWidthPx = metrics.pixelsPerBeatPx / subdivisions
                                     val cellIndex = (offset.x / cellWidthPx).toInt().coerceAtLeast(0)
-                                    var startMs = (cellIndex * MS_PER_BEAT / subdivisions)
+                                    val startMs = (cellIndex * MS_PER_BEAT / subdivisions)
                                     if (startMs >= entry.durationMs) return@detectTapGestures
                                     val cellDurationMs = MS_PER_BEAT / subdivisions
                                     var durationMs = cellDurationMs
@@ -414,25 +414,117 @@ private fun PianoRollEditor(
                     notesState.forEach { note ->
                         if (note.pitch in 0 until totalPitches) {
                             val selected = selections.filterIsInstance<Selectable.PianoRollNote>().any { it.note == note && it.entryStartMs == entryStartMs && it.trackIndex == trackIndex }
+                            val isManipulated = activeDragNote == note
+
                             NoteBox(
                                 note = note,
                                 metrics = metrics,
                                 isSelected = selected,
                                 onSelect = {
-                                    SelectionManager.select(
-                                        Selectable.PianoRollNote(trackIndex, entryStartMs, note),
-                                        single = !multiSelectModifierDown
-                                    )
+                                    if (!selected) {
+                                        SelectionManager.select(
+                                            Selectable.PianoRollNote(trackIndex, entryStartMs, note),
+                                            single = !multiSelectModifierDown
+                                        )
+                                    }
+                                    activeDragNote = note
                                 },
-                                onUpdate = { oldNote, newNote ->
-                                    onNoteUpdate?.invoke(oldNote, newNote)
-                                    notesState = notesState.map { if (it == oldNote) newNote else it }
-                                    SelectionManager.select(
-                                        Selectable.PianoRollNote(trackIndex, entryStartMs, newNote),
-                                        single = !multiSelectModifierDown
-                                    )
+                                onDrag = { dragAmount ->
+                                    dragOffset += dragAmount
                                 },
-                                clipDurationMs = entry.durationMs
+                                onDragEnd = {
+                                    val selectedNotes = selections.filterIsInstance<Selectable.PianoRollNote>()
+                                        .map { it.note }
+                                        .ifEmpty { listOf(note) }
+
+                                    val pitchDelta = if (dragOffset.y != 0f) {
+                                        -kotlin.math.round(dragOffset.y / metrics.noteHeightPx).toInt()
+                                    } else {
+                                        0
+                                    }
+
+                                    val noteUpdates = selectedNotes.map { noteToDrag ->
+                                        val baseX = metrics.timeMsToXPx(noteToDrag.startTimeMs)
+                                        val newX = baseX + dragOffset.x
+                                        var newTimeMs = metrics.xPxToTimeMs(newX)
+                                        val newPitch = (noteToDrag.pitch + pitchDelta).coerceIn(0, metrics.totalPitches - 1)
+
+                                        val maxStart = (entry.durationMs - noteToDrag.durationMs).coerceAtLeast(0L)
+                                        if (newTimeMs > maxStart) newTimeMs = maxStart
+                                        val updatedNote = noteToDrag.copy(
+                                            startTimeMs = newTimeMs,
+                                            pitch = newPitch,
+                                            led = noteToDrag.led.copy(index = newPitch)
+                                        )
+                                        noteToDrag to updatedNote
+                                    }
+
+                                    noteUpdates.forEach { (old, new) -> onNoteUpdate?.invoke(old, new) }
+                                    val updatedNotes = notesState.map { n ->
+                                        noteUpdates.find { it.first == n }?.second ?: n
+                                    }
+                                    notesState = updatedNotes
+                                    SelectionManager.clear()
+                                    noteUpdates.forEach { (_, new) ->
+                                        SelectionManager.select(
+                                            Selectable.PianoRollNote(trackIndex, entryStartMs, new),
+                                            single = false
+                                        )
+                                    }
+                                    dragOffset = Offset.Zero
+                                    activeDragNote = null
+                                },
+                                onResizeLeft = { resizeDelta ->
+                                    resizeLeftDelta += resizeDelta
+                                },
+                                onResizeLeftEnd = {
+                                    val resizedNote = activeDragNote ?: return@NoteBox
+                                    val newX = metrics.timeMsToXPx(resizedNote.startTimeMs) + resizeLeftDelta
+                                    val newStartMs = metrics.xPxToTimeMs(newX).coerceAtLeast(0L)
+                                    val newEndMs = resizedNote.endTimeMs
+                                    val minDur = MS_PER_BEAT / 4
+                                    var newDurationMs = (newEndMs - newStartMs).coerceAtLeast(minDur)
+                                    if (newStartMs + newDurationMs > entry.durationMs) {
+                                        newDurationMs = (entry.durationMs - newStartMs).coerceAtLeast(minDur)
+                                    }
+                                    val updatedNote = resizedNote.copy(
+                                        startTimeMs = newStartMs,
+                                        durationMs = newDurationMs
+                                    )
+                                    onNoteUpdate?.invoke(resizedNote, updatedNote)
+                                    notesState = notesState.map { if (it == resizedNote) updatedNote else it }
+                                    SelectionManager.select(
+                                        Selectable.PianoRollNote(trackIndex, entryStartMs, updatedNote),
+                                        single = true
+                                    )
+                                    resizeLeftDelta = 0f
+                                    activeDragNote = null
+                                },
+                                onResizeRight = { resizeDelta ->
+                                    resizeRightDelta += resizeDelta
+                                },
+                                onResizeRightEnd = {
+                                    val resizedNote = activeDragNote ?: return@NoteBox
+                                    val baseWidthPx = metrics.durationMsToWidthPx(resizedNote.durationMs)
+                                    val newWidthPx = baseWidthPx + resizeRightDelta
+                                    val newEndX = metrics.timeMsToXPx(resizedNote.startTimeMs) + newWidthPx
+                                    var newEndTimeMs = metrics.xPxToTimeMs(newEndX)
+                                    val minDur = MS_PER_BEAT / 4
+                                    if (newEndTimeMs > entry.durationMs) newEndTimeMs = entry.durationMs
+                                    val newDurationMs = (newEndTimeMs - resizedNote.startTimeMs).coerceAtLeast(minDur)
+                                    val updatedNote = resizedNote.copy(durationMs = newDurationMs)
+                                    onNoteUpdate?.invoke(resizedNote, updatedNote)
+                                    notesState = notesState.map { if (it == resizedNote) updatedNote else it }
+                                    SelectionManager.select(
+                                        Selectable.PianoRollNote(trackIndex, entryStartMs, updatedNote),
+                                        single = true
+                                    )
+                                    resizeRightDelta = 0f
+                                    activeDragNote = null
+                                },
+                                dragOffset = if (selected) dragOffset else Offset.Zero,
+                                resizeLeftDelta = if (isManipulated) resizeLeftDelta else 0f,
+                                resizeRightDelta = if (isManipulated) resizeRightDelta else 0f
                             )
                         }
                     }
@@ -463,20 +555,31 @@ private fun NoteBox(
     metrics: PianoRollMetrics,
     isSelected: Boolean,
     onSelect: () -> Unit,
-    onUpdate: (MidiNote, MidiNote) -> Unit,
-    clipDurationMs: Long
+    onDrag: (dragAmount: Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onResizeLeft: (resizeDelta: Float) -> Unit,
+    onResizeLeftEnd: () -> Unit,
+    onResizeRight: (resizeDelta: Float) -> Unit,
+    onResizeRightEnd: () -> Unit,
+    dragOffset: Offset,
+    resizeLeftDelta: Float,
+    resizeRightDelta: Float
 ) {
     val density = LocalDensity.current
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var resizeLeftDelta by remember { mutableStateOf(0f) }
-    var resizeRightDelta by remember { mutableStateOf(0f) }
 
     val baseY = metrics.pitchToYPx(note.pitch)
     val baseX = metrics.timeMsToXPx(note.startTimeMs)
     val baseWidthPx = metrics.durationMsToWidthPx(note.durationMs)
 
+    val snappedDragOffsetY = if (dragOffset.y != 0f) {
+        val pitchSteps = kotlin.math.round(dragOffset.y / metrics.noteHeightPx).toInt()
+        pitchSteps * metrics.noteHeightPx
+    } else {
+        0f
+    }
+
     val currentX = baseX + dragOffset.x + resizeLeftDelta
-    val currentY = baseY + dragOffset.y
+    val currentY = baseY + snappedDragOffsetY
     val currentWidthPx = (baseWidthPx - resizeLeftDelta + resizeRightDelta).coerceAtLeast(20f)
 
     Box(
@@ -497,26 +600,10 @@ private fun NoteBox(
             .pointerInput(note) {
                 detectDragGestures(
                     onDragStart = { onSelect() },
-                    onDragEnd = {
-                        if (dragOffset != Offset.Zero) {
-                            val newX = baseX + dragOffset.x
-                            val newY = baseY + dragOffset.y
-                            var newTimeMs = metrics.xPxToTimeMs(newX)
-                            val newPitch = metrics.yPxToPitch(newY)
-
-                            val maxStart = (clipDurationMs - note.durationMs).coerceAtLeast(0L)
-                            if (newTimeMs > maxStart) newTimeMs = maxStart
-                            val updatedNote = note.copy(
-                                startTimeMs = newTimeMs,
-                                pitch = newPitch,
-                                led = note.led.copy(index = newPitch)
-                            )
-                            onUpdate(note, updatedNote)
-                        }
-                        dragOffset = Offset.Zero
-                    },
+                    onDragEnd = { onDragEnd() },
                     onDrag = { change, dragAmount ->
-                        change.consume(); dragOffset += dragAmount
+                        change.consume()
+                        onDrag(dragAmount)
                     }
                 )
             }
@@ -526,30 +613,14 @@ private fun NoteBox(
                 .align(Alignment.CenterStart)
                 .width(6.dp)
                 .fillMaxHeight()
-                .pointerHoverIcon(PointerIcon.ResizeLeft)
+                .pointerHoverIcon(PointerIcon.Hand)
                 .pointerInput(note) {
                     detectDragGestures(
                         onDragStart = { onSelect() },
-                        onDragEnd = {
-                            if (resizeLeftDelta != 0f) {
-                                val newX = baseX + resizeLeftDelta
-                                val newStartMs = metrics.xPxToTimeMs(newX).coerceAtLeast(0L)
-                                val newEndMs = note.endTimeMs
-                                val minDur = MS_PER_BEAT / 4
-                                var newDurationMs = (newEndMs - newStartMs).coerceAtLeast(minDur)
-                                if (newStartMs + newDurationMs > clipDurationMs) {
-                                    newDurationMs = (clipDurationMs - newStartMs).coerceAtLeast(minDur)
-                                }
-                                val updatedNote = note.copy(
-                                    startTimeMs = newStartMs,
-                                    durationMs = newDurationMs
-                                )
-                                onUpdate(note, updatedNote)
-                            }
-                            resizeLeftDelta = 0f
-                        },
+                        onDragEnd = { onResizeLeftEnd() },
                         onDrag = { change, dragAmount ->
-                            change.consume(); resizeLeftDelta += dragAmount.x
+                            change.consume()
+                            onResizeLeft(dragAmount.x)
                         }
                     )
                 }
@@ -559,25 +630,14 @@ private fun NoteBox(
                 .align(Alignment.CenterEnd)
                 .width(6.dp)
                 .fillMaxHeight()
-                .pointerHoverIcon(PointerIcon.ResizeRight)
+                .pointerHoverIcon(PointerIcon.Hand)
                 .pointerInput(note) {
                     detectDragGestures(
                         onDragStart = { onSelect() },
-                        onDragEnd = {
-                            if (resizeRightDelta != 0f) {
-                                val newWidthPx = baseWidthPx + resizeRightDelta
-                                val newEndX = baseX + newWidthPx
-                                var newEndTimeMs = metrics.xPxToTimeMs(newEndX)
-                                val minDur = MS_PER_BEAT / 4
-                                if (newEndTimeMs > clipDurationMs) newEndTimeMs = clipDurationMs
-                                val newDurationMs = (newEndTimeMs - note.startTimeMs).coerceAtLeast(minDur)
-                                val updatedNote = note.copy(durationMs = newDurationMs)
-                                onUpdate(note, updatedNote)
-                            }
-                            resizeRightDelta = 0f
-                        },
+                        onDragEnd = { onResizeRightEnd() },
                         onDrag = { change, dragAmount ->
-                            change.consume(); resizeRightDelta += dragAmount.x
+                            change.consume()
+                            onResizeRight(dragAmount.x)
                         }
                     )
                 }
