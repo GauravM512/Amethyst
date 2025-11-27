@@ -172,7 +172,8 @@ class MxDeviceMidiEffectAdapter(
         } catch (e: Exception) {
             val maxFile = PlatformFile(path)
 
-            println("Error while converting Max device ${maxFile.nameWithoutExtension} - Hash: $hash")
+            println("Error while converting Max device (${maxFile.nameWithoutExtension}) - Hash: $hash")
+            e.printStackTrace()
 
             return emptyList()
         }

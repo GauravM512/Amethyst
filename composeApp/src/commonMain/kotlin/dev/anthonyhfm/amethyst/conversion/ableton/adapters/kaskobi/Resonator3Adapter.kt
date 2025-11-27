@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.utils.rythmIndexToDuration
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.MaxParam
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.XmlElement
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
@@ -32,101 +33,35 @@ class Resonator3Adapter(
 ): AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val palette = AbletonConverter.palette
+
         val direction: Resonator3Prototype = Json {
             ignoreUnknownKeys = true
         }.let {
             if (isUpdatedVersion) {
-                decodeFromString<Resonator301Data>(blob.decodeToString())
+                it.decodeFromString<Resonator301Data>(blob.decodeToString())
             } else {
-                try {
-                    decodeFromString<Resonator3Data>(blob.decodeToString())
-                } catch (ex: Exception) {
-                    println(blob.decodeToString())
-
-                    return emptyList()
-                }
+                it.decodeFromString<Resonator3Data>(blob.decodeToString())
             }
         }
-
+        
         val parameterList = xml.querySelector("ParameterList")[1]
+        val parameters = MaxParam(parameterList)
 
-        val noteLengthMode: Boolean = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "9"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0f)
-            .let { it == 1 }
+        val noteLengthMode: Boolean = parameters.getEnumValue(if (isUpdatedVersion) 9 else 26) == 1
+        val noteLengthValueMs: Double = convertWeirdFuckingFloatValues(parameters.getFloatValue(if (isUpdatedVersion) 10 else 21).toDouble())
+        val noteLengthValueSync: Int = parameters.getEnumValue(if (isUpdatedVersion) 11 else 20)
 
-        val noteLengthValueMs: Double = (parameterList
-            .querySelector("MxDFloatParameter").find {
-                it.attributes["Id"] == "10"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toFloatOrNull() ?: 0f)
-            .let {
-                convertWeirdFuckingFloatValues(it.toDouble())
-            }
+        val stepDelayValueMode: Boolean = parameters.getEnumValue(if (isUpdatedVersion) 34 else 28) == 1
+        val stepDelayValueMs: Double = convertWeirdFuckingFloatValues(parameters.getFloatValue(if (isUpdatedVersion) 14 else 19).toDouble())
+        val stepDelayValueSync: Int = parameters.getEnumValue(if (isUpdatedVersion) 15 else 18)
 
-        val noteLengthValueSync: Int = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "10"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0)
+        val timeBetweenColorsMode: Boolean = parameters.getEnumValue(if (isUpdatedVersion) 35 else 30) == 1
+        val timeBetweenColorsMs: Double = convertWeirdFuckingFloatValues(parameters.getFloatValue(if (isUpdatedVersion) 12 else 23).toDouble())
+        val timeBetweenColorsSync: Int = parameters.getEnumValue(if (isUpdatedVersion) 13 else 22)
 
-        val stepDelayValueMode: Boolean = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "34"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0f)
-            .let { it == 1 }
+        val steps: Int = parameters.getIntValue(if (isUpdatedVersion) 8 else 0) - 1
 
-        val stepDelayValueMs: Double = (parameterList
-            .querySelector("MxDFloatParameter").find {
-                it.attributes["Id"] == "14"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toFloatOrNull() ?: 0f)
-            .let {
-                convertWeirdFuckingFloatValues(it.toDouble())
-            }
-
-        val stepDelayValueSync: Int = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "15"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0)
-
-        val timeBetweenColorsMode: Boolean = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "35"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0f)
-            .let { it == 1 }
-
-        val timeBetweenColorsMs: Double = (parameterList
-            .querySelector("MxDFloatParameter").find {
-                it.attributes["Id"] == "12"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toFloatOrNull() ?: 0f)
-            .let {
-                convertWeirdFuckingFloatValues(it.toDouble())
-            }
-
-        val timeBetweenColorsSync: Int = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "13"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0)
-
-        val steps: Int = (parameterList
-            .querySelector("MxDIntParameter").find {
-                it.attributes["Id"] == "8"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull()?.minus(1) ?: 0)
-
-        val isolation: CopyChainDeviceState.IsolationType = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "4"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0f)
+        val isolation: CopyChainDeviceState.IsolationType = parameters.getEnumValue(if (isUpdatedVersion) 4 else 29)
             .let {
                 when (it) {
                     1 -> CopyChainDeviceState.IsolationType.FULL
@@ -134,35 +69,21 @@ class Resonator3Adapter(
                 }
             }
 
-        val holdMode: Boolean = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "3"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0f)
-            .let { it == 1 }
+        val holdMode: Boolean = parameters.getEnumValue(if (isUpdatedVersion) 3 else 27) == 1
 
-        val gradientEnabled: Boolean = (parameterList
-            .querySelector("MxDEnumParameter").find {
-                it.attributes["Id"] == "1"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0f)
-            .let { it == 1 }
+        val gradientEnabled: Boolean = parameters.getEnumValue(if (isUpdatedVersion) 1 else 24) == 1
 
-        val colorCount = (parameterList
-            .querySelector("MxDIntParameter").find {
-                it.attributes["Id"] == "2"
-            }!!.querySelector("Manual").first()
-            .attributes["Value"]?.toIntOrNull() ?: 0)
+        val colorCount = parameters.getIntValue(if (isUpdatedVersion) 2 else 16).coerceIn(1, 16) - 1
 
         val gradientColors: List<Int> = run {
-            val ids = listOf(18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33)
+            val ids = if (isUpdatedVersion) {
+                listOf(18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33)
+            } else {
+                listOf(12, 5, 11, 10, 9, 4, 8, 7, 6, 3, 2, 1, 16, 15, 14, 13)
+            }
 
             return@run ids.map { id ->
-                (parameterList
-                    .querySelector("MxDIntParameter").find {
-                        it.attributes["Id"] == id.toString()
-                    }!!.querySelector("Manual").first()
-                    .attributes["Value"]?.toIntOrNull() ?: 0)
+                parameters.getIntValue(id)
             }
         }
 
@@ -434,33 +355,33 @@ interface Resonator3Prototype {
 
 @Serializable
 private data class Resonator3Data(
-    @SerialName("Circle")
+    @SerialName("pictctrl[13]")
     override val circle: List<Int> = listOf(0),
     @SerialName("Device")
     override val device: List<Int> = listOf(0),
-    @SerialName("Diamond")
+    @SerialName("pictctrl[15]")
     override val diamond: List<Int> = listOf(0),
-    @SerialName("Down")
+    @SerialName("pictctrl[10]")
     override val down: List<Int> = listOf(0),
-    @SerialName("DownLeft")
+    @SerialName("pictctrl[6]")
     override val downLeft: List<Int> = listOf(0),
-    @SerialName("DownRight")
+    @SerialName("pictctrl[4]")
     override val downRight: List<Int> = listOf(0),
     @SerialName("Launchpad Position")
     override val launchpadPosition: List<Int> = listOf(0),
-    @SerialName("Left")
+    @SerialName("pictctrl[8]")
     override val left: List<Int> = listOf(0),
-    @SerialName("Right")
+    @SerialName("pictctrl[9]")
     override val right: List<Int> = listOf(0),
     @SerialName("SingleLED")
     override val singleLED: List<Int> = listOf(0),
-    @SerialName("Square")
+    @SerialName("pictctrl[12]")
     override val square: List<Int> = listOf(0),
-    @SerialName("Up")
+    @SerialName("pictctrl[11]")
     override val up: List<Int> = listOf(0),
-    @SerialName("UpLeft")
+    @SerialName("pictctrl[3]")
     override val upLeft: List<Int> = listOf(0),
-    @SerialName("UpRight")
+    @SerialName("pictctrl[5]")
     override val upRight: List<Int> = listOf(0),
 ) : Resonator3Prototype
 
