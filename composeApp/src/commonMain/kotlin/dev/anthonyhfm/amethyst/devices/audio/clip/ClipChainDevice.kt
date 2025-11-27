@@ -126,7 +126,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     text = "${deviceState.fadeInMs.toInt()} ms",
                     value = deviceState.fadeInMs / MAX_FADE_MS,
                     onStartValueChange = { v ->
-                        beforeFadeIn = v * MAX_FADE_MS
+                        beforeFadeIn = deviceState.fadeInMs
                     },
                     onValueChange = { value ->
                         state.update {
@@ -136,7 +136,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     onFinishValueChange = { v ->
                         pushStateChange(
                             before = state.value.copy(fadeInMs = beforeFadeIn),
-                            after = state.value.copy(fadeInMs = (v * MAX_FADE_MS).coerceIn(0f, MAX_FADE_MS))
+                            after = state.value
                         )
                     },
                     onResolveTextValue = { text ->
@@ -159,7 +159,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     text = "${deviceState.fadeOutMs.toInt()} ms",
                     value = deviceState.fadeOutMs / MAX_FADE_MS,
                     onStartValueChange = { v ->
-                        beforeFadeOut = v * MAX_FADE_MS
+                        beforeFadeOut = deviceState.fadeOutMs
                     },
                     onValueChange = { value ->
                         state.update {
@@ -169,7 +169,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     onFinishValueChange = { v ->
                         pushStateChange(
                             before = state.value.copy(fadeOutMs = beforeFadeOut),
-                            after = state.value.copy(fadeOutMs = (v * MAX_FADE_MS).coerceIn(0f, MAX_FADE_MS))
+                            after = state.value
                         )
                     },
                     onResolveTextValue = { text ->
@@ -192,7 +192,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     text = "${if (deviceState.volumeDb >= 0) "+" else ""}${String.format("%.1f", deviceState.volumeDb)} dB",
                     value = (deviceState.volumeDb - VOLUME_MIN_DB) / VOLUME_RANGE_DB,
                     onStartValueChange = { v ->
-                        beforeVolume = (v * VOLUME_RANGE_DB) + VOLUME_MIN_DB
+                        beforeVolume = deviceState.volumeDb
                     },
                     onValueChange = { value ->
                         state.update {
@@ -202,7 +202,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     onFinishValueChange = { v ->
                         pushStateChange(
                             before = state.value.copy(volumeDb = beforeVolume),
-                            after = state.value.copy(volumeDb = ((v * VOLUME_RANGE_DB) + VOLUME_MIN_DB).coerceIn(VOLUME_MIN_DB, VOLUME_MAX_DB))
+                            after = state.value
                         )
                     },
                     onResolveTextValue = { text ->
