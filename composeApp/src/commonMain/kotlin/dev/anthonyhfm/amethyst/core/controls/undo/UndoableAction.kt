@@ -261,4 +261,20 @@ sealed interface UndoableAction {
         val currentEntryGetter: () -> dev.anthonyhfm.amethyst.timeline.data.MidiEntry?,
         val currentEntrySetter: (dev.anthonyhfm.amethyst.timeline.data.MidiEntry) -> Unit
     ) : UndoableAction
+
+    data class TrackAddition(
+        val trackIndex: Int,
+        val track: dev.anthonyhfm.amethyst.timeline.data.TimelineTrack<*>
+    ) : UndoableAction
+
+    data class TrackRemoval(
+        val trackIndex: Int,
+        val track: dev.anthonyhfm.amethyst.timeline.data.TimelineTrack<*>
+    ) : UndoableAction
+
+    data class TrackDuplication(
+        val originalIndex: Int,
+        val duplicatedIndex: Int,
+        val duplicatedTrack: dev.anthonyhfm.amethyst.timeline.data.TimelineTrack<*>
+    ) : UndoableAction
 }

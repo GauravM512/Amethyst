@@ -72,6 +72,58 @@ object TimelineRepository {
         rebuildSortedEntries()
     }
 
+    fun removeTrack(trackIndex: Int) {
+        if (trackIndex !in tracks.value.indices) return
+        val current = tracks.value.toMutableList()
+        current.removeAt(trackIndex)
+        tracks.value = current.toList()
+        rebuildSortedEntries()
+    }
+
+    fun insertTrack(trackIndex: Int, track: TimelineTrack<*>) {
+        val current = tracks.value.toMutableList()
+        val safeIndex = trackIndex.coerceIn(0, current.size)
+        current.add(safeIndex, track)
+        tracks.value = current.toList()
+        rebuildSortedEntries()
+    }
+
+    fun duplicateTrack(trackIndex: Int): TimelineTrack<*>? {
+        if (trackIndex !in tracks.value.indices) return null
+        val original = tracks.value[trackIndex]
+        
+        val duplicate = when (original) {
+            is AudioTimelineTrack -> {
+                AudioTimelineTrack().apply {
+                    original.entries.forEach { (key, entry) ->
+                        entries[key] = entry.copy()
+                    }
+                }
+            }
+            is MidiTimelineTrack -> {
+                MidiTimelineTrack().apply {
+                    original.entries.forEach { (key, entry) ->
+                        entries[key] = entry.copy()
+                    }
+                }
+            }
+            is LightsTimelineTrack -> {
+                LightsTimelineTrack().apply {
+                    original.entries.forEach { (key, entry) ->
+                        entries[key] = entry.copy()
+                    }
+                }
+            }
+            else -> return null
+        }
+        
+        val current = tracks.value.toMutableList()
+        current.add(trackIndex + 1, duplicate)
+        tracks.value = current.toList()
+        rebuildSortedEntries()
+        return duplicate
+    }
+
     fun play() {
         if (_isPlaying.value) return
         _isPlaying.value = true

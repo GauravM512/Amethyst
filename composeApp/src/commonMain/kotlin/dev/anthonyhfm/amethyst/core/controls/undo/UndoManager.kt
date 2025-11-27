@@ -361,6 +361,21 @@ object UndoManager {
                     }
                     redoStack.add(action)
                 }
+
+                is UndoableAction.TrackAddition -> {
+                    TimelineRepository.removeTrack(action.trackIndex)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.TrackRemoval -> {
+                    TimelineRepository.insertTrack(action.trackIndex, action.track)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.TrackDuplication -> {
+                    TimelineRepository.removeTrack(action.duplicatedIndex)
+                    redoStack.add(action)
+                }
             }
         }
     }
@@ -703,6 +718,21 @@ object UndoManager {
                             single = false
                         )
                     }
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.TrackAddition -> {
+                    TimelineRepository.insertTrack(action.trackIndex, action.track)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.TrackRemoval -> {
+                    TimelineRepository.removeTrack(action.trackIndex)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.TrackDuplication -> {
+                    TimelineRepository.insertTrack(action.duplicatedIndex, action.duplicatedTrack)
                     undoStack.add(action)
                 }
             }
