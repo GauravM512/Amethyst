@@ -173,7 +173,7 @@ object TimelineClipUtils {
         currentTracks[trackIndex] = newTrack
         TimelineRepository.tracks.value = currentTracks.toList()
         
-        // Undo Action hinzufügen
+        // Add undo action
         UndoManager.addAction(
             UndoableAction.MidiTimelineClipSplit(
                 trackIndex = trackIndex,
