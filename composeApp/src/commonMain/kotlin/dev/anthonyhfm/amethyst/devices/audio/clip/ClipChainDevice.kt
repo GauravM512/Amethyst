@@ -345,13 +345,13 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
             var gain = volumeGain
             
             // Apply fade in
-            if (frame < fadeInFrames) {
+            if (frame < fadeInFrames && fadeInFrames > 0) {
                 val fadeInGain = frame.toFloat() / fadeInFrames.toFloat()
                 gain *= fadeInGain
             }
             
             // Apply fade out
-            if (frame >= totalFrames - fadeOutFrames) {
+            if (frame >= totalFrames - fadeOutFrames && fadeOutFrames > 0) {
                 val fadeOutGain = (totalFrames - frame).toFloat() / fadeOutFrames.toFloat()
                 gain *= fadeOutGain
             }
@@ -378,7 +378,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     24 -> {
                         val b0 = data[offset].toInt() and 0xFF
                         val b1 = data[offset + 1].toInt() and 0xFF
-                        val b2 = data[offset + 2].toInt()
+                        val b2 = data[offset + 2].toInt() and 0xFF
                         var sample = b0 or (b1 shl 8) or (b2 shl 16)
                         if ((sample and 0x800000) != 0) sample = sample or -0x1000000
                         val amplified = (sample * gain).toInt().coerceIn(-8388608, 8388607)
@@ -390,7 +390,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                         val b0 = data[offset].toInt() and 0xFF
                         val b1 = data[offset + 1].toInt() and 0xFF
                         val b2 = data[offset + 2].toInt() and 0xFF
-                        val b3 = data[offset + 3].toInt()
+                        val b3 = data[offset + 3].toInt() and 0xFF
                         val sample = b0 or (b1 shl 8) or (b2 shl 16) or (b3 shl 24)
                         val amplified = (sample * gain).toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
                         data[offset] = (amplified and 0xFF).toByte()
