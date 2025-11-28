@@ -34,9 +34,7 @@ class Resonator3Adapter(
     override fun toDeviceStates(): List<DeviceState> {
         val palette = AbletonConverter.palette
 
-        val direction: Resonator3Prototype = Json {
-            ignoreUnknownKeys = true
-        }.let {
+        val direction: Resonator3Prototype = jsonDecoder.let {
             if (isUpdatedVersion) {
                 it.decodeFromString<Resonator301Data>(blob.decodeToString())
             } else {

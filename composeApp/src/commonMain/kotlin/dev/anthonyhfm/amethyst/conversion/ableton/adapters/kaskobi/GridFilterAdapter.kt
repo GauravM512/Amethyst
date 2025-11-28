@@ -12,17 +12,15 @@ class GridFilterAdapter(
     val offset: IntOffset = IntOffset.Zero,
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val json = Json {
-            ignoreUnknownKeys = true
-        }
-
-        val data = json.decodeFromString<GridFilterData>(blob.decodeToString())
+        val data = jsonDecoder.decodeFromString<GridFilterData>(blob.decodeToString())
 
         return listOf(
             CoordinateFilterChainDeviceState(
                 filters = data.matrixctrl.chunked(3).map { list ->
                     val x = list[0].toInt()
                     val y = list[1].toInt()
+
+                    // For some reason, the third data block is always "1.0". Maybe it has something to do with the color in max or some shit
 
                     Pair(x + offset.x, y + offset.y)
                 }

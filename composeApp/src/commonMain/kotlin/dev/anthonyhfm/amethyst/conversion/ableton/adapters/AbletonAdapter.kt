@@ -10,11 +10,16 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MxDeviceMidiE
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.OriginalSimplerAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.XmlElement
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import kotlinx.serialization.json.Json
 
 abstract class AbletonAdapter {
     abstract fun toDeviceStates(): List<DeviceState>
 
     companion object {
+        protected val jsonDecoder = Json {
+            ignoreUnknownKeys = true
+        }
+
         fun resolveAdapter(
             xml: XmlElement,
             offset: IntOffset = IntOffset.Zero,

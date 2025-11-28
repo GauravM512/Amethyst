@@ -17,9 +17,7 @@ class DepthsSelectorAdapter(
     private val offset: IntOffset
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val dataObj: DepthsSelectorData = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString(data.decodeToString())
+        val dataObj: DepthsSelectorData = jsonDecoder.decodeFromString(data.decodeToString())
 
         if (AbletonConverter.projectLayout is AbletonLayout.Dual2Light) {
             if (dataObj.channelField.isNotEmpty()) {

@@ -21,9 +21,7 @@ class IrisAdapter (
     private val data: ByteArray
 ): AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val data = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString<IrisSelectorData>(data.decodeToString())
+        val data = jsonDecoder.decodeFromString<IrisSelectorData>(data.decodeToString())
 
         val bpm = AbletonConverter.bpm
 

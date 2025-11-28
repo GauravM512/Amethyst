@@ -20,9 +20,7 @@ class Resonator1Adapter(
     private val xml: XmlElement
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val data = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString<ResonatorData>(blob.decodeToString())
+        val data = jsonDecoder.decodeFromString<ResonatorData>(blob.decodeToString())
 
         return listOf(
             GroupChainDeviceState(

@@ -34,9 +34,7 @@ class Resonator2Adapter(
         val palette = AbletonConverter.palette
         
         val parameterList = xml.querySelector("ParameterList")[1]
-        val direction = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString<ResonatorBlob>(blob.decodeToString())
+        val direction = jsonDecoder.decodeFromString<ResonatorBlob>(blob.decodeToString())
 
         val noteLengthValue: Double = (parameterList
             .querySelector("MxDFloatParameter").find {

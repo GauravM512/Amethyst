@@ -17,9 +17,7 @@ class MultiAdapter(
     private val containerXml: XmlElement
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val dataObj: MultiData = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString(blob.decodeToString())
+        val dataObj: MultiData = jsonDecoder.decodeFromString(blob.decodeToString())
 
         var branches = containerXml.localQuerySelector("Branches").let {
             if (it.isNotEmpty()) {

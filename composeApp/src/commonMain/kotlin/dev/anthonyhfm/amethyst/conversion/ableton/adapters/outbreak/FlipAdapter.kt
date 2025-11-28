@@ -13,9 +13,7 @@ class FlipAdapter(
     private val data: ByteArray
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-         val dataObj: FlipData = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString(data.decodeToString())
+         val dataObj: FlipData = jsonDecoder.decodeFromString(data.decodeToString())
 
         when (dataObj.flipMode.first().toInt()) {
             1 -> { // Mirror

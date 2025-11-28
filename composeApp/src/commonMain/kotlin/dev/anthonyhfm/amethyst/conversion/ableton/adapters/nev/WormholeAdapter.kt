@@ -15,9 +15,7 @@ class WormholeAdapter (
     val data: ByteArray
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val dataObj: WormholeData = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString(data.decodeToString())
+        val dataObj: WormholeData = jsonDecoder.decodeFromString(data.decodeToString())
 
         return listOf(
             GroupChainDeviceState(

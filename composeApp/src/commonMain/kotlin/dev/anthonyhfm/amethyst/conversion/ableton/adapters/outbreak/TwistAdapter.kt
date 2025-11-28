@@ -23,9 +23,7 @@ class TwistAdapter (
     private val data: ByteArray
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
-        val dataObj: TwistData = Json {
-            ignoreUnknownKeys = true
-        }.decodeFromString(data.decodeToString())
+        val dataObj: TwistData = jsonDecoder.decodeFromString(data.decodeToString())
 
         val bpm = AbletonConverter.bpm
 
