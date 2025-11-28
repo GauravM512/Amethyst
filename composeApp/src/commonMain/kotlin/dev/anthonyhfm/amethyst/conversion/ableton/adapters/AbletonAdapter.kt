@@ -13,13 +13,13 @@ import dev.anthonyhfm.amethyst.devices.DeviceState
 import kotlinx.serialization.json.Json
 
 abstract class AbletonAdapter {
+    protected val jsonDecoder = Json {
+        ignoreUnknownKeys = true
+    }
+
     abstract fun toDeviceStates(): List<DeviceState>
 
     companion object {
-        protected val jsonDecoder = Json {
-            ignoreUnknownKeys = true
-        }
-
         fun resolveAdapter(
             xml: XmlElement,
             offset: IntOffset = IntOffset.Zero,
