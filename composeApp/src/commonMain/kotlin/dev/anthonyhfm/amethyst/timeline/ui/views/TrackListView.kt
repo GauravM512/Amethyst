@@ -59,7 +59,7 @@ import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.timeline.TimelineRepository
 import dev.anthonyhfm.amethyst.timeline.data.AudioTimelineTrack
-import dev.anthonyhfm.amethyst.timeline.data.LightsTimelineTrack
+import dev.anthonyhfm.amethyst.timeline.data.MidiTimelineTrack
 import dev.anthonyhfm.amethyst.timeline.data.TimelineTrack
 import dev.anthonyhfm.amethyst.timeline.ui.components.AddTrackButton
 import dev.anthonyhfm.amethyst.ui.modifier.onFocusSelectAll
@@ -98,7 +98,7 @@ fun TrackInfo(
 ) {
     val defaultTrackName = when (track) {
         is AudioTimelineTrack -> "Audio Track ${trackIndex + 1}"
-        is LightsTimelineTrack -> "Lights Track ${trackIndex + 1}"
+        is MidiTimelineTrack -> "Midi Track ${trackIndex + 1}"
         else -> "Track ${trackIndex + 1}"
     }
     
@@ -229,7 +229,7 @@ fun TrackInfo(
         Icon(
             imageVector = when (track) {
                 is AudioTimelineTrack -> Icons.Default.Audiotrack
-                is LightsTimelineTrack -> Icons.Default.Lightbulb
+                is MidiTimelineTrack -> Icons.Default.Lightbulb
                 else -> Icons.Default.Lightbulb
             },
             contentDescription = "Track Type Icon",
