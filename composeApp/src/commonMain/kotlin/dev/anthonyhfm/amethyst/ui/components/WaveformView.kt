@@ -1,13 +1,18 @@
 package dev.anthonyhfm.amethyst.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
@@ -25,6 +30,10 @@ fun WaveformView(
     zoomLevel: Float? = null,
     fadeInMs: Float = 0f,
     fadeOutMs: Float = 0f,
+    startPosition: Float = 0f,
+    endPosition: Float = 1f,
+    onStartPositionChange: ((Float) -> Unit)? = null,
+    onEndPositionChange: ((Float) -> Unit)? = null,
 ) {
     val wave = waveColor
     val baseline = waveColor.copy(alpha = 0.6f)
@@ -39,6 +48,10 @@ fun WaveformView(
 
     // Cache für amplitude envelopes nach BucketCount
     val envelopeCache = remember { mutableMapOf<Int, FloatArray>() }
+    
+    // State for drag handle interaction
+    var isDraggingStart by remember { mutableStateOf(false) }
+    var isDraggingEnd by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -53,6 +66,39 @@ fun WaveformView(
                                 val p = (offset.x / size.width).coerceIn(0f, 1f)
                                 onSeek(p)
                             }
+                        }
+                    else Modifier
+                )
+                .then(
+                    if (onStartPositionChange != null || onEndPositionChange != null)
+                        Modifier.pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    val x = offset.x
+                                    val w = size.width
+                                    val startX = w * startPosition
+                                    val endX = w * endPosition
+                                    val handleSize = 20f
+                                    
+                                    when {
+                                        abs(x - startX) < handleSize -> isDraggingStart = true
+                                        abs(x - endX) < handleSize -> isDraggingEnd = true
+                                    }
+                                },
+                                onDrag = { _, dragAmount ->
+                                    val w = size.width
+                                    val delta = dragAmount.x / w
+                                    
+                                    when {
+                                        isDraggingStart -> onStartPositionChange?.invoke((startPosition + delta).coerceIn(0f, endPosition - 0.01f))
+                                        isDraggingEnd -> onEndPositionChange?.invoke((endPosition + delta).coerceIn(startPosition + 0.01f, 1f))
+                                    }
+                                },
+                                onDragEnd = {
+                                    isDraggingStart = false
+                                    isDraggingEnd = false
+                                }
+                            )
                         }
                     else Modifier
                 )
@@ -107,29 +153,114 @@ fun WaveformView(
                 color = wave.copy(alpha = 0.6f)
             )
 
-            // Draw fade in overlay
-            if (fadeInMs > 0f) {
-                val durationMs = (samples.size.toFloat() / signal.sampleRate) * 1000f
-                val fadeInRatio = (fadeInMs / durationMs).coerceIn(0f, 1f)
-                val fadeInWidth = w * fadeInRatio
-                
+            // Calculate the active region based on start/end positions
+            val startX = w * startPosition
+            val endX = w * endPosition
+            val activeWidth = endX - startX
+            
+            // Dim regions outside start/end
+            if (startPosition > 0f) {
                 drawRect(
-                    color = Color.Black.copy(alpha = 0.3f),
+                    color = Color.Black.copy(alpha = 0.5f),
                     topLeft = Offset(0f, 0f),
-                    size = androidx.compose.ui.geometry.Size(fadeInWidth, h)
+                    size = androidx.compose.ui.geometry.Size(startX, h)
+                )
+            }
+            
+            if (endPosition < 1f) {
+                drawRect(
+                    color = Color.Black.copy(alpha = 0.5f),
+                    topLeft = Offset(endX, 0f),
+                    size = androidx.compose.ui.geometry.Size(w - endX, h)
                 )
             }
 
-            // Draw fade out overlay
-            if (fadeOutMs > 0f) {
+            // Draw triangular fade in overlay (within active region)
+            if (fadeInMs > 0f && activeWidth > 0f) {
                 val durationMs = (samples.size.toFloat() / signal.sampleRate) * 1000f
-                val fadeOutRatio = (fadeOutMs / durationMs).coerceIn(0f, 1f)
-                val fadeOutWidth = w * fadeOutRatio
+                val activeDurationMs = durationMs * (endPosition - startPosition)
+                val fadeInRatio = (fadeInMs / activeDurationMs).coerceIn(0f, 1f)
+                val fadeInWidth = activeWidth * fadeInRatio
                 
-                drawRect(
-                    color = Color.Black.copy(alpha = 0.3f),
-                    topLeft = Offset(w - fadeOutWidth, 0f),
-                    size = androidx.compose.ui.geometry.Size(fadeOutWidth, h)
+                // Draw triangular gradient for fade in
+                val fadeInPath = Path().apply {
+                    moveTo(startX, 0f)
+                    lineTo(startX + fadeInWidth, 0f)
+                    lineTo(startX, h)
+                    close()
+                }
+                
+                drawPath(
+                    path = fadeInPath,
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Transparent
+                        ),
+                        startX = startX,
+                        endX = startX + fadeInWidth
+                    )
+                )
+            }
+
+            // Draw triangular fade out overlay (within active region)
+            if (fadeOutMs > 0f && activeWidth > 0f) {
+                val durationMs = (samples.size.toFloat() / signal.sampleRate) * 1000f
+                val activeDurationMs = durationMs * (endPosition - startPosition)
+                val fadeOutRatio = (fadeOutMs / activeDurationMs).coerceIn(0f, 1f)
+                val fadeOutWidth = activeWidth * fadeOutRatio
+                
+                // Draw triangular gradient for fade out
+                val fadeOutPath = Path().apply {
+                    moveTo(endX - fadeOutWidth, 0f)
+                    lineTo(endX, 0f)
+                    lineTo(endX, h)
+                    close()
+                }
+                
+                drawPath(
+                    path = fadeOutPath,
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.6f)
+                        ),
+                        startX = endX - fadeOutWidth,
+                        endX = endX
+                    )
+                )
+            }
+            
+            // Draw drag handles for start/end positions
+            if (onStartPositionChange != null) {
+                // Start handle
+                drawLine(
+                    color = Color.White.copy(alpha = 0.8f),
+                    start = Offset(startX, 0f),
+                    end = Offset(startX, h),
+                    strokeWidth = 3f
+                )
+                // Handle indicator
+                drawCircle(
+                    color = Color.White,
+                    radius = 6f,
+                    center = Offset(startX, h / 2f)
+                )
+            }
+            
+            if (onEndPositionChange != null) {
+                // End handle
+                drawLine(
+                    color = Color.White.copy(alpha = 0.8f),
+                    start = Offset(endX, 0f),
+                    end = Offset(endX, h),
+                    strokeWidth = 3f
+                )
+                // Handle indicator
+                drawCircle(
+                    color = Color.White,
+                    radius = 6f,
+                    center = Offset(endX, h / 2f)
                 )
             }
         }

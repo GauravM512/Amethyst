@@ -96,7 +96,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     .weight(1f)
                     .padding(8.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
                 WaveformView(
                     signal = Signal.AudioSignal(
@@ -108,6 +108,14 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     ),
                     fadeInMs = deviceState.fadeInMs,
                     fadeOutMs = deviceState.fadeOutMs,
+                    startPosition = deviceState.startPosition,
+                    endPosition = deviceState.endPosition,
+                    onStartPositionChange = { newStart ->
+                        state.update { it.copy(startPosition = newStart.coerceIn(0f, it.endPosition - 0.01f)) }
+                    },
+                    onEndPositionChange = { newEnd ->
+                        state.update { it.copy(endPosition = newEnd.coerceIn(it.startPosition + 0.01f, 1f)) }
+                    },
                     modifier = Modifier
                         .fillMaxSize()
                 )
@@ -290,7 +298,7 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
             if (midiSignal.velocity != 0 && state.value.isLoaded) {
                 val deviceState = state.value
 
-                // Apply volume, fade in, and fade out to raw audio data
+                // Apply volume, fade in, fade out, and trim to start/end positions
                 val processedData = applyAudioEffects(
                     rawData = deviceState.rawData,
                     sampleRate = deviceState.sampleRate,
@@ -298,7 +306,9 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
                     bitDepth = deviceState.bitDepth,
                     fadeInMs = deviceState.fadeInMs,
                     fadeOutMs = deviceState.fadeOutMs,
-                    volumeDb = deviceState.volumeDb
+                    volumeDb = deviceState.volumeDb,
+                    startPosition = deviceState.startPosition,
+                    endPosition = deviceState.endPosition
                 )
 
                 // Create AudioSignal with processed data
@@ -326,24 +336,35 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
         bitDepth: Int,
         fadeInMs: Float,
         fadeOutMs: Float,
-        volumeDb: Float
+        volumeDb: Float,
+        startPosition: Float,
+        endPosition: Float
     ): ByteArray? {
         if (rawData == null || rawData.isEmpty()) return rawData
 
-        val data = rawData.copyOf()
         val bytesPerSample = bitDepth / 8
         val frameSize = bytesPerSample * channels
-        val totalFrames = data.size / frameSize
+        val totalFrames = rawData.size / frameSize
         
-        // Calculate fade in/out in frames
-        val fadeInFrames = ((fadeInMs / 1000f) * sampleRate).toInt().coerceAtMost(totalFrames)
-        val fadeOutFrames = ((fadeOutMs / 1000f) * sampleRate).toInt().coerceAtMost(totalFrames)
-        val fadeOutStartFrame = totalFrames - fadeOutFrames
+        // Calculate start and end frames based on positions
+        val startFrame = (totalFrames * startPosition).toInt().coerceIn(0, totalFrames)
+        val endFrame = (totalFrames * endPosition).toInt().coerceIn(startFrame, totalFrames)
+        val activeFrames = endFrame - startFrame
+        
+        if (activeFrames <= 0) return ByteArray(0)
+        
+        // Create output array with only the active region
+        val outputData = ByteArray(activeFrames * frameSize)
+        
+        // Calculate fade in/out in frames (relative to active region)
+        val fadeInFrames = ((fadeInMs / 1000f) * sampleRate).toInt().coerceAtMost(activeFrames)
+        val fadeOutFrames = ((fadeOutMs / 1000f) * sampleRate).toInt().coerceAtMost(activeFrames)
+        val fadeOutStartFrame = activeFrames - fadeOutFrames
         
         // Calculate volume gain (dB to linear)
         val volumeGain = kotlin.math.pow(10.0, (volumeDb / 20.0)).toFloat()
 
-        for (frame in 0 until totalFrames) {
+        for (frame in 0 until activeFrames) {
             var gain = volumeGain
             
             // Apply fade in
@@ -354,57 +375,58 @@ class ClipChainDevice : AudioChainDevice<ClipChainDeviceState>() {
             
             // Apply fade out
             if (frame >= fadeOutStartFrame && fadeOutFrames > 0) {
-                val fadeOutGain = (totalFrames - frame).toFloat() / fadeOutFrames.toFloat()
+                val fadeOutGain = (activeFrames - frame).toFloat() / fadeOutFrames.toFloat()
                 gain *= fadeOutGain
             }
             
             // Apply gain to all channels in this frame
             for (ch in 0 until channels) {
-                val offset = frame * frameSize + ch * bytesPerSample
+                val sourceOffset = (startFrame + frame) * frameSize + ch * bytesPerSample
+                val destOffset = frame * frameSize + ch * bytesPerSample
                 
                 when (bitDepth) {
                     8 -> {
-                        val sample = data[offset].toInt() and 0xFF
+                        val sample = rawData[sourceOffset].toInt() and 0xFF
                         val centered = sample - 128
                         val amplified = (centered * gain).toInt().coerceIn(-128, 127)
-                        data[offset] = (amplified + 128).toByte()
+                        outputData[destOffset] = (amplified + 128).toByte()
                     }
                     16 -> {
-                        val lo = data[offset].toInt() and 0xFF
-                        val hi = data[offset + 1].toInt() shl 8
+                        val lo = rawData[sourceOffset].toInt() and 0xFF
+                        val hi = rawData[sourceOffset + 1].toInt() shl 8
                         val sample = (hi or lo).toShort().toInt()
                         val amplified = (sample * gain).toInt().coerceIn(-32768, 32767)
-                        data[offset] = (amplified and 0xFF).toByte()
-                        data[offset + 1] = ((amplified shr 8) and 0xFF).toByte()
+                        outputData[destOffset] = (amplified and 0xFF).toByte()
+                        outputData[destOffset + 1] = ((amplified shr 8) and 0xFF).toByte()
                     }
                     24 -> {
-                        val b0 = data[offset].toInt() and 0xFF
-                        val b1 = data[offset + 1].toInt() and 0xFF
-                        val b2 = data[offset + 2].toInt() and 0xFF
+                        val b0 = rawData[sourceOffset].toInt() and 0xFF
+                        val b1 = rawData[sourceOffset + 1].toInt() and 0xFF
+                        val b2 = rawData[sourceOffset + 2].toInt() and 0xFF
                         var sample = b0 or (b1 shl 8) or (b2 shl 16)
                         if ((sample and 0x800000) != 0) sample = sample or SIGN_EXTEND_24BIT
                         val amplified = (sample * gain).toInt().coerceIn(-8388608, 8388607)
-                        data[offset] = (amplified and 0xFF).toByte()
-                        data[offset + 1] = ((amplified shr 8) and 0xFF).toByte()
-                        data[offset + 2] = ((amplified shr 16) and 0xFF).toByte()
+                        outputData[destOffset] = (amplified and 0xFF).toByte()
+                        outputData[destOffset + 1] = ((amplified shr 8) and 0xFF).toByte()
+                        outputData[destOffset + 2] = ((amplified shr 16) and 0xFF).toByte()
                     }
                     32 -> {
-                        val b0 = data[offset].toInt() and 0xFF
-                        val b1 = data[offset + 1].toInt() and 0xFF
-                        val b2 = data[offset + 2].toInt() and 0xFF
-                        val b3 = data[offset + 3].toInt() and 0xFF
+                        val b0 = rawData[sourceOffset].toInt() and 0xFF
+                        val b1 = rawData[sourceOffset + 1].toInt() and 0xFF
+                        val b2 = rawData[sourceOffset + 2].toInt() and 0xFF
+                        val b3 = rawData[sourceOffset + 3].toInt() and 0xFF
                         val sample = b0 or (b1 shl 8) or (b2 shl 16) or (b3 shl 24)
                         val amplified = (sample * gain).toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
-                        data[offset] = (amplified and 0xFF).toByte()
-                        data[offset + 1] = ((amplified shr 8) and 0xFF).toByte()
-                        data[offset + 2] = ((amplified shr 16) and 0xFF).toByte()
-                        data[offset + 3] = ((amplified shr 24) and 0xFF).toByte()
+                        outputData[destOffset] = (amplified and 0xFF).toByte()
+                        outputData[destOffset + 1] = ((amplified shr 8) and 0xFF).toByte()
+                        outputData[destOffset + 2] = ((amplified shr 16) and 0xFF).toByte()
+                        outputData[destOffset + 3] = ((amplified shr 24) and 0xFF).toByte()
                     }
                 }
             }
         }
         
-        return data
+        return outputData
     }
 }
 
@@ -418,5 +440,7 @@ data class ClipChainDeviceState(
     val isLoaded: Boolean = false,
     val fadeInMs: Float = 0f,
     val fadeOutMs: Float = 0f,
-    val volumeDb: Float = 0f
+    val volumeDb: Float = 0f,
+    val startPosition: Float = 0f, // 0.0 to 1.0
+    val endPosition: Float = 1f    // 0.0 to 1.0
 ) : DeviceState()
