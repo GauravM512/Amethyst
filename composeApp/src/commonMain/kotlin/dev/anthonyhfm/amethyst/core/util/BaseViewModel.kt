@@ -15,6 +15,10 @@ abstract class BaseViewModel<State, Event, Effect>(initialState: State) : ViewMo
     private val _effect = MutableSharedFlow<Effect>()
     val effect = _effect.asSharedFlow()
 
+    fun updateState(state: State) {
+        _state.value = state
+    }
+
     fun triggerEffect(effect: Effect) {
         viewModelScope.launch {
             _effect.emit(effect)

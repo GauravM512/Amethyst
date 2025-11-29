@@ -109,12 +109,13 @@ class MxDeviceMidiEffectAdapter(
                     return InfinityAdapter().toDeviceStates()
                 }
 
-                "220a5d8ae9bd63f21c8292c03774ef90" -> {
+                "220a5d8ae9bd63f21c8292c03774ef90",
+                "feecaed62c2637a73325446a1ed1e25e" -> {
                     AbletonConverter.special = ProjectSpecials(
                         kaskobiWeirdAssPageSwitch = true
                     )
 
-                    return PageSwitcherAdapter(readDataBlob(blob.text!!)).toDeviceStates()
+                    return PageSwitcherAdapter(readDataBlob(blob.text!!), offset).toDeviceStates()
                 }
 
                 "6257e885f06b1c1fb6258b1066497244" -> { // Resonator 3.0.0
@@ -130,7 +131,7 @@ class MxDeviceMidiEffectAdapter(
                 }
 
                 "4bd554ebb0ee0536dee1ab7a9875fc20" -> {
-                    return Resonator1Adapter(readDataBlob(blob.text!!), xml).toDeviceStates()
+                    return Resonator1Adapter(readDataBlob(blob.text!!)).toDeviceStates()
                 }
 
                 "2491c3c841b70b7c9765db8e4defdfff",

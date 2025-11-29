@@ -4,11 +4,11 @@ import dev.anthonyhfm.amethyst.core.engine.echo.AudioDecoder
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.path
+import kotlinx.serialization.Serializable
 
+@Serializable
 class AudioTimelineTrack : TimelineTrack<AudioEntry>() {
-    override val entries: MutableMap<Long, AudioEntry> = mutableMapOf(
-
-    )
+    override val entries: MutableMap<Long, AudioEntry> = mutableMapOf()
 
     suspend fun addFromFile(file: PlatformFile, at: Long = 0) {
         println("AudioTimelineTrack: Adding file ${file.path} at position $at")

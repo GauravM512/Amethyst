@@ -20,7 +20,7 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMidiFighter64
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMystrix
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.data.Macro
-import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
+import dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData
 import dev.anthonyhfm.amethyst.workspace.data.WorkspaceSettings
 import dev.anthonyhfm.amethyst.timeline.utils.GridUtils
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -46,7 +46,7 @@ object WorkspaceRepository {
     var bounds: Pair<IntOffset, IntSize> = Pair(IntOffset(0, 0), IntSize(0, 0))
         private set
 
-    var saveableWorkspaceData: SaveableWorkspaceData? = null
+    var saveableWorkspaceData: SavableWorkspaceData? = null
 
     private val _macros: MutableStateFlow<List<Macro>> = MutableStateFlow(listOf(Macro(1)))
     val macros: StateFlow<List<Macro>> = _macros.asStateFlow()
@@ -191,7 +191,7 @@ object WorkspaceRepository {
         recursiveResetMulti(samplingChain)
     }
 
-    fun loadWorkspace(workspaceData: SaveableWorkspaceData) {
+    fun loadWorkspace(workspaceData: SavableWorkspaceData) {
         saveableWorkspaceData = workspaceData
 
         lightsChain = workspaceData.lights.unpack()
@@ -237,12 +237,12 @@ object WorkspaceRepository {
 
         Heaven.devices = workspaceData.launchpadDevices.map { savedDevice ->
             val device = when (savedDevice.type) {
-                SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO -> ViewportLaunchpadPro()
-                SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO_MK3 -> ViewportLaunchpadProMk3()
-                SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_X -> ViewportLaunchpadX()
-                SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_MK2 -> ViewportLaunchpadMk2()
-                SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MYSTRIX -> ViewportMystrix()
-                SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MIDIFIGHTER64 -> ViewportMidiFighter64()
+                SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO -> ViewportLaunchpadPro()
+                SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO_MK3 -> ViewportLaunchpadProMk3()
+                SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_X -> ViewportLaunchpadX()
+                SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_MK2 -> ViewportLaunchpadMk2()
+                SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MYSTRIX -> ViewportMystrix()
+                SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MIDIFIGHTER64 -> ViewportMidiFighter64()
             }
 
             device.apply { position.value = Offset(savedDevice.positionX, savedDevice.positionY) }
@@ -261,8 +261,8 @@ object WorkspaceRepository {
         }
     }
 
-    fun saveWorkspace(): SaveableWorkspaceData {
-        return SaveableWorkspaceData(
+    fun saveWorkspace(): SavableWorkspaceData {
+        return SavableWorkspaceData(
             title = saveableWorkspaceData?.title ?: "Untitled Project",
             lights = StateChain.pack(lightsChain),
             sampling = StateChain.pack(samplingChain),
@@ -272,14 +272,14 @@ object WorkspaceRepository {
             ),
             path = saveableWorkspaceData?.path,
             launchpadDevices = Heaven.devices.map { device ->
-                SaveableWorkspaceData.SavableViewportLaunchpad(
+                SavableWorkspaceData.SavableViewportLaunchpad(
                     type = when (device) {
-                        is ViewportLaunchpadPro -> SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
-                        is ViewportLaunchpadProMk3 -> SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO_MK3
-                        is ViewportLaunchpadX -> SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_X
-                        is ViewportLaunchpadMk2 -> SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_MK2
-                        is ViewportMystrix -> SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MYSTRIX
-                        is ViewportMidiFighter64 -> SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MIDIFIGHTER64
+                        is ViewportLaunchpadPro -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                        is ViewportLaunchpadProMk3 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO_MK3
+                        is ViewportLaunchpadX -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_X
+                        is ViewportLaunchpadMk2 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_MK2
+                        is ViewportMystrix -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MYSTRIX
+                        is ViewportMidiFighter64 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MIDIFIGHTER64
                         else -> { TODO("Could not serialize virtual launchpad element for the workspace") }
                     },
                     positionX = device.position.value.x,

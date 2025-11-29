@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi
 
+import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
@@ -10,7 +11,8 @@ import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 
 class PageSwitcherAdapter(
-    private val blob: ByteArray
+    private val blob: ByteArray,
+    private val offset: IntOffset,
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         return listOf(
@@ -36,7 +38,7 @@ class PageSwitcherAdapter(
                                                         devices = listOf(
                                                             CoordinateFilterChainDeviceState(
                                                                 filters = listOf(
-                                                                    Pair(9, 1 + i)
+                                                                    Pair(9 + offset.x, 1 + i + offset.y)
                                                                 )
                                                             ),
                                                             SwitchChainDeviceState(
@@ -54,7 +56,7 @@ class PageSwitcherAdapter(
                                             )
                                         }
 
-                                        for (i in 0..7) { // Page 1-8
+                                        for (i in 0..7) { // Page 8-16
                                             add(
                                                 Group(
                                                     name = "Page ${8 + 1}",
@@ -62,7 +64,7 @@ class PageSwitcherAdapter(
                                                         devices = listOf(
                                                             CoordinateFilterChainDeviceState(
                                                                 filters = listOf(
-                                                                    Pair(0, 1 + i)
+                                                                    Pair(0 + offset.x, 1 + i + offset.y)
                                                                 )
                                                             ),
                                                             SwitchChainDeviceState(

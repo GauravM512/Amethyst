@@ -12,14 +12,14 @@ import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
-import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
+import dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.runBlocking
 
 object UnipadConverter : AmethystConverter {
     val entries: MutableMap<String, ZipEntry> = mutableMapOf()
 
-    override fun convertZipToWorkspace(file: PlatformFile): SaveableWorkspaceData {
+    override fun convertZipToWorkspace(file: PlatformFile): SavableWorkspaceData {
         println("Starting Zip Decoding")
 
         entries.clear()
@@ -51,16 +51,16 @@ object UnipadConverter : AmethystConverter {
 
         println("Finished Audio-Clip Decoding (${clipMap.size} total).")
 
-        return SaveableWorkspaceData(
+        return SavableWorkspaceData(
             title = infoMap["title"] ?: "Untitled Workspace",
             author = infoMap["producerName"] ?: "Unknown",
             lights = createLightsChain(infoMap["chain"]?.toInt() ?: 1),
             sampling = createAudioChain(infoMap["chain"]?.toInt() ?: 1, clipMap),
             launchpadDevices = listOf(
-                SaveableWorkspaceData.SavableViewportLaunchpad(
+                SavableWorkspaceData.SavableViewportLaunchpad(
                     positionX = 0f,
                     positionY = 0f,
-                    type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                    type = SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
                 )
             ),
         ).also {
@@ -69,7 +69,7 @@ object UnipadConverter : AmethystConverter {
     }
 
     // still accept old function
-    override fun convertToWorkspace(path: String, palettePath: String?): SaveableWorkspaceData {
+    override fun convertToWorkspace(path: String, palettePath: String?): SavableWorkspaceData {
         return convertZipToWorkspace(PlatformFile(path))
     }
 

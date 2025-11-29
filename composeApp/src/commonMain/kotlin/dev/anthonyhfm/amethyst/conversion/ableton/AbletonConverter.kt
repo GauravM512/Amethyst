@@ -19,11 +19,10 @@ import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ZipEntry
 import dev.anthonyhfm.amethyst.devices.audio.clip.ClipChainDeviceState
-import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
-import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
+import dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData
 import dev.anthonyhfm.amethyst.workspace.data.WorkspaceSettings
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.nameWithoutExtension
@@ -34,6 +33,8 @@ import kotlinx.coroutines.runBlocking
 object AbletonConverter : AmethystConverter {
     var file: PlatformFile? = null
         private set
+
+    var name: String = "Ableton Converted Workspace"
 
     var special = ProjectSpecials()
 
@@ -60,7 +61,7 @@ object AbletonConverter : AmethystConverter {
     var zipStartPath: String = ""
         private set
 
-    override fun convertZipToWorkspace(file: PlatformFile): SaveableWorkspaceData {
+    override fun convertZipToWorkspace(file: PlatformFile): SavableWorkspaceData {
         isZip = true
 
         zipEntries.clear()
@@ -79,6 +80,11 @@ object AbletonConverter : AmethystConverter {
         )
 
         val als = zipEntries.values.first { it.path.endsWith(".als") }
+
+        name = zipEntries.values.first { it.path.endsWith(".als") }.path
+            .substringAfterLast("/")
+            .removeSuffix(".als")
+
         val decodedAls = Zip.decode(als.data)
 
         val abletonXml = SimpleXmlParser.parse(decodedAls.decodeToString())
@@ -90,7 +96,7 @@ object AbletonConverter : AmethystConverter {
         }
     }
 
-    override fun convertToWorkspace(path: String, palettePath: String?): SaveableWorkspaceData {
+    override fun convertToWorkspace(path: String, palettePath: String?): SavableWorkspaceData {
         MxDeviceMidiEffectAdapter.fileHashMap.clear()
         isZip = false
 
@@ -112,7 +118,7 @@ object AbletonConverter : AmethystConverter {
         return runLiveConversion(abletonXml)
     }
 
-    fun runLiveConversion(abletonXml: XmlElement): SaveableWorkspaceData {
+    fun runLiveConversion(abletonXml: XmlElement): SavableWorkspaceData {
         val audioRenderer = OriginalSimplerPrerenderer()
 
         val layout = AbletonLayoutDetector.detectLayout(
@@ -274,8 +280,8 @@ object AbletonConverter : AmethystConverter {
         MxDeviceMidiEffectAdapter.fileHashMap.clear()
         projectLayout = null
 
-        return SaveableWorkspaceData(
-            title = this.file?.nameWithoutExtension ?: "Ableton Converted Workspace",
+        return SavableWorkspaceData(
+            title = this.file?.nameWithoutExtension ?: name,
             lights = lights,
             sampling = samples,
             settings = WorkspaceSettings(
@@ -283,23 +289,23 @@ object AbletonConverter : AmethystConverter {
             ),
             launchpadDevices = if (layout is AbletonLayout.Single) {
                 listOf(
-                    SaveableWorkspaceData.SavableViewportLaunchpad(
+                    SavableWorkspaceData.SavableViewportLaunchpad(
                         positionX = 0f,
                         positionY = 0f,
-                        type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                        type = SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
                     )
                 )
             } else {
                 listOf(
-                    SaveableWorkspaceData.SavableViewportLaunchpad(
+                    SavableWorkspaceData.SavableViewportLaunchpad(
                         positionX = 0f,
                         positionY = 0f,
-                        type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                        type = SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
                     ),
-                    SaveableWorkspaceData.SavableViewportLaunchpad(
+                    SavableWorkspaceData.SavableViewportLaunchpad(
                         positionX = 10f,
                         positionY = 0f,
-                        type = SaveableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                        type = SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
                     )
                 )
             }

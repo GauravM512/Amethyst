@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.conversion
 
-import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
+import dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData
 import io.github.vinceglb.filekit.PlatformFile
 
 /**
@@ -18,7 +18,7 @@ interface AmethystConverter {
     fun convertToWorkspace(
         path: String,
         palettePath: String? = ""
-    ) : SaveableWorkspaceData
+    ) : SavableWorkspaceData
 
-    fun convertZipToWorkspace(file: PlatformFile): SaveableWorkspaceData
+    fun convertZipToWorkspace(file: PlatformFile): SavableWorkspaceData
 }

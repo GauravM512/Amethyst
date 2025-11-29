@@ -77,7 +77,7 @@ object ShortcutManager {
             GlobalScope.launch {
                 if (path == null) {
                     path = FileKit.openFileSaver(
-                        suggestedName = "project",
+                        suggestedName = WorkspaceRepository.saveableWorkspaceData?.title ?: "Untitled",
                         extension = "amproj"
                     )?.path ?: return@launch
                 }

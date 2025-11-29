@@ -17,7 +17,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class Resonator1Adapter(
     private val blob: ByteArray,
-    private val xml: XmlElement
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val data = jsonDecoder.decodeFromString<ResonatorData>(blob.decodeToString())

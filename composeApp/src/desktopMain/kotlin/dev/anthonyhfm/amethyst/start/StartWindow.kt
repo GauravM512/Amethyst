@@ -9,21 +9,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
-import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.FlatUtilityLaf
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
 import dev.anthonyhfm.amethyst.home.Home
-import dev.anthonyhfm.amethyst.home.ui.views.AbletonImportWizard
-import dev.anthonyhfm.amethyst.start.ui.LoadingScreen
 import org.jetbrains.compose.resources.painterResource
 import javax.swing.UIManager
 import kotlin.system.exitProcess
@@ -54,21 +49,9 @@ fun StartWindow(
             else -> null
         }
     ) {
-        val viewModel = viewModel { StartWindowViewModel() }
-        val loadingMessage: String? by viewModel.loadingState.collectAsState()
-        val showAbletonImportWizard: Boolean by viewModel.showAbletonImportWizard.collectAsState()
-
-        viewModel.onOpenEditor = {
-            onOpenEditor()
-        }
-
         if (DesktopPlatform.get() == DesktopPlatform.MacOS) {
             window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
             window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
-        }
-
-        if (loadingMessage != null) {
-            LoadingScreen(loadingMessage!!)
         }
 
         MaterialTheme(

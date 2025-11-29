@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
  * A timeline track that contains MIDI entries for sequencing MIDI notes.
  * Similar to AudioTimelineTrack but for MIDI data.
  */
+@Serializable
 class MidiTimelineTrack : TimelineTrack<MidiEntry>() {
     override val entries: MutableMap<Long, MidiEntry> = mutableMapOf()
 

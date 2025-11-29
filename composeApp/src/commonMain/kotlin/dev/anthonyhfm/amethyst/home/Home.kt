@@ -24,6 +24,7 @@ import dev.anthonyhfm.amethyst.home.ui.views.AbletonImportWizard
 import dev.anthonyhfm.amethyst.home.ui.views.AboutView
 import dev.anthonyhfm.amethyst.home.ui.views.BrowserView
 import dev.anthonyhfm.amethyst.home.ui.views.LoadingScreenView
+import dev.anthonyhfm.amethyst.home.ui.views.ProjectCreationDialog
 import dev.anthonyhfm.amethyst.home.ui.views.RecentView
 import dev.anthonyhfm.amethyst.home.ui.views.SettingsView
 
@@ -69,6 +70,19 @@ fun Home(
 
                 composable<HomeNavRoute.About> {
                     AboutView()
+                }
+
+                dialog<HomeNavRoute.ProjectCreation>(
+                    dialogProperties = DialogProperties(
+                        usePlatformDefaultWidth = false,
+                    )
+                ) {
+                    ProjectCreationDialog(
+                        navigator = navigator,
+                        openWorkspace = {
+                            onOpenWorkspace()
+                        }
+                    )
                 }
 
                 dialog<HomeNavRoute.AbletonImportWizard>(

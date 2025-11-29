@@ -26,6 +26,8 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
@@ -58,7 +60,14 @@ fun RecentView(
     navigator: NavHostController,
     onOpenWorkspace: () -> Unit = { }
 ) {
-    val viewModel = viewModel { RecentViewModel(navigator = navigator) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val viewModel = viewModel {
+        RecentViewModel(
+            navigator = navigator,
+            snackbarHostState = snackbarHostState
+        )
+    }
+
     var recentProjects: List<RecentWorkspace> by remember { mutableStateOf(GlobalSettings.recentWorkspaces) }
     var showMenu by remember { mutableStateOf(false) }
 
@@ -84,6 +93,9 @@ fun RecentView(
                     Text("Recent Projects")
                 }
             )
+        },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState)
         },
         contentWindowInsets = WindowInsets.statusBars,
         floatingActionButton = {
@@ -186,7 +198,12 @@ fun RecentView(
 
                             IconButton(
                                 onClick = {
+                                    GlobalSettings.recentWorkspaces = recentProjects
+                                        .filter {
+                                            it != recentProjects[index]
+                                        }
 
+                                    recentProjects = GlobalSettings.recentWorkspaces
                                 }
                             ) {
                                 Icon(Icons.Default.Delete, null)

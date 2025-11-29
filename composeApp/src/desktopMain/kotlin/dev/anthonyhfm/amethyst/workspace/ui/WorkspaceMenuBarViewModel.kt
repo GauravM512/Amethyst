@@ -7,7 +7,7 @@ import dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
-import dev.anthonyhfm.amethyst.workspace.data.SaveableWorkspaceData
+import dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.openFileSaver
 import io.github.vinceglb.filekit.path
@@ -16,7 +16,6 @@ import io.github.vinceglb.filekit.write
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.protobuf.ProtoBuf
 import java.io.File
 
 class WorkspaceMenuBarViewModel : ViewModel() {
@@ -31,7 +30,7 @@ class WorkspaceMenuBarViewModel : ViewModel() {
         File(workspace.path).let { file ->
             file.writeBytes(
                 AmethystProtoBuf.encodeToByteArray(
-                    serializer = SaveableWorkspaceData.serializer(),
+                    serializer = SavableWorkspaceData.serializer(),
                     value = workspace
                 )
             )
@@ -48,13 +47,13 @@ class WorkspaceMenuBarViewModel : ViewModel() {
 
             file?.write(
                 AmethystProtoBuf.encodeToByteArray(
-                    serializer = SaveableWorkspaceData.serializer(),
+                    serializer = SavableWorkspaceData.serializer(),
                     value = WorkspaceRepository.saveWorkspace()
                 )
             )
 
             file?.readBytes()?.let { bytes ->
-                val data = AmethystProtoBuf.decodeFromByteArray<SaveableWorkspaceData>(bytes).apply {
+                val data = AmethystProtoBuf.decodeFromByteArray<SavableWorkspaceData>(bytes).apply {
                     this.path = file.path
                 }
 

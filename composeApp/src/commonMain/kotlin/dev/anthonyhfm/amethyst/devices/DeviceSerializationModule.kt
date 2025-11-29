@@ -24,7 +24,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
-val DeviceStateSerializationModule = SerializersModule {
+val DeviceSerializationModule = SerializersModule {
     polymorphic(DeviceState::class) {
         subclass(ColorChainDeviceState::class)
         subclass(CoordinateFilterChainDeviceState::class)

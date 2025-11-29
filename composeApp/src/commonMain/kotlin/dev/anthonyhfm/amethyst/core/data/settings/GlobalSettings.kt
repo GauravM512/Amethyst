@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.core.data.settings
 
 import com.russhwolf.settings.Settings
+import com.russhwolf.settings.get
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.platform
@@ -86,5 +87,11 @@ object GlobalSettings {
         }
         set(value) {
             settings.putString("recentColors", Json.encodeToString(ListSerializer(RecentColorRGB.serializer()), value))
+        }
+
+    var localAuthor: String
+        get() = settings.get("localAuthor", "")
+        set(value) {
+            settings.putString("localAuthor", value)
         }
 }
