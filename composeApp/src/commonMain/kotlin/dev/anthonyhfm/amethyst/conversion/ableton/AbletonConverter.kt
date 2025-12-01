@@ -127,9 +127,10 @@ object AbletonConverter : AmethystConverter {
             tracks = abletonXml.querySelector("MidiTrack")
         )
 
-        val autoPlayData: AutoPlayData = AbletonTutorialDetector.getAutoPlayData(layout, abletonXml.querySelector("MidiTrack"))
-
+        bpm = BPMReader().readBPM(abletonXml)
         projectLayout = layout
+
+        val autoPlayData: AutoPlayData = AbletonTutorialDetector.getAutoPlayData(layout, abletonXml.querySelector("MidiTrack"))
 
         when (layout) {
             is AbletonLayout.Single -> {
@@ -161,8 +162,6 @@ object AbletonConverter : AmethystConverter {
 
             else -> null
         }
-
-        bpm = BPMReader().readBPM(abletonXml)
 
         if (layout is AbletonLayout.Dual2Light) {
             layout.lightsLeft?.let { Dual2LightLayoutScanner.scanTrackForMixer(it, IntOffset.Zero) }
