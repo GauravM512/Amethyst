@@ -186,8 +186,6 @@ fun WorkspaceChainEditor(
                                                 }
                                                 .rightClickable {
                                                     rightClickMenuOffset = DpOffset((it.x / density).dp, (it.y / density).dp)
-
-                                                    println(it)
                                                     showRightClickMenu = true
                                                 }
                                                 .dragAnchor()

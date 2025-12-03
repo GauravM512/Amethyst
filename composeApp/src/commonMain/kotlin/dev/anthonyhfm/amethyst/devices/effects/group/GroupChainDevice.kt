@@ -703,8 +703,6 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
                                     }
                                     .rightClickable {
                                         rightClickMenuOffset = DpOffset((it.x / density).dp, (it.y / density).dp)
-
-                                        println(it)
                                         showRightClickMenu = true
                                     }
                                     .dragAnchor() // Add drag anchor to title bar
