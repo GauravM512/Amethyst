@@ -34,25 +34,13 @@ fun SaveChangesDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TextButton(onClick = onCancel) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = MaterialTheme.typography.bodyMedium.fontSize
-                    )
+                    Text("Cancel")
                 }
                 TextButton(onClick = onDontSave) {
-                    Text(
-                        text = "Don't Save",
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = MaterialTheme.typography.bodyMedium.fontSize
-                    )
+                    Text("Don't Save")
                 }
                 Button(onClick = onSave) {
-                    Text(
-                        text = "Save",
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = MaterialTheme.typography.bodyMedium.fontSize
-                    )
+                    Text("Save")
                 }
             }
         }

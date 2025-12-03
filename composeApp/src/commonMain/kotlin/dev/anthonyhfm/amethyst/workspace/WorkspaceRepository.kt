@@ -270,7 +270,7 @@ object WorkspaceRepository {
         }
     }
 
-    fun saveWorkspace(): SavableWorkspaceData {
+    private fun buildWorkspaceData(): SavableWorkspaceData {
         return SavableWorkspaceData(
             path = saveableWorkspaceData?.path,
             title = saveableWorkspaceData?.title ?: "Untitled",
@@ -298,7 +298,11 @@ object WorkspaceRepository {
                     positionY = device.position.value.y
                 )
             },
-        ).also { saveableWorkspaceData = it }
+        )
+    }
+
+    fun saveWorkspace(): SavableWorkspaceData {
+        return buildWorkspaceData().also { saveableWorkspaceData = it }
     }
 
     fun addRecentColor(color: Triple<Float, Float, Float>, maxSize: Int = 24) {
@@ -322,38 +326,8 @@ object WorkspaceRepository {
         // Save the original reference before generating current state
         val savedWorkspace = saveableWorkspaceData!!
         
-        // Generate current workspace state - this will temporarily update saveableWorkspaceData
-        val currentWorkspace = SavableWorkspaceData(
-            path = saveableWorkspaceData?.path,
-            title = saveableWorkspaceData?.title ?: "Untitled",
-            author = saveableWorkspaceData?.author ?: "Unknown Author",
-            lights = StateChain.pack(lightsChain),
-            sampling = StateChain.pack(samplingChain),
-            autoPlay = saveableWorkspaceData?.autoPlay ?: AutoPlayData(emptyMap()),
-            timelineData = TimelineRepository.tracks.value,
-            macros = _macros.value,
-            settings = WorkspaceSettings(
-                bpm = _bpm.value
-            ),
-            launchpadDevices = Heaven.devices.map { device ->
-                SavableWorkspaceData.SavableViewportLaunchpad(
-                    type = when (device) {
-                        is ViewportLaunchpadPro -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
-                        is ViewportLaunchpadProMk3 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO_MK3
-                        is ViewportLaunchpadX -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_X
-                        is ViewportLaunchpadMk2 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_MK2
-                        is ViewportMystrix -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MYSTRIX
-                        is ViewportMidiFighter64 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.MIDIFIGHTER64
-                        else -> { TODO("Could not serialize virtual launchpad element for the workspace") }
-                    },
-                    positionX = device.position.value.x,
-                    positionY = device.position.value.y
-                )
-            },
-        )
-        
-        // Restore the original saveableWorkspaceData since we only wanted to check, not save
-        // Don't update saveableWorkspaceData here
+        // Generate current workspace state without updating saveableWorkspaceData
+        val currentWorkspace = buildWorkspaceData()
         
         // Compare key properties that indicate changes
         return currentWorkspace.title != savedWorkspace.title ||
@@ -363,6 +337,7 @@ object WorkspaceRepository {
                currentWorkspace.macros != savedWorkspace.macros ||
                currentWorkspace.settings != savedWorkspace.settings ||
                currentWorkspace.launchpadDevices != savedWorkspace.launchpadDevices ||
-               currentWorkspace.timelineData != savedWorkspace.timelineData
+               currentWorkspace.timelineData != savedWorkspace.timelineData ||
+               currentWorkspace.autoPlay != savedWorkspace.autoPlay
     }
 }
