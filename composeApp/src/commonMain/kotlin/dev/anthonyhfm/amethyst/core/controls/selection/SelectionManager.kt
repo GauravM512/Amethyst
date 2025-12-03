@@ -49,7 +49,8 @@ object SelectionManager {
         }
         
         // Track last selected chain device for range selection
-        if (element is Selectable.ChainDevice && single) {
+        // Update for both single and multi-selection to maintain proper anchor
+        if (element is Selectable.ChainDevice) {
             lastSelectedChainDevice = element
         }
     }
