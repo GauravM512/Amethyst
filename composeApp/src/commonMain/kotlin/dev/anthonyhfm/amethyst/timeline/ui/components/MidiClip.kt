@@ -44,6 +44,8 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -162,7 +164,7 @@ fun MidiClip(
                         awaitPointerEventScope {
                             while (true) {
                                 val event = awaitPointerEvent()
-                                if (event.type == androidx.compose.ui.input.pointer.PointerEventType.Press) {
+                                if (event.type == PointerEventType.Press) {
                                     val change = event.changes.firstOrNull()
                                     if (change != null) {
                                         val isShiftPressed = event.keyboardModifiers.isShiftPressed

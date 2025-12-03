@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.timeline.data.AudioEntry
 import dev.anthonyhfm.amethyst.ui.components.WaveformView
@@ -53,6 +54,8 @@ import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.round
 
@@ -143,7 +146,7 @@ fun AudioClip(
                         awaitPointerEventScope {
                             while (true) {
                                 val event = awaitPointerEvent()
-                                if (event.type == androidx.compose.ui.input.pointer.PointerEventType.Press) {
+                                if (event.type == PointerEventType.Press) {
                                     val change = event.changes.firstOrNull()
                                     if (change != null) {
                                         val isShiftPressed = event.keyboardModifiers.isShiftPressed
