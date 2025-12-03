@@ -2,7 +2,6 @@ package dev.anthonyhfm.amethyst.workspace.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -28,9 +27,8 @@ fun SaveChangesDialog(
         text = {
             Text("You have unsaved changes. Do you want to save them before closing?")
         },
-        confirmButton = {
+        dismissButton = {
             Row(
-                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TextButton(onClick = onCancel) {
@@ -39,9 +37,11 @@ fun SaveChangesDialog(
                 TextButton(onClick = onDontSave) {
                     Text("Don't Save")
                 }
-                Button(onClick = onSave) {
-                    Text("Save")
-                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onSave) {
+                Text("Save")
             }
         }
     )

@@ -9,9 +9,6 @@ import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.write
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToByteArray
 
@@ -20,7 +17,7 @@ object WorkspaceSaveHelper {
      * Saves the current workspace, prompting for a file path if not already set.
      * Returns true if save was successful, false if cancelled.
      */
-    @OptIn(ExperimentalSerializationApi::class, DelicateCoroutinesApi::class)
+    @OptIn(ExperimentalSerializationApi::class)
     suspend fun saveWorkspace(): Boolean {
         var path = WorkspaceRepository.saveableWorkspaceData?.path
 
