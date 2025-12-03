@@ -96,15 +96,11 @@ actual object AudioOutput {
 
     private fun initializeOpenAL() {
         try {
-            val deviceName = if (isWindows) {
-                // On Windows, try to use the default device explicitly for better latency
-                val devices = ALC11.alcGetString(0L, ALC11.ALC_ALL_DEVICES_SPECIFIER)
-                null
-            } else {
-                null
-            }
+            // On Windows, use default device for best compatibility
+            // On other platforms, let OpenAL choose the best device
+            val deviceName: ByteBuffer? = null
 
-            device = ALC10.alcOpenDevice(deviceName as ByteBuffer?)
+            device = ALC10.alcOpenDevice(deviceName)
             if (device == 0L) {
                 return
             }
@@ -114,11 +110,12 @@ actual object AudioOutput {
                 // - Higher refresh rate (120Hz) for more responsive updates
                 // - Async mode (ALC_SYNC=FALSE) for non-blocking operations
                 // - Smaller internal buffer periods for lower latency
+                val AL_SOFT_BUFFER_SAMPLES = 0x1010  // OpenAL Soft extension for buffer control
                 intArrayOf(
                     ALC10.ALC_FREQUENCY, SAMPLE_RATE,
                     ALC11.ALC_REFRESH, updateFrequency,
                     ALC11.ALC_SYNC, ALC10.ALC_FALSE,
-                    0x1010, 512,  // AL_SOFT_buffer_samples hint for smaller buffers
+                    AL_SOFT_BUFFER_SAMPLES, 512,  // Hint for smaller internal buffers
                     0
                 )
             } else {
