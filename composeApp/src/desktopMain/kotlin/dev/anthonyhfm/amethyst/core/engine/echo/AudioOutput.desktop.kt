@@ -5,6 +5,7 @@ import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import kotlinx.coroutines.*
 import org.lwjgl.openal.*
 import org.lwjgl.system.MemoryUtil
+import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -19,7 +20,14 @@ actual object AudioOutput {
     private const val SAMPLE_RATE = 44100
     private const val FORMAT = AL10.AL_FORMAT_STEREO16
     private const val MAX_SOURCES = 16
-    private const val UPDATE_FREQUENCY = 30
+
+    private val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+    // Windows needs higher update frequency for lower latency (120Hz vs 30Hz)
+    private val updateFrequency = if (isWindows) 120 else 30
+    // Windows needs smaller buffer periods for lower latency (2ms vs 10ms)
+    private val processingDelay = if (isWindows) 2L else 10L
+    // Windows processes more sources per cycle to compensate for faster updates
+    private val batchSize = if (isWindows) 12 else 4
 
     data class QueuedAudio(
         val pcmData: ByteArray,
@@ -88,12 +96,36 @@ actual object AudioOutput {
 
     private fun initializeOpenAL() {
         try {
-            device = ALC10.alcOpenDevice(null)
+            val deviceName = if (isWindows) {
+                // On Windows, try to use the default device explicitly for better latency
+                val devices = ALC11.alcGetString(0L, ALC11.ALC_ALL_DEVICES_SPECIFIER)
+                null
+            } else {
+                null
+            }
+
+            device = ALC10.alcOpenDevice(deviceName as ByteBuffer?)
             if (device == 0L) {
                 return
             }
 
-            context = ALC10.alcCreateContext(device, null)
+            val contextAttribs = if (isWindows) {
+                // Configure OpenAL for low-latency on Windows:
+                // - Higher refresh rate (120Hz) for more responsive updates
+                // - Async mode (ALC_SYNC=FALSE) for non-blocking operations
+                // - Smaller internal buffer periods for lower latency
+                intArrayOf(
+                    ALC10.ALC_FREQUENCY, SAMPLE_RATE,
+                    ALC11.ALC_REFRESH, updateFrequency,
+                    ALC11.ALC_SYNC, ALC10.ALC_FALSE,
+                    0x1010, 512,  // AL_SOFT_buffer_samples hint for smaller buffers
+                    0
+                )
+            } else {
+                null
+            }
+
+            context = ALC10.alcCreateContext(device, contextAttribs)
             if (context == 0L) {
                 ALC10.alcCloseDevice(device)
                 return
@@ -113,6 +145,14 @@ actual object AudioOutput {
                 return
             }
 
+            if (isWindows) {
+                AL10.alListenerf(AL10.AL_GAIN, 1.0f)
+                AL10.alListener3f(AL10.AL_POSITION, 0.0f, 0.0f, 0.0f)
+                AL10.alListener3f(AL10.AL_VELOCITY, 0.0f, 0.0f, 0.0f)
+                val orientation = floatArrayOf(0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f)
+                AL10.alListenerfv(AL10.AL_ORIENTATION, orientation)
+            }
+
             isInitialized = true
             startAudioProcessing()
 
@@ -123,11 +163,20 @@ actual object AudioOutput {
 
     private fun startAudioProcessing() {
         processingJob = CoroutineScope(Dispatchers.Default).launch {
+            // On Windows, boost thread priority for audio processing to reduce latency
+            if (isWindows) {
+                try {
+                    Thread.currentThread().priority = Thread.MAX_PRIORITY
+                } catch (e: Exception) {
+                    // Ignore if we can't set priority
+                }
+            }
+            
             while (isActive && isInitialized) {
                 try {
                     processAudioQueue()
                     cleanupFinishedSources()
-                    delay(10)
+                    delay(processingDelay)
                 } catch (e: Exception) {
                     // Continue processing
                 }
@@ -138,7 +187,7 @@ actual object AudioOutput {
     private fun processAudioQueue() {
         if (!isInitialized) return
 
-        val batchSize = 4
+        // Windows processes more sources per cycle due to higher update frequency
         repeat(batchSize) {
             val queuedAudio = audioQueue.poll() ?: return
 
@@ -238,6 +287,17 @@ actual object AudioOutput {
             AL10.alSource3f(sourceId, AL10.AL_POSITION, 0.0f, 0.0f, 0.0f)
             AL10.alSourcei(sourceId, AL10.AL_LOOPING, AL10.AL_FALSE)
 
+            if (isWindows) {
+                // Optimize for low-latency 2D audio on Windows:
+                // - Use relative positioning (no 3D calculations)
+                // - Disable distance attenuation
+                // - Set maximum distance to avoid culling
+                AL10.alSourcei(sourceId, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE)
+                AL10.alSourcef(sourceId, AL10.AL_REFERENCE_DISTANCE, 1.0f)
+                AL10.alSourcef(sourceId, AL10.AL_ROLLOFF_FACTOR, 0.0f)
+                AL10.alSourcef(sourceId, AL10.AL_MAX_DISTANCE, Float.MAX_VALUE)
+            }
+
             val pcmData = queuedAudio.pcmData
             val buffer = MemoryUtil.memAlloc(pcmData.size)
 
@@ -310,11 +370,16 @@ actual object AudioOutput {
         val normalizedData = normalizeAudioForPlayback(rawData, audioSignal)
 
         val sourceId = "audio_${System.currentTimeMillis()}_${(0..999).random()}"
-        // Priority is always 0 (normal priority) - previously this was platform-specific
-        val queuedAudio = QueuedAudio(normalizedData, sourceId, audioSignal.origin, priority = 0)
+        val queuedAudio = QueuedAudio(normalizedData, sourceId, audioSignal.origin, if (isWindows) 1 else 0)
         queuedAudio.format = Pair(audioSignal, openALFormat)
 
-        audioQueue.offer(queuedAudio)
+        if (isWindows && audioQueue.isEmpty() && activeSources.size < MAX_SOURCES) {
+            CoroutineScope(Dispatchers.Default).launch {
+                createAndPlayAudioSourceWithFormat(queuedAudio, audioSignal, openALFormat)
+            }
+        } else {
+            audioQueue.offer(queuedAudio)
+        }
 
         return sourceId
     }
