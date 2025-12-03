@@ -11,6 +11,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.anthonyhfm.amethyst.ui.theme.AMETHYST_THEME
 
 @Composable
 fun SaveChangesDialog(
@@ -18,31 +19,35 @@ fun SaveChangesDialog(
     onDontSave: () -> Unit,
     onCancel: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onCancel,
-        modifier = Modifier.width(400.dp),
-        title = {
-            Text("Save Changes?")
-        },
-        text = {
-            Text("You have unsaved changes. Do you want to save them before closing?")
-        },
-        dismissButton = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TextButton(onClick = onCancel) {
-                    Text("Cancel")
+    MaterialTheme(
+        colorScheme = AMETHYST_THEME
+    ) {
+        AlertDialog(
+            onDismissRequest = onCancel,
+            modifier = Modifier.width(400.dp),
+            title = {
+                Text("Save Changes?")
+            },
+            text = {
+                Text("You have unsaved changes. Do you want to save them before closing?")
+            },
+            dismissButton = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextButton(onClick = onCancel) {
+                        Text("Cancel")
+                    }
+                    TextButton(onClick = onDontSave) {
+                        Text("Don't Save")
+                    }
                 }
-                TextButton(onClick = onDontSave) {
-                    Text("Don't Save")
+            },
+            confirmButton = {
+                Button(onClick = onSave) {
+                    Text("Save")
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = onSave) {
-                Text("Save")
-            }
-        }
-    )
+        )
+    }
 }
