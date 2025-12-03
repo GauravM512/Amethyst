@@ -56,6 +56,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.timeline.data.MidiEntry
 import dev.anthonyhfm.amethyst.timeline.utils.GridUtils
 import dev.anthonyhfm.amethyst.ui.modifier.ResizeLeft
@@ -171,7 +172,7 @@ fun MidiClip(
                                         if (isShiftPressed) {
                                             // Multi-select mode
                                             SelectionManager.select(
-                                                dev.anthonyhfm.amethyst.core.controls.selection.Selectable.TimelineEntryItem(trackIndex = trackIndex, entryStartMs = entryStartMs),
+                                                Selectable.TimelineEntryItem(trackIndex = trackIndex, entryStartMs = entryStartMs),
                                                 single = false
                                             )
                                         } else {
