@@ -706,12 +706,28 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>() {
                             TitleBarModifierProvider(
                                 Modifier
                                     .clickable {
-                                        SelectionManager.select(
-                                            Selectable.ChainDevice(
-                                                parent = groupsState.groups[groupsState.openedGroupIndex].chain,
-                                                device = device
-                                            )
+                                        val chainDeviceSelectable = Selectable.ChainDevice(
+                                            parent = groupsState.groups[groupsState.openedGroupIndex].chain,
+                                            device = device
                                         )
+                                        
+                                        when {
+                                            ModifierKeysState.isShiftPressed -> {
+                                                SelectionManager.selectRangeInChain(
+                                                    targetDevice = chainDeviceSelectable,
+                                                    devicesInChain = devices
+                                                )
+                                            }
+                                            ModifierKeysState.isCtrlPressed -> {
+                                                SelectionManager.select(
+                                                    chainDeviceSelectable,
+                                                    single = false
+                                                )
+                                            }
+                                            else -> {
+                                                SelectionManager.select(chainDeviceSelectable)
+                                            }
+                                        }
                                     }
                                     .rightClickable {
                                         rightClickMenuOffset = DpOffset((it.x / density).dp, (it.y / density).dp)
