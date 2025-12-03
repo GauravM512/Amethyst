@@ -11,6 +11,7 @@ import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 
@@ -23,13 +24,11 @@ object ChainModeKeyHandler {
                     if (keyEvent.isCtrlPressed || keyEvent.isMetaPressed) {
                         val selections = SelectionManager.selections.value.filter { it is Selectable.ChainDevice }
                         
-                        if (selections.size >= 2) {
+                        if (selections.isNotEmpty()) {
                             val chainDevices = selections.map { it as Selectable.ChainDevice }
                             val parentChain = chainDevices.firstOrNull()?.parent
                             
-                            // Check all devices are from the same parent chain
                             if (parentChain != null && chainDevices.all { it.parent == parentChain }) {
-                                // Get indices and sort devices by their position in the chain
                                 val deviceIndices = chainDevices.map { chainDevice ->
                                     val index = parentChain.devices.value.indexOfFirst { 
                                         it.selectionUUID == chainDevice.device.selectionUUID 
@@ -39,46 +38,33 @@ object ChainModeKeyHandler {
                                 
                                 if (deviceIndices.isNotEmpty()) {
                                     val firstIndex = deviceIndices.first().second
-                                    
-                                    // Create a new GroupChainDevice
-                                    val newGroupDevice = GroupChainDevice()
-                                    
-                                    // Create a group with the selected devices
-                                    val newGroup = Group(
-                                        name = "Chain #",
-                                        chain = Chain().apply {
-                                            // Add devices to the new group's chain
-                                            deviceIndices.forEach { (chainDevice, _) ->
-                                                // Pack and unpack to create a copy
-                                                val deviceState = StateChain.packDevice(chainDevice.device)
-                                                val deviceCopy = StateChain.unpackDevice(deviceState)
-                                                add(deviceCopy)
-                                            }
-                                            
-                                            signalExit = newGroupDevice.signalExit
-                                        }
+
+                                    val group = StateChain.unpackDevice(
+                                        GroupChainDeviceState(
+                                            groups = listOf(
+                                                Group(
+                                                    name = "Group #",
+                                                    stateChain = StateChain(
+                                                        devices = deviceIndices.map {
+                                                            StateChain.packDevice(it.first.device)
+                                                        }
+                                                    )
+                                                )
+                                            ),
+                                        )
                                     )
-                                    
-                                    // Set the group in the GroupChainDevice
-                                    newGroupDevice.state.value = newGroupDevice.state.value.copy(
-                                        groups = listOf(newGroup),
-                                        openedGroupIndex = 0
-                                    )
-                                    
-                                    // Remove selected devices from parent chain (in reverse order to maintain indices)
+
                                     deviceIndices.reversed().forEach { (chainDevice, _) ->
                                         parentChain.remove(chainDevice.device.selectionUUID, fromUser = false)
                                     }
                                     
-                                    // Add the GroupChainDevice at the position of the first selected device
-                                    parentChain.add(newGroupDevice, firstIndex, fromUser = false)
+                                    parentChain.add(group, firstIndex, fromUser = false)
                                     
-                                    // Select the new GroupChainDevice
                                     SelectionManager.clear()
                                     SelectionManager.select(
                                         Selectable.ChainDevice(
                                             parent = parentChain,
-                                            device = newGroupDevice
+                                            device = group
                                         ),
                                         single = true
                                     )
