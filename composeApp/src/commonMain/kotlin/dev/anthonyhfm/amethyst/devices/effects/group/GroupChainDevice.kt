@@ -137,20 +137,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
                     .width(180.dp),
             ) {
                 Row {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .width(28.dp)
-                            .then(
-                                if (isSelected) {
-                                    Modifier
-                                        .background(MaterialTheme.colorScheme.primary)
-                                } else {
-                                    Modifier
-                                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                                }
-                            )
-                    )
+                    AutoMappingButton(isSelected)
 
                     GroupList()
                 }
@@ -185,6 +172,36 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>() {
     @Composable
     override fun Content() {
         Content(rememberDragAndDropState())
+    }
+
+    @Composable
+    fun AutoMappingButton(
+        isSelected: Boolean
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(28.dp)
+                .then(
+                    if (isSelected) {
+                        Modifier
+                            .background(MaterialTheme.colorScheme.primary)
+                    } else {
+                        Modifier
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                    }
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(5.dp)
+                    .clip(CircleShape)
+                    .height(42.dp)
+                    .width(18.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            )
+        }
     }
 
     @Composable

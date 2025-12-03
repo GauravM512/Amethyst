@@ -11,6 +11,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
+import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.Event
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.Frame
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.ui.components.InfinityCheckbox
@@ -190,6 +192,15 @@ class KeyframesWorkspaceMode : WorkspaceContract.WorkspaceMode {
         }
 
         return false
+    }
+
+    override fun onMidiInput(data: MidiInputData, offset: Offset) = {
+        val x: Int = data.pitch % 10
+        val y: Int = 9 - (data.pitch / 10)
+
+        if (data.velocity != 0) {
+            onEvent?.invoke(Event.OnPaintButton(x + offset.x.toInt(), y + offset.y.toInt()))
+        }
     }
 
     fun virtualDeviceDragStart(x: Int, y: Int) {

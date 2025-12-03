@@ -53,7 +53,7 @@ interface WorkspaceContract {
         val claimInputs: Boolean get() = false
 
         fun onKeyEvent(event: KeyEvent): Boolean = false
-        fun onMidiInput(data: MidiInputData) = { }
+        fun onMidiInput(data: MidiInputData, offset: Offset) = { }
 
         data class Layout(
             override val displayName: String = "Layout Editor",

@@ -265,7 +265,12 @@ class WorkspaceViewModel(
 
                     data?.let {
                         if (WorkspaceRepository.mode.value.claimInputs) {
-                            WorkspaceRepository.mode.value.onMidiInput(it)
+                            val offset = this@apply.position.value.copy(
+                                x = this@apply.position.value.x - this@apply.layout.offsetX,
+                                y = this@apply.position.value.y - this@apply.layout.offsetY
+                            )
+
+                            WorkspaceRepository.mode.value.onMidiInput(it, offset).invoke()
                         } else {
                             val offset = this@apply.position.value.copy(
                                 x = this@apply.position.value.x - this@apply.layout.offsetX,
