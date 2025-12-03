@@ -32,7 +32,9 @@ import javax.swing.UIManager
 import kotlin.system.exitProcess
 
 @Composable
-fun WorkspaceWindow() {
+fun WorkspaceWindow(
+    onClose: () -> Unit = { }
+) {
     if (DesktopPlatform.get() == DesktopPlatform.Windows) {
         UIManager.setLookAndFeel(FlatAmethystLaf())
     }
@@ -48,8 +50,8 @@ fun WorkspaceWindow() {
                 showSaveDialog = true
                 pendingClose = true
             } else {
-                // AudioOutput.cleanup()
-                exitProcess(0)
+                WorkspaceRepository.clean()
+                onClose()
             }
         },
         title = "Amethyst",
@@ -104,8 +106,8 @@ fun WorkspaceWindow() {
                     coroutineScope.launch {
                         val saved = WorkspaceSaveHelper.saveWorkspace()
                         if (saved && pendingClose) {
-                            // AudioOutput.cleanup()
-                            exitProcess(0)
+                            WorkspaceRepository.clean()
+                            onClose()
                         }
                         showSaveDialog = false
                         pendingClose = false
@@ -114,8 +116,8 @@ fun WorkspaceWindow() {
                 onDontSave = {
                     showSaveDialog = false
                     if (pendingClose) {
-                        // AudioOutput.cleanup()
-                        exitProcess(0)
+                        WorkspaceRepository.clean()
+                        onClose()
                     }
                     pendingClose = false
                 },

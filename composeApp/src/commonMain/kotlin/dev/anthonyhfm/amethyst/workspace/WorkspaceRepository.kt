@@ -340,4 +340,32 @@ object WorkspaceRepository {
                currentWorkspace.timelineData != savedWorkspace.timelineData ||
                currentWorkspace.autoPlay != savedWorkspace.autoPlay
     }
+
+    fun clean() {
+        // Reset chains
+        lightsChain = Chain()
+        samplingChain = Chain()
+        
+        // Re-setup signal exits
+        lightsChain.signalExit = {
+            Heaven.midiEnter(it.filterIsInstance<Signal.LED>())
+        }
+        
+        samplingChain.signalExit = {
+            Echo.audioEnter(it.filterIsInstance<Signal.AudioSignal>())
+        }
+        
+        // Clear devices
+        Heaven.devices = emptyList()
+        
+        // Reset state
+        bounds = Pair(IntOffset(0, 0), IntSize(0, 0))
+        saveableWorkspaceData = null
+        _macros.update { listOf(Macro(1)) }
+        _mode.update { WorkspaceContract.WorkspaceMode.Layout() }
+        _bpm.update { 120.00 }
+        _projectName.update { null }
+        previousMode = WorkspaceContract.WorkspaceMode.Layout()
+        _gridType.update { GridUtils.GridType.Flexible.Medium }
+    }
 }
