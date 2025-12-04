@@ -80,6 +80,7 @@ object AutoPlayRepository {
                                     x = it.x,
                                     y = it.y,
                                     color = if (it.down) Color.White else Color.Black,
+                                    layer = 100
                                 )
                             }
                         )
