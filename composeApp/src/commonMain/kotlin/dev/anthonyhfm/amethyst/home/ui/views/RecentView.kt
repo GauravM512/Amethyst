@@ -1,8 +1,10 @@
 package dev.anthonyhfm.amethyst.home.ui.views
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -41,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -159,64 +162,75 @@ fun RecentView(
             }
         }
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .padding(it)
-        ) {
-            itemsIndexed(recentProjects) { index, it ->
-                ListItem(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .height(64.dp)
-                        .clickable {
-                            viewModel.onEvent(Event.OpenProjectFromHistory(it))
+        if (recentProjects.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No recent projects")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .padding(it)
+            ) {
+                itemsIndexed(recentProjects) { index, it ->
+                    ListItem(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .height(64.dp)
+                            .clickable {
+                                viewModel.onEvent(Event.OpenProjectFromHistory(it))
+                            },
+                        colors = ListItemDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+                        ),
+                        headlineContent = {
+                            Text(
+                                text = it.title,
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMedium,
+                                lineHeight = MaterialTheme.typography.titleMedium.fontSize
+                            )
                         },
-                    colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
-                    ),
-                    headlineContent = {
-                        Text(
-                            text = it.title,
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleMedium,
-                            lineHeight = MaterialTheme.typography.titleMedium.fontSize
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            text = it.path,
-                            maxLines = 1,
-                            overflow = TextOverflow.StartEllipsis,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface.copy(0.5f)
-                        )
-                    },
-                    trailingContent = {
-                        Row {
-                            IconButton(
-                                onClick = {
-                                    viewModel.onEvent(Event.OnClickEditProject(it))
+                        supportingContent = {
+                            Text(
+                                text = it.path,
+                                maxLines = 1,
+                                overflow = TextOverflow.StartEllipsis,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(0.5f)
+                            )
+                        },
+                        trailingContent = {
+                            Row {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.onEvent(Event.OnClickEditProject(it))
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Edit, null)
                                 }
-                            ) {
-                                Icon(Icons.Default.Edit, null)
-                            }
 
-                            IconButton(
-                                onClick = {
-                                    GlobalSettings.recentWorkspaces = recentProjects
-                                        .filter {
-                                            it != recentProjects[index]
-                                        }
+                                IconButton(
+                                    onClick = {
+                                        GlobalSettings.recentWorkspaces = recentProjects
+                                            .filter {
+                                                it != recentProjects[index]
+                                            }
 
-                                    recentProjects = GlobalSettings.recentWorkspaces
+                                        recentProjects = GlobalSettings.recentWorkspaces
+                                    }
+                                ) {
+                                    Icon(Icons.Default.Delete, null)
                                 }
-                            ) {
-                                Icon(Icons.Default.Delete, null)
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
     }
