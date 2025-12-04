@@ -27,6 +27,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
+private const val MAX_PITCH_PER_DEVICE = 100
+private const val DEFAULT_DURATION_MS = 4000L
+private const val NO_TRACK_INDEX = -1
+
 class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>() {
     override val state = MutableStateFlow(PianoRollChainDeviceState())
 
@@ -86,7 +90,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>() {
                 onClick = {
                     // Set the current entry for editing
                     customMode.currentEntry = currentState.midiEntry
-                    customMode.trackIndex = -1 // Not from timeline
+                    customMode.trackIndex = NO_TRACK_INDEX // Not from timeline
                     customMode.entryStartMs = 0L
                     
                     // Switch to piano roll editing mode
@@ -147,7 +151,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>() {
     }
 
     private fun pitchToXY(pitch: Int): Pair<Int, Int> {
-        val localPitch = pitch % 100
+        val localPitch = pitch % MAX_PITCH_PER_DEVICE
         val x = localPitch % 10
         val y = 9 - (localPitch / 10)
         return Pair(x, y)
@@ -158,7 +162,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>() {
 data class PianoRollChainDeviceState(
     val midiEntry: MidiEntry = MidiEntry(
         startTimeMs = 0,
-        durationMs = 4000, // Default 4 seconds
+        durationMs = DEFAULT_DURATION_MS,
         notes = emptyList(),
         name = "Piano Roll"
     )
