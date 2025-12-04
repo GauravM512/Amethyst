@@ -18,15 +18,15 @@ actual object AudioOutput {
     private val audioQueue = ConcurrentLinkedQueue<QueuedAudio>()
 
     private const val SAMPLE_RATE = 44100
-    private const val FORMAT = AL10.AL_FORMAT_STEREO16
+
     private const val MAX_SOURCES = 16
 
     private val isWindows = System.getProperty("os.name").lowercase().contains("windows")
-    // Windows needs higher update frequency for lower latency (120Hz vs 30Hz)
+
     private val updateFrequency = if (isWindows) 120 else 30
-    // Windows needs smaller buffer periods for lower latency (2ms vs 10ms)
+
     private val processingDelay = if (isWindows) 2L else 10L
-    // Windows processes more sources per cycle to compensate for faster updates
+
     private val batchSize = if (isWindows) 12 else 4
 
     data class QueuedAudio(
@@ -217,7 +217,22 @@ actual object AudioOutput {
             AL10.alSourcei(sourceId, AL10.AL_LOOPING, AL10.AL_FALSE)
 
             val pcmData = queuedAudio.pcmData
-            val validSize = (pcmData.size / 4) * 4
+
+            // Determine format from data size - assume 16-bit
+            // If data size / 2 is even, it's stereo; if odd, it's mono
+            val samples = pcmData.size / 2
+            val format = if (samples % 2 == 0) {
+                AL10.AL_FORMAT_STEREO16
+            } else {
+                AL10.AL_FORMAT_MONO16
+            }
+
+            val validSize = if (format == AL10.AL_FORMAT_STEREO16) {
+                (pcmData.size / 4) * 4  // Stereo: 4 bytes per frame
+            } else {
+                (pcmData.size / 2) * 2  // Mono: 2 bytes per frame
+            }
+
             val validData = if (validSize != pcmData.size) {
                 pcmData.sliceArray(0 until validSize)
             } else {
@@ -229,7 +244,7 @@ actual object AudioOutput {
                 buffer.put(validData)
                 buffer.flip()
 
-                AL10.alBufferData(bufferIds[0], FORMAT, buffer, SAMPLE_RATE)
+                AL10.alBufferData(bufferIds[0], format, buffer, SAMPLE_RATE)
 
                 if (AL10.alGetError() != AL10.AL_NO_ERROR) {
                     AL10.alDeleteSources(sourceId)

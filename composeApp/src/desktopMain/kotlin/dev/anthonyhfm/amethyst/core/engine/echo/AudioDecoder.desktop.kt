@@ -145,22 +145,29 @@ actual object AudioDecoder {
     private fun decodeViaJavaSound(bytes: ByteArray, sampleStart: Long?, sampleEnd: Long?): Signal.AudioSignal? {
         val input = AudioSystem.getAudioInputStream(ByteArrayInputStream(bytes))
         val src = input.format
+
+        // Preserve original sample rate - don't resample unless necessary
+        val targetSampleRate = if (src.sampleRate > 0) src.sampleRate else 44100f
+
+        // Properly handle channels:
+        // - Mono stays mono
+        // - Stereo stays stereo
+        // - Multi-channel (>2) gets downmixed to stereo by JavaSound
+        val targetChannels = when {
+            src.channels <= 0 -> 2
+            src.channels == 1 -> 1  // Keep mono as mono
+            src.channels == 2 -> 2  // Keep stereo as stereo
+            else -> 2  // Downmix multi-channel to stereo
+        }
+
         val target = AudioFormat(
             AudioFormat.Encoding.PCM_SIGNED,
-            if (src.sampleRate > 0) src.sampleRate else 44100f,
+            targetSampleRate,
             16,
-            when {
-                src.channels <= 0 -> 2
-                src.channels > 2  -> 2
-                else -> src.channels
-            },
-            when {
-                src.channels <= 0 -> 4
-                src.channels > 2  -> 4
-                else -> src.channels * 2
-            },
-            if (src.sampleRate > 0) src.sampleRate else 44100f,
-            false
+            targetChannels,
+            targetChannels * 2,  // frameSize = channels * bytesPerSample
+            targetSampleRate,
+            false  // little-endian
         )
 
         val pcmStream: AudioInputStream = if (AudioSystem.isConversionSupported(target, src)) {
@@ -222,8 +229,9 @@ actual object AudioDecoder {
 
         var out = pcm
         if (si.bitsPerSample != 16) out = convertBitDepth(out, si.bitsPerSample, 16, si.channels)
-        val channels = if (si.channels == 1) 2 else si.channels
-        if (si.channels == 1) out = monoToStereo(out, 16)
+
+        // Keep original channel count - don't force mono to stereo
+        val channels = si.channels
 
         val bytesPerSample = (16 / 8) * channels
         val totalSamples = if (bytesPerSample > 0) out.size / bytesPerSample else 0
