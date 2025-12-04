@@ -17,8 +17,8 @@ object AutoPlayRepository {
     private val _state = MutableStateFlow(AutoPlayState.STOPPED)
     val state: StateFlow<AutoPlayState> = _state.asStateFlow()
 
-    private var pausedAtTime: Double = 0.0
-    private var startOffset: Double = 0.0
+    private var playbackStartTime: Double = 0.0  // Heaven.time when playback started
+    private var playbackOffset: Double = 0.0     // Where in the autoplay timeline we are
 
     fun startAutoPlay() {
         if (_state.value == AutoPlayState.PLAYING) return
@@ -29,17 +29,18 @@ object AutoPlayRepository {
         // Cancel any existing jobs
         Heaven.cancelJobsForOwner(this)
 
-        // Calculate offset if resuming from pause
-        if (_state.value == AutoPlayState.PAUSED) {
-            startOffset = pausedAtTime
-        } else {
-            startOffset = 0.0
+        // Record when we're starting
+        playbackStartTime = Heaven.time
+        
+        // If not paused, start from beginning
+        if (_state.value != AutoPlayState.PAUSED) {
+            playbackOffset = 0.0
         }
 
         _state.value = AutoPlayState.PLAYING
 
         autoplay.actions.entries.forEach { entry ->
-            val adjustedDelay = entry.key - startOffset
+            val adjustedDelay = entry.key - playbackOffset
             if (adjustedDelay >= 0) {
                 Heaven.schedule(adjustedDelay, this) {
                     // Send MIDI signals to sampling chain
@@ -89,7 +90,8 @@ object AutoPlayRepository {
     fun pauseAutoPlay() {
         if (_state.value != AutoPlayState.PLAYING) return
         
-        pausedAtTime = Heaven.time + startOffset
+        // Calculate how far into the playback we are
+        playbackOffset += (Heaven.time - playbackStartTime)
         Heaven.cancelJobsForOwner(this)
         _state.value = AutoPlayState.PAUSED
     }
@@ -97,8 +99,8 @@ object AutoPlayRepository {
     fun stopAutoPlay() {
         Heaven.cancelJobsForOwner(this)
         _state.value = AutoPlayState.STOPPED
-        pausedAtTime = 0.0
-        startOffset = 0.0
+        playbackOffset = 0.0
+        playbackStartTime = 0.0
     }
 
     fun resumeAutoPlay() {
