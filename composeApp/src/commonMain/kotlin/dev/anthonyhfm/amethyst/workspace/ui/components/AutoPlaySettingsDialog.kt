@@ -48,16 +48,18 @@ fun AutoPlaySettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Show Button Presses")
+
                     Switch(
                         checked = showButtonPresses,
                         onCheckedChange = { showButtonPresses = it }
                     )
                 }
+
                 Text(
-                    text = "Displays white LED signals on layer 100 to indicate button presses",
+                    text = "Display white LEDs to indicate button presses",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier
                 )
 
                 Row(
@@ -71,11 +73,12 @@ fun AutoPlaySettingsDialog(
                         onCheckedChange = { showLights = it }
                     )
                 }
+
                 Text(
-                    text = "Sends AutoPlay signals to the lights chain",
+                    text = "Process project lights and show them during AutoPlay",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier
                 )
             }
         },

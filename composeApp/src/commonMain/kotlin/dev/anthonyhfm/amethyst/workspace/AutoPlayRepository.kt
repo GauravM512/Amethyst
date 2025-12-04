@@ -17,8 +17,8 @@ object AutoPlayRepository {
     private val _state = MutableStateFlow(AutoPlayState.STOPPED)
     val state: StateFlow<AutoPlayState> = _state.asStateFlow()
 
-    private var playbackStartTime: Double = 0.0  // Heaven.time when playback started
-    private var playbackOffset: Double = 0.0     // Where in the autoplay timeline we are
+    private var playbackStartTime: Double = 0.0
+    private var playbackOffset: Double = 0.0
 
     fun startAutoPlay() {
         if (_state.value == AutoPlayState.PLAYING) return
@@ -26,13 +26,10 @@ object AutoPlayRepository {
         val autoplay = WorkspaceRepository.saveableWorkspaceData?.autoPlay ?: return
         val settings = WorkspaceRepository.saveableWorkspaceData?.settings
 
-        // Cancel any existing jobs
         Heaven.cancelJobsForOwner(this)
 
-        // Record when we're starting
         playbackStartTime = Heaven.time
         
-        // If not paused, start from beginning
         if (_state.value != AutoPlayState.PAUSED) {
             playbackOffset = 0.0
         }
@@ -43,7 +40,6 @@ object AutoPlayRepository {
             val adjustedDelay = entry.key - playbackOffset
             if (adjustedDelay >= 0) {
                 Heaven.schedule(adjustedDelay, this) {
-                    // Send MIDI signals to sampling chain
                     WorkspaceRepository.samplingChain.signalEnter(
                         entry.value.map {
                             Signal.Midi(
@@ -55,7 +51,6 @@ object AutoPlayRepository {
                         }
                     )
 
-                    // Send LED signals to lights chain if enabled
                     if (settings?.autoPlayShowLights == true) {
                         WorkspaceRepository.lightsChain.signalEnter(
                             entry.value.map {
@@ -69,9 +64,6 @@ object AutoPlayRepository {
                         )
                     }
 
-                    // Show button presses on layer 100 if enabled
-                    // This sends visual feedback to Heaven directly rather than through
-                    // the lights chain, allowing button press visualization on devices
                     if (settings?.autoPlayShowButtonPresses == true) {
                         Heaven.midiEnter(
                             entry.value.map {
