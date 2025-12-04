@@ -150,6 +150,10 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>() {
         }
     }
 
+    /**
+     * Converts a MIDI pitch value to X,Y coordinates on a launchpad grid.
+     * Note: This logic is shared with MidiEntry.pitchToXY() in TimelineEntry.kt
+     */
     private fun pitchToXY(pitch: Int): Pair<Int, Int> {
         val localPitch = pitch % MAX_PITCH_PER_DEVICE
         val x = localPitch % 10
