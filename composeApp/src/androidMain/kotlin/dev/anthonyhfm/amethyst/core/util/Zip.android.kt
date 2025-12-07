@@ -7,9 +7,11 @@ import io.github.vinceglb.filekit.absoluteFile
 import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 import java.util.zip.ZipInputStream
 
 actual object Zip {
@@ -66,5 +68,15 @@ actual object Zip {
         val zipFile = GZIPInputStream(data.inputStream())
 
         return zipFile.readAllBytes()
+    }
+
+    actual fun encode(data: ByteArray): ByteArray {
+        ByteArrayOutputStream(data.size).use { out ->
+            GZIPOutputStream(out).use { gzip ->
+                gzip.write(data)
+            }
+
+            return out.toByteArray()
+        }
     }
 }
