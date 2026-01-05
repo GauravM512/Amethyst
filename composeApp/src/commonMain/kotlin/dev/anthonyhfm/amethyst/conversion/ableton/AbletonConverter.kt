@@ -98,14 +98,18 @@ object AbletonConverter : AmethystConverter {
         FileHelper.clearCache()
 
         zipStartPath = entries.map { it.path }
-            .first { it.endsWith(".als") }
+            .filter { it.endsWith(".als") }
+            .minBy { it.length }
             .substringBeforeLast("/")
 
         zipEntries.putAll(
             entries.associateBy { it.path }
         )
 
-        val alsEntry = entries.first { it.path.endsWith(".als") }
+        val alsEntry = entries
+            .filter { it.path.endsWith(".als") }
+            .minBy { it.path.length }
+
         val decodedAlsBytes = Zip.decode(alsEntry.data)
         val decodedAlsString = decodedAlsBytes.decodeToString()
 

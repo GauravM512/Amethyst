@@ -13,7 +13,7 @@ data class Ableton(
     @SerialName("MinorVersion")
     val minorVersion: String,
     @SerialName("SchemaChangeCount")
-    val schemaChangeCount: Int,
+    val schemaChangeCount: Int = 0,
     @SerialName("Creator")
     val creator: String,
     @SerialName("Revision")

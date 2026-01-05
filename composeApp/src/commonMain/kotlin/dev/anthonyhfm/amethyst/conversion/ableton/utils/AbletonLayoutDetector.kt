@@ -32,11 +32,11 @@ object AbletonLayoutDetector {
         }
 
         val maxAudio = audioTracks.firstOrNull()?.first ?: 0
-        val audioCandidates = audioTracks.filter { it.first >= maxAudio * 0.2 }
+        val audioCandidates = audioTracks.filter { it.first >= maxAudio * 0.1 }
             .sortedBy { it.second.name }
 
         val maxLight = lightsTracks.firstOrNull()?.first ?: 0
-        val lightCandidates = lightsTracks.filter { it.first >= maxLight * 0.2 }
+        val lightCandidates = lightsTracks.filter { it.first >= maxLight * 0.1 }
             .sortedBy { it.second.name }
 
         if (audioCandidates.size == 1 && lightCandidates.size == 1) {

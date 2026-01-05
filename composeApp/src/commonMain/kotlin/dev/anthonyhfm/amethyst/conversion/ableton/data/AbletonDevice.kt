@@ -41,7 +41,7 @@ interface AbletonDevice {
 @Serializable
 data class OriginalSimpler(
     @SerialName("Id")
-    val id: Int,
+    val id: Int = 0,
 
     @XmlElement
     val player: Player

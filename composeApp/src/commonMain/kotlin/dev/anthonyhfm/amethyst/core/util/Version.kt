@@ -9,4 +9,4 @@ data class Version(
     val hotfix: Int
 )
 
-val amethystVersion = Version(0, 3, 0)
+val amethystVersion = Version(0, 4, 0)

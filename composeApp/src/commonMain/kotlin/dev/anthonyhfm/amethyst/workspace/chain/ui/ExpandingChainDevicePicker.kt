@@ -97,7 +97,9 @@ fun ExpandingChainDevicePicker(
             hovering || pickerVisible || showRightClickMenu || expanded -> hoverWidth   // pointer / explicit hover
             hasGlobalDrag -> dragPresenceWidth                    // global drag but not over this zone
             else -> collapsedWidth
-        }, label = "ExpandingPickerWidth"
+        },
+        label = "ExpandingPickerWidth",
+        animationSpec = tween(durationMillis = 100)
     )
 
     val showButton = !forceOff && !isDropHover && (hovering || pickerVisible || expanded)

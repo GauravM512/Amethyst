@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -13,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.desktop.DiscordRPCManager
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsCategory
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsItem
 
@@ -20,6 +22,7 @@ import dev.anthonyhfm.amethyst.settings.ui.components.SettingsItem
 fun GeneralSettingsView() {
     var selectedFPS by remember { mutableStateOf(GlobalSettings.performanceFPS) }
     var selectedGradientSmoothness by remember { mutableStateOf(GlobalSettings.gradientSmoothness) }
+    var animationsEnabled by remember { mutableStateOf(GlobalSettings.enableAnimations) }
 
     SettingsCategory(
         title = "General",
@@ -86,6 +89,19 @@ fun GeneralSettingsView() {
                     }
                 }
             }
+        }
+
+        SettingsItem(
+            title = "Enable Animations",
+        ) {
+            Switch(
+                checked = animationsEnabled,
+                onCheckedChange = {
+                    animationsEnabled = it
+
+                    GlobalSettings.enableAnimations = it
+                }
+            )
         }
     }
 }

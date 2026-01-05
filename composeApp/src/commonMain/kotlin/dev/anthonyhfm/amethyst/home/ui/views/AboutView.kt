@@ -53,7 +53,7 @@ fun AboutView() {
             )
 
             Text(
-                text = "Amethyst",
+                text = "Amethyst Studio",
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier
                     .padding(top = 8.dp)

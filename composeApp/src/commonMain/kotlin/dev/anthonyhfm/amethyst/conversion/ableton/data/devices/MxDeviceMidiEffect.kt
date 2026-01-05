@@ -11,7 +11,7 @@ import nl.adaptivity.xmlutil.serialization.XmlValue
 @Serializable
 data class MxDeviceMidiEffect(
     @SerialName("Id")
-    val id: Int,
+    val id: Int = 0,
 
     @XmlElement
     val patchSlot: PatchSlot,
@@ -73,7 +73,7 @@ data class MxDeviceMidiEffect(
             @Serializable
             data class MxDBlob(
                 @SerialName("Id")
-                val id: Int,
+                val id: Int = 0,
 
                 @XmlElement
                 val blob: Blob
@@ -101,7 +101,7 @@ data class MxDeviceMidiEffect(
             @Serializable
             data class MxDPatchRef(
                 @SerialName("Id")
-                val id: Int,
+                val id: Int = 0,
 
                 @XmlElement
                 @SerialName("FileRef")
@@ -137,21 +137,21 @@ sealed interface MxParameter {
     @Serializable
     data class MxDIntParameter(
         @SerialName("Id")
-        override val id: Int,
+        override val id: Int = 0,
         val timeable: MxParameterValue<Int>
     ) : MxParameter
 
     @Serializable
     data class MxDEnumParameter(
         @SerialName("Id")
-        override val id: Int,
+        override val id: Int = 0,
         val timeable: MxParameterValue<Int>
     ) : MxParameter
 
     @Serializable
     data class MxDFloatParameter(
         @SerialName("Id")
-        override val id: Int,
+        override val id: Int = 0,
         val timeable: MxParameterValue<Float>
     ) : MxParameter
 
