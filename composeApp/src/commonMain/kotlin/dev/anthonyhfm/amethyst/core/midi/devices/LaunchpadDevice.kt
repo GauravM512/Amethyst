@@ -39,6 +39,9 @@ enum class LaunchpadDeviceType(val label: String) {
     LAUNCHPAD_X(
         label = "Launchpad X"
     ),
+    LAUNCHPAD_MINI_MK3(
+        label = "Launchpad Mini Mk3"
+    ),
     LAUNCHPAD_PRO(
         label = "Launchpad Pro"
     ),

@@ -5,7 +5,7 @@ import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 import dev.atsushieno.ktmidi.MidiOutput
 import kotlinx.coroutines.launch
 
-class LaunchpadDeviceX(
+class LaunchpadDeviceMiniMk3(
     override var midiOutput: MidiOutput,
 ) : LaunchpadDevice() {
     override fun clear() { }
@@ -18,7 +18,7 @@ class LaunchpadDeviceX(
 
     override fun getEffectSysEx(updates: List<RawLEDUpdate>): ByteArray {
         return mutableListOf<Byte>().apply {
-            addAll(arrayOf(240.toByte(), 0.toByte(), 32.toByte(), 41.toByte(), 2.toByte(), 12.toByte(), 3.toByte()))
+            addAll(arrayOf(240.toByte(), 0.toByte(), 32.toByte(), 41.toByte(), 2.toByte(), 13.toByte(), 3.toByte()))
 
             updates.forEach { update ->
                 addAll(
@@ -52,7 +52,7 @@ class LaunchpadDeviceX(
 
                 println(inquiry.contentToString())
 
-                return cutdown.contentEquals(ubyteArrayOf(0u, 6u, 2u, 0u, 32u, 41u, 3u, 1u, 0u, 0u))
+                return cutdown.contentEquals(ubyteArrayOf(0u, 6u, 2u, 0u, 32u, 41u, 19u, 1u, 0u, 0u)) || cutdown.contentEquals(ubyteArrayOf(0u, 6u, 2u, 0u, 32u, 41u, 3u, 1u, 0u, 0u))
             } catch (e: Exception) {
                 return false
             }
