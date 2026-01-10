@@ -7,6 +7,8 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPl
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.AutoPageAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiExtAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GridFilterAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiLauncherAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiLauncherProAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.PageSwitcherAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator1Adapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.Resonator2Adapter
@@ -148,10 +150,17 @@ class MxDeviceMidiEffectAdapter(
                 "fa3f0f6b3af43ab4bd754010124f9dc7",
                 "4b74eea1e5ee0db42171418717c02561",
                 "4dd48ac60e858928fff89a28865ce735",
-                "2ef098a53fe4e9a4b035588561080343",
                 "f886850f9aba5cf8ae497f3e58231616",
                 "d53dcb292a173ab7853183f3cab7620c"-> {
                     return GenericMidiExtAdapter(device, offset).toDeviceStates()
+                }
+
+                "2ef098a53fe4e9a4b035588561080343" -> {
+                    return MidiLauncherAdapter(device, offset).toDeviceStates()
+                }
+
+                "2d5d5420fea42678807d1569ce08b182" -> {
+                    return MidiLauncherProAdapter(device, offset).toDeviceStates()
                 }
 
                 "9f50358372279f946cae0fdac0cfbf56", // Wormhole Lite, unsure if this actually works!

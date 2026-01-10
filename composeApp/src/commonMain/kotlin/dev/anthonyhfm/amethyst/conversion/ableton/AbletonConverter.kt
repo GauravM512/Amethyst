@@ -14,6 +14,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.utils.Dual2LightLayoutScanner
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.OriginalSimplerPrerenderer
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.PaletteFileParser
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.ProjectSpecials
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.toFileHash
 import dev.anthonyhfm.amethyst.core.util.FileHelper
 import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.core.util.Zip
@@ -96,6 +97,12 @@ object AbletonConverter : AmethystConverter {
         zipEntries.clear()
         val entries = Zip.getEntries(file)
         FileHelper.clearCache()
+
+        entries.filter {
+            it.path.endsWith(".amxd") && !it.path.contains("__MACOSX")
+        }.forEach {
+            println("Hash (${it.data.toFileHash()}) - ${it.path.substringAfterLast("/")}")
+        }
 
         zipStartPath = entries.map { it.path }
             .filter { it.endsWith(".als") }
