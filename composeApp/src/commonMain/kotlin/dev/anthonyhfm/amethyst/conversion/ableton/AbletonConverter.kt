@@ -118,9 +118,10 @@ object AbletonConverter : AmethystConverter {
             .minBy { it.path.length }
 
         val decodedAlsBytes = Zip.decode(alsEntry.data)
-        val decodedAlsString = decodedAlsBytes.decodeToString()
+        val sanitizedAlsString = decodedAlsBytes.decodeToString()
+            .replace(Regex(">\\s+<"), "><")
 
-        val abletonData = xml.decodeFromString<Ableton>(decodedAlsString)
+        val abletonData = xml.decodeFromString<Ableton>(sanitizedAlsString)
 
         zipEntries.remove(alsEntry.path)
 
@@ -137,7 +138,10 @@ object AbletonConverter : AmethystConverter {
         file = PlatformFile(path)
 
         val file = Zip.decode(runBlocking { file?.readBytes() ?: ByteArray(0) }) // Decompresses the .als GZIP format
-        val abletonData = xml.decodeFromString<Ableton>(file.decodeToString())
+        // Entferne nur reinen Zwischen-Tag-Whitespace, um xmlutil-Fehlklassifikation zu vermeiden
+        val sanitizedAlsString = file.decodeToString()
+            .replace(Regex(">\\s+<"), "><")
+        val abletonData = xml.decodeFromString<Ableton>(sanitizedAlsString)
 
         if (palettePath == null) {
             palette = Palettes.novation
