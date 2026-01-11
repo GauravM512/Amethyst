@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak
 
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.DrumGroupDevice
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.InstrumentGroupDevice
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiEffectGroupDevice
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffect
@@ -15,25 +16,27 @@ import kotlinx.serialization.Serializable
 class MultiAdapter(
     private val device: MxDeviceMidiEffect,
     private val midiContainer: MidiEffectGroupDevice?,
-    private val instrumentContainer: InstrumentGroupDevice?
+    private val instrumentContainer: InstrumentGroupDevice?,
+    private val drumContainer: DrumGroupDevice?
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val dataObj: MultiData = jsonDecoder.decodeFromString(device.decodeBlob())
 
-        if (midiContainer?.branches?.branches?.isEmpty() ?: false || instrumentContainer?.branches?.branches?.isEmpty() ?: false) {
+        if (midiContainer?.branches?.branches?.isEmpty() ?: false || instrumentContainer?.branches?.branches?.isEmpty() ?: false || drumContainer?.branches?.branches?.isEmpty() ?: false) {
             println("No branches found in Multi container!")
             return listOf()
         }
 
         var instrumentBranches: List<InstrumentGroupDevice.Branches.InstrumentBranch> = emptyList()
         var midiBranches: List<MidiEffectGroupDevice.Branches.MidiEffectBranch> = emptyList()
+        var drumBranches: List<DrumGroupDevice.Branches.DrumBranch> = emptyList()
 
         if (midiContainer != null) {
             midiBranches = midiContainer.branches.branches.map {
                 val min = it.zoneSettings.keyRange.min.value
                 val max = it.zoneSettings.keyRange.max.value
 
-                List(max - min + 1) { note ->
+                List(max - min + 1) { _ ->
                     it.copy()
                 }
             }.flatten()
@@ -42,9 +45,14 @@ class MultiAdapter(
                 val min = it.zoneSettings.keyRange.min.value
                 val max = it.zoneSettings.keyRange.max.value
 
-                List(max - min + 1) { note ->
+                List(max - min + 1) { _ ->
                     it.copy()
                 }
+            }.flatten()
+        } else if (drumContainer != null) {
+            drumBranches = drumContainer.branches.branches.map {
+                // Drum hat pro Pad eine Note; wir replizieren nicht nach Note-Range
+                listOf(it.copy())
             }.flatten()
         }
 
@@ -54,41 +62,63 @@ class MultiAdapter(
             MultiGroupChainDeviceState(
                 type = TYPE.FORWARD,
                 groups = List(steps) { step ->
-                    if (instrumentContainer != null) {
-                        Group(
-                            name = instrumentBranches[step].name.effectiveName?.value ?: "Chain #",
-                            stateChain = StateChain(
-                                devices = mutableListOf<DeviceState>().apply {
-                                    instrumentBranches[step].let {
-                                        addAll(
-                                            elements = it.deviceChain.deviceChain.devices.devices.mapNotNull { child ->
-                                                resolveAdapter(child)
-                                                    ?.toDeviceStates()
-                                                    ?.firstOrNull()
-                                            }
-                                        )
+                    when {
+                        instrumentContainer != null -> {
+                            Group(
+                                name = instrumentBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Chain #",
+                                stateChain = StateChain(
+                                    devices = mutableListOf<DeviceState>().apply {
+                                        instrumentBranches.getOrNull(step)?.let { br ->
+                                            addAll(
+                                                elements = br.deviceChain.deviceChain.devices.devices.mapNotNull { child ->
+                                                    resolveAdapter(child)
+                                                        ?.toDeviceStates()
+                                                        ?.firstOrNull()
+                                                }
+                                            )
+                                        }
                                     }
-                                }
+                                )
                             )
-                        )
-                    } else if (midiContainer != null) {
-                        Group(
-                            name = midiBranches[step].name.effectiveName?.value ?: "Chain #",
-                            stateChain = StateChain(
-                                devices = mutableListOf<DeviceState>().apply {
-                                    midiBranches[step].let {
-                                        addAll(
-                                            elements = it.deviceChain.deviceChain.devices.devices.mapNotNull { child ->
-                                                resolveAdapter(child)
-                                                    ?.toDeviceStates()
-                                                    ?.firstOrNull()
-                                            }
-                                        )
+                        }
+                        midiContainer != null -> {
+                            Group(
+                                name = midiBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Chain #",
+                                stateChain = StateChain(
+                                    devices = mutableListOf<DeviceState>().apply {
+                                        midiBranches.getOrNull(step)?.let { br ->
+                                            addAll(
+                                                elements = br.deviceChain.deviceChain.devices.devices.mapNotNull { child ->
+                                                    resolveAdapter(child)
+                                                        ?.toDeviceStates()
+                                                        ?.firstOrNull()
+                                                }
+                                            )
+                                        }
                                     }
-                                }
+                                )
                             )
-                        )
-                    } else Group("Empty")
+                        }
+                        drumContainer != null -> {
+                            Group(
+                                name = drumBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Chain #",
+                                stateChain = StateChain(
+                                    devices = mutableListOf<DeviceState>().apply {
+                                        drumBranches.getOrNull(step)?.let { br ->
+                                            addAll(
+                                                elements = br.deviceChain.deviceChain.devices.devices.mapNotNull { child ->
+                                                    resolveAdapter(child)
+                                                        ?.toDeviceStates()
+                                                        ?.firstOrNull()
+                                                }
+                                            )
+                                        }
+                                    }
+                                )
+                            )
+                        }
+                        else -> Group("Empty")
+                    }
                 }
             )
         )

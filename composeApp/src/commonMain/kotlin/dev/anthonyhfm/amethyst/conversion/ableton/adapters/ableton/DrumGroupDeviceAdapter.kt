@@ -1,14 +1,25 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton
 
 import androidx.compose.ui.unit.IntOffset
+import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.KASKOBI_MULTI_HASHES
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MULTI_HASHES
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MultiEffectAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.MultiAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.DrumGroupDevice
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.InstrumentGroupDevice
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiRandom
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffect
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.getFileHash
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.toFileHash
 import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import io.github.vinceglb.filekit.PlatformFile
 
 class DrumGroupDeviceAdapter(
     private val device: DrumGroupDevice,
@@ -48,82 +59,87 @@ class DrumGroupDeviceAdapter(
                                     )
                                 )
 
-                                /*// Multisampling logic
-                                val branchElements = branch.querySelector("DeviceChain")[0]
-                                    .querySelector("Devices")[0]
-                                    .children
+                                // Multisampling logic
+                                val branchElements = branch.deviceChain.deviceChain.devices.devices
 
                                 if (branchElements.size >= 2) {
-                                    val potentialMultiDevice = branchElements.find {
-                                        it.name == "MxDeviceMidiEffect"
-                                    }
-                                    val patchSlot = potentialMultiDevice?.localQuerySelector("PatchSlot")[0]
-                                        ?.localQuerySelector("Value")[0]
-                                        ?.localQuerySelector("MxDPatchRef")[0]
-                                    val potentialMultiDeviceHash = potentialMultiDevice.let {
-                                        if (patchSlot?.localQuerySelector("FileRef")?.isEmpty() == true) return@let null
+                                    val potentialMultiDevice: MxDeviceMidiEffect? = branchElements.find {
+                                        it is MxDeviceMidiEffect
+                                    } as MxDeviceMidiEffect?
 
-                                        val path = FileRef.resolveFileReference(patchSlot?.localQuerySelector("FileRef")?.first() ?: return@let null)
-                                        val hash = if (AbletonConverter.isZip) {
+                                    val patchSlot = potentialMultiDevice?.patchSlot
+
+                                    val potentialMultiDeviceHash = potentialMultiDevice.let {
+                                        val path = patchSlot?.value?.patchRef?.fileRef?.resolvePath() ?: return@let null
+
+                                        val hash: String = if (AbletonConverter.isZip) {
                                             AbletonConverter.zipEntries[path]?.data?.toFileHash() ?: ""
                                         } else {
                                             val file = PlatformFile(path)
                                             file.getFileHash()
                                         }
+
                                         hash
                                     }
                                     val outbreakMultiHashMatches = MULTI_HASHES.contains(potentialMultiDeviceHash)
                                     val kaskobiMultiHashMatches = KASKOBI_MULTI_HASHES.contains(potentialMultiDeviceHash)
                                     val multiHashMatches = outbreakMultiHashMatches || kaskobiMultiHashMatches
 
-                                    val randomDevice = branchElements.find {
-                                        it.name == "MidiRandom"
-                                    }
-                                    val samplesContainer = branchElements.find {
-                                        it.name == "InstrumentGroupDevice"
-                                                || it.name == "DrumGroupDevice"
-                                    }
+                                    val randomDevice: MidiRandom? = branchElements.find {
+                                        it is MidiRandom
+                                    } as? MidiRandom
 
-                                    if (potentialMultiDevice != null && multiHashMatches && samplesContainer != null) {
+                                    val instrumentContainer: InstrumentGroupDevice? = branchElements.find {
+                                        it is InstrumentGroupDevice
+                                    } as? InstrumentGroupDevice
+                                    val drumContainer: DrumGroupDevice? = branchElements.find {
+                                        it is DrumGroupDevice
+                                    } as? DrumGroupDevice
+
+                                    val anyContainerPresent = instrumentContainer != null || drumContainer != null
+
+                                    if (potentialMultiDevice != null && multiHashMatches && anyContainerPresent) {
                                         println("Found multi and container, using MultiAdapter")
-                                        val multiDataBlob = potentialMultiDevice.localQuerySelector("BlobSlot")[0]
-                                            .localQuerySelector("Value")[0]
-                                            .localQuerySelector("MxDBlob")[0]
-                                            .localQuerySelector("Blob")[0]
 
                                         addAll(
                                             try {
                                                 if (outbreakMultiHashMatches) {
                                                     MultiAdapter(
-                                                        blob = readDataBlob(multiDataBlob.text!!),
-                                                        containerXml = samplesContainer
+                                                        device = potentialMultiDevice,
+                                                        midiContainer = null,
+                                                        instrumentContainer = instrumentContainer,
+                                                        drumContainer = drumContainer
                                                     ).toDeviceStates()
                                                 } else if (kaskobiMultiHashMatches) {
                                                     MultiEffectAdapter(
-                                                        deviceXml = potentialMultiDevice,
-                                                        containerXml = samplesContainer
+                                                        device = potentialMultiDevice,
+                                                        midiContainer = null,
+                                                        instrumentContainer = instrumentContainer,
+                                                        drumContainer = drumContainer
                                                     ).toDeviceStates()
                                                 } else {
                                                     listOf()
                                                 }
                                             } catch (e: Exception) {
-                                                println("Error parsing Multi plugin with hash $potentialMultiDeviceHash")
+                                                println("Error reading multi plugin with hash $potentialMultiDeviceHash, falling back to normal chain")
                                                 println("Error: ${e.message}")
                                                 listOf()
                                             }
                                         )
 
                                         return@apply
-                                    } else if (randomDevice != null && samplesContainer != null) {
+                                    } else if (randomDevice != null && anyContainerPresent) {
                                         println("Found random and container, using RandomDeviceMultisamplingAdapter")
                                         addAll(
                                             try {
                                                 RandomDeviceMultisamplingAdapter(
-                                                    randomDeviceXml = randomDevice,
-                                                    containerXml = samplesContainer
+                                                    random = randomDevice,
+                                                    midiContainer = null,
+                                                    instrumentContainer = instrumentContainer,
+                                                    drumContainer = drumContainer
                                                 ).toDeviceStates()
                                             } catch (e: Exception) {
-                                                println("Error parsing Random multisampling")
+                                                println("Error reading random multisampling plugin, falling back to normal chain")
                                                 println("Error: ${e.message}")
                                                 listOf()
                                             }
@@ -131,7 +147,7 @@ class DrumGroupDeviceAdapter(
 
                                         return@apply
                                     }
-                                }*/
+                                }
 
                                 addAll(
                                     branch.deviceChain.deviceChain.devices.devices.flatMap {

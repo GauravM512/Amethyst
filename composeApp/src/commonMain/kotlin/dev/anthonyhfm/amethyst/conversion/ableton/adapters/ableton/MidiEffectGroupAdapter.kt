@@ -158,13 +158,15 @@ class MidiEffectGroupAdapter(
                                                 MultiAdapter(
                                                     device = potentialMultiDevice,
                                                     midiContainer = lightsContainer,
-                                                    instrumentContainer = null
+                                                    instrumentContainer = null,
+                                                    drumContainer = null
                                                 ).toDeviceStates()
                                             } else if (kaskobiMultiHashMatches) {
                                                 MultiEffectAdapter(
                                                     device = potentialMultiDevice,
                                                     midiContainer = lightsContainer,
-                                                    instrumentContainer = null
+                                                    instrumentContainer = null,
+                                                    drumContainer = null
                                                 ).toDeviceStates()
                                             } else {
                                                 listOf()
@@ -184,7 +186,8 @@ class MidiEffectGroupAdapter(
                                             RandomDeviceMultisamplingAdapter(
                                                 random = randomDevice,
                                                 midiContainer = lightsContainer,
-                                                instrumentContainer = null
+                                                instrumentContainer = null,
+                                                drumContainer = null
                                             ).toDeviceStates()
                                         } catch (e: Exception) {
                                             println("Error reading random multisampling plugin, falling back to normal chain")

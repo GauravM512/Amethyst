@@ -3,7 +3,16 @@ package dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton
 import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.KASKOBI_MULTI_HASHES
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MULTI_HASHES
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MultiEffectAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.MultiAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.DrumGroupDevice
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.InstrumentGroupDevice
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiRandom
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffect
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.getFileHash
+import dev.anthonyhfm.amethyst.conversion.ableton.utils.toFileHash
 import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
@@ -13,6 +22,7 @@ import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.macro_filter.MacroFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import io.github.vinceglb.filekit.PlatformFile
 
 class InstrumentGroupAdapter(
     private val device: InstrumentGroupDevice,
@@ -27,21 +37,11 @@ class InstrumentGroupAdapter(
 
         val groups = mutableListOf<Group>()
 
-        val branch1Name = branches.getOrNull(0)?.name?.effectiveName?.value
-        val branch2Name = branches.getOrNull(1)?.name?.effectiveName?.value
-
-        if (branch1Name == "Magic" && branch2Name == "Rate Preview") {
-            TODO("Velocity Arpeggiator needs to be fixed for the new system")
-            // return VelocityArpeggiatorAdapter(xml).toDeviceStates()
-        }
-
         groups.addAll(
             branches.mapIndexed { index, branch ->
                 val enabled = branch.masterDevice.speaker.manual.value
 
                 if (!enabled) return@mapIndexed null
-
-                // TODO: implement multi for lights
 
                 Group(
                     name = branch.name.effectiveName.let {
@@ -111,14 +111,14 @@ class InstrumentGroupAdapter(
                             val branchElements = branch.deviceChain.deviceChain.devices.devices
 
                             if (branchElements.size >= 2) {
-                                /*val potentialMultiDevice: MxDeviceMidiEffect? = branchElements.find {
+                                val potentialMultiDevice: MxDeviceMidiEffect? = branchElements.find {
                                     it is MxDeviceMidiEffect
                                 } as MxDeviceMidiEffect?
 
                                 val patchSlot = potentialMultiDevice?.patchSlot
 
                                 val potentialMultiDeviceHash = potentialMultiDevice.let {
-                                    val path = patchSlot?.value?.patchRef?.fileRef?.resolvePath() ?: error("No patch ref found")
+                                    val path = patchSlot?.value?.patchRef?.fileRef?.resolvePath() ?: return@let null
 
                                     val hash: String = if (AbletonConverter.isZip) {
                                         AbletonConverter.zipEntries[path]?.data?.toFileHash() ?: ""
@@ -133,32 +133,38 @@ class InstrumentGroupAdapter(
                                 val kaskobiMultiHashMatches = KASKOBI_MULTI_HASHES.contains(potentialMultiDeviceHash)
                                 val multiHashMatches = outbreakMultiHashMatches || kaskobiMultiHashMatches
 
-                                val randomDevice = branchElements.find {
-                                    it.name == "MidiRandom"
-                                }
+                                val randomDevice: MidiRandom? = branchElements.find {
+                                    it is MidiRandom
+                                } as? MidiRandom
 
-                                val lightsContainer = branchElements.find {
-                                    it is MidiEffectGroupDevice
-                                } as MidiEffectGroupDevice?
+                                val instrumentContainer: InstrumentGroupDevice? = branchElements.find {
+                                    it is InstrumentGroupDevice
+                                } as? InstrumentGroupDevice
+                                val drumContainer: DrumGroupDevice? = branchElements.find {
+                                    it is DrumGroupDevice
+                                } as? DrumGroupDevice
 
-                                if (potentialMultiDevice != null && multiHashMatches && lightsContainer != null) {
+                                val firstContainerIsInstrument = instrumentContainer != null
+                                val anyContainerPresent = firstContainerIsInstrument || drumContainer != null
+
+                                if (potentialMultiDevice != null && multiHashMatches && anyContainerPresent) {
                                     println("Found multi and container, using MultiAdapter")
-                                    val multiDataBlob = potentialMultiDevice.localQuerySelector("BlobSlot")[0]
-                                        .localQuerySelector("Value")[0]
-                                        .localQuerySelector("MxDBlob")[0]
-                                        .localQuerySelector("Blob")[0]
 
                                     addAll(
                                         try {
                                             if (outbreakMultiHashMatches) {
                                                 MultiAdapter(
-                                                    blob = readDataBlob(multiDataBlob.text!!),
-                                                    containerXml = lightsContainer
+                                                    device = potentialMultiDevice,
+                                                    midiContainer = null,
+                                                    instrumentContainer = if (firstContainerIsInstrument) instrumentContainer else null,
+                                                    drumContainer = if (!firstContainerIsInstrument) drumContainer else null
                                                 ).toDeviceStates()
                                             } else if (kaskobiMultiHashMatches) {
                                                 MultiEffectAdapter(
-                                                    deviceXml = potentialMultiDevice,
-                                                    containerXml = lightsContainer
+                                                    device = potentialMultiDevice,
+                                                    midiContainer = null,
+                                                    instrumentContainer = if (firstContainerIsInstrument) instrumentContainer else null,
+                                                    drumContainer = if (!firstContainerIsInstrument) drumContainer else null
                                                 ).toDeviceStates()
                                             } else {
                                                 listOf()
@@ -171,13 +177,15 @@ class InstrumentGroupAdapter(
                                     )
 
                                     return@apply
-                                } else if (randomDevice != null && lightsContainer != null) {
+                                } else if (randomDevice != null && anyContainerPresent) {
                                     println("Found random and container, using RandomDeviceMultisamplingAdapter")
                                     addAll(
                                         try {
                                             RandomDeviceMultisamplingAdapter(
-                                                randomDeviceXml = randomDevice,
-                                                containerXml = lightsContainer
+                                                random = randomDevice,
+                                                midiContainer = null,
+                                                instrumentContainer = if (firstContainerIsInstrument) instrumentContainer else null,
+                                                drumContainer = if (!firstContainerIsInstrument) drumContainer else null
                                             ).toDeviceStates()
                                         } catch (e: Exception) {
                                             println("Error reading random multisampling plugin, falling back to normal chain")
@@ -187,7 +195,7 @@ class InstrumentGroupAdapter(
                                     )
 
                                     return@apply
-                                }*/
+                                }
                             }
 
                             addAll(
