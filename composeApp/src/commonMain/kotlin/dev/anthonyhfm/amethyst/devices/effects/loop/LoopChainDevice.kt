@@ -225,7 +225,11 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
             if (down) {
                 val signalOwner = Pair(this, "${coords.first},${coords.second}")
 
-                Heaven.cancelJobsForOwner(signalOwner)
+                Heaven.cancelJobs { job ->
+                    job.owner is Pair<*, *> &&
+                    job.owner.first == this &&
+                    job.owner.second == "${coords.first},${coords.second}"
+                }
 
                 if (!state.value.onHold) {
                     // Non-hold mode: schedule all signals at once
@@ -249,7 +253,12 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                     return@forEach
                 }
 
-                Heaven.cancelJobsForOwner(Pair(this, "${coords.first},${coords.second}"))
+                // Cancel any ongoing loops for this key
+                Heaven.cancelJobs { job ->
+                    job.owner is Pair<*, *> &&
+                    job.owner.first == this &&
+                    job.owner.second == "${coords.first},${coords.second}"
+                }
             }
         }
     }
@@ -266,7 +275,11 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
     }
 
     override fun onChoke() {
-        Heaven.cancelJobsForOwner(this)
+        // Cancel all scheduled Heaven tasks owned by this device
+        // The loop device uses Pair(this, "${coords.first},${coords.second}") as owner
+        Heaven.cancelJobs { job ->
+            job.owner is Pair<*, *> && job.owner.first == this
+        }
     }
 }
 
