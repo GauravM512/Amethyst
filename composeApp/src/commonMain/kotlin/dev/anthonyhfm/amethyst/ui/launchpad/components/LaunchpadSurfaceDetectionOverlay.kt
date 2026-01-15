@@ -44,7 +44,7 @@ fun LaunchpadSurfaceDetectionOverlay(
                                     when (event.type) {
                                         PointerEventType.Press -> {
                                             event.changes.forEach { change ->
-                                                if (!change.isConsumed) {
+                                                if (!change.isConsumed && change.changedToDown() && !activePointers.containsKey(change.id)) {
                                                     val pad = calculatePadFromOffset(change.position, layoutSize, layoutType)
                                                     pad?.let { (x, y) ->
                                                         activePointers = activePointers + (change.id to Pair(x, y))
