@@ -253,6 +253,17 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                     return@forEach
                 }
 
+                // Emit a final off to stop the held loop cleanly
+                signalExit?.invoke(
+                    listOf(
+                        when (signal) {
+                            is Signal.LED -> signal.copy(color = Color.Black)
+                            is Signal.Midi -> signal.copy(velocity = 0)
+                            else -> signal
+                        }
+                    )
+                )
+
                 // Cancel any ongoing loops for this key
                 Heaven.cancelJobs { job ->
                     job.owner is Pair<*, *> &&
