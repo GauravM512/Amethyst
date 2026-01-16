@@ -45,8 +45,8 @@ class MidiLauncherAdapter(
         keyframes = keyframes.copy(
             frames = keyframes.frames.toMutableList().apply {
                 if (skipSilence.timeable.manual.value == 1) {
-                    removeAll {
-                        it.entries.isEmpty()
+                    while (isNotEmpty() && this[0].entries.isEmpty()) {
+                        removeAt(0)
                     }
                 }
             }

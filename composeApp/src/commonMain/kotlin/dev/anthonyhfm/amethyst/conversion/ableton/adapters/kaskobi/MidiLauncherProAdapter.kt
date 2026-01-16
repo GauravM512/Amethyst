@@ -39,8 +39,11 @@ class MidiLauncherProAdapter(
         val palette = AbletonConverter.palette
         val filePath: String = fileRef.resolvePath()
 
-        // Midi Launcher special features
-        val skipSilence: MxParameter.MxDIntParameter = device.parameterList.parameterList.parameters[16] as MxParameter.MxDIntParameter
+        val skipSilence: MxParameter.MxDIntParameter = try {
+            device.parameterList.parameterList.parameters[16] as MxParameter.MxDIntParameter
+        } catch (e: Exception) {
+            device.parameterList.parameterList.parameters[15] as MxParameter.MxDIntParameter
+        }
 
         val data = if (AbletonConverter.isZip) {
             AbletonConverter.zipEntries[filePath]?.data ?: return emptyList()
@@ -62,8 +65,8 @@ class MidiLauncherProAdapter(
         keyframes = keyframes.copy(
             frames = keyframes.frames.toMutableList().apply {
                 if (skipSilence.timeable.manual.value == 1) {
-                    removeAll {
-                        it.entries.isEmpty()
+                    while (isNotEmpty() && this[0].entries.isEmpty()) {
+                        removeAt(0)
                     }
                 }
             }
