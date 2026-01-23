@@ -9,21 +9,18 @@ import kotlin.math.roundToLong
 
 object AbletonTutorialDetector {
 
-    // Auflösung wie in der exportierten MIDI
     private const val TICKS_PER_BEAT = 96.0
 
-    // Main-Layer Threshold (Hot Topic etc: 41 ist "echter" Layer)
     private const val VELOCITY_THRESHOLD = 41
 
     fun getAutoPlayData(layout: AbletonLayout, tracks: List<MidiTrack>): AutoPlayData {
-        /*val tutorialTracks = detectPossibleTutorialTracks(layout, tracks)
+        val tutorialTracks = detectPossibleTutorialTracks(layout, tracks)
 
         if (tutorialTracks.isEmpty()) {
             println("No tutorial tracks found")
             return AutoPlayData(emptyMap())
         }
 
-        // 1. Pro Track absolute Zeiten holen (nicht normalisiert!)
         val rawActions: Map<Double, List<AutoPlayData.Action>> =
             if (layout is AbletonLayout.Single || tutorialTracks.size == 1) {
                 getTutorialForTrack(tutorialTracks.first(), IntOffset.Zero)
@@ -45,14 +42,12 @@ object AbletonTutorialDetector {
                 combined
             }
 
-        // 2. Duplikate pro Timestamp rausschmeißen
         val deduped = rawActions.mapValues { (_, list) -> list.distinct() }
 
         if (deduped.isEmpty()) {
             return AutoPlayData(emptyMap())
         }
 
-        // 3. Globale Normalisierung: frühester Zeitpunkt = 0.0
         val minTime = deduped.keys.minOrNull() ?: 0.0
         val normalized =
             if (minTime != 0.0) {
@@ -63,39 +58,26 @@ object AbletonTutorialDetector {
                 out
             } else deduped
 
-        return AutoPlayData(normalized)*/
-
-        return AutoPlayData(emptyMap())
+        return AutoPlayData(normalized)
     }
 
-    /*fun detectPossibleTutorialTracks(
+    fun detectPossibleTutorialTracks(
         layout: AbletonLayout,
-        tracks: List<XmlElement>
-    ): List<XmlElement> {
+        tracks: List<MidiTrack>
+    ): List<MidiTrack> {
         val tutorialTracks = tracks
             .filter { track ->
-                val name = track.querySelector("EffectiveName")
-                    .firstOrNull()
-                    ?.attributes
-                    ?.get("Value")
-                    ?.lowercase()
-                    ?: ""
-                name.contains("tutorial")
+                track.name.lowercase().contains("tutorial")
             }
             .sortedBy { track ->
-                track.querySelector("EffectiveName")
-                    .firstOrNull()
-                    ?.attributes
-                    ?.get("Value")
-                    ?.lowercase()
-                    ?: ""
+                track.name.lowercase()
             }
             .take(if (layout is AbletonLayout.Single) 1 else 2)
 
         return tutorialTracks
     }
 
-    fun getTutorialForTrack(track: XmlElement, offset: IntOffset): Map<Double, List<AutoPlayData.Action>> {
+    fun getTutorialForTrack(track: MidiTrack, offset: IntOffset): Map<Double, List<AutoPlayData.Action>> {
         data class NoteEvent(
             val startTicks: Long,
             val endTicks: Long,
@@ -104,11 +86,7 @@ object AbletonTutorialDetector {
 
         val notes = mutableListOf<NoteEvent>()
 
-        val trackName = track.querySelector("EffectiveName")
-            .firstOrNull()
-            ?.attributes
-            ?.get("Value")
-            ?: "<unnamed>"
+        val trackName = track.name
 
         println("Trying to get tutorial from Track \"$trackName\"")
 
@@ -117,27 +95,11 @@ object AbletonTutorialDetector {
             return emptyMap()
         }
 
-        val clipName = clip.querySelector("Name")
-            .firstOrNull()
-            ?.attributes
-            ?.get("Value")
-            ?: "<unnamed>"
+        val clipStartBeats = clip.currentStart.value
 
-        val clipStartBeats = clip.querySelector("CurrentStart")
-            .firstOrNull()
-            ?.attributes
-            ?.get("Value")
-            ?.toDoubleOrNull()
-            ?: 0.0
+        val clipEndBeats = clip.currentEnd.value
 
-        val clipEndBeats = clip.querySelector("CurrentEnd")
-            .firstOrNull()
-            ?.attributes
-            ?.get("Value")
-            ?.toDoubleOrNull()
-            ?: clipStartBeats
-
-        println("Using MidiClip \"$clipName\" (start=$clipStartBeats, end=$clipEndBeats) in track \"$trackName\"")
+        println("Using MidiClip (start=$clipStartBeats, end=$clipEndBeats) in track \"$trackName\"")
 
         val bpm = AbletonConverter.bpm
         if (bpm <= 0.0) {
@@ -148,37 +110,25 @@ object AbletonTutorialDetector {
         val msPerBeat = 60000.0 / bpm
         val msPerTick = msPerBeat / TICKS_PER_BEAT
 
-        val keyTracks = clip.querySelector("KeyTrack")
+        val keyTracks = clip.notes.keyTracks.tracks
 
         keyTracks.forEach { keyTrack ->
-            val pitch = keyTrack.querySelector("MidiKey")
-                .firstOrNull()
-                ?.attributes
-                ?.get("Value")
-                ?.toIntOrNull()
-                ?: return@forEach
+            val pitch = keyTrack.midiKey.value
 
-            val padIndex = DRUM_RACK_TO_XY[pitch] ?: run {
-                // Pitch nicht gemappt → kein Drum Rack Pad, überspringen
-                return@forEach
-            }
+            val padIndex = DRUM_RACK_TO_XY[pitch]
 
             println("KeyTrack for pitch=$pitch mappedToPadIndex=$padIndex")
 
-            keyTrack.querySelector("MidiNoteEvent").forEach { note ->
-                if (note.attributes["IsEnabled"] == "false") return@forEach
+            keyTrack.notes.notes.forEach { note ->
+                val velocity = note.velocity
 
-                val velocity = note.attributes["Velocity"]?.toIntOrNull() ?: return@forEach
-
-                // Nur echte Performance-Noten
                 if (velocity < VELOCITY_THRESHOLD) {
                     return@forEach
                 }
 
-                val timeBeats = note.attributes["Time"]?.toDoubleOrNull() ?: return@forEach
-                val durationBeats = note.attributes["Duration"]?.toDoubleOrNull() ?: 0.0
+                val timeBeats = note.time
+                val durationBeats = note.duration
 
-                // Absoluter Beat im Arrangement (Clip-Start + Note-Time)
                 val absStartBeats = clipStartBeats + timeBeats
                 val absEndBeats = absStartBeats + durationBeats
 
@@ -196,7 +146,7 @@ object AbletonTutorialDetector {
         }
 
         if (notes.isEmpty()) {
-            println("No qualifying MidiNoteEvent (velocity >= $VELOCITY_THRESHOLD) in tutorial clip \"$clipName\" of track \"$trackName\"")
+            println("No qualifying MidiNoteEvent (velocity >= $VELOCITY_THRESHOLD) in tutorial clip of track \"$trackName\"")
             return emptyMap()
         }
 
@@ -216,7 +166,6 @@ object AbletonTutorialDetector {
             list += action
         }
 
-        // Für jede Note: Start = down=true, Ende = down=false (falls Dauer > 0)
         notes
             .sortedBy { it.startTicks }
             .forEach { note ->
@@ -230,7 +179,6 @@ object AbletonTutorialDetector {
                 }
             }
 
-        // Pro Zeitstempel & Pad: wenn beides (down/up) existiert → down gewinnt
         val collapsed: Map<Double, List<AutoPlayData.Action>> =
             result.mapValues { (_, list) ->
                 list
@@ -244,53 +192,12 @@ object AbletonTutorialDetector {
         return collapsed
     }
 
-    /**
-     * Sucht den passenden Tutorial-Clip:
-     * - erst alle Clips, deren Name genau "TUTORIAL" ist (wenn vorhanden)
-     * - sonst alle, deren Name "tutorial" enthält
-     * - wenn gar nichts → frühesten Clip im Track
-     */
-    private fun findTutorialClip(track: XmlElement): XmlElement? {
-        val allClips = track.querySelector("MidiClip")
+    private fun findTutorialClip(track: MidiTrack): MidiTrack.TakeLanes.TakeLanes.TakeLane.ClipAutomation.Events.MidiClip? {
+        val allClips = track.takeLanes?.takeLanes?.lanes?.first()?.clipAutomation?.events?.clips ?: emptyList()
         if (allClips.isEmpty()) return null
 
-        val exactTutorial = allClips.filter { clip ->
-            val clipName = clip.querySelector("Name")
-                .firstOrNull()
-                ?.attributes
-                ?.get("Value")
-                ?: ""
-            clipName.equals("tutorial", ignoreCase = true)
+        return allClips.minByOrNull { clip ->
+            clip.currentStart.value
         }
-
-        if (exactTutorial.isNotEmpty()) {
-            return exactTutorial.minByOrNull { clip ->
-                clip.querySelector("CurrentStart")
-                    .firstOrNull()
-                    ?.attributes
-                    ?.get("Value")
-                    ?.toDoubleOrNull() ?: 0.0
-            }
-        }
-
-        val tutorialClips = allClips.filter { clip ->
-            val clipName = clip.querySelector("Name")
-                .firstOrNull()
-                ?.attributes
-                ?.get("Value")
-                ?.lowercase()
-                ?: ""
-            clipName.contains("tutorial")
-        }
-
-        val pool = if (tutorialClips.isNotEmpty()) tutorialClips else allClips
-
-        return pool.minByOrNull { clip ->
-            clip.querySelector("CurrentStart")
-                .firstOrNull()
-                ?.attributes
-                ?.get("Value")
-                ?.toDoubleOrNull() ?: 0.0
-        }
-    }*/
+    }
 }

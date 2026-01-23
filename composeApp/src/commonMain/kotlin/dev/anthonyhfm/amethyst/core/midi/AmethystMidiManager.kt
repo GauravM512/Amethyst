@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.core.midi
 
 import androidx.compose.ui.graphics.Color
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.midi.data.getMidiInputData
@@ -13,14 +14,19 @@ import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceProMk3
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDevicePush2
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceType
 import dev.anthonyhfm.amethyst.core.midi.devices.LaunchpadDeviceX
+import dev.anthonyhfm.amethyst.core.util.Platform
+import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import dev.atsushieno.ktmidi.EmptyMidiAccess
 import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiInput
 import dev.atsushieno.ktmidi.MidiOutput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -33,7 +39,7 @@ import kotlinx.coroutines.runBlocking
 class AmethystMidiManager {
     private val midiAccess: MidiAccess = platformMidiAccess ?: EmptyMidiAccess()
 
-    val midiInScope = CoroutineScope(Dispatchers.Main.limitedParallelism(1))
+    val midiInScope = CoroutineScope(Dispatchers.IO.limitedParallelism(4))
 
     @OptIn(ExperimentalUnsignedTypes::class)
     val inquiryTests: Map<LaunchpadDeviceType, (UByteArray) -> Boolean> = mapOf(
@@ -139,50 +145,14 @@ class AmethystMidiManager {
                 }
 
                 inputDevice?.setMessageReceivedListener { bytes, _, _, _ ->
-                    val data = if (deviceType == LaunchpadDeviceType.ABLETON_PUSH_2) {
-                        LaunchpadDevicePush2.getMidiInputData(bytes)
-                    } else {
-                        getMidiInputData(bytes)
-                    }
+                    val msgCopy = bytes.copyOf()
 
-                    data?.let {
-                        if (WorkspaceRepository.mode.value.claimInputs) {
-                            val offset = this@apply.position.value.copy(
-                                x = this@apply.position.value.x - this@apply.layout.offsetX,
-                                y = this@apply.position.value.y - this@apply.layout.offsetY
-                            )
-
-                            WorkspaceRepository.mode.value.onMidiInput(it, offset).invoke()
-                        } else {
-                            val offset = this@apply.position.value.copy(
-                                x = this@apply.position.value.x - this@apply.layout.offsetX,
-                                y = this@apply.position.value.y - this@apply.layout.offsetY
-                            )
-
-                            val x = it.pitch % 10
-                            val y = it.pitch / 10
-                            val posX = offset.x.toInt()
-                            val posY = offset.y.toInt()
-
-                            WorkspaceRepository.samplingChain.signalEnter(
-                                Signal.Midi(
-                                    origin = null,
-                                    x = posX + x,
-                                    y = posY + (9 - y),
-                                    velocity = it.velocity
-                                )
-                            )
-
-                            WorkspaceRepository.lightsChain.signalEnter(
-                                Signal.LED(
-                                    origin = null,
-                                    x = posX + x,
-                                    y = posY + (9 - y),
-                                    color = if (it.velocity == 0) Color.Black else Color.White,
-                                    layer = 0
-                                )
-                            )
+                    if (platform is Platform.iOS) {
+                        msgCopy.toList().chunked(3).forEach {
+                            onMidiMessage(it.toByteArray(), deviceType)
                         }
+                    } else {
+                        onMidiMessage(msgCopy, deviceType)
                     }
                 }
 
@@ -192,6 +162,56 @@ class AmethystMidiManager {
                         deviceType?.mapLaunchpadDevice(output)
                     },
                 )
+            }
+        }
+    }
+
+    fun LaunchpadViewportElement.onMidiMessage(msg: ByteArray, deviceType: LaunchpadDeviceType?) {
+        midiInScope.launch {
+            val data = if (deviceType == LaunchpadDeviceType.ABLETON_PUSH_2) {
+                LaunchpadDevicePush2.getMidiInputData(msg)
+            } else {
+                getMidiInputData(msg)
+            }
+
+            data?.let {
+                if (WorkspaceRepository.mode.value.claimInputs) {
+                    val offset = position.value.copy(
+                        x = position.value.x - layout.offsetX,
+                        y = position.value.y - layout.offsetY
+                    )
+
+                    WorkspaceRepository.mode.value.onMidiInput(it, offset).invoke()
+                } else {
+                    val offset = position.value.copy(
+                        x = position.value.x - layout.offsetX,
+                        y = position.value.y - layout.offsetY
+                    )
+
+                    val x = it.pitch % 10
+                    val y = it.pitch / 10
+                    val posX = offset.x.toInt()
+                    val posY = offset.y.toInt()
+
+                    WorkspaceRepository.samplingChain.signalEnter(
+                        Signal.Midi(
+                            origin = null,
+                            x = posX + x,
+                            y = posY + (9 - y),
+                            velocity = it.velocity
+                        )
+                    )
+
+                    WorkspaceRepository.lightsChain.signalEnter(
+                        Signal.LED(
+                            origin = null,
+                            x = posX + x,
+                            y = posY + (9 - y),
+                            color = if (it.velocity == 0) Color.Black else Color.White,
+                            layer = 0
+                        )
+                    )
+                }
             }
         }
     }

@@ -25,7 +25,7 @@ object WorkspaceSaveHelper {
         if (path == null) {
             path = FileKit.openFileSaver(
                 suggestedName = WorkspaceRepository.workspaceMeta?.title ?: "Untitled",
-                extension = "amproj"
+                extension = "ame"
             )?.path ?: return false
         }
 

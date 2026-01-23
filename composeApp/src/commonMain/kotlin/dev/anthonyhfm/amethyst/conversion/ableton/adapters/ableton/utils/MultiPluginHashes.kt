@@ -20,6 +20,6 @@ object MultiPluginHashes {
         "724287b36492668526a597562d7732c6",
         "2e993c63826a4b737b21479f58a7238d",
         "d098a20a1a2c1165032ece71fd9297ad",
-        "1c81406d3fcf0183005fbe0077a420b7"
+        "1c81406d3fcf0183005fbe0077a420b7",
     )
 }

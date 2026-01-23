@@ -81,11 +81,14 @@ object ShortcutManager {
                 if (path == null) {
                     path = FileKit.openFileSaver(
                         suggestedName = WorkspaceRepository.workspaceMeta?.title ?: "Untitled",
-                        extension = "amproj"
+                        extension = "ame"
                     )?.path ?: return@launch
                 }
 
-                // Update metadata path
+                if (!path!!.endsWith(".ame")) {
+                    path += ".ame"
+                }
+
                 WorkspaceRepository.workspaceMeta = WorkspaceRepository.workspaceMeta?.copy(path = path)
                     ?: WorkspaceRepository.workspaceMeta
 

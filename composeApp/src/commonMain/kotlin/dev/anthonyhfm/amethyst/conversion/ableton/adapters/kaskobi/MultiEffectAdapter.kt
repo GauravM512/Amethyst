@@ -25,6 +25,8 @@ class MultiEffectAdapter (
 
         val steps = parameter?.timeable?.manual?.value ?: 1
 
+        println("Multi Effect with $steps steps found.")
+
         if (midiContainer?.branches?.branches?.isEmpty() ?: false || instrumentContainer?.branches?.branches?.isEmpty() ?: false || drumContainer?.branches?.branches?.isEmpty() ?: false) {
             println("No branches found in Multi container!")
             return listOf()
@@ -36,8 +38,13 @@ class MultiEffectAdapter (
 
         if (midiContainer != null) {
             midiBranches = midiContainer.branches.branches.map {
-                val min = it.zoneSettings.keyRange.min.value
-                val max = it.zoneSettings.keyRange.max.value
+                var min = it.zoneSettings.keyRange.min.value
+                var max = it.zoneSettings.keyRange.max.value
+
+                if (min == 0 && max == 127) {
+                    min = it.branchSelectorRange.min.value
+                    max = it.branchSelectorRange.max.value
+                }
 
                 List(max - min + 1) { _ ->
                     it.copy()
@@ -45,8 +52,13 @@ class MultiEffectAdapter (
             }.flatten()
         } else if (instrumentContainer != null) {
             instrumentBranches = instrumentContainer.branches.branches.map {
-                val min = it.zoneSettings.keyRange.min.value
-                val max = it.zoneSettings.keyRange.max.value
+                var min = it.zoneSettings.keyRange.min.value
+                var max = it.zoneSettings.keyRange.max.value
+
+                if (min == 0 && max == 127) {
+                    min = it.branchSelectorRange.min.value
+                    max = it.branchSelectorRange.max.value
+                }
 
                 List(max - min + 1) { _ ->
                     it.copy()
@@ -65,7 +77,7 @@ class MultiEffectAdapter (
                     when {
                         instrumentContainer != null -> {
                             Group(
-                                name = instrumentBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Chain #",
+                                name = instrumentBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Multi Item #",
                                 stateChain = StateChain(
                                     devices = mutableListOf<DeviceState>().apply {
                                         instrumentBranches.getOrNull(step)?.let { br ->
@@ -83,7 +95,7 @@ class MultiEffectAdapter (
                         }
                         midiContainer != null -> {
                             Group(
-                                name = midiBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Chain #",
+                                name = midiBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Multi Item #",
                                 stateChain = StateChain(
                                     devices = mutableListOf<DeviceState>().apply {
                                         midiBranches.getOrNull(step)?.let { br ->
@@ -101,7 +113,7 @@ class MultiEffectAdapter (
                         }
                         drumContainer != null -> {
                             Group(
-                                name = drumBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Chain #",
+                                name = drumBranches.getOrNull(step)?.name?.effectiveName?.value ?: "Multi Item #",
                                 stateChain = StateChain(
                                     devices = mutableListOf<DeviceState>().apply {
                                         drumBranches.getOrNull(step)?.let { br ->

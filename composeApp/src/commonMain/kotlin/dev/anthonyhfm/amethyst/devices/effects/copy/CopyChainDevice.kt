@@ -55,7 +55,9 @@ import dev.anthonyhfm.amethyst.devices.Chokeable
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
 import dev.anthonyhfm.amethyst.ui.components.TextDial
 import dev.anthonyhfm.amethyst.ui.components.TimeDial
+import dev.anthonyhfm.amethyst.ui.components.toMsValue
 import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import io.androidpoet.dropdown.MenuItem
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -481,6 +483,11 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
 
     private fun animateSignalThroughOffsetsWithIsolation(originalSignal: Signal.LED, offsets: List<Pair<Int, Int>>) {
         val signalOwner = Pair(this, "${originalSignal.x},${originalSignal.y}")
+        val stepDelayMs = if (state.value.delayMs > 0) {
+            state.value.delayMs
+        } else {
+            (state.value.timing.toMsValue(WorkspaceRepository.bpm.value) * (state.value.gate * 2)).toLong()
+        }
 
         val targets = mutableListOf<Pair<Int, Int>>()
         targets.add(Pair(0, 0))
@@ -505,7 +512,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
 
                 if (isSignalWithinDeviceBounds(copiedSignal, state.value.isolate)) {
                     Heaven.schedule(
-                        delayInMs = (state.value.delayMs * globalStepIndex).toDouble(),
+                        delayInMs = (stepDelayMs * globalStepIndex).toDouble(),
                         owner = signalOwner
                     ) {
                         signalExit?.invoke(listOf(copiedSignal))

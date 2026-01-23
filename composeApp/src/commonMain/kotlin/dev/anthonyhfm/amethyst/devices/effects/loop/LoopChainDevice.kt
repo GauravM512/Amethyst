@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
 class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
+    private val activeHoldKeys = mutableSetOf<String>()
     override val state = MutableStateFlow(LoopChainDeviceState())
 
     @Composable
@@ -224,11 +225,12 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
 
             if (down) {
                 val signalOwner = Pair(this, "${coords.first},${coords.second}")
+                val ownerKey = signalOwner.second as String
 
                 Heaven.cancelJobs { job ->
                     job.owner is Pair<*, *> &&
                     job.owner.first == this &&
-                    job.owner.second == "${coords.first},${coords.second}"
+                    job.owner.second == ownerKey
                 }
 
                 if (!state.value.onHold) {
@@ -241,7 +243,8 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                         }
                     }
                 } else {
-                    // Hold mode: send first signal immediately
+                    // Hold mode: mark key active, send first signal immediately
+                    activeHoldKeys.add(ownerKey)
                     signalExit?.invoke(listOf(signal))
 
                     // Then start recursive scheduling for subsequent signals
@@ -252,6 +255,10 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                 if (!state.value.onHold) {
                     return@forEach
                 }
+
+                val signalOwner = Pair(this, "${coords.first},${coords.second}")
+                val ownerKey = signalOwner.second as String
+                activeHoldKeys.remove(ownerKey)
 
                 // Emit a final off to stop the held loop cleanly
                 signalExit?.invoke(
@@ -268,20 +275,24 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                 Heaven.cancelJobs { job ->
                     job.owner is Pair<*, *> &&
                     job.owner.first == this &&
-                    job.owner.second == "${coords.first},${coords.second}"
+                    job.owner.second == ownerKey
                 }
             }
         }
     }
 
     fun scheduleSignals(signal: Signal, signalOwner: Any, delay: Double) {
-        Heaven.schedule(delay, owner = signalOwner) {
-            if (state.value.onHold) { // if onHold is unchecked, we immediately stop looping, do we want this?
-                signalExit?.invoke(listOf(signal))
+        val ownerKey = (signalOwner as? Pair<*, *>)?.second as? String ?: return
 
-                // Schedule the next iteration
-                scheduleSignals(signal, signalOwner, delay)
+        Heaven.schedule(delay, owner = signalOwner) {
+            if (!activeHoldKeys.contains(ownerKey) || !state.value.onHold) {
+                return@schedule
             }
+
+            signalExit?.invoke(listOf(signal))
+
+            // Schedule the next iteration
+            scheduleSignals(signal, signalOwner, delay)
         }
     }
 

@@ -467,9 +467,9 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
             if (cachedSig == signature) return cachedFade
         }
 
-        colorStepBuffer.clear()
-        stepCountBuffer.clear()
-        cutoffBuffer.clear()
+        val colorStepBuffer = mutableListOf<Color>()
+        val stepCountBuffer = mutableListOf<Int>()
+        val cutoffBuffer = mutableListOf<Int>()
         cutoffBuffer.add(0)
 
         for (i in 0 until gradientData.size - 1) {

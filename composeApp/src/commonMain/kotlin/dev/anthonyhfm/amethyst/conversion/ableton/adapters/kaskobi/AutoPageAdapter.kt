@@ -38,7 +38,7 @@ class AutoPageAdapter(
             add(
                 SwitchChainDeviceState(
                     macro = 0,
-                    value = data.targetPage.first()
+                    value = data.targetPage.first() - 1
                 )
             )
         }

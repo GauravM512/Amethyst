@@ -44,7 +44,7 @@ class WorkspaceMenuBarViewModel : ViewModel() {
     fun saveProjectAs() {
         viewModelScope.launch {
             val file = FileKit.openFileSaver(
-                extension = "amproj",
+                extension = "ame",
                 suggestedName = "project",
             )
 
