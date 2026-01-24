@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.home.ui.views
 import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
+import dev.anthonyhfm.amethyst.conversion.apollo.ApolloConverter
 import dev.anthonyhfm.amethyst.conversion.unipad.UnipadConverter
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf
@@ -26,6 +27,7 @@ import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -39,7 +41,7 @@ class RecentViewModel(
     private val navigator: NavHostController,
     private val snackbarHostState: SnackbarHostState
 ) : BaseViewModel<Nothing?, RecentViewContract.Event, RecentViewContract.Effect>(null) {
-    @OptIn(ExperimentalSerializationApi::class, ExperimentalTime::class)
+    @OptIn(ExperimentalSerializationApi::class, ExperimentalTime::class, DelicateCoroutinesApi::class)
     override fun onEvent(event: RecentViewContract.Event) {
         when (event) {
             is RecentViewContract.Event.OnClickOpenProject -> {
@@ -95,7 +97,27 @@ class RecentViewModel(
                         }
 
                         "approj" -> { // Apollo Projects
+                            navigator.navigate(HomeNavRoute.LoadingScreen("Translating your Apollo Project"))
 
+                            GlobalScope.launch {
+                                try {
+                                    val workspace = ApolloConverter.convertFileToWorkspace(file).apply {
+                                        path = file.path
+                                    }
+
+                                    WorkspaceRepository.loadWorkspace(workspace)
+                                    triggerEffect(RecentViewContract.Effect.OpenWorkspace)
+                                } catch (ex: Exception) {
+                                    CoroutineScope(Dispatchers.Main).launch {
+                                        navigator.popBackStack()
+                                    }
+
+                                    snackbarHostState.showSnackbar(
+                                        message = "Failed to convert Apollo Project",
+                                        withDismissAction = true,
+                                    )
+                                }
+                            }
                         }
 
                         "zip" -> {

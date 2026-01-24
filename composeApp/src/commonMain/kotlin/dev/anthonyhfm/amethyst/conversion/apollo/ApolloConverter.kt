@@ -9,6 +9,19 @@ import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.runBlocking
 
 object ApolloConverter : AmethystConverter {
+    fun convertFileToWorkspace(file: PlatformFile): SavableWorkspaceData {
+        val bytes = runBlocking {
+            file.readBytes()
+        }
+
+        val decoder = ApolloDecoder(bytes)
+
+        return SavableWorkspaceData(
+            settings = WorkspaceSettings(),
+            lights = decoder.decode()
+        )
+    }
+
     // Accept the optional extra parameter but ignore it for Apollo format
     override fun convertZipToWorkspace(file: PlatformFile): SavableWorkspaceData {
         TODO("Not implemented yet")
@@ -21,11 +34,7 @@ object ApolloConverter : AmethystConverter {
             file.readBytes()
         }
 
-        val decoder = ApolloDecoder(bytes.copyOfRange(4, bytes.size))
-
-        if (!decoder.decodeHeader(bytes.copyOfRange(0, 4))) {
-            error("Not a valid Apollo file")
-        }
+        val decoder = ApolloDecoder(bytes)
 
         return SavableWorkspaceData(
             settings = WorkspaceSettings(),
