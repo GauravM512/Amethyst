@@ -16,10 +16,7 @@ object ApolloConverter : AmethystConverter {
 
         val decoder = ApolloDecoder(bytes)
 
-        return SavableWorkspaceData(
-            settings = WorkspaceSettings(),
-            lights = decoder.decode()
-        )
+        return decoder.decode()
     }
 
     // Accept the optional extra parameter but ignore it for Apollo format
@@ -29,16 +26,6 @@ object ApolloConverter : AmethystConverter {
 
     override fun convertToWorkspace(path: String, palettePath: String?): SavableWorkspaceData {
         val file = PlatformFile(path)
-
-        val bytes = runBlocking {
-            file.readBytes()
-        }
-
-        val decoder = ApolloDecoder(bytes)
-
-        return SavableWorkspaceData(
-            settings = WorkspaceSettings(),
-            lights = decoder.decode()
-        )
+        return convertFileToWorkspace(file)
     }
 }

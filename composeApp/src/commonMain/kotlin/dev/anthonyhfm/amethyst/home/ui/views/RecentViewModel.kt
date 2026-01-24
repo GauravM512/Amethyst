@@ -112,6 +112,8 @@ class RecentViewModel(
                                         navigator.popBackStack()
                                     }
 
+                                    ex.printStackTrace()
+
                                     snackbarHostState.showSnackbar(
                                         message = "Failed to convert Apollo Project",
                                         withDismissAction = true,
