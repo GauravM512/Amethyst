@@ -65,6 +65,11 @@ class ApolloDataResolver {
                 expandedIndex = reader.readInt32()
             )
 
+            ApolloTypes.Choke -> ApolloModel.Device.Choke(
+                target = reader.readInt32(),
+                chain = readNextType(reader) as ApolloModel.Chain
+            )
+
             ApolloTypes.Paint -> ApolloModel.Device.Paint(
                 color = readNextType(reader) as ApolloModel.Color
             )

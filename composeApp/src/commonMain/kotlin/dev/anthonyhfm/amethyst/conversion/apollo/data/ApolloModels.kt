@@ -60,6 +60,11 @@ sealed interface ApolloModel {
             val expandedIndex: Int
         ) : Device
 
+        data class Choke(
+            val target: Int,
+            val chain: Chain
+        ) : Device
+
         data class Paint(
             val color: Color
         ) : Device

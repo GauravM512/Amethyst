@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.conversion.apollo.data
 
+import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloChokeAdapter
 import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloGroupAdapter
 import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloKeyFilterAdapter
 import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloPaintAdapter
@@ -16,6 +17,7 @@ abstract class ApolloAdapter<T: ApolloModel.Device>(
             return when (model) {
                 is ApolloModel.Device.KeyFilter -> ApolloKeyFilterAdapter(model)
                 is ApolloModel.Device.Group -> ApolloGroupAdapter(model)
+                is ApolloModel.Device.Choke -> ApolloChokeAdapter(model)
                 is ApolloModel.Device.Paint -> ApolloPaintAdapter(model)
 
                 else -> error("Apollo adapter missing for: ${model::class.simpleName}")
