@@ -25,7 +25,7 @@ actual fun WorkspaceChainScroller(scrollState: ScrollState) {
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .fillMaxWidth()
-            .height(24.dp)
+            .height(18.dp)
             .background(MaterialTheme.colorScheme.surface.copy(0.7f))
             .border(1.dp, MaterialTheme.colorScheme.surfaceBright.copy(0.6f), RoundedCornerShape(12.dp))
             .padding(6.dp),
