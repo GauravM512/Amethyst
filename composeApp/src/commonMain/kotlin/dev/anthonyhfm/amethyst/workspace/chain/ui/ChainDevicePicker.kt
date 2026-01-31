@@ -59,7 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.ui.components.AmethystContextMenu
 import dev.anthonyhfm.amethyst.ui.components.ContextMenuItem
-import dev.anthonyhfm.amethyst.ui.components.ContextMenuHeader
 import dev.anthonyhfm.amethyst.ui.components.ContextMenuSubmenuItem
 
 @Composable
@@ -108,47 +107,43 @@ fun ChainDevicePicker(
                     ContextMenuSubmenuItem("Timing", icon = Icons.TwoTone.Timer, onClick = { onNavigate("timing") })
                     ContextMenuSubmenuItem("Transform", icon = Icons.TwoTone.Transform, onClick = { onNavigate("transform") })
                     ContextMenuSubmenuItem("Fx", icon = Icons.TwoTone.Science, onClick = { onNavigate("fx") })
-                    ContextMenuItem("Switch", icon = Icons.TwoTone.Adjust, onClick = { onPickComponent(SwitchChainDevice()); onDismiss() })
+                    ContextMenuSubmenuItem("Misc", icon = Icons.TwoTone.Adjust, onClick = { onNavigate("misc") })
                 }
                 "container" -> {
-                    ContextMenuHeader("Container")
                     ContextMenuItem("Group", icon = Icons.TwoTone.Group, onClick = { onPickComponent(GroupChainDevice()); onDismiss() })
                     ContextMenuItem("Choke", icon = Icons.TwoTone.StopCircle, onClick = { onPickComponent(ChokeChainDevice()); onDismiss() })
                     ContextMenuItem("Multi", icon = Icons.TwoTone._123, onClick = { onPickComponent(MultiGroupChainDevice()); onDismiss() })
                 }
                 "filter" -> {
-                    ContextMenuHeader("Filter")
                     ContextMenuItem("Coordinate Filter", icon = Icons.TwoTone.MyLocation, onClick = { onPickComponent(CoordinateFilterChainDevice()); onDismiss() })
                     ContextMenuItem("Layer Filter", icon = Icons.TwoTone.Layers, onClick = { onPickComponent(LayerFilterChainDevice()); onDismiss() })
                     ContextMenuItem("Macro Filter", icon = Icons.TwoTone.FilterTiltShift, onClick = { onPickComponent(MacroFilterChainDevice()); onDismiss() })
                 }
                 "color" -> {
-                    ContextMenuHeader("Color")
                     ContextMenuItem("Color", icon = Icons.TwoTone.ColorLens, onClick = { onPickComponent(ColorChainDevice()); onDismiss() })
                     ContextMenuItem("Gradient", icon = Icons.TwoTone.Gradient, onClick = { onPickComponent(GradientChainDevice()); onDismiss() })
                 }
                 "shape" -> {
-                    ContextMenuHeader("Shape")
                     ContextMenuItem("Copy", icon = Icons.TwoTone.ContentCopy, onClick = { onPickComponent(CopyChainDevice()); onDismiss() })
                     ContextMenuItem("Keyframes", icon = Icons.TwoTone.Timeline, onClick = { onPickComponent(KeyframesChainDevice()); onDismiss() })
                     ContextMenuItem("Piano Roll", icon = Icons.TwoTone.Piano, onClick = { onPickComponent(PianoRollChainDevice()); onDismiss() })
                 }
                 "timing" -> {
-                    ContextMenuHeader("Timing")
                     ContextMenuItem("Delay", icon = Icons.TwoTone.Timer, onClick = { onPickComponent(DelayChainDevice()); onDismiss() })
                     ContextMenuItem("Hold", icon = Icons.TwoTone.Pause, onClick = { onPickComponent(HoldChainDevice()); onDismiss() })
                     ContextMenuItem("Loop", icon = Icons.TwoTone.Loop, onClick = { onPickComponent(LoopChainDevice()); onDismiss() })
                 }
                 "transform" -> {
-                    ContextMenuHeader("Transform")
                     ContextMenuItem("Offset", icon = Icons.TwoTone.LineAxis, onClick = { onPickComponent(OffsetChainDevice()); onDismiss() })
                     ContextMenuItem("Layer", icon = Icons.TwoTone.Layers, onClick = { onPickComponent(LayerChainDevice()); onDismiss() })
                     ContextMenuItem("Flip", icon = Icons.TwoTone.Flip, onClick = { onPickComponent(FlipChainDevice()); onDismiss() })
                     ContextMenuItem("Rotate", icon = Icons.TwoTone.RotateLeft, onClick = { onPickComponent(RotateChainDevice()); onDismiss() })
                 }
                 "fx" -> {
-                    ContextMenuHeader("Fx")
                     ContextMenuItem("Blur", icon = Icons.TwoTone.BlurOn, onClick = { onPickComponent(BlurChainDevice()); onDismiss() })
+                }
+                "misc" -> {
+                    ContextMenuItem("Switch", icon = Icons.TwoTone.Adjust, onClick = { onPickComponent(SwitchChainDevice()); onDismiss() })
                 }
             }
         } else {
@@ -159,23 +154,23 @@ fun ChainDevicePicker(
                     ContextMenuItem("Clip", icon = Icons.TwoTone.AudioFile, onClick = { onPickComponent(ClipChainDevice()); onDismiss() })
                     ContextMenuSubmenuItem("Filter", icon = Icons.TwoTone.Filter, onClick = { onNavigate("filter") })
                     ContextMenuSubmenuItem("Timing", icon = Icons.TwoTone.Timer, onClick = { onNavigate("timing") })
-                    ContextMenuItem("Switch", icon = Icons.TwoTone.Adjust, onClick = { onPickComponent(SwitchChainDevice()); onDismiss() })
+                    ContextMenuSubmenuItem("Misc", icon = Icons.TwoTone.Adjust, onClick = { onNavigate("misc") })
                 }
                 "container" -> {
-                    ContextMenuHeader("Container")
                     ContextMenuItem("Group", icon = Icons.TwoTone.Group, onClick = { onPickComponent(GroupChainDevice()); onDismiss() })
                     ContextMenuItem("Multi", icon = Icons.TwoTone._123, onClick = { onPickComponent(MultiGroupChainDevice()); onDismiss() })
                 }
                 "filter" -> {
-                    ContextMenuHeader("Filter")
                     ContextMenuItem("Coordinate Filter", icon = Icons.TwoTone.MyLocation, onClick = { onPickComponent(CoordinateFilterChainDevice()); onDismiss() })
                     ContextMenuItem("Macro Filter", icon = Icons.TwoTone.FilterTiltShift, onClick = { onPickComponent(MacroFilterChainDevice()); onDismiss() })
                 }
                 "timing" -> {
-                    ContextMenuHeader("Timing")
                     ContextMenuItem("Delay", icon = Icons.TwoTone.Timer, onClick = { onPickComponent(DelayChainDevice()); onDismiss() })
                     ContextMenuItem("Hold", icon = Icons.TwoTone.Pause, onClick = { onPickComponent(HoldChainDevice()); onDismiss() })
                     ContextMenuItem("Loop", icon = Icons.TwoTone.Loop, onClick = { onPickComponent(LoopChainDevice()); onDismiss() })
+                }
+                "misc" -> {
+                    ContextMenuItem("Switch", icon = Icons.TwoTone.Adjust, onClick = { onPickComponent(SwitchChainDevice()); onDismiss() })
                 }
             }
         }
