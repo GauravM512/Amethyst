@@ -182,5 +182,14 @@ sealed interface ApolloModel {
             val target: Int,
             val range: Int
         ) : Device
+
+        data class ColorFilter(
+            val hue: Double,
+            val saturation: Double,
+            val value: Double,
+            val hueTolerance: Double,
+            val saturationTolerance: Double,
+            val valueTolerance: Double
+        ) : Device
     }
 }

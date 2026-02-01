@@ -290,7 +290,7 @@ object WorkspaceRepository {
         }
 
         _mode.update {
-            WorkspaceContract.WorkspaceMode.Preview()
+            WorkspaceContract.WorkspaceMode.Performance()
         }
     }
 

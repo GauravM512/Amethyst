@@ -18,7 +18,7 @@ fun handleNavigationShortcut(keyEvent: KeyEvent): Boolean {
     if (keyEvent.isAltPressed && WorkspaceRepository.mode.value.selectable) {
         val selectableModes = listOf(
             WorkspaceContract.WorkspaceMode.Layout(),
-            WorkspaceContract.WorkspaceMode.Preview(),
+            WorkspaceContract.WorkspaceMode.Performance(),
             WorkspaceContract.WorkspaceMode.LightsChain(),
             WorkspaceContract.WorkspaceMode.SamplingChain(),
             WorkspaceContract.WorkspaceMode.Timeline(),

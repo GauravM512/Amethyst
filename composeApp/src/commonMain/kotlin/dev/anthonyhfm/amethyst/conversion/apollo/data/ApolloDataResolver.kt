@@ -220,6 +220,15 @@ class ApolloDataResolver {
                 range = reader.readInt32()
             )
 
+            ApolloTypes.ColorFilter -> ApolloModel.Device.ColorFilter(
+                hue = reader.readDouble(),
+                saturation = reader.readDouble(),
+                value = reader.readDouble(),
+                hueTolerance = reader.readDouble(),
+                saturationTolerance = reader.readDouble(),
+                valueTolerance = reader.readDouble()
+            )
+
             else -> {
                 error("Unknown type: $type")
             }

@@ -28,8 +28,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
-class SwitchChainDevice : GenericChainDevice<SwitchChainDeviceState>() {
-    override val state = MutableStateFlow(SwitchChainDeviceState())
+class MacroControlChainDevice : GenericChainDevice<MacroControlChainDeviceState>() {
+    override val state = MutableStateFlow(MacroControlChainDeviceState())
 
     @Composable
     override fun Content() {
@@ -38,11 +38,11 @@ class SwitchChainDevice : GenericChainDevice<SwitchChainDeviceState>() {
         val selections by SelectionManager.selections.collectAsState()
 
         AmethystDevice(
-            title = "Switch",
+            title = "Macro Control",
             isSelected = selections.any { it.selectionUUID == this.selectionUUID },
             isDragging = isDragging.value,
             modifier = Modifier
-                .width(100.dp)
+                .width(120.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -167,7 +167,7 @@ class SwitchChainDevice : GenericChainDevice<SwitchChainDeviceState>() {
 }
 
 @Serializable
-data class SwitchChainDeviceState(
+data class MacroControlChainDeviceState(
     val macro: Int = 0,
     val value: Int = 0
 ) : DeviceState()

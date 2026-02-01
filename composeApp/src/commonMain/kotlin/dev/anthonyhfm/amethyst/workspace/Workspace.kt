@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
-import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
+import dev.anthonyhfm.amethyst.gem.ui.editor.GemEditorWorkspaceMode
 import dev.anthonyhfm.amethyst.timeline.Timeline
 import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract.Event
@@ -101,7 +101,7 @@ fun Workspace(onBack: () -> Unit = {}) {
             )
 
             AnimatedVisibility(
-                visible = state.mode is WorkspaceContract.WorkspaceMode.Preview,
+                visible = state.mode is WorkspaceContract.WorkspaceMode.Performance,
                 enter = slideInVertically { it },
                 exit = slideOutVertically { it },
                 modifier = Modifier
@@ -148,6 +148,10 @@ fun Workspace(onBack: () -> Unit = {}) {
 
             if (state.mode is KeyframesWorkspaceMode) {
                 (state.mode as KeyframesWorkspaceMode).ModeContent(paddingValues)
+            }
+
+            if (state.mode is GemEditorWorkspaceMode) {
+                (state.mode as GemEditorWorkspaceMode).ModeContent(paddingValues)
             }
 
             if (state.mode is PianoRollWorkspaceMode) {

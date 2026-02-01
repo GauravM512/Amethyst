@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.desktop
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
+import dev.anthonyhfm.amethyst.gem.ui.editor.GemEditorWorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import io.github.vyfor.kpresence.RichClient
@@ -133,11 +134,12 @@ actual object DiscordRPCManager {
         return when (mode) {
             is WorkspaceContract.WorkspaceMode.Layout -> "Layout Mode"
             is WorkspaceContract.WorkspaceMode.Timeline -> "In the Timeline"
-            is WorkspaceContract.WorkspaceMode.Preview -> "Preview Mode"
+            is WorkspaceContract.WorkspaceMode.Performance -> "Preview Mode"
             is WorkspaceContract.WorkspaceMode.LightsChain -> "Lights Chain Mode"
             is WorkspaceContract.WorkspaceMode.SamplingChain -> "Sampling Chain Mode"
             is KeyframesWorkspaceMode -> "Editing Keyframes"
             is CoordinateFilterWorkspaceMode -> "Editing Coordinate Filters"
+            is GemEditorWorkspaceMode -> "Editing a Gem"
 
             else -> "Working on Project"
         }

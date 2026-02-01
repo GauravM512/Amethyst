@@ -1,15 +1,13 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.adapters.nev
 
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
-import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.DelayAdapter.DelayData
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
-import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 class WormholeAdapter (
     private val data: String
@@ -25,7 +23,7 @@ class WormholeAdapter (
                             Group("Macro 1",
                                 stateChain = StateChain(
                                     devices = listOf(
-                                        SwitchChainDeviceState(
+                                        MacroControlChainDeviceState(
                                             macro = 0,
                                             value = dataObj.macroSwitchValue1.first().toInt()
                                         )

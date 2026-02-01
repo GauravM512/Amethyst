@@ -313,7 +313,11 @@ fun ExpandingChainDevicePicker(
                         visible = pickerVisible,
                         sampling = WorkspaceRepository.mode.value is WorkspaceContract.WorkspaceMode.SamplingChain,
                         onDismiss = { pickerVisible = false },
-                        onPickComponent = { onAddComponent(it) }
+                        onPickComponent = {
+                            pickerVisible = false
+
+                            onAddComponent(it)
+                        }
                     )
                 }
             }

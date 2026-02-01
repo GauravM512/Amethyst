@@ -11,6 +11,8 @@ import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.color_filter.ColorFilterChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.color_filter.ColorFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.copy.CopyChainDevice
@@ -25,6 +27,8 @@ import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.hold.HoldChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.hold.HoldChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.preview.PreviewChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.preview.PreviewChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import dev.anthonyhfm.amethyst.devices.effects.layer.LayerChainDevice
@@ -43,8 +47,12 @@ import dev.anthonyhfm.amethyst.devices.effects.pianoroll.PianoRollChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.pianoroll.PianoRollChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.rotate.RotateChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.rotate.RotateChainDeviceState
-import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDevice
-import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.shift.ShiftChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.shift.ShiftChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.transmit.TransmitChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.transmit.TransmitChainDeviceState
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.Serializable
@@ -211,8 +219,8 @@ data class StateChain(
                     }
                 }
 
-                is SwitchChainDeviceState -> {
-                    SwitchChainDevice().apply {
+                is MacroControlChainDeviceState -> {
+                    MacroControlChainDevice().apply {
                         state.update { device }
                     }
                 }
@@ -228,6 +236,26 @@ data class StateChain(
                         state.update { device }
                     }
                 }
+
+                is ColorFilterChainDeviceState -> {
+                    ColorFilterChainDevice().apply {
+                        state.update { device }
+                    }
+                }
+
+                is TransmitChainDeviceState -> {
+                    TransmitChainDevice().apply {
+                        state.update { device }
+                    }
+                }
+
+                is ShiftChainDeviceState -> {
+                    ShiftChainDevice().apply {
+                        state.update { device }
+                    }
+                }
+
+                is PreviewChainDeviceState -> PreviewChainDevice()
 
                 else -> { throw IllegalArgumentException("Unknown device state: $device") }
             }

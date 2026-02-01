@@ -19,7 +19,7 @@ import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilte
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.macro_filter.MacroFilterChainDeviceState
-import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import io.github.vinceglb.filekit.PlatformFile
 
@@ -235,7 +235,7 @@ class MidiEffectGroupAdapter(
                                                                 Pair(9 + offset.x, (1 + i) + offset.y)
                                                             )
                                                         ),
-                                                        SwitchChainDeviceState(
+                                                        MacroControlChainDeviceState(
                                                             macro = 0,
                                                             value = i
                                                         ),
@@ -261,7 +261,7 @@ class MidiEffectGroupAdapter(
                                                                 Pair(0 + offset.x, (1 + i) + offset.y)
                                                             )
                                                         ),
-                                                        SwitchChainDeviceState(
+                                                        MacroControlChainDeviceState(
                                                             macro = 0,
                                                             value = i + 8
                                                         ),

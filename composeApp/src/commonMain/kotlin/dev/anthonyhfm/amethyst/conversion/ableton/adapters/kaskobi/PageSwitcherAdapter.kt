@@ -7,7 +7,7 @@ import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
-import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 
 class PageSwitcherAdapter(
@@ -40,7 +40,7 @@ class PageSwitcherAdapter(
                                                                     Pair(9 + offset.x, 1 + i + offset.y)
                                                                 )
                                                             ),
-                                                            SwitchChainDeviceState(
+                                                            MacroControlChainDeviceState(
                                                                 macro = 0,
                                                                 value = i
                                                             ),
@@ -66,7 +66,7 @@ class PageSwitcherAdapter(
                                                                     Pair(0 + offset.x, 1 + i + offset.y)
                                                                 )
                                                             ),
-                                                            SwitchChainDeviceState(
+                                                            MacroControlChainDeviceState(
                                                                 macro = 0,
                                                                 value = i + 8
                                                             ),

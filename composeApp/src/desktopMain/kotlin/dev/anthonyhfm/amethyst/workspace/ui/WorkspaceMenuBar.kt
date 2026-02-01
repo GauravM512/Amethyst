@@ -1,6 +1,5 @@
 package dev.anthonyhfm.amethyst.workspace.ui
 
-import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
@@ -59,7 +58,7 @@ fun FrameWindowScope.WorkspaceMenuBar() {
                 }
 
                 Item("Preview") {
-                    viewModel.switchMode(WorkspaceContract.WorkspaceMode.Preview())
+                    viewModel.switchMode(WorkspaceContract.WorkspaceMode.Performance())
                 }
 
                 Item("Lights (Chain-Editor)") {

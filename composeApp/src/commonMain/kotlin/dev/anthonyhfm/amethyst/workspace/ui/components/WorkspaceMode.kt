@@ -2,14 +2,11 @@ package dev.anthonyhfm.amethyst.workspace.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -25,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Draw
-import androidx.compose.material.icons.filled.ExpandCircleDown
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Preview
@@ -41,7 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -64,8 +59,8 @@ fun WorkspaceMode(
             icon = Icons.Default.Draw
         ),
         WorkspaceModePickerItem(
-            mode = WorkspaceContract.WorkspaceMode.Preview(),
-            text = "Preview",
+            mode = WorkspaceContract.WorkspaceMode.Performance(),
+            text = "Performance",
             icon = Icons.Default.Preview
         ),
         WorkspaceModePickerItem(
@@ -145,7 +140,7 @@ fun LargeLayout(
         selectableModes.forEach { item ->
             val isSelected = when {
                 mode is WorkspaceContract.WorkspaceMode.Layout && item.mode is WorkspaceContract.WorkspaceMode.Layout -> true
-                mode is WorkspaceContract.WorkspaceMode.Preview && item.mode is WorkspaceContract.WorkspaceMode.Preview -> true
+                mode is WorkspaceContract.WorkspaceMode.Performance && item.mode is WorkspaceContract.WorkspaceMode.Performance -> true
                 mode is WorkspaceContract.WorkspaceMode.LightsChain && item.mode is WorkspaceContract.WorkspaceMode.LightsChain -> true
                 mode is WorkspaceContract.WorkspaceMode.SamplingChain && item.mode is WorkspaceContract.WorkspaceMode.SamplingChain -> true
                 mode is WorkspaceContract.WorkspaceMode.Timeline && item.mode is WorkspaceContract.WorkspaceMode.Timeline -> true
@@ -231,7 +226,7 @@ fun CompactLayout(
                 selectableModes.find { item ->
                     when {
                         mode is WorkspaceContract.WorkspaceMode.Layout && item.mode is WorkspaceContract.WorkspaceMode.Layout -> true
-                        mode is WorkspaceContract.WorkspaceMode.Preview && item.mode is WorkspaceContract.WorkspaceMode.Preview -> true
+                        mode is WorkspaceContract.WorkspaceMode.Performance && item.mode is WorkspaceContract.WorkspaceMode.Performance -> true
                         mode is WorkspaceContract.WorkspaceMode.LightsChain && item.mode is WorkspaceContract.WorkspaceMode.LightsChain -> true
                         mode is WorkspaceContract.WorkspaceMode.SamplingChain && item.mode is WorkspaceContract.WorkspaceMode.SamplingChain -> true
                         mode is WorkspaceContract.WorkspaceMode.Timeline && item.mode is WorkspaceContract.WorkspaceMode.Timeline -> true
@@ -292,7 +287,7 @@ fun CompactLayout(
                             .filterNot { item ->
                                 when {
                                     mode is WorkspaceContract.WorkspaceMode.Layout && item.mode is WorkspaceContract.WorkspaceMode.Layout -> true
-                                    mode is WorkspaceContract.WorkspaceMode.Preview && item.mode is WorkspaceContract.WorkspaceMode.Preview -> true
+                                    mode is WorkspaceContract.WorkspaceMode.Performance && item.mode is WorkspaceContract.WorkspaceMode.Performance -> true
                                     mode is WorkspaceContract.WorkspaceMode.LightsChain && item.mode is WorkspaceContract.WorkspaceMode.LightsChain -> true
                                     mode is WorkspaceContract.WorkspaceMode.SamplingChain && item.mode is WorkspaceContract.WorkspaceMode.SamplingChain -> true
                                     mode is WorkspaceContract.WorkspaceMode.Timeline && item.mode is WorkspaceContract.WorkspaceMode.Timeline -> true

@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.conversion.apollo.data
 
 import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloChokeAdapter
+import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloColorFilterAdapter
 import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloCopyAdapter
 import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloDelayAdapter
 import dev.anthonyhfm.amethyst.conversion.apollo.adapters.ApolloFadeAdapter
@@ -43,6 +44,7 @@ abstract class ApolloAdapter<T: ApolloModel.Device>(
                 is ApolloModel.Device.Switch -> ApolloSwitchAdapter(model)
                 is ApolloModel.Device.Flip -> ApolloFlipAdapter(model)
                 is ApolloModel.Device.Rotate -> ApolloRotateAdapter(model)
+                is ApolloModel.Device.ColorFilter -> ApolloColorFilterAdapter(model)
 
                 else -> error("Apollo adapter missing for: ${model::class.simpleName}")
             }.toDeviceState()

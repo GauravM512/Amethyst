@@ -7,7 +7,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffec
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDeviceState
-import dev.anthonyhfm.amethyst.devices.effects.switch.SwitchChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDeviceState
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -36,7 +36,7 @@ class AutoPageAdapter(
             }
 
             add(
-                SwitchChainDeviceState(
+                MacroControlChainDeviceState(
                     macro = 0,
                     value = data.targetPage.first() - 1
                 )

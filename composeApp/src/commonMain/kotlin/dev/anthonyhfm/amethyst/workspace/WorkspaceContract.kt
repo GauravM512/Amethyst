@@ -64,8 +64,8 @@ interface WorkspaceContract {
             }
         }
 
-        data class Preview(
-            override val displayName: String = "Preview",
+        data class Performance(
+            override val displayName: String = "Performance",
             override val selectable: Boolean = true
         ) : WorkspaceMode
 

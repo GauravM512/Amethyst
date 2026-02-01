@@ -59,7 +59,7 @@ fun Settings(
 
                 AudioSettingsView()
 
-                if (platform !is Platform.Desktop) {
+                if (platform is Platform.Desktop) {
                     DiscordSettingsView()
                 }
 
