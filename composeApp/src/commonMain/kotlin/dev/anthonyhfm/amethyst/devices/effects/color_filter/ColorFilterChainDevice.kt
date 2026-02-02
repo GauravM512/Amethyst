@@ -220,7 +220,7 @@ private fun Color.toHsv(): Triple<Float, Float, Float> {
 @Serializable
 data class ColorFilterChainDeviceState(
     val hue: Int = 0,
-    val hueTolerance: Float = 0f,
+    val hueTolerance: Float = 0.05f,
     val saturation: Float = 1f,
     val saturationTolerance: Float = 0.05f,
     val value: Float = 1f,
