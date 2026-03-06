@@ -128,7 +128,7 @@ fun ChainDevicePicker(
                 }
                 "misc" -> {
                     ContextMenuItem("Macro Control", icon = Icons.TwoTone.Adjust, onClick = { onPickComponent(MacroControlChainDevice()) })
-                    ContextMenuItem("Intercept", icon = Icons.TwoTone.Preview, onClick = { onPickComponent(PreviewChainDevice()) })
+                    ContextMenuItem("Preview", icon = Icons.TwoTone.Preview, onClick = { onPickComponent(PreviewChainDevice()) })
                     ContextMenuItem("Transmit", icon = Icons.AutoMirrored.TwoTone.Send, onClick = { onPickComponent(TransmitChainDevice()) })
                 }
             }

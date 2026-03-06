@@ -22,7 +22,7 @@ class PreviewChainDevice : LEDChainDevice<PreviewChainDeviceState>() {
         val selections by SelectionManager.selections.collectAsState()
 
         AmethystDevice(
-            title = "Intercept",
+            title = "Preview",
             isSelected = selections.any { it.selectionUUID == this.selectionUUID },
             isDragging = isDragging.value,
             modifier = Modifier.width(140.dp)

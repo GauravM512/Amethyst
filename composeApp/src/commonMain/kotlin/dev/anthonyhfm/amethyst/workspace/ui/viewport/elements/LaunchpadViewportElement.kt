@@ -57,6 +57,7 @@ abstract class LaunchpadViewportElement(
     }
 
     var onEvent: ((WorkspaceContract.Event) -> Unit)? = null
+    var onCapturePad: ((Triple<Boolean, Int, Int>) -> Unit)? = null
 
     @Composable
     override fun Actions(scope: RowScope) {
@@ -145,7 +146,12 @@ abstract class LaunchpadViewportElement(
         )
     }
 
-    private fun sendGenericPadDown(x: Int, y: Int) {
+    fun sendGenericPadDown(x: Int, y: Int) {
+        if (onCapturePad != null) {
+            onCapturePad?.invoke(Triple(true, x, y))
+            return
+        }
+
         WorkspaceRepository.lightsChain.signalEnter(
             Signal.LED(
                 origin = this,
@@ -166,7 +172,12 @@ abstract class LaunchpadViewportElement(
         )
     }
 
-    private fun sendGenericPadUp(x: Int, y: Int) {
+    fun sendGenericPadUp(x: Int, y: Int) {
+        if (onCapturePad != null) {
+            onCapturePad?.invoke(Triple(false, x, y))
+            return
+        }
+
         WorkspaceRepository.lightsChain.signalEnter(
             Signal.LED(
                 origin = this,

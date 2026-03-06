@@ -1,5 +1,7 @@
 package dev.anthonyhfm.amethyst.devices.effects.coordinate_filter
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -7,17 +9,26 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.AmethystDevice
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadMk2
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadPro
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadX
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMidiFighter64
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMystrix
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -60,23 +71,96 @@ class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDevi
             title = "Coordinate Filter",
             isSelected = selections.any { it.selectionUUID == this.selectionUUID },
             isDragging = isDragging.value,
-            modifier = Modifier
-                .width(140.dp)
+            modifier = if (Heaven.devices.size == 1) {
+                Modifier
+                    .width(280.dp - 52.dp)
+            } else {
+                Modifier
+                    .width(140.dp)
+            }
         ) {
-            FilledIconButton(
-                onClick = {
-                    WorkspaceRepository.switchMode(mode = customMode)
-                },
-                modifier = Modifier
-                    .size(72.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MyLocation,
-                    contentDescription = "Pick",
+            if (Heaven.devices.size == 1) {
+                VirtualDeviceContainer()
+            } else {
+                FilledIconButton(
+                    onClick = {
+                        WorkspaceRepository.switchMode(mode = customMode)
+                    },
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(72.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MyLocation,
+                        contentDescription = "Pick",
+                        modifier = Modifier
+                            .size(36.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun VirtualDeviceContainer() {
+        val original = Heaven.devices.firstOrNull() ?: return
+        val newInstance = when (original) {
+            is ViewportLaunchpadPro -> ViewportLaunchpadPro()
+            is ViewportLaunchpadMk2 -> ViewportLaunchpadMk2()
+            is ViewportLaunchpadX -> ViewportLaunchpadX()
+            is ViewportLaunchpadProMk3 -> ViewportLaunchpadProMk3()
+            is ViewportMystrix -> ViewportMystrix()
+            is ViewportMidiFighter64 -> ViewportMidiFighter64()
+
+            else -> error("Not supported viewport device type for CoordinateFilter preview")
+        }
+
+        newInstance.onCapturePad = { (down, x, y) ->
+            if (down) {
+                onSetKeyFilter(
+                    x = original.position.value.x.toInt() + x,
+                    y = original.position.value.y.toInt() + y
                 )
             }
+
+            newInstance.previewState.clear()
+            newInstance.previewState.sendToPreview(
+                updates = state.value.filters
+                    .filter {
+                        it.first >= original.position.value.x.toInt() && it.second >= original.position.value.y.toInt()
+                            && it.first < original.position.value.x.toInt() + original.size.width && it.second < original.position.value.y.toInt() + original.size.height
+                    }
+                    .map {
+                        RawLEDUpdate(
+                            index = it.first + (9 - it.second) * 10,
+                            color = Color.Green
+                        )
+                    }
+            )
+        }
+
+        LaunchedEffect(Unit) {
+            newInstance.previewState.clear()
+            newInstance.previewState.sendToPreview(
+                updates = state.value.filters
+                    .filter {
+                        it.first >= original.position.value.x.toInt() && it.second >= original.position.value.y.toInt()
+                                && it.first < original.position.value.x.toInt() + original.size.width && it.second < original.position.value.y.toInt() + original.size.height
+                    }
+                    .map {
+                        RawLEDUpdate(
+                            index = it.first + (9 - it.second) * 10,
+                            color = Color.Green
+                        )
+                    }
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(elevation = 4.dp, shape = newInstance.shape)
+        ) {
+            newInstance.Content()
         }
     }
 
@@ -130,17 +214,19 @@ class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDevi
 
         pushStateChange(stateBefore, state.value)
 
-        Heaven.midiEnter(
-            listOf(
-                Signal.LED(
-                    origin = this,
-                    x = x,
-                    y = y,
-                    color = if (enabled) Color.Green else Color.Black,
-                    layer = 0
+        if (WorkspaceRepository.mode.value is CoordinateFilterWorkspaceMode) {
+            Heaven.midiEnter(
+                listOf(
+                    Signal.LED(
+                        origin = this,
+                        x = x,
+                        y = y,
+                        color = if (enabled) Color.Green else Color.Black,
+                        layer = 0
+                    )
                 )
             )
-        )
+        }
     }
 
     fun refreshVirtualDevices() {
