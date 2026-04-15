@@ -167,7 +167,7 @@ compose.desktop {
             packageName = "Amethyst"
             packageVersion = "1.0.0"
 
-            targetFormats(TargetFormat.Pkg, TargetFormat.Msi, TargetFormat.Deb)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
 
             includeAllModules = true
 
