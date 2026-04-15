@@ -44,20 +44,20 @@ jobs:
           ASC_API_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
         run: |
           mkdir -p /tmp/asc
-          # Write key — handle both real newlines and literal \n from secrets
-          printf '%s' "$ASC_API_KEY_CONTENT" | sed 's/\\n/\'$'\n''/g' | tr -d '\r' > /tmp/asc/key_raw.p8
-          # Debug: show file stats (no sensitive data)
-          echo "=== Key file debug ==="
-          echo "Lines: $(wc -l < /tmp/asc/key_raw.p8)"
-          echo "Bytes: $(wc -c < /tmp/asc/key_raw.p8)"
-          echo "First line: $(head -1 /tmp/asc/key_raw.p8)"
-          echo "Last line: $(tail -1 /tmp/asc/key_raw.p8)"
-          echo "==="
-          # Convert PKCS#8 (BEGIN PRIVATE KEY) to traditional EC (BEGIN EC PRIVATE KEY)
-          # so that fastlane's OpenSSL::PKey::EC.new() works on OpenSSL 3.x
-          openssl ec -in /tmp/asc/key_raw.p8 -out /tmp/asc/key.p8
-          rm /tmp/asc/key_raw.p8
-          echo "Converted first line: $(head -1 /tmp/asc/key.p8)"
+          echo "OpenSSL version: $(openssl version)"
+          
+          # Write key — use printenv for most reliable multiline output
+          printenv ASC_API_KEY_CONTENT > /tmp/asc/key.p8
+          
+          # Debug
+          echo "Size: $(wc -c < /tmp/asc/key.p8) bytes"
+          echo "Lines: $(wc -l < /tmp/asc/key.p8)"
+          echo "File type: $(file /tmp/asc/key.p8)"
+          # Check if PEM headers are present
+          grep -c 'BEGIN' /tmp/asc/key.p8 && echo "Has BEGIN marker" || echo "NO BEGIN marker"
+          grep -c 'END' /tmp/asc/key.p8 && echo "Has END marker" || echo "NO END marker"
+          # Show hex of first 40 bytes to check for BOM or encoding issues
+          xxd -l 40 /tmp/asc/key.p8 || true
 
       - name: Set up SSH key for Match
         uses: webfactory/ssh-agent@v0.9.0

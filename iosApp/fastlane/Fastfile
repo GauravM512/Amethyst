@@ -1,5 +1,20 @@
 default_platform(:ios)
 
+# Monkey-patch: OpenSSL::PKey::EC.new fails with "invalid curve name"
+# on OpenSSL 3.x when given PKCS#8 format (BEGIN PRIVATE KEY).
+# Fallback to OpenSSL::PKey.read which handles it correctly.
+require 'openssl'
+module OpenSSLCurveNameFix
+  def initialize(*args)
+    super
+  rescue OpenSSL::PKey::PKeyError, OpenSSL::PKey::ECError => e
+    raise unless args.first.is_a?(String) && args.length == 1
+    key = OpenSSL::PKey.read(args.first)
+    super(key.to_der)
+  end
+end
+OpenSSL::PKey::EC.prepend(OpenSSLCurveNameFix)
+
 platform :ios do
   desc "Build and upload to TestFlight"
   lane :beta do
