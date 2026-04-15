@@ -1,5 +1,3 @@
-require 'openssl'
-
 default_platform(:ios)
 
 platform :ios do
@@ -7,18 +5,10 @@ platform :ios do
   lane :beta do
     setup_ci
 
-    # Apple .p8 keys use PKCS#8 format (BEGIN PRIVATE KEY) which causes
-    # "invalid curve name" on OpenSSL 3.x via EC.new(). Convert to
-    # traditional EC format (BEGIN EC PRIVATE KEY) which works everywhere.
-    raw_key = File.read(ENV["ASC_API_KEY_FILEPATH"])
-    ec_key = OpenSSL::PKey.read(raw_key)
-    ec_pem = ec_key.to_pem
-
     api_key = app_store_connect_api_key(
       key_id: ENV["ASC_API_KEY_ID"],
       issuer_id: ENV["ASC_ISSUER_ID"],
-      key_content: ec_pem,
-      is_key_content_base64: false
+      key_filepath: ENV["ASC_API_KEY_FILEPATH"],
     )
 
     match(

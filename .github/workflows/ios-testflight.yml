@@ -44,7 +44,20 @@ jobs:
           ASC_API_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
         run: |
           mkdir -p /tmp/asc
-          printf '%s\n' "$ASC_API_KEY_CONTENT" > /tmp/asc/key.p8
+          # Write key — handle both real newlines and literal \n from secrets
+          printf '%s' "$ASC_API_KEY_CONTENT" | sed 's/\\n/\'$'\n''/g' | tr -d '\r' > /tmp/asc/key_raw.p8
+          # Debug: show file stats (no sensitive data)
+          echo "=== Key file debug ==="
+          echo "Lines: $(wc -l < /tmp/asc/key_raw.p8)"
+          echo "Bytes: $(wc -c < /tmp/asc/key_raw.p8)"
+          echo "First line: $(head -1 /tmp/asc/key_raw.p8)"
+          echo "Last line: $(tail -1 /tmp/asc/key_raw.p8)"
+          echo "==="
+          # Convert PKCS#8 (BEGIN PRIVATE KEY) to traditional EC (BEGIN EC PRIVATE KEY)
+          # so that fastlane's OpenSSL::PKey::EC.new() works on OpenSSL 3.x
+          openssl ec -in /tmp/asc/key_raw.p8 -out /tmp/asc/key.p8
+          rm /tmp/asc/key_raw.p8
+          echo "Converted first line: $(head -1 /tmp/asc/key.p8)"
 
       - name: Set up SSH key for Match
         uses: webfactory/ssh-agent@v0.9.0
