@@ -43,11 +43,8 @@ jobs:
         env:
           ASC_API_KEY_CONTENT: ${{ secrets.ASC_API_KEY_CONTENT }}
         run: |
-          echo "$ASC_API_KEY_CONTENT" > /tmp/asc_key_raw.p8
-          # Re-encode using openssl pkey (uses OpenSSL::PKey.read internally)
-          # which correctly handles the prime256v1 curve name on OpenSSL 3.x
-          openssl pkey -in /tmp/asc_key_raw.p8 -out /tmp/asc_key.p8
-          rm /tmp/asc_key_raw.p8
+          mkdir -p /tmp/asc
+          printf '%s\n' "$ASC_API_KEY_CONTENT" > /tmp/asc/key.p8
 
       - name: Set up SSH key for Match
         uses: webfactory/ssh-agent@v0.9.0
@@ -59,7 +56,7 @@ jobs:
         env:
           ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_API_KEY_FILEPATH: /tmp/asc_key.p8
+          ASC_API_KEY_FILEPATH: /tmp/asc/key.p8
           MATCH_PASSWORD: ""
           BUILD_NUMBER: ${{ github.run_number }}
           JAVA_HOME: ${{ env.JAVA_HOME }}
