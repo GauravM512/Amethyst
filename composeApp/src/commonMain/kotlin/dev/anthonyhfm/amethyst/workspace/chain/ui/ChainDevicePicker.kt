@@ -207,55 +207,7 @@ fun ChainDevicePicker(
                     ChainContextMenuItem("Sample", icon = Icons.TwoTone.AudioFile, onClick = { onPickComponent(SampleChainDevice()) })
                     ChainContextMenuSubmenuItem("Filter", icon = Icons.TwoTone.Filter, onClick = { onNavigate("filter") })
                     ChainContextMenuSubmenuItem("Timing", icon = Icons.TwoTone.Timer, onClick = { onNavigate("timing") })
-                    ChainContextMenuSubmenuItem("Gems", icon = Icons.TwoTone.Diamond, onClick = { onNavigate("gems") })
                     ChainContextMenuSubmenuItem("Misc", icon = Icons.TwoTone.Adjust, onClick = { onNavigate("misc") })
-                }
-                "gems" -> {
-                    ChainContextMenuItem(
-                        "New Gem",
-                        icon = Icons.TwoTone.Add,
-                        onClick = {
-                            WorkspaceRepository.switchMode(
-                                GemEditorWorkspaceMode(
-                                    entryContext = GemEditorWorkspaceMode.EntryContext.Workspace(
-                                        sourceLabel = "Sampling Chain",
-                                        preferredHostDomain = gemHostDomain
-                                    ),
-                                    createNewAsset = true
-                                )
-                            )
-                        }
-                    )
-                    ChainContextMenuSubmenuItem(
-                        "Open Gem Editor",
-                        icon = Icons.TwoTone.Diamond,
-                        onClick = { onNavigate("gems-editor") }
-                    )
-                    if (compatibleGemAssets.isEmpty()) {
-                        ChainContextMenuItem(
-                            label = "No compatible Gems",
-                            icon = Icons.TwoTone.Diamond,
-                            enabled = false,
-                            onClick = {}
-                        )
-                    } else {
-                        compatibleGemAssets.forEach { asset ->
-                            ChainContextMenuItem(
-                                label = asset.metadata.name.ifBlank { asset.metadata.id.ifBlank { "Unnamed Gem" } },
-                                icon = Icons.TwoTone.Diamond,
-                                onClick = {
-                                    onPickComponent(
-                                        GemChainDevice(
-                                            initialState = GemDeviceState.fromAsset(
-                                                asset = asset,
-                                                hostDomain = gemHostDomain ?: GemSignalDomain.LED
-                                            )
-                                        )
-                                    )
-                                }
-                            )
-                        }
-                    }
                 }
                 "gems-editor" -> {
                     if (compatibleGemAssets.isEmpty()) {
