@@ -10,10 +10,11 @@ import kotlin.test.assertEquals
 class TimelineAutomationEvaluatorTest {
     @Test
     fun evaluateVolumeAutomationInterpolatesAndFallsBackToBaseVolume() {
+        val target = TimelineTrackAutomationTarget.VOLUME
         val track = AudioTimelineTrack().apply {
             volume = 0.6f
             automationLanes += TimelineAutomationLane(
-                target = TimelineTrackAutomationTarget.VOLUME,
+                target = target,
                 points = listOf(
                     TimelineAutomationPoint(timeMs = 1_000L, value = 0.2f),
                     TimelineAutomationPoint(timeMs = 3_000L, value = 0.8f)
@@ -25,7 +26,11 @@ class TimelineAutomationEvaluatorTest {
         assertEquals(0.6f, beforeAutomation.volume, 0.0001f)
 
         val interpolated = TimelineAutomationEvaluator.evaluate(track = track, timeMs = 2_000L)
-        assertEquals(0.5f, interpolated.volume, 0.0001f)
+        assertEquals(
+            target.segmentLinearValueAtProgress(startValue = 0.2f, endValue = 0.8f, progress = 0.5f),
+            interpolated.volume,
+            0.0001f
+        )
 
         track.automationLanes[0] = track.automationLanes[0].copy(enabled = false)
         val bypassed = TimelineAutomationEvaluator.evaluate(track = track, timeMs = 2_000L)

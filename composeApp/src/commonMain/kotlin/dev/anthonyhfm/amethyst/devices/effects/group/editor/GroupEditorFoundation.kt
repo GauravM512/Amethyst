@@ -76,6 +76,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -112,6 +113,7 @@ import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.ui.components.primitives.ChainDeviceShell
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenu
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuItem
+import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuItemVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuSeparator
 import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
 import dev.anthonyhfm.amethyst.ui.modifier.onFocusSelectAll
@@ -122,11 +124,15 @@ import dev.anthonyhfm.amethyst.ui.theme.chainSurface
 import dev.anthonyhfm.amethyst.ui.theme.chainSurfaceRaised
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
+import dev.anthonyhfm.amethyst.ui.theme.destructive
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
+import dev.anthonyhfm.amethyst.ui.theme.popoverForeground
 import dev.anthonyhfm.amethyst.ui.theme.secondary
 import dev.anthonyhfm.amethyst.ui.theme.secondaryForeground
 import dev.anthonyhfm.amethyst.ui.theme.selectionForeground
 import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
+import dev.anthonyhfm.amethyst.ui.theme.small
+import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.chain.ui.AnimatedInsertedDevice
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ChainDeviceContextMenu
 import dev.anthonyhfm.amethyst.workspace.chain.ui.DeviceInsertionAnimator
@@ -419,6 +425,40 @@ internal fun GroupEditorList(
     }
 }
 
+@Composable
+private fun GroupEditorContextMenuItem(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    variant: ContextMenuItemVariant = ContextMenuItemVariant.Default,
+) {
+    val contentColor = when {
+        !enabled -> Theme[colors][mutedForeground]
+        variant == ContextMenuItemVariant.Destructive -> Theme[colors][destructive]
+        else -> Theme[colors][popoverForeground]
+    }
+
+    ContextMenuItem(
+        onClick = onClick,
+        enabled = enabled,
+        variant = variant,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = contentColor,
+        )
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = Theme[typography][small],
+            color = contentColor,
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReorderableItemScope.GroupEditorListItem(
@@ -605,34 +645,40 @@ private fun ReorderableItemScope.GroupEditorListItem(
             }
         }
     ) {
-        ContextMenuItem(onClick = { actions.onCopyGroup(group) }) {
-            Icon(Lucide.Copy, null)
-            Text("Copy", modifier = Modifier.weight(1f))
-        }
+        GroupEditorContextMenuItem(
+            label = "Copy",
+            icon = Lucide.Copy,
+            onClick = { actions.onCopyGroup(group) },
+        )
 
         if (hasGroupsInClipboard) {
-            ContextMenuItem(onClick = { actions.onPasteGroup(index) }) {
-                Icon(Lucide.ClipboardPaste, null)
-                Text("Paste", modifier = Modifier.weight(1f))
-            }
+            GroupEditorContextMenuItem(
+                label = "Paste",
+                icon = Lucide.ClipboardPaste,
+                onClick = { actions.onPasteGroup(index) },
+            )
         }
 
-        ContextMenuItem(onClick = { actions.onDuplicateGroup(index) }) {
-            Icon(Lucide.CopyPlus, null)
-            Text("Duplicate", modifier = Modifier.weight(1f))
-        }
+        GroupEditorContextMenuItem(
+            label = "Duplicate",
+            icon = Lucide.CopyPlus,
+            onClick = { actions.onDuplicateGroup(index) },
+        )
 
-        ContextMenuItem(onClick = { onRenameChange(true) }) {
-            Icon(Lucide.Pencil, null)
-            Text("Rename", modifier = Modifier.weight(1f))
-        }
+        GroupEditorContextMenuItem(
+            label = "Rename",
+            icon = Lucide.Pencil,
+            onClick = { onRenameChange(true) },
+        )
 
         ContextMenuSeparator()
 
-        ContextMenuItem(onClick = { actions.onDeleteGroup(index) }) {
-            Icon(Lucide.Trash2, null)
-            Text("Delete", modifier = Modifier.weight(1f))
-        }
+        GroupEditorContextMenuItem(
+            label = "Delete",
+            icon = Lucide.Trash2,
+            variant = ContextMenuItemVariant.Destructive,
+            onClick = { actions.onDeleteGroup(index) },
+        )
     }
 }
 
@@ -712,10 +758,11 @@ private fun GroupEditorInsertButton(
             modifier = Modifier.fillMaxWidth(),
             trigger = trigger,
         ) {
-            ContextMenuItem(onClick = onPasteDevicesAsGroup) {
-                Icon(Lucide.ClipboardPaste, null)
-                Text("Paste as Group", modifier = Modifier.weight(1f))
-            }
+            GroupEditorContextMenuItem(
+                label = "Paste as Group",
+                icon = Lucide.ClipboardPaste,
+                onClick = onPasteDevicesAsGroup,
+            )
         }
     } else {
         trigger()
