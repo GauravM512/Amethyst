@@ -32,6 +32,7 @@ import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.core.util.UUID
+import dev.anthonyhfm.amethyst.core.util.getDeviceCapabilities
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.LEDChainDevice
@@ -86,6 +87,8 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
     private val colorStepBuffer = mutableListOf<Color>()
     private val stepCountBuffer = mutableListOf<Int>()
     private val cutoffBuffer = mutableListOf<Int>()
+    private val activeRunTokens = mutableMapOf<String, Long>()
+    private var nextRunToken = 0L
 
     @Composable
     override fun Content() {
@@ -428,6 +431,34 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
         val isHold: Boolean = false
     )
 
+    private fun resolvedSamplingFps(baseFps: Int = GlobalSettings.performanceFPS): Int {
+        val qualityScale = GlobalSettings.gradientSmoothness.coerceIn(0.5f, 1f)
+        val lowRamScale = if (getDeviceCapabilities().lowRamUsageMode) 0.75f else 1f
+        val scaledFps = (baseFps * qualityScale * lowRamScale).roundToInt()
+        return scaledFps.coerceIn(12, baseFps.coerceAtLeast(12))
+    }
+
+    private fun startRun(ownerKey: String): Long {
+        val runToken = ++nextRunToken
+        activeRunTokens[ownerKey] = runToken
+        return runToken
+    }
+
+    private fun isRunActive(ownerKey: String, runToken: Long): Boolean {
+        return activeRunTokens[ownerKey] == runToken
+    }
+
+    private fun clearRun(ownerKey: String, runToken: Long? = null) {
+        if (runToken == null || activeRunTokens[ownerKey] == runToken) {
+            activeRunTokens.remove(ownerKey)
+        }
+    }
+
+    private fun cancelRun(ownerKey: String) {
+        clearRun(ownerKey)
+        Heaven.cancelJobsForOwner(this, ownerKey)
+    }
+
     private fun easeTime(type: GradientSmoothness, start: Double, end: Double, value: Double): Double {
         if (type == GradientSmoothness.Linear) return value
         if (type == GradientSmoothness.Hold) return if (start != value) end - 0.1 else start
@@ -460,8 +491,8 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
     }
 
     private fun generateFade(): List<FadeInfo> {
-        val fps = GlobalSettings.performanceFPS
-        val frameTime = 1000.0 / fps
+        val samplingFps = resolvedSamplingFps()
+        val frameTime = 1000.0 / samplingFps
         val bpm = WorkspaceRepository.bpm.value
         val totalTime = state.value.timing.toMsValue(bpm) * (state.value.gate * 2)
 
@@ -473,16 +504,16 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
             gradientHash = gradientData.fold(gradientData.size) { acc, color ->
                 (((((acc * 31 + color.position.toBits()) * 31 + color.r.toBits()) * 31 + color.g.toBits()) * 31 + color.b.toBits()) * 31 + color.smoothness.ordinal)
             },
-            fps = fps,
+            fps = samplingFps,
             totalTimeBits = totalTime.toDouble().toBits()
         )
         cachedFadeSignature?.let { cachedSig ->
             if (cachedSig == signature) return cachedFade
         }
 
-        val colorStepBuffer = mutableListOf<Color>()
-        val stepCountBuffer = mutableListOf<Int>()
-        val cutoffBuffer = mutableListOf<Int>()
+        colorStepBuffer.clear()
+        stepCountBuffer.clear()
+        cutoffBuffer.clear()
         cutoffBuffer.add(0)
 
         for (i in 0 until gradientData.size - 1) {
@@ -571,90 +602,90 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
         return fade
     }
 
+    private fun scheduleFadeStep(
+        signal: Signal.LED,
+        ownerKey: String,
+        runToken: Long,
+        fade: List<FadeInfo>,
+        nextIndex: Int
+    ) {
+        if (!isRunActive(ownerKey, runToken) || nextIndex >= fade.size) {
+            clearRun(ownerKey, runToken)
+            return
+        }
+
+        val previousIndex = if (nextIndex == 0) fade.lastIndex else nextIndex - 1
+        val delayTime = if (nextIndex == 0) {
+            0.0
+        } else {
+            (fade[nextIndex].time - fade[previousIndex].time).coerceAtLeast(0.0)
+        }
+
+        Heaven.schedule(
+            delayInMs = delayTime,
+            owner = this,
+            identifier = ownerKey
+        ) {
+            if (!isRunActive(ownerKey, runToken)) {
+                return@schedule
+            }
+
+            signalExit?.invoke(
+                listOf(signal.copy(color = fade[nextIndex].color))
+            )
+
+            val followingIndex = when {
+                nextIndex + 1 < fade.size -> nextIndex + 1
+                state.value.loop -> 0
+                else -> null
+            }
+
+            if (followingIndex == null) {
+                clearRun(ownerKey, runToken)
+                return@schedule
+            }
+
+            scheduleFadeStep(signal, ownerKey, runToken, fade, followingIndex)
+        }
+    }
+
     override fun ledSignalEnter(n: List<Signal.LED>) {
         val fade = generateFade()
         if (fade.isEmpty()) return
 
         n.forEach { signal ->
-            if (signal.color != Color.Black) {
-                val ownerKey = "${signal.x},${signal.y}"
-                val signalOwner = Pair(this, ownerKey)
+            val ownerKey = "${signal.x},${signal.y}"
 
-                Heaven.cancelJobs { job ->
-                    job.owner is Pair<*, *> &&
-                            job.owner.first == this &&
-                            job.owner.second == ownerKey
-                }
+            if (signal.color != Color.Black) {
+                Heaven.cancelJobsForOwner(this, ownerKey)
+                val runToken = startRun(ownerKey)
 
                 // Emit initial color immediately
                 signalExit?.invoke(
                     listOf(signal.copy(color = fade[0].color))
                 )
 
-                if (!state.value.loop) {
-                    for (i in 1 until fade.size) {
-                        Heaven.schedule(
-                            delayInMs = fade[i].time,
-                            owner = signalOwner
-                        ) {
-                            signalExit?.invoke(
-                                listOf(signal.copy(color = fade[i].color))
-                            )
-                        }
-                    }
-                } else {
-                    // Loop mode: schedule recursive looping
-                    scheduleFadeLoop(signal, signalOwner, fade, 1)
+                if (fade.size == 1) {
+                    clearRun(ownerKey, runToken)
+                    return@forEach
                 }
+
+                scheduleFadeStep(
+                    signal = signal,
+                    ownerKey = ownerKey,
+                    runToken = runToken,
+                    fade = fade,
+                    nextIndex = 1
+                )
             } else if (state.value.loop) {
-                // Key up in loop mode: cancel ongoing loops
-                Heaven.cancelJobs { job ->
-                    job.owner is Pair<*, *> &&
-                            job.owner.first == this &&
-                            job.owner.second == "${signal.x},${signal.y}"
-                }
-            }
-        }
-    }
-
-    private fun scheduleFadeLoop(
-        signal: Signal.LED,
-        signalOwner: Any,
-        fade: List<FadeInfo>,
-        index: Int
-    ) {
-        // Check if this index should loop back
-        var currentIndex = index
-        if (currentIndex == fade.size - 1 && state.value.loop) {
-            currentIndex = 0
-        }
-
-        if (currentIndex >= fade.size) return
-
-        // Emit current color
-        signalExit?.invoke(
-            listOf(signal.copy(color = fade[currentIndex].color))
-        )
-
-        // Schedule next step if not at the last frame
-        if (currentIndex < fade.size - 1 && state.value.loop) {
-            val delayTime = fade[currentIndex + 1].time - fade[currentIndex].time
-
-            Heaven.schedule(
-                delayInMs = delayTime,
-                owner = signalOwner
-            ) {
-                scheduleFadeLoop(signal, signalOwner, fade, currentIndex + 1)
+                cancelRun(ownerKey)
             }
         }
     }
 
     override fun onChoke() {
-        // Cancel all scheduled Heaven tasks owned by this device
-        // The gradient device uses Pair(this, "${signal.x},${signal.y}") as owner
-        Heaven.cancelJobs { job ->
-            job.owner is Pair<*, *> && job.owner.first == this
-        }
+        activeRunTokens.clear()
+        Heaven.cancelJobsForOwner(this)
     }
 }
 

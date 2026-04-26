@@ -8,6 +8,8 @@ import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportE
 import dev.anthonyhfm.amethyst.core.util.StopWatch
 import dev.anthonyhfm.amethyst.core.util.platform
 import kotlinx.atomicfu.atomic
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -24,10 +26,17 @@ data class ScheduledJob(
     val targetTime: Long,
     val job: () -> Unit,
     val owner: Any? = null,
-    val identifier: Any? = null
+    val identifier: Any? = null,
+    val ownerGeneration: Long? = null,
+    val identifierGeneration: Long? = null
 )
 
 object Heaven {
+    private data class JobOwnerKey(
+        val owner: Any,
+        val identifier: Any?
+    )
+
     private fun Throwable.isRecoverablePlatformInitFailure(): Boolean {
         val typeName = this::class.simpleName.orEmpty()
         return this is IllegalStateException ||
@@ -64,9 +73,12 @@ object Heaven {
 
     private val signalQueue = Channel<List<Signal.LED>>(UNLIMITED)
     private val jobQueue = Channel<ScheduledJob>(UNLIMITED)
+    private val queuedJobsCount = atomic(0)
 
     private val jobsMutex = Mutex()
     private val jobsList = mutableListOf<Pair<Long, MutableList<ScheduledJob>>>()
+    private val ownerGenerationLock = SynchronizedObject()
+    private val ownerGenerations = mutableMapOf<JobOwnerKey, Long>()
 
     @Volatile
     private var prev: Long = 0L
@@ -88,6 +100,46 @@ object Heaven {
 
     private fun msToTicks(ms: Double): Long = (ms / 1000 * stopWatch.frequency).toLong()
 
+    private fun snapshotJobGenerations(owner: Any?, identifier: Any?): Pair<Long?, Long?> {
+        if (owner == null) return null to null
+
+        return synchronized(ownerGenerationLock) {
+            val ownerGeneration = ownerGenerations[JobOwnerKey(owner, null)] ?: 0L
+            val identifierGeneration = identifier?.let {
+                ownerGenerations[JobOwnerKey(owner, it)] ?: 0L
+            }
+            ownerGeneration to identifierGeneration
+        }
+    }
+
+    private fun invalidateJobGeneration(owner: Any, identifier: Any?) {
+        synchronized(ownerGenerationLock) {
+            val key = JobOwnerKey(owner, identifier)
+            ownerGenerations[key] = (ownerGenerations[key] ?: 0L) + 1L
+        }
+    }
+
+    private fun isJobCurrent(job: ScheduledJob): Boolean {
+        val owner = job.owner ?: return true
+
+        return synchronized(ownerGenerationLock) {
+            val currentOwnerGeneration = ownerGenerations[JobOwnerKey(owner, null)] ?: 0L
+            if (job.ownerGeneration != currentOwnerGeneration) {
+                return@synchronized false
+            }
+
+            val identifier = job.identifier
+            if (identifier != null) {
+                val currentIdentifierGeneration = ownerGenerations[JobOwnerKey(owner, identifier)] ?: 0L
+                if (job.identifierGeneration != currentIdentifierGeneration) {
+                    return@synchronized false
+                }
+            }
+
+            true
+        }
+    }
+
     fun midiEnter(signals: List<Signal.LED>) {
         renderScope.launch {
             signalQueue.send(signals)
@@ -106,8 +158,18 @@ object Heaven {
             prev = nowTicks
         }
         val targetTime = nowTicks + msToTicks(delayInMs)
-        val scheduledJob = ScheduledJob(jobId, targetTime, job, owner, identifier)
+        val (ownerGeneration, identifierGeneration) = snapshotJobGenerations(owner, identifier)
+        val scheduledJob = ScheduledJob(
+            id = jobId,
+            targetTime = targetTime,
+            job = job,
+            owner = owner,
+            identifier = identifier,
+            ownerGeneration = ownerGeneration,
+            identifierGeneration = identifierGeneration
+        )
 
+        queuedJobsCount.incrementAndGet()
         renderScope.launch {
             jobQueue.send(scheduledJob)
             cancel()
@@ -128,6 +190,7 @@ object Heaven {
     }
 
     fun cancelJobsForOwner(owner: Any, identifier: Any? = null) {
+        invalidateJobGeneration(owner, identifier)
         cancelJobs { it.owner === owner && (identifier == null || it.identifier == identifier) }
     }
 
@@ -203,6 +266,12 @@ object Heaven {
 
         while (!jobQueue.isEmpty) {
             val scheduledJob = jobQueue.tryReceive().getOrNull() ?: break
+            queuedJobsCount.decrementAndGet()
+            processed = true
+
+            if (!isJobCurrent(scheduledJob)) {
+                continue
+            }
 
             jobsMutex.withLock {
                 val insertIndex = findInsertPosition(scheduledJob.targetTime)
@@ -213,8 +282,6 @@ object Heaven {
                     jobsList.add(insertIndex, scheduledJob.targetTime to mutableListOf(scheduledJob))
                 }
             }
-
-            processed = true
         }
 
         return processed
@@ -258,6 +325,10 @@ object Heaven {
         }
 
         jobsToExecute.forEach { scheduledJob ->
+            if (!isJobCurrent(scheduledJob)) {
+                return@forEach
+            }
+
             try {
                 scheduledJob.job.invoke()
             } catch (e: Exception) {
@@ -324,12 +395,20 @@ object Heaven {
                 signalQueue.tryReceive()
             }
             while (!jobQueue.isEmpty) {
-                jobQueue.tryReceive()
+                if (jobQueue.tryReceive().getOrNull() != null) {
+                    queuedJobsCount.decrementAndGet()
+                }
             }
 
             jobsMutex.withLock {
                 jobsList.clear()
             }
+
+            synchronized(ownerGenerationLock) {
+                ownerGenerations.clear()
+            }
+
+            queuedJobsCount.value = 0
 
             prev = 0L
             lastRender = -1L
@@ -341,5 +420,33 @@ object Heaven {
 
     fun shutdown() {
         renderScope.cancel()
+    }
+
+    internal suspend fun pendingJobCountForTesting(): Int {
+        val scheduledJobs = jobsMutex.withLock {
+            jobsList.fold(0) { total, (_, jobs) -> total + jobs.size }
+        }
+
+        return queuedJobsCount.value + scheduledJobs
+    }
+
+    internal suspend fun waitUntilIdleForTesting(timeoutMs: Long = 2_000L) {
+        withTimeout(timeoutMs) {
+            while (true) {
+                if (pendingJobCountForTesting() == 0 &&
+                    signalQueue.isEmpty &&
+                    jobQueue.isEmpty &&
+                    !isAwake) {
+                    return@withTimeout
+                }
+
+                delay(5)
+            }
+        }
+    }
+
+    internal suspend fun resetForTesting() {
+        clear()
+        waitUntilIdleForTesting()
     }
 }
