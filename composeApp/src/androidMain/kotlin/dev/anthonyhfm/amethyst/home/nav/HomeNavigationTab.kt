@@ -1,10 +1,10 @@
 package dev.anthonyhfm.amethyst.home.nav
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.composables.icons.lucide.FolderOpen
+import com.composables.icons.lucide.History
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Settings2
 
 enum class HomeNavigationTab(
     val label: String,
@@ -13,17 +13,17 @@ enum class HomeNavigationTab(
 ) {
     Projects(
         label = "Projects",
-        icon = Icons.Outlined.Folder,
+        icon = Lucide.History,
         route = HomeNavRoute.Projects,
     ),
     Browser(
         label = "Browser",
-        icon = Icons.Outlined.Search,
+        icon = Lucide.FolderOpen,
         route = HomeNavRoute.Browser,
     ),
     Settings(
         label = "Settings",
-        icon = Icons.Outlined.Settings,
+        icon = Lucide.Settings2,
         route = HomeNavRoute.Settings,
     );
 

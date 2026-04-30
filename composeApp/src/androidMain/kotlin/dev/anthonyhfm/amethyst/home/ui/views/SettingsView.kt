@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.home.ui.views
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -16,13 +17,12 @@ import dev.anthonyhfm.amethyst.home.ui.components.HomePlaceholderView
 fun SettingsView() {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Settings")
-                },
+                title = { Text("Settings") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             )

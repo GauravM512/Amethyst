@@ -1,23 +1,26 @@
 package dev.anthonyhfm.amethyst.home.ui.components
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import dev.anthonyhfm.amethyst.home.nav.HomeNavigationTab
 
 @Composable
-fun HomeBottomNavBar(
+fun HomeNavigationRail(
     navigator: NavHostController,
     currentTab: HomeNavigationTab,
 ) {
-    val navItemColors = NavigationBarItemDefaults.colors(
+    val railItemColors = NavigationRailItemDefaults.colors(
         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
         selectedTextColor = MaterialTheme.colorScheme.onSurface,
         indicatorColor = MaterialTheme.colorScheme.primary,
@@ -25,13 +28,14 @@ fun HomeBottomNavBar(
         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 
-    NavigationBar(
+    NavigationRail(
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 0.dp,
     ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
         HomeNavigationTab.entries.forEach { tab ->
-            NavigationBarItem(
+            NavigationRailItem(
                 selected = currentTab == tab,
                 onClick = {
                     navigator.navigate(tab.route) {
@@ -42,16 +46,14 @@ fun HomeBottomNavBar(
                         restoreState = true
                     }
                 },
-                colors = navItemColors,
+                colors = railItemColors,
                 icon = {
                     Icon(
                         imageVector = tab.icon,
                         contentDescription = null,
                     )
                 },
-                label = {
-                    Text(tab.label)
-                },
+                label = { Text(tab.label) },
             )
         }
     }
