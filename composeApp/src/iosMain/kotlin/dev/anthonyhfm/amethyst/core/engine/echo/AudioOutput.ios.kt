@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.core.engine.echo
 
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.AudioSettings
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import kotlinx.cinterop.*
 import platform.AVFAudio.*
@@ -115,7 +115,7 @@ actual object AudioOutput {
         }
 
         val node = AVAudioPlayerNode()
-        node.volume = GlobalSettings.masterVolume * audioSignal.gain.coerceAtLeast(0f)
+        node.volume = AudioSettings.masterVolume.value * audioSignal.gain.coerceAtLeast(0f)
         node.pan = audioSignal.pan.coerceIn(-1f, 1f)
         engine.attachNode(node)
         engine.connect(node, to = engine.mainMixerNode, format = format)
@@ -140,7 +140,7 @@ actual object AudioOutput {
 
     actual fun update(sourceId: String, gain: Float, pan: Float) {
         activePlayers[sourceId]?.node?.let { node ->
-            node.volume = GlobalSettings.masterVolume * gain.coerceAtLeast(0f)
+            node.volume = AudioSettings.masterVolume.value * gain.coerceAtLeast(0f)
             node.pan = pan.coerceIn(-1f, 1f)
         }
     }

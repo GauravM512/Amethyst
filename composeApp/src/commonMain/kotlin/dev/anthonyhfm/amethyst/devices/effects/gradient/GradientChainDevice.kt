@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
@@ -431,8 +431,8 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
         val isHold: Boolean = false
     )
 
-    private fun resolvedSamplingFps(baseFps: Int = GlobalSettings.performanceFPS): Int {
-        val qualityScale = GlobalSettings.gradientSmoothness.coerceIn(0.5f, 1f)
+    private fun resolvedSamplingFps(baseFps: Int = GeneralSettings.performanceFPS.value): Int {
+        val qualityScale = GeneralSettings.gradientSmoothness.value.coerceIn(0.5f, 1f)
         val lowRamScale = if (getDeviceCapabilities().lowRamUsageMode) 0.75f else 1f
         val scaledFps = (baseFps * qualityScale * lowRamScale).roundToInt()
         return scaledFps.coerceIn(12, baseFps.coerceAtLeast(12))

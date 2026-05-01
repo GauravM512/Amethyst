@@ -1,24 +1,22 @@
 package dev.anthonyhfm.amethyst.settings.ui.views
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.desktop.DiscordRPCManager
+import dev.anthonyhfm.amethyst.settings.data.DiscordSettings
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsCategory
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsItem
 import dev.anthonyhfm.amethyst.ui.components.primitives.Switch
 
 @Composable
 fun DiscordSettingsView() {
-    var discordRPC by remember { mutableStateOf(GlobalSettings.enableDiscordRPC) }
-    var showCurrentProject by remember { mutableStateOf(GlobalSettings.showCurrentProject) }
-    var showCurrentWorkspaceState by remember { mutableStateOf(GlobalSettings.showCurrentWorkspaceState) }
+    val discordRPC by DiscordSettings.enableDiscordRPC.flow.collectAsState()
+    val showCurrentProject by DiscordSettings.showCurrentProject.flow.collectAsState()
+    val showCurrentWorkspaceState by DiscordSettings.showCurrentWorkspaceState.flow.collectAsState()
 
     SettingsCategory(
-        title = "Discord",
+        title = DiscordSettings.title,
     ) {
         SettingsItem(
             title = "Discord Rich Presence",
@@ -26,8 +24,7 @@ fun DiscordSettingsView() {
             Switch(
                 checked = discordRPC,
                 onCheckedChange = {
-                    discordRPC = it
-                    GlobalSettings.enableDiscordRPC = it
+                    DiscordSettings.enableDiscordRPC.update(it)
                     DiscordRPCManager.toggleRPC(it)
                 }
             )
@@ -40,8 +37,7 @@ fun DiscordSettingsView() {
                 checked = showCurrentProject,
                 enabled = discordRPC,
                 onCheckedChange = {
-                    showCurrentProject = it
-                    GlobalSettings.showCurrentProject = it
+                    DiscordSettings.showCurrentProject.update(it)
                     DiscordRPCManager.forceUpdate()
                 }
             )
@@ -54,8 +50,7 @@ fun DiscordSettingsView() {
                 checked = showCurrentWorkspaceState,
                 enabled = discordRPC,
                 onCheckedChange = {
-                    showCurrentWorkspaceState = it
-                    GlobalSettings.showCurrentWorkspaceState = it
+                    DiscordSettings.showCurrentWorkspaceState.update(it)
                     DiscordRPCManager.forceUpdate()
                 }
             )

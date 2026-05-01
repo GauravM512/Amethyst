@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.core.engine.heaven
 
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.util.mainDispatcherOrDefault
 import dev.anthonyhfm.amethyst.core.util.Platform
@@ -55,7 +55,7 @@ object Heaven {
 
     private fun loadInitialFps(): Int {
         return try {
-            GlobalSettings.performanceFPS
+            GeneralSettings.performanceFPS.value
         } catch (exception: Throwable) {
             if (!exception.isRecoverablePlatformInitFailure()) throw exception
             println(

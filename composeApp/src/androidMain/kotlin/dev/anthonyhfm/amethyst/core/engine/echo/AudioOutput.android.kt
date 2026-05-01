@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.core.engine.echo
 
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.AudioSettings
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -189,7 +189,7 @@ actual object AudioOutput {
                             val fadeInMul = (frameIdx.toFloat() / fadeFrames).coerceIn(0f, 1f)
                             val fadeOutMul = ((src.totalFrames - frameIdx).toFloat() / fadeFrames).coerceIn(0f, 1f)
                             val fadeMul = min(fadeInMul, fadeOutMul)
-                            val g = (src.gain.coerceAtLeast(0f) * fadeMul * headroom * GlobalSettings.masterVolume).toFloat()
+                            val g = (src.gain.coerceAtLeast(0f) * fadeMul * headroom * AudioSettings.masterVolume.value).toFloat()
                             val pan = src.pan.coerceIn(-1f, 1f)
                             val leftGain = if (pan >= 0f) 1f - pan else 1f
                             val rightGain = if (pan <= 0f) 1f + pan else 1f

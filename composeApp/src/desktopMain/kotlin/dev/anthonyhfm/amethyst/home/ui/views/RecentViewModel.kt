@@ -3,7 +3,7 @@ package dev.anthonyhfm.amethyst.home.ui.views
 import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.core.util.BaseViewModel
 import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ZippedProjectFormat
@@ -30,7 +30,7 @@ class RecentViewModel(
                     val file = FileKit.openFilePicker(
                         type = FileKitType.File(
                             extensions = mutableListOf("ame", "als", "zip").apply {
-                                if (GlobalSettings.experimentalApolloConversionSupport) {
+                                if (ExperimentalSettings.apolloConversionSupport.value) {
                                     add("approj")
                                 }
                             }

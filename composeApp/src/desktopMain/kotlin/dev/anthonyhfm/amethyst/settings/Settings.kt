@@ -19,12 +19,14 @@ import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.Lucide
 import com.composeunstyled.theme.Theme
-import dev.anthonyhfm.amethyst.core.util.Platform
-import dev.anthonyhfm.amethyst.core.util.platform
-import dev.anthonyhfm.amethyst.settings.ui.views.AudioSettingsView
-import dev.anthonyhfm.amethyst.settings.ui.views.DiscordSettingsView
-import dev.anthonyhfm.amethyst.settings.ui.views.ExperimentalSettingsView
-import dev.anthonyhfm.amethyst.settings.ui.views.GeneralSettingsView
+import dev.anthonyhfm.amethyst.settings.data.AudioSettings
+import dev.anthonyhfm.amethyst.settings.data.DiscordSettings
+import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
+import dev.anthonyhfm.amethyst.settings.data.SettingsGroup
+import dev.anthonyhfm.amethyst.settings.data.SettingsRepository
+import dev.anthonyhfm.amethyst.settings.ui.SettingRenderer
+import dev.anthonyhfm.amethyst.settings.ui.components.SettingsCategory
 import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
@@ -62,14 +64,13 @@ fun Settings(
                             .padding(end = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        GeneralSettingsView()
-                        AudioSettingsView()
-
-                        if (platform is Platform.Desktop) {
-                            DiscordSettingsView()
+                        SettingsRepository.settingsGroups.forEach { group ->
+                            SettingsCategory(title = group.title) {
+                                group.settings.forEach { setting ->
+                                    SettingRenderer(setting)
+                                }
+                            }
                         }
-
-                        ExperimentalSettingsView()
                     }
                 }
             }
@@ -109,3 +110,4 @@ private fun SettingsHeader(
         }
     }
 }
+

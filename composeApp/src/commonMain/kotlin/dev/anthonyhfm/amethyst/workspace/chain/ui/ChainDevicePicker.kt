@@ -58,7 +58,7 @@ import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Contrast
 import androidx.compose.material.icons.twotone.Tune
 import androidx.compose.material.icons.twotone.Preview
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.devices.effects.color_filter.ColorFilterChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.preview.PreviewChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.shift.ShiftChainDevice
@@ -101,7 +101,7 @@ fun ChainDevicePicker(
                     ChainContextMenuSubmenuItem("Effects", icon = Icons.TwoTone.Science, onClick = { onNavigate("effects") })
                     ChainContextMenuSubmenuItem("Misc", icon = Icons.TwoTone.Adjust, onClick = { onNavigate("misc") })
 
-                    if (WorkspaceRepository.mode.value is WorkspaceMode.LightsChain && GlobalSettings.experimentalExtensions) {
+                    if (WorkspaceRepository.mode.value is WorkspaceMode.LightsChain && ExperimentalSettings.extensions.value) {
                         ChainContextMenuSubmenuItem("Gems", icon = Icons.TwoTone.Diamond, onClick = { onNavigate("gems") })
                     }
                 }

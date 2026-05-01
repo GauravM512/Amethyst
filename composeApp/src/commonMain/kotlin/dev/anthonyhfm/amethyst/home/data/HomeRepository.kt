@@ -4,6 +4,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.apollo.ApolloConverter
 import dev.anthonyhfm.amethyst.conversion.unipad.UnipadConverter
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf
 import dev.anthonyhfm.amethyst.core.util.FileHelper
 import dev.anthonyhfm.amethyst.core.util.Platform
@@ -37,12 +38,12 @@ object HomeRepository {
         return GlobalSettings.recentWorkspaces.sortedByDescending { it.lastOpened }
     }
 
-    fun localAuthor(): String = GlobalSettings.localAuthor
+    fun localAuthor(): String = GeneralSettings.localAuthor.value
 
     fun saveLocalAuthor(author: String) {
         val trimmed = author.trim()
         if (trimmed.isNotEmpty()) {
-            GlobalSettings.localAuthor = trimmed
+            GeneralSettings.localAuthor.update(trimmed)
         }
     }
 

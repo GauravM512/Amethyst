@@ -1,33 +1,28 @@
 package dev.anthonyhfm.amethyst.settings.ui.views
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsCategory
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsItem
 import dev.anthonyhfm.amethyst.ui.components.primitives.Switch
 
 @Composable
 fun ExperimentalSettingsView() {
-    var abletonPush2Support by remember { mutableStateOf(GlobalSettings.experimentalAbletonPush2Support) }
-    var apolloConversionSupport by remember { mutableStateOf(GlobalSettings.experimentalApolloConversionSupport) }
-    var enableExtension by remember { mutableStateOf(GlobalSettings.experimentalExtensions) }
+    val abletonPush2Support by ExperimentalSettings.abletonPush2Support.flow.collectAsState()
+    val apolloConversionSupport by ExperimentalSettings.apolloConversionSupport.flow.collectAsState()
+    val enableExtension by ExperimentalSettings.extensions.flow.collectAsState()
 
     SettingsCategory(
-        title = "Experimental Features",
+        title = ExperimentalSettings.title,
     ) {
         SettingsItem(
             title = "Ableton Push 2 Support",
         ) {
             Switch(
                 checked = abletonPush2Support,
-                onCheckedChange = {
-                    abletonPush2Support = it
-                    GlobalSettings.experimentalAbletonPush2Support = it
-                }
+                onCheckedChange = { ExperimentalSettings.abletonPush2Support.update(it) }
             )
         }
 
@@ -36,10 +31,7 @@ fun ExperimentalSettingsView() {
         ) {
             Switch(
                 checked = apolloConversionSupport,
-                onCheckedChange = {
-                    apolloConversionSupport = it
-                    GlobalSettings.experimentalApolloConversionSupport = it
-                }
+                onCheckedChange = { ExperimentalSettings.apolloConversionSupport.update(it) }
             )
         }
 
@@ -48,10 +40,7 @@ fun ExperimentalSettingsView() {
         ) {
             Switch(
                 checked = enableExtension,
-                onCheckedChange = {
-                    enableExtension = it
-                    GlobalSettings.experimentalExtensions = it
-                }
+                onCheckedChange = { ExperimentalSettings.extensions.update(it) }
             )
         }
     }

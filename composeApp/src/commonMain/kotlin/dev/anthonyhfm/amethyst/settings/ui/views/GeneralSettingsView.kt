@@ -1,13 +1,11 @@
 package dev.anthonyhfm.amethyst.settings.ui.views
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.composeunstyled.Text
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.core.util.getDeviceCapabilities
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsCategory
 import dev.anthonyhfm.amethyst.settings.ui.components.SettingsItem
 import dev.anthonyhfm.amethyst.ui.components.primitives.Tabs
@@ -16,13 +14,13 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.TabsTrigger
 
 @Composable
 fun GeneralSettingsView() {
-    val caps = remember { getDeviceCapabilities() }
+    val caps = getDeviceCapabilities()
 
-    var selectedFPS by remember { mutableStateOf(GlobalSettings.performanceFPS) }
-    var selectedGradientSmoothness by remember { mutableStateOf(GlobalSettings.gradientSmoothness) }
+    val selectedFPS by GeneralSettings.performanceFPS.flow.collectAsState()
+    val selectedGradientSmoothness by GeneralSettings.gradientSmoothness.flow.collectAsState()
 
     SettingsCategory(
-        title = "General",
+        title = GeneralSettings.title,
     ) {
         SettingsItem(
             title = "Frames per Second (FPS)",
@@ -37,10 +35,7 @@ fun GeneralSettingsView() {
                         TabsTrigger(
                             key = fps.toString(),
                             selected = selectedFPS == fps,
-                            onSelected = {
-                                selectedFPS = fps
-                                GlobalSettings.performanceFPS = fps
-                            },
+                            onSelected = { GeneralSettings.performanceFPS.update(fps) },
                         ) {
                             Text(fps.toString())
                         }
@@ -52,26 +47,19 @@ fun GeneralSettingsView() {
         SettingsItem(
             title = "Gradient Smoothness",
         ) {
-            val gradientChoices = listOf(
-                0.5f to "50%",
-                0.75f to "75%",
-                1f to "100%",
-            )
+            val gradientChoices = GeneralSettings.gradientSmoothness.options
             Tabs(
                 selectedTab = selectedGradientSmoothness.toString(),
-                tabs = gradientChoices.map { it.first.toString() },
+                tabs = gradientChoices.map(Float::toString),
             ) {
                 TabsList {
-                    gradientChoices.forEach { (value, label) ->
+                    gradientChoices.forEach { value ->
                         TabsTrigger(
                             key = value.toString(),
                             selected = selectedGradientSmoothness == value,
-                            onSelected = {
-                                selectedGradientSmoothness = value
-                                GlobalSettings.gradientSmoothness = value
-                            },
+                            onSelected = { GeneralSettings.gradientSmoothness.update(value) },
                         ) {
-                            Text(label)
+                            Text(GeneralSettings.gradientSmoothness.label(value))
                         }
                     }
                 }

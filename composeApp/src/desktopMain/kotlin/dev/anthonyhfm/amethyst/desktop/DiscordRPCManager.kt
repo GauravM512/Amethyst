@@ -1,6 +1,6 @@
 package dev.anthonyhfm.amethyst.desktop
 
-import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
+import dev.anthonyhfm.amethyst.settings.data.DiscordSettings
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.gem.ui.editor.GemEditorWorkspaceMode
@@ -47,47 +47,49 @@ actual object DiscordRPCManager {
                     updatePresence(
                         projectName = projectName,
                         workspaceState = mode,
-                        showProject = GlobalSettings.showCurrentProject,
-                        showState = GlobalSettings.showCurrentWorkspaceState
+                        showProject = DiscordSettings.showCurrentProject.value,
+                        showState = DiscordSettings.showCurrentWorkspaceState.value
                     )
                 }
             }
         }
         
-        if (GlobalSettings.enableDiscordRPC) {
+        if (DiscordSettings.enableDiscordRPC.value) {
             connect()
         }
     }
 
     fun connect() {
         if (_isConnected.value) return
-        
-        try {
-            client = RichClient(appId)
-            client?.connect()
-            _isConnected.value = true
-            
-            // Initial update with current settings
-            updatePresence(
-                projectName = _currentProjectName.value,
-                workspaceState = WorkspaceRepository.mode.value,
-                showProject = GlobalSettings.showCurrentProject,
-                showState = GlobalSettings.showCurrentWorkspaceState
-            )
-        } catch (e: Exception) {
-            _isConnected.value = false
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                client = RichClient(appId)
+                client?.connect()
+                _isConnected.value = true
+
+                updatePresence(
+                    projectName = _currentProjectName.value,
+                    workspaceState = WorkspaceRepository.mode.value,
+                    showProject = DiscordSettings.showCurrentProject.value,
+                    showState = DiscordSettings.showCurrentWorkspaceState.value
+                )
+            } catch (e: Exception) {
+                _isConnected.value = false
+            }
         }
     }
 
     fun disconnect() {
-        if (!_isConnected.value) return
-        
-        try {
-            client?.shutdown()
-            client = null
-            _isConnected.value = false
-        } catch (e: Exception) {
-            // Silently fail
+        scope.launch(Dispatchers.IO) {
+            try {
+                client?.shutdown()
+            } catch (e: Exception) {
+                // ignore — still clean up state below
+            } finally {
+                client = null
+                _isConnected.value = false
+            }
         }
     }
 
@@ -158,8 +160,8 @@ actual object DiscordRPCManager {
             updatePresence(
                 projectName = _currentProjectName.value,
                 workspaceState = WorkspaceRepository.mode.value,
-                showProject = GlobalSettings.showCurrentProject,
-                showState = GlobalSettings.showCurrentWorkspaceState
+                showProject = DiscordSettings.showCurrentProject.value,
+                showState = DiscordSettings.showCurrentWorkspaceState.value
             )
         }
     }
