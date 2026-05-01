@@ -1,6 +1,5 @@
 package dev.anthonyhfm.amethyst.core.util
 
-import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import io.github.vinceglb.filekit.PlatformFile
 
 expect object Zip {
@@ -16,7 +15,7 @@ fun Zip.determineFormat(file: PlatformFile): ZippedProjectFormat {
     val paths = Zip.getPaths(file)
 
     return when {
-        paths.any { it.endsWith(".als") } && paths.any { it.endsWith(".approj") } && ExperimentalSettings.apolloConversionSupport.value ->
+        paths.any { it.endsWith(".als") } && paths.any { it.endsWith(".approj") } ->
             ZippedProjectFormat.ABLETON_APOLLO
 
         paths.any { it.endsWith(".als") } ->

@@ -1,6 +1,5 @@
 package dev.anthonyhfm.amethyst.workspace.utils
 
-import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import io.github.vinceglb.filekit.FileKit
@@ -25,11 +24,7 @@ sealed interface WorkspaceProjectOpenResult {
 
 object WorkspaceProjectOpenHelper {
     suspend fun openProjectPicker(): WorkspaceProjectOpenResult {
-        val extensions = mutableListOf("ame", "als", "zip").apply {
-            if (ExperimentalSettings.apolloConversionSupport.value) {
-                add("approj")
-            }
-        }
+        val extensions = listOf("ame", "als", "zip", "approj")
 
         val file = FileKit.openFilePicker(
             type = FileKitType.File(extensions = extensions),
