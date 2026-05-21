@@ -1,5 +1,7 @@
 package dev.anthonyhfm.amethyst.devices
 
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonArpeggiatorChainDevice
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitcherChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.sample.SampleChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.adjust.AdjustChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.blur.BlurChainDevice
@@ -65,6 +67,9 @@ object DeviceRegistry {
         register(SampleChainDevice)
         register(ShiftChainDevice)
         register(TransmitChainDevice)
+
+        register(AbletonArpeggiatorChainDevice)
+        register(AbletonPitcherChainDevice)
     }
 
     fun register(factory: ChainDeviceFactory<*>) {

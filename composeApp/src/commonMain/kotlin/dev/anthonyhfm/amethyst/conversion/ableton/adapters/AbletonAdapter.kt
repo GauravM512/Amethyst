@@ -3,8 +3,11 @@ package dev.anthonyhfm.amethyst.conversion.ableton.adapters
 import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.DrumGroupDeviceAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.InstrumentGroupAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiArpeggiatorAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiChordAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiEffectGroupAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiNoteLengthAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiPitcherAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiVelocityAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MxDeviceInstrumentAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MxDeviceMidiEffectAdapter
@@ -16,7 +19,10 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiEffectGroupDe
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceInstrument
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffect
 import dev.anthonyhfm.amethyst.conversion.ableton.data.OriginalSimpler
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiArpeggiator
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiChord
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiNoteLength
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiPitcher
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiRandom
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiVelocity
 import dev.anthonyhfm.amethyst.devices.DeviceState
@@ -74,6 +80,9 @@ abstract class AbletonAdapter {
                     is OriginalSimpler -> OriginalSimplerAdapter(device)
                     is MidiNoteLength -> MidiNoteLengthAdapter(device)
                     is MidiVelocity -> MidiVelocityAdapter(device)
+                    is MidiPitcher -> MidiPitcherAdapter(device)
+                    is MidiChord -> MidiChordAdapter(device)
+                    is MidiArpeggiator -> MidiArpeggiatorAdapter(device)
 
                     else -> {
                         println("Unsupported Ableton device type: ${device::class.simpleName}")
