@@ -88,6 +88,7 @@ fun WorkspaceWindow(
         WorkspaceMenuBar()
 
         LaunchedEffect(Unit) {
+            window.minimumSize = java.awt.Dimension(1000, 700)
             if(DesktopPlatform.get() == DesktopPlatform.MacOS) {
                 window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
                 window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)

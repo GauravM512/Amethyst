@@ -90,7 +90,8 @@ fun Dial(
     containerColor: Color = Color.Unspecified,
     dialColor: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    defaultValue: Float = 0.5f,
 ) {
     var dialValue by remember { mutableStateOf(value.coerceIn(0f, 1f)) }
 
@@ -110,7 +111,12 @@ fun Dial(
         containerColor = containerColor,
         dialColor = dialColor,
         modifier = modifier,
-        enabled = enabled
+        enabled = enabled,
+        onDoubleClick = {
+            dialValue = defaultValue
+            onValueChange(defaultValue)
+            onFinishValueChange(defaultValue)
+        }
     )
 }
 
@@ -127,6 +133,7 @@ fun TextDial(
     dialColor: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    defaultValue: Float = 0.5f,
 ) {
     EditableDialControl(
         text = text,
@@ -143,7 +150,8 @@ fun TextDial(
             containerColor = containerColor,
             dialColor = dialColor,
             modifier = dialModifier,
-            enabled = enabled
+            enabled = enabled,
+            defaultValue = defaultValue
         )
     }
 }
@@ -158,6 +166,7 @@ internal fun DialSurface(
     dialColor: Color,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    onDoubleClick: () -> Unit = { },
 ) {
     val resolvedProgress = progress.coerceIn(0f, 1f)
     val currentProgress by rememberUpdatedState(resolvedProgress)
@@ -186,6 +195,12 @@ internal fun DialSurface(
                     Modifier
                 }
             )
+            .pointerInput(enabled) {
+                if (!enabled) return@pointerInput
+                detectTapGestures(
+                    onDoubleTap = { onDoubleClick() }
+                )
+            }
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
 
@@ -321,7 +336,7 @@ internal fun EditableDialControl(
 
     DialControlFrame(
         headline = headline,
-        dial = { dial(modifier.then(editModifier)) },
+        dial = { dial(modifier) },
         readout = {
             if (editing) {
                 DialReadoutEditor(

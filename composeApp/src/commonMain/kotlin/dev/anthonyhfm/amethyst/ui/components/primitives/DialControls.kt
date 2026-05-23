@@ -18,6 +18,7 @@ fun TextDial(
     dialColor: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    defaultValue: Float = 0.5f,
 ) {
     dev.anthonyhfm.amethyst.ui.components.TextDial(
         text = text,
@@ -31,6 +32,7 @@ fun TextDial(
         dialColor = dialColor,
         modifier = modifier,
         enabled = enabled,
+        defaultValue = defaultValue,
     )
 }
 
@@ -45,6 +47,7 @@ fun <T> StepDial(
     dialColor: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    defaultValue: T? = null,
 ) {
     dev.anthonyhfm.amethyst.ui.components.StepDial(
         steps = steps,
@@ -56,6 +59,7 @@ fun <T> StepDial(
         dialColor = dialColor,
         modifier = modifier,
         enabled = enabled,
+        defaultValue = defaultValue,
     )
 }
 
@@ -73,6 +77,7 @@ fun <T> StepTextDial(
     dialColor: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    defaultValue: T? = null,
 ) {
     dev.anthonyhfm.amethyst.ui.components.StepTextDial(
         text = text,
@@ -87,6 +92,7 @@ fun <T> StepTextDial(
         dialColor = dialColor,
         modifier = modifier,
         enabled = enabled,
+        defaultValue = defaultValue,
     )
 }
 

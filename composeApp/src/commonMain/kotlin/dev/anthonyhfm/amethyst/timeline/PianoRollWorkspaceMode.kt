@@ -82,10 +82,12 @@ import dev.anthonyhfm.amethyst.ui.theme.foreground
 import dev.anthonyhfm.amethyst.ui.theme.input
 import dev.anthonyhfm.amethyst.ui.theme.muted
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
+import dev.anthonyhfm.amethyst.ui.theme.h3
 import dev.anthonyhfm.amethyst.ui.theme.p
 import dev.anthonyhfm.amethyst.ui.theme.primary
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
+import com.composables.icons.lucide.Music
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.timeline.TimelineRepository
@@ -1919,9 +1921,51 @@ private fun PianoRollEditor(
             }
         )
 
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-        ) {
+        if (Heaven.devices.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .widthIn(max = 480.dp)
+                        .background(Theme[colors][input], shape = SmallShape)
+                        .border(1.dp, Theme[colors][border], SmallShape)
+                        .padding(32.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(Theme[colors][background], shape = SmallShape)
+                            .padding(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Lucide.Music,
+                            contentDescription = null,
+                            tint = Theme[colors][primary],
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "No Virtual Devices",
+                        style = Theme[typography][h3].copy(color = Theme[colors][foreground]),
+                    )
+
+                    Text(
+                        text = "To start editing MIDI patterns, please add one or more virtual devices inside the Layout View first. Once a device is added, the piano roll editor will activate automatically.",
+                        style = Theme[typography][p].copy(color = Theme[colors][mutedForeground]),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+            ) {
                 itemsIndexed(Heaven.devices) { index, device ->
                     val devicePitchRange = 0 until 100
                     val deviceNotes = notesState.filter { it.device == index && it.pitch in devicePitchRange }
@@ -2583,4 +2627,5 @@ private fun PianoRollEditor(
             }
         }
     }
+}
 }

@@ -46,7 +46,7 @@ fun SaveChangesDialog(
 
             AlertDialogFooter {
                 AlertDialogCancel(onClick = onCancel) {
-                    Text("Cancel")
+                    Text("Keep Editing")
                 }
 
                 Spacer(modifier = Modifier.weight(1f))

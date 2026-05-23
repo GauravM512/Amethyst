@@ -20,7 +20,8 @@ fun <T> StepDial(
     containerColor: Color = Color.Unspecified,
     dialColor: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    defaultValue: T? = null,
 ) {
     var selectedIndex by remember {
         mutableStateOf(steps.indexOf(value).coerceAtLeast(0))
@@ -38,6 +39,8 @@ fun <T> StepDial(
     LaunchedEffect(selectedIndex) {
         onValueChange(steps[selectedIndex])
     }
+
+    val resolvedDefaultValue = defaultValue ?: steps.first()
 
     DialSurface(
         progress = displayProgressForSelection(index = selectedIndex, size = steps.size),
@@ -60,7 +63,14 @@ fun <T> StepDial(
         containerColor = containerColor,
         dialColor = dialColor,
         modifier = modifier,
-        enabled = enabled
+        enabled = enabled,
+        onDoubleClick = {
+            val index = steps.indexOf(resolvedDefaultValue).coerceAtLeast(0)
+            selectedIndex = index
+            dialProgress = progressForSelection(index = index, size = steps.size)
+            onValueChange(resolvedDefaultValue)
+            onFinishValueChange(resolvedDefaultValue)
+        }
     )
 }
 
@@ -77,7 +87,8 @@ fun <T> StepTextDial(
     containerColor: Color = Color.Unspecified,
     dialColor: Color = Color.Unspecified,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    defaultValue: T? = null,
 ) {
     EditableDialControl(
         text = text,
@@ -95,7 +106,8 @@ fun <T> StepTextDial(
             containerColor = containerColor,
             dialColor = dialColor,
             modifier = dialModifier,
-            enabled = enabled
+            enabled = enabled,
+            defaultValue = defaultValue
         )
     }
 }

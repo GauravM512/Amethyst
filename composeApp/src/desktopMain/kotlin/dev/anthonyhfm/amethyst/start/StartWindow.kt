@@ -49,7 +49,7 @@ fun StartWindow(
             height = 550.dp,
             position = WindowPosition.Aligned(Alignment.Center)
         ),
-        resizable = false,
+        resizable = true,
         icon = when (DesktopPlatform.get()) {
             DesktopPlatform.Windows -> painterResource(Res.drawable.amethyst_windows)
             DesktopPlatform.Linux -> painterResource(Res.drawable.amethyst_linux)
@@ -66,6 +66,10 @@ fun StartWindow(
             } else false
         }
     ) {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            window.minimumSize = java.awt.Dimension(750, 550)
+        }
+
         if (DesktopPlatform.get() == DesktopPlatform.MacOS) {
             window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
             window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)

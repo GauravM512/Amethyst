@@ -98,18 +98,10 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
         val deviceState by state.collectAsState()
         val selections by SelectionManager.selections.collectAsState()
         val isSelected = selections.any { it.selectionUUID == this.selectionUUID }
-
-        println("$selections JOE")
-
         val selectedColor: String? = selections.filterIsInstance<Selectable.GradientStep>()
             .find { it.parent == this }
             ?.selectionUUID
-
-        println("$selectedColor JOE2")
-
         var selectedGradientColor = deviceState.gradientData.find { it.selectionUUID == selectedColor }
-        println("$selectedGradientColor JOE3")
-
         val colorPickerState = key(selectedColor) {
             selectedGradientColor?.let {
                 rememberColorPickerState(initialColor = Color(it.r, it.g, it.b))

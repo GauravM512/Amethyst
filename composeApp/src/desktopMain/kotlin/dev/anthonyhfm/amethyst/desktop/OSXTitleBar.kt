@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.colors
@@ -19,5 +20,6 @@ fun OSXTitleBar() {
             .height(26.dp)
             .fillMaxWidth()
             .background(Theme[colors][background])
+            .zIndex(9999f)
     )
 }
