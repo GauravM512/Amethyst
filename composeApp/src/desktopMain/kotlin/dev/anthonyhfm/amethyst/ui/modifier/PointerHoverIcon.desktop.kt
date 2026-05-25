@@ -1,7 +1,7 @@
 package dev.anthonyhfm.amethyst.ui.modifier
 
 import androidx.compose.ui.input.pointer.PointerIcon
-import org.jetbrains.skiko.Cursor
+import java.awt.Cursor
 
 actual val PointerIcon.Companion.ResizeLeft: PointerIcon
     get() = PointerIcon(Cursor(Cursor.W_RESIZE_CURSOR))

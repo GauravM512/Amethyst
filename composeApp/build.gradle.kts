@@ -23,7 +23,6 @@ kotlin {
     val iosFrameworkBundleId = "dev.anthonyhfm.amethyst.composeapp"
 
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
