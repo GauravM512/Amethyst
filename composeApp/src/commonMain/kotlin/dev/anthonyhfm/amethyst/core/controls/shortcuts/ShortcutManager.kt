@@ -143,6 +143,7 @@ object ShortcutManager {
     @OptIn(ExperimentalSerializationApi::class, DelicateCoroutinesApi::class)
     fun handleShortcut(keyEvent: KeyEvent): Boolean {
         if (keyEvent.type != KeyEventType.KeyDown) return false
+        if (WorkspaceRepository.isInputFocused) return false
 
         val isCtrl = keyEvent.isCtrlPressed || keyEvent.isMetaPressed
 

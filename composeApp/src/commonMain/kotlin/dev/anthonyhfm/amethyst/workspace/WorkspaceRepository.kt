@@ -118,6 +118,8 @@ object WorkspaceRepository {
 
     private val _bpm = MutableStateFlow(120.00)
     val bpm: StateFlow<Double> = _bpm.asStateFlow()
+
+    var isInputFocused: Boolean = false
     
     private val _projectName = MutableStateFlow<String?>(null)
     val projectName: StateFlow<String?> = _projectName.asStateFlow()

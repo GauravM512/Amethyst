@@ -29,6 +29,7 @@ import dev.anthonyhfm.amethyst.ui.theme.foreground
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
+import androidx.compose.ui.focus.onFocusChanged
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
 @Composable
@@ -81,7 +82,11 @@ fun BPMChanger() {
                 cursorBrush = SolidColor(Theme[colors][foreground]),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
-                modifier = Modifier.width(56.dp),
+                modifier = Modifier
+                    .width(56.dp)
+                    .onFocusChanged {
+                        WorkspaceRepository.isInputFocused = it.isFocused
+                    },
             )
         }
     }
