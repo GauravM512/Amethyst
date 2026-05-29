@@ -9,6 +9,7 @@ import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.midi.AmethystMidiManager
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadMk2
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadPro
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
@@ -123,6 +124,7 @@ class WorkspaceViewModel(
             is WorkspaceContract.Event.AddDeviceToViewport -> {
                 val device = when (event.device) {
                     is ViewportLaunchpadPro -> ViewportLaunchpadPro()
+                    is ViewportLaunchpadIdealised -> ViewportLaunchpadIdealised()
                     is ViewportLaunchpadMk2 -> ViewportLaunchpadMk2()
                     is ViewportLaunchpadProMk3 -> ViewportLaunchpadProMk3()
                     is ViewportLaunchpadX -> ViewportLaunchpadX()

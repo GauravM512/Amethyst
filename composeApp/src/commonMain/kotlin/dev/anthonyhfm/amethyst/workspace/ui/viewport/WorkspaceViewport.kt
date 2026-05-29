@@ -59,6 +59,7 @@ import dev.anthonyhfm.amethyst.ui.theme.muted
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
 import dev.anthonyhfm.amethyst.ui.theme.primary
 import dev.anthonyhfm.amethyst.ui.theme.secondary
+import dev.anthonyhfm.amethyst.ui.theme.selectionBorder
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
@@ -76,15 +77,15 @@ fun WorkspaceViewport(
 ) {
     val density = LocalDensity.current.density
     val gridSize = (40 * density).toInt()
-    val gridColor = Color(0xFFA1A1AA).copy(alpha = 0.38f)
-    val viewportBackground = Color(0xFF18181B)
-    val viewportBorder = Color(0xFF27272A)
-    val selectionColor = Theme[colors][primary]
+    val gridColor = Color(0xFF5C6370).copy(alpha = 0.38f)
+    val viewportBackground = Color(0xFF1C1F23)
+    val viewportBorder = Color(0xFF3E4451)
+    val selectionColor = Theme[colors][selectionBorder]
     val shadowColor = Color.Black.copy(alpha = 0.24f)
-    val actionTrayBackground = Color(0xFF232326)
-    val actionTrayBorder = Color(0xFF3F3F46)
-    val originBackground = Color(0xFF232326)
-    val originForeground = Color(0xFFD4D4D8).copy(alpha = 0.82f)
+    val actionTrayBackground = Color(0xFF282C34)
+    val actionTrayBorder = Color(0xFF3E4451)
+    val originBackground = Color(0xFF282C34)
+    val originForeground = Color(0xFFABB2BF).copy(alpha = 0.82f)
     val viewportSize = remember { mutableStateOf(Size.Zero) }
     val selections by SelectionManager.selections.collectAsState()
     val workspaceMode by WorkspaceRepository.mode.collectAsState()
@@ -177,6 +178,16 @@ fun WorkspaceViewport(
         }
 
         elements.forEach { element ->
+            val launchpadElement = element as? LaunchpadViewportElement
+            val animatedRotation by animateFloatAsState(
+                targetValue = launchpadElement?.rotationDegrees?.floatValue ?: 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow,
+                ),
+                label = "launchpad-shadow-rotation",
+            )
+
             Box(
                 modifier = Modifier
                     .size(
@@ -194,19 +205,39 @@ fun WorkspaceViewport(
                         scaleY = viewportState.zoom
                         transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
                     }
-                    .dropShadow(
-                        element.shape,
-                        androidx.compose.ui.graphics.shadow.Shadow(
-                            radius = 6.dp,
-                            color = shadowColor,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            rotationZ = animatedRotation
+                        }
+                        .dropShadow(
+                            element.shape,
+                            androidx.compose.ui.graphics.shadow.Shadow(
+                                radius = 8.dp,
+                                spread = 0.dp,
+                                offset = androidx.compose.ui.unit.DpOffset(0.dp, 0.dp),
+                                color = Color.Black.copy(alpha = 0.2f),
+                            )
                         )
-                    )
-            )
+                        .dropShadow(
+                            element.shape,
+                            androidx.compose.ui.graphics.shadow.Shadow(
+                                radius = 16.dp,
+                                spread = -2.dp,
+                                offset = androidx.compose.ui.unit.DpOffset(0.dp, 10.dp),
+                                color = Color.Black.copy(alpha = 0.40f),
+                            )
+                        )
+                )
+            }
         }
 
         elements.forEachIndexed { index, element ->
-            var draggingOffset by remember { mutableStateOf(Offset.Zero) }
             val selected = selections.any { it.selectionUUID == element.selectionUUID }
+
+            var draggingOffset by remember { mutableStateOf(Offset.Zero) }
 
             BoxWithConstraints(
                 modifier = Modifier
@@ -243,33 +274,35 @@ fun WorkspaceViewport(
 
                                 draggingOffset += offset
 
-                                val scaledGridSize = gridSize * viewportState.zoom
-                                val accumulatedGridX = draggingOffset.x / scaledGridSize
-                                val accumulatedGridY = draggingOffset.y / scaledGridSize
+                                val accumulatedGridX = draggingOffset.x / gridSize
+                                val accumulatedGridY = draggingOffset.y / gridSize
 
                                 if (abs(accumulatedGridX) >= 1f || abs(accumulatedGridY) >= 1f) {
                                     val gridMoveX = accumulatedGridX.toInt()
                                     val gridMoveY = accumulatedGridY.toInt()
 
                                     if (gridMoveX != 0 || gridMoveY != 0) {
-                                        val newX = element.position.value.x + gridMoveX
-                                        val newY = element.position.value.y + gridMoveY
+                                        val newX = element.position.value.x.roundToInt() + gridMoveX
+                                        val newY = element.position.value.y.roundToInt() + gridMoveY
 
                                         draggingOffset = Offset(
-                                            draggingOffset.x - (gridMoveX * scaledGridSize),
-                                            draggingOffset.y - (gridMoveY * scaledGridSize)
+                                            draggingOffset.x - (gridMoveX * gridSize),
+                                            draggingOffset.y - (gridMoveY * gridSize)
                                         )
 
                                         onEvent(
                                             WorkspaceContract.Event.ChangeViewportElementPosition(
                                                 index = index,
-                                                offset = Offset(newX, newY)
+                                                offset = Offset(newX.toFloat(), newY.toFloat())
                                             )
                                         )
                                     }
                                 }
                             },
                             onDragEnd = {
+                                draggingOffset = Offset.Zero
+                            },
+                            onDragCancel = {
                                 draggingOffset = Offset.Zero
                             }
                         )

@@ -189,34 +189,32 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                             colors = deviceState.gradientData,
                             onGradientDataEmit = { data ->
                                 state.update { currentState ->
-                                    val updatedList = currentState.gradientData.map { currentColor ->
-                                        val newPosition = data.find { it.selectionUUID == currentColor.selectionUUID }?.position
-                                        if (newPosition != null) {
-                                            currentColor.copy(position = newPosition)
-                                        } else {
-                                            currentColor
-                                        }
-                                    }
-                                    currentState.copy(gradientData = updatedList)
+                                    val snappedData = snapColorsNonOverlapping(data, currentState.gradientSteps)
+                                    currentState.copy(gradientData = snappedData)
                                 }
                             },
                             onAddGradientPoint = { position ->
-                                val before = state.value
-                                val newColor = GradientChainDeviceState.GradientColor(
-                                    r = 1.0f,
-                                    g = 1.0f,
-                                    b = 1.0f,
-                                    position = position
-                                )
-                                val updatedColors = deviceState.gradientData.toMutableList().apply {
-                                    add(newColor)
-                                }
-                                state.update {
-                                    it.copy(
-                                        gradientData = updatedColors
+                                val steps = deviceState.gradientSteps
+                                if (steps == null || deviceState.gradientData.size < steps) {
+                                    val before = state.value
+                                    val newColor = GradientChainDeviceState.GradientColor(
+                                        r = 1.0f,
+                                        g = 1.0f,
+                                        b = 1.0f,
+                                        position = position,
+                                        rawPosition = position
                                     )
+                                    val updatedColors = deviceState.gradientData.toMutableList().apply {
+                                        add(newColor)
+                                    }
+                                    val snappedColors = snapColorsNonOverlapping(updatedColors, steps)
+                                    state.update {
+                                        it.copy(
+                                            gradientData = snappedColors
+                                        )
+                                    }
+                                    pushStateChange(before, state.value)
                                 }
-                                pushStateChange(before, state.value)
                             },
                             onGradientDragStart = {
                                 beforeGradientData.value = state.value.gradientData.map { it.copy() }
@@ -323,45 +321,64 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                                     pushStateChange(before, state.value)
                                 },
                         )
-
-                       val gradientStepsList = (2..16).toList() + null
-                       val stepsDisplayText = when (deviceState.gradientSteps) {
-                           null -> "INF"
-                           in 2..16 -> deviceState.gradientSteps.toString()
-                           else -> "INF"
-                        }
-                       var beforeSteps = deviceState.gradientSteps
-                       StepTextDial(
-                           headline = "Steps",
-                           value = deviceState.gradientSteps,
-                           steps = gradientStepsList,
-                           text = stepsDisplayText,
-                           onResolveTextValue = { text ->
-                               val parsed = text.trim().toIntOrNull()
-                               if (parsed != null && parsed in 2..16) {
-                                   state.update { it.copy(gradientSteps = parsed) }
-                               } else if (text.trim().equals("inf", ignoreCase = true)) {
-                                   state.update { it.copy(gradientSteps = null) }
+                        val gradientStepsList = (deviceState.gradientData.size.coerceAtLeast(2)..16).toList() + null
+                        val stepsDisplayText = when (deviceState.gradientSteps) {
+                            null -> "INF"
+                            in 2..16 -> deviceState.gradientSteps.toString()
+                            else -> "INF"
+                         }
+                        var beforeState = state.value
+                        StepTextDial(
+                            headline = "Steps",
+                            value = deviceState.gradientSteps,
+                            steps = gradientStepsList,
+                            text = stepsDisplayText,
+                            onResolveTextValue = { text ->
+                                 val parsed = text.trim().toIntOrNull()
+                                 val minSteps = deviceState.gradientData.size.coerceAtLeast(2)
+                                 if (parsed != null) {
+                                     val finalStepValue = parsed.coerceAtLeast(minSteps).coerceAtMost(16)
+                                     val before = state.value
+                                     state.update { old ->
+                                         val snappedColors = snapColorsNonOverlapping(old.gradientData, finalStepValue)
+                                         old.copy(gradientSteps = finalStepValue, gradientData = snappedColors)
+                                     }
+                                     pushStateChange(before, state.value)
+                                 } else if (text.trim().equals("inf", ignoreCase = true)) {
+                                     val before = state.value
+                                     state.update { old ->
+                                         val unsnappedColors = snapColorsNonOverlapping(old.gradientData, null)
+                                         old.copy(gradientSteps = null, gradientData = unsnappedColors)
+                                     }
+                                     pushStateChange(before, state.value)
+                                  }
+                              },
+                            onStartValueChange = {
+                                beforeState = state.value
+                             },
+                            onFinishValueChange = {
+                                pushStateChange(
+                                    before = beforeState,
+                                    after = state.value
+                                 )
+                             },
+                            onValueChange = { stepValue ->
+                               state.update { old ->
+                                    val minSteps = old.gradientData.size.coerceAtLeast(2)
+                                    val finalStepValue = if (stepValue != null) stepValue.coerceAtLeast(minSteps) else null
+                                    val snappedColors = snapColorsNonOverlapping(old.gradientData, finalStepValue)
+                                    old.copy(gradientSteps = finalStepValue, gradientData = snappedColors)
                                 }
-                            },
-                           onStartValueChange = {
-                               beforeSteps = state.value.gradientSteps
-                            },
-                           onFinishValueChange = {
-                               pushStateChange(
-                                   before = state.value.copy(gradientSteps = beforeSteps),
-                                   after = state.value.copy(gradientSteps = it)
-                                )
-                            },
-                           onValueChange = { stepValue ->
-                              state.update { old -> old.copy(gradientSteps = stepValue) }
-                            },
-                           modifier = Modifier
-                                .rightClickable {
-                                   val before = state.value
-                                   state.update { it.copy(gradientSteps = null) }
-                                   pushStateChange(before, state.value)
-                                },
+                             },
+                            modifier = Modifier
+                                 .rightClickable {
+                                    val before = state.value
+                                    state.update { old ->
+                                        val unsnappedColors = snapColorsNonOverlapping(old.gradientData, null)
+                                        old.copy(gradientSteps = null, gradientData = unsnappedColors)
+                                    }
+                                    pushStateChange(before, state.value)
+                                 },
                         )
                     }
 
@@ -531,6 +548,124 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
         return start + duration * easedProportion
     }
 
+    private fun snapColorsNonOverlapping(
+        colors: List<GradientChainDeviceState.GradientColor>,
+        steps: Int?
+    ): List<GradientChainDeviceState.GradientColor> {
+        if (colors.isEmpty()) return colors
+        if (steps == null || steps !in 2..16) {
+            // INF mode: restore to rawPosition if available, otherwise keep position
+            return colors.map { c ->
+                c.copy(position = c.rawPosition ?: c.position, rawPosition = c.rawPosition ?: c.position)
+            }.sortedBy { it.position }
+        }
+
+        val sorted = colors.map { c ->
+            c.copy(rawPosition = c.rawPosition ?: c.position)
+        }.sortedBy { it.rawPosition }
+
+        val P = sorted.size
+        val S = steps
+
+        // Initialize target step indices
+        val s = IntArray(P) { i ->
+            ((sorted[i].rawPosition ?: sorted[i].position) * (S - 1)).roundToInt().coerceIn(0, S - 1)
+        }
+
+        // Pass 1: Left-to-Right
+        for (i in 1 until P) {
+            if (s[i] < s[i - 1] + 1) {
+                s[i] = s[i - 1] + 1
+            }
+        }
+
+        // Pass 2: Right-to-Left
+        if (s[P - 1] > S - 1) {
+            s[P - 1] = S - 1
+        }
+        for (i in P - 2 downTo 0) {
+            if (s[i] > s[i + 1] - 1) {
+                s[i] = s[i + 1] - 1
+            }
+        }
+
+        // Map back to colors
+        return sorted.mapIndexed { i, c ->
+            val snappedPos = s[i].toFloat() / (S - 1)
+            c.copy(position = snappedPos)
+        }
+    }
+
+    private fun interpolateColor(
+        gradientData: List<GradientChainDeviceState.GradientColor>,
+        progress: Float
+    ): Color {
+        if (gradientData.isEmpty()) return Color.Black
+        val clampedP = progress.coerceIn(0f, 1f)
+        if (gradientData.size == 1) {
+            val first = gradientData[0]
+            return Color(first.r, first.g, first.b)
+        }
+
+        var segmentIndex = 0
+        for (i in 0 until gradientData.size - 1) {
+            if (clampedP >= gradientData[i].position && clampedP <= gradientData[i + 1].position) {
+                segmentIndex = i
+                break
+            }
+        }
+
+        val startColor = gradientData[segmentIndex]
+        val endColor = gradientData.getOrNull(segmentIndex + 1) ?: gradientData.last()
+        val smoothness = startColor.smoothness
+
+        val segmentStart = startColor.position.toDouble()
+        val segmentEnd = endColor.position.toDouble()
+        val segmentDuration = segmentEnd - segmentStart
+
+        val linearT = if (segmentDuration > 0.0001) {
+            ((clampedP - segmentStart) / segmentDuration).coerceIn(0.0, 1.0)
+        } else {
+            0.0
+        }
+
+        val easedT = when (smoothness) {
+            GradientSmoothness.Linear -> linearT
+            GradientSmoothness.Hold -> {
+                if (linearT < 0.95) 0.0 else 1.0
+            }
+            GradientSmoothness.Release -> {
+                if (linearT > 0.05) 1.0 else 0.0
+            }
+            GradientSmoothness.Fast -> {
+                kotlin.math.sqrt(linearT)
+            }
+            GradientSmoothness.Slow -> {
+                1.0 - kotlin.math.sqrt(1.0 - linearT)
+            }
+            GradientSmoothness.Sharp -> {
+                if (linearT < 0.5) {
+                    0.5 - kotlin.math.sqrt(0.5 - linearT) / kotlin.math.sqrt(2.0)
+                } else {
+                    0.5 + kotlin.math.sqrt(linearT - 0.5) / kotlin.math.sqrt(2.0)
+                }
+            }
+            GradientSmoothness.Smooth -> {
+                if (linearT < 0.5) {
+                    kotlin.math.sqrt(linearT / 2.0)
+                } else {
+                    1.0 - kotlin.math.sqrt((1.0 - linearT) / 2.0)
+                }
+            }
+        }
+
+        return Color(
+            red = (startColor.r + (endColor.r - startColor.r) * easedT.toFloat()).coerceIn(0f, 1f),
+            green = (startColor.g + (endColor.g - startColor.g) * easedT.toFloat()).coerceIn(0f, 1f),
+            blue = (startColor.b + (endColor.b - startColor.b) * easedT.toFloat()).coerceIn(0f, 1f)
+        )
+    }
+
     private fun generateFade(): List<FadeInfo> {
         val samplingFps = resolvedSamplingFps()
         val frameTime = 1000.0 / samplingFps
@@ -554,6 +689,27 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
             if (cachedSig == signature) return cachedFade
         }
 
+        // Handle manualSteps (discrete steps generated overall in the device)
+        if (manualSteps != null && manualSteps in 2..16) {
+            val fade = mutableListOf<FadeInfo>()
+            for (k in 0 until manualSteps) {
+                val progress = k.toDouble() / (manualSteps - 1)
+                val color = interpolateColor(gradientData, progress.toFloat())
+                val time = (k.toDouble() / manualSteps) * totalTime
+                fade.add(FadeInfo(color, time, true))
+            }
+            val lastColor = gradientData.last()
+            val lastColorLit = lastColor.r > 0.01f || lastColor.g > 0.01f || lastColor.b > 0.01f
+            if (lastColorLit) {
+                fade.add(FadeInfo(Color.Black, totalTime.toDouble()))
+            } else {
+                fade.add(FadeInfo(Color(lastColor.r, lastColor.g, lastColor.b), totalTime.toDouble()))
+            }
+            cachedFadeSignature = signature
+            cachedFade = fade
+            return fade
+        }
+
         colorStepBuffer.clear()
         stepCountBuffer.clear()
         cutoffBuffer.clear()
@@ -565,13 +721,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
             val fadeType = current.smoothness
             val segmentDurationMs = (next.position - current.position).coerceAtLeast(0f).toDouble() * totalTime
 
-            val segmentFrames = when {
-               manualSteps != null && manualSteps in 2..16 -> (manualSteps - 1).coerceAtLeast(1)
-                else -> {
-                    val targetFrames = (segmentDurationMs / frameTime).toInt().coerceAtLeast(1)
-                    targetFrames.coerceAtMost(10_000)
-                }
-            }
+            val segmentFrames = (segmentDurationMs / frameTime).toInt().coerceAtLeast(1).coerceAtMost(10_000)
 
             if (fadeType == GradientSmoothness.Hold || segmentFrames == 0) {
                 colorStepBuffer.add(Color(current.r, current.g, current.b))
@@ -763,6 +913,7 @@ data class GradientChainDeviceState(
         val g: Float,
         val b: Float,
         val smoothness: GradientSmoothness = GradientSmoothness.Linear,
+        val rawPosition: Float? = null,
 
         override val selectionUUID: String = UUID.randomUUID(),
     ) : Selectable

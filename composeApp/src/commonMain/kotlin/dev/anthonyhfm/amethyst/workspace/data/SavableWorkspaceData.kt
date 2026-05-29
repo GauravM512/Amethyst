@@ -51,6 +51,7 @@ data class SavableWorkspaceData(
             LAUNCHPAD_PRO,
             LAUNCHPAD_PRO_MK3,
             LAUNCHPAD_X,
+            LAUNCHPAD_IDEALISED,
             LAUNCHPAD_MK2,
             MYSTRIX,
             MIDIFIGHTER64

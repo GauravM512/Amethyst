@@ -19,6 +19,7 @@ fun LaunchpadSurfaceDetectionOverlay(
     onPadDrag: (x: Int, y: Int) -> Unit,
     onPadDragEnd: () -> Unit,
     modifier: Modifier = Modifier,
+    calculatePad: ((Offset, IntSize) -> Pair<Int, Int>?)? = null,
     content: @Composable () -> Unit
 ) {
     var layoutSize by remember { mutableStateOf(IntSize.Zero) }
@@ -45,7 +46,7 @@ fun LaunchpadSurfaceDetectionOverlay(
                                         PointerEventType.Press -> {
                                             event.changes.forEach { change ->
                                                 if (!change.isConsumed && change.changedToDown() && !activePointers.containsKey(change.id)) {
-                                                    val pad = calculatePadFromOffset(change.position, layoutSize, layoutType)
+                                                    val pad = calculatePad?.invoke(change.position, layoutSize) ?: calculatePadFromOffset(change.position, layoutSize, layoutType)
                                                     pad?.let { (x, y) ->
                                                         activePointers = activePointers + (change.id to Pair(x, y))
                                                         onPadDragStart(x, y)
@@ -58,7 +59,7 @@ fun LaunchpadSurfaceDetectionOverlay(
                                         PointerEventType.Move -> {
                                             event.changes.forEach { change ->
                                                 if (!change.isConsumed && activePointers.containsKey(change.id)) {
-                                                    val newPad = calculatePadFromOffset(change.position, layoutSize, layoutType)
+                                                    val newPad = calculatePad?.invoke(change.position, layoutSize) ?: calculatePadFromOffset(change.position, layoutSize, layoutType)
                                                     val currentPad = activePointers[change.id]
 
                                                     if (newPad != null && newPad != currentPad) {

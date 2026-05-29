@@ -32,6 +32,7 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.ChainDeviceShell
+import dev.anthonyhfm.amethyst.ui.components.primitives.ScaleToFit
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadMk2
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadPro
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
@@ -47,6 +48,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 
 class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDeviceState>() {
     override val state = MutableStateFlow(CoordinateFilterChainDeviceState())
@@ -124,6 +126,7 @@ class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDevi
         val newInstance = remember(original) {
             when (original) {
                 is ViewportLaunchpadPro -> ViewportLaunchpadPro()
+                is ViewportLaunchpadIdealised -> ViewportLaunchpadIdealised()
                 is ViewportLaunchpadMk2 -> ViewportLaunchpadMk2()
                 is ViewportLaunchpadX -> ViewportLaunchpadX()
                 is ViewportLaunchpadProMk3 -> ViewportLaunchpadProMk3()
@@ -310,24 +313,6 @@ class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDevi
     }
 }
 
-@Composable
-private fun ScaleToFit(content: @Composable () -> Unit) {
-    Layout(content = content) { measurables, constraints ->
-        val placeable = measurables.first().measure(Constraints())
-        val scale = if (placeable.width > 0) {
-            constraints.maxWidth.toFloat() / placeable.width
-        } else 1f
-        val scaledWidth = (placeable.width * scale).toInt()
-        val scaledHeight = (placeable.height * scale).toInt()
-        layout(scaledWidth, scaledHeight) {
-            placeable.placeWithLayer(0, 0) {
-                scaleX = scale
-                scaleY = scale
-                transformOrigin = TransformOrigin(0f, 0f)
-            }
-        }
-    }
-}
 
 @Serializable
 data class LaunchpadPadFilter(

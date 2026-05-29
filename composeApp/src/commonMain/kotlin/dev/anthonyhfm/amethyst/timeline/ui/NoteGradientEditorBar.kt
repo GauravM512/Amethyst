@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,7 +39,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenu
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuItem
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuItemVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuRadioItem
-import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.ui.theme.background as themeBackground
 import dev.anthonyhfm.amethyst.ui.theme.border as themeBorder
 import dev.anthonyhfm.amethyst.ui.theme.colors as themeColors
@@ -77,9 +77,13 @@ fun NoteGradientEditorBar(
                     .background(Theme[themeColors][themeInput])
                     .border(1.dp, Theme[themeColors][themeBorder], RoundedCornerShape(6.dp))
                     .padding(4.dp)
-                    .rightClickable { offset ->
-                        val position = offset.x / constraints.maxWidth.toFloat()
-                        onAddStop(position.coerceIn(0f, 1f))
+                    .pointerInput(onAddStop, constraints.maxWidth) {
+                        detectTapGestures(
+                            onDoubleTap = { offset ->
+                                val position = offset.x / constraints.maxWidth.toFloat()
+                                onAddStop(position.coerceIn(0f, 1f))
+                            }
+                        )
                     }
             ) {
                 val sortedStops = stops.map { s ->

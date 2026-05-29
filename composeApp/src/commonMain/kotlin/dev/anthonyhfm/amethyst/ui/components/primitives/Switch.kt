@@ -14,10 +14,15 @@ import androidx.compose.ui.unit.dp
 import com.composeunstyled.ToggleSwitch
 import com.composeunstyled.theme.NoIndication
 import com.composeunstyled.theme.Theme
+import dev.anthonyhfm.amethyst.ui.theme.accent
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.ui.theme.input
+import dev.anthonyhfm.amethyst.ui.theme.muted
+import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
 import dev.anthonyhfm.amethyst.ui.theme.primary
+import dev.anthonyhfm.amethyst.ui.theme.secondary
+import dev.anthonyhfm.amethyst.ui.theme.secondaryForeground
 
 @Composable
 fun Switch(
@@ -45,7 +50,7 @@ fun Switch(
             Box(
                 modifier = Modifier
                     .size(20.dp)
-                    .background(Theme[colors][background], CircleShape)
+                    .background(Theme[colors][secondaryForeground], CircleShape)
             )
         }
     )

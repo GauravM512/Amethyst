@@ -3,12 +3,15 @@ package dev.anthonyhfm.amethyst.workspace.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,6 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.Text
 import com.composeunstyled.rememberDialogState
@@ -38,7 +46,13 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
+import dev.anthonyhfm.amethyst.ui.components.primitives.ScaleToFit
 import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollArea
+import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollBarOrientation
+import dev.anthonyhfm.amethyst.ui.components.primitives.Tabs
+import dev.anthonyhfm.amethyst.ui.components.primitives.TabsList
+import dev.anthonyhfm.amethyst.ui.components.primitives.TabsTrigger
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
@@ -52,7 +66,10 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadX
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMidiFighter64
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMystrix
+import dev.anthonyhfm.amethyst.ui.theme.selectionBorder
+import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 
 private data class VirtualLaunchpadOption(
@@ -64,8 +81,8 @@ private data class VirtualLaunchpadOption(
 private enum class LaunchpadCategory(
     val displayName: String,
 ) {
-    Novation("Novation"),
-    Other("Other"),
+    Novation("Novation Launchpads"),
+    Other("Other devices"),
 }
 
 @Composable
@@ -84,6 +101,11 @@ fun InsertLaunchpadDialog(
                 category = LaunchpadCategory.Novation,
                 title = "Launchpad X",
                 device = ViewportLaunchpadX(interactive = false),
+            ),
+            VirtualLaunchpadOption(
+                category = LaunchpadCategory.Novation,
+                title = "Idealised",
+                device = ViewportLaunchpadIdealised(interactive = false),
             ),
             VirtualLaunchpadOption(
                 category = LaunchpadCategory.Novation,
@@ -113,9 +135,6 @@ fun InsertLaunchpadDialog(
     val filteredOptions = remember(options, selectedCategory) {
         options.filter { it.category == selectedCategory }
     }
-    val optionRows = remember(filteredOptions) {
-        filteredOptions.chunked(2)
-    }
     val selectedOption = remember(filteredOptions, selectedOptionTitle) {
         filteredOptions.firstOrNull { it.title == selectedOptionTitle } ?: filteredOptions.first()
     }
@@ -123,8 +142,7 @@ fun InsertLaunchpadDialog(
     AlertDialog(
         state = dialogState,
         modifier = Modifier
-            .width(540.dp)
-            .height(720.dp),
+            .width(640.dp),
         onDismiss = {
             onEvent(WorkspaceContract.Event.DismissVirtualDevicePicker)
         },
@@ -136,60 +154,58 @@ fun InsertLaunchpadDialog(
 
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                LaunchpadCategory.entries.forEach { category ->
-                    Button(
-                        onClick = {
-                            selectedCategory = category
-                            selectedOptionTitle = options.first { it.category == category }.title
-                        },
-                        variant = if (selectedCategory == category) ButtonVariant.Default else ButtonVariant.Outline,
-                        size = ButtonSize.Small,
+            Tabs(
+                selectedTab = selectedCategory.name,
+                tabs = LaunchpadCategory.entries.map { it.name },
+                content = {
+                    TabsList(
+                        modifier = Modifier
+                            .fillMaxWidth()
                     ) {
-                        Text(category.displayName)
+                        LaunchpadCategory.entries.forEach { category ->
+                            TabsTrigger(
+                                modifier = Modifier
+                                    .weight(1f),
+                                key = category.name,
+                                selected = selectedCategory.name == category.name,
+                                onSelected = { selectedCategory = category },
+                            ) {
+                                Text(
+                                    text = category.displayName,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                )
+                            }
+                        }
                     }
-                }
-            }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
 
             ScrollArea(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .height(312.dp),
+                orientation = ScrollBarOrientation.Horizontal,
             ) {
-                Column(
+                Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(end = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    optionRows.forEach { rowOptions ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            rowOptions.forEach { option ->
-                                VirtualLaunchpadGridTile(
-                                    option = option,
-                                    isSelected = selectedOptionTitle == option.title,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        selectedOptionTitle = option.title
-                                    },
-                                )
-                            }
-
-                            repeat(2 - rowOptions.size) {
-                                Spacer(Modifier.weight(1f))
-                            }
-                        }
+                    filteredOptions.forEach { option ->
+                        VirtualLaunchpadTile(
+                            option = option,
+                            isSelected = selectedOptionTitle == option.title,
+                            onClick = {
+                                selectedOptionTitle = option.title
+                            },
+                        )
                     }
                 }
             }
@@ -221,48 +237,46 @@ fun InsertLaunchpadDialog(
 }
 
 @Composable
-private fun VirtualLaunchpadGridTile(
+private fun VirtualLaunchpadTile(
     option: VirtualLaunchpadOption,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val borderColor = if (isSelected) {
-        Theme[colors][primary]
+        Theme[colors][selectionBorder]
     } else {
         Theme[colors][border]
     }
 
     val cardBackground = if (isSelected) {
-        Theme[colors][primary].copy(alpha = 0.08f)
+        Theme[colors][selectionSurface].copy(alpha = 0.15f)
     } else {
         Theme[colors][background]
     }
 
     Column(
-        modifier = modifier
-            .clip(DefaultShape)
-            .border(1.dp, borderColor, DefaultShape)
-            .background(cardBackground)
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(2.dp))
-                .background(Color.White.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center,
+        Column(
+            modifier = modifier
+                .height(250.dp)
+                .border(2.dp, borderColor, DefaultShape)
+                .background(cardBackground)
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(
-                modifier = Modifier.graphicsLayer(
-                    scaleX = 0.8f,
-                    scaleY = 0.8f,
-                ),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(1f),
+                contentAlignment = Alignment.Center,
             ) {
-                option.device.Content()
+                ScaleToFit {
+                    option.device.Content()
+                }
             }
         }
 

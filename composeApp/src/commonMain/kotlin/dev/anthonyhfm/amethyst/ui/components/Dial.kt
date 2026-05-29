@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -58,6 +59,7 @@ import dev.anthonyhfm.amethyst.ui.modifier.VerticalDrag
 import dev.anthonyhfm.amethyst.ui.modifier.gesturesDisabled
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.colors
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.ui.theme.foreground
 import dev.anthonyhfm.amethyst.ui.theme.input
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
@@ -292,7 +294,6 @@ internal fun EditableDialControl(
 ) {
     var editing by remember { mutableStateOf(false) }
     var textValue by remember { mutableStateOf(text) }
-    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(text, editing) {
         if (!editing) {
@@ -303,14 +304,6 @@ internal fun EditableDialControl(
     LaunchedEffect(enabled) {
         if (!enabled) {
             editing = false
-        }
-    }
-
-    LaunchedEffect(editing) {
-        if (editing) {
-            focusRequester.requestFocus()
-        } else {
-            focusRequester.freeFocus()
         }
     }
 
@@ -344,7 +337,6 @@ internal fun EditableDialControl(
                     onValueChange = { textValue = it },
                     onSubmit = submitTextValue,
                     onCancel = { editing = false },
-                    focusRequester = focusRequester,
                     enabled = enabled
                 )
             } else {
@@ -417,13 +409,18 @@ private fun DialReadoutEditor(
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
-    focusRequester: FocusRequester,
     enabled: Boolean,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val focused by interactionSource.collectIsFocusedAsState()
     val borderColor = if (focused) Theme[colors][ring] else Theme[colors][input]
     val borderWidth = if (focused) 2.dp else 1.dp
+    
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     BasicTextField(
         value = value,
@@ -437,6 +434,9 @@ private fun DialReadoutEditor(
             .background(Theme[colors][background])
             .border(borderWidth, borderColor, SmallShape)
             .padding(horizontal = 6.dp)
+            .onFocusChanged {
+                WorkspaceRepository.isInputFocused = it.isFocused
+            }
             .onKeyEvent {
                 when (it.key) {
                     Key.Enter -> {

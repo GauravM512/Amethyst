@@ -1,5 +1,7 @@
 package dev.anthonyhfm.amethyst.ui.launchpad.viewport
 
+import amethyst.composeapp.generated.resources.Res
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -8,13 +10,24 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.decodeToImageBitmap
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadSurfaceDetectionOverlay
@@ -22,9 +35,11 @@ import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
+import kotlin.math.floor
+import kotlin.math.pow
 
 class ViewportLaunchpadX(
-    override var shape: Shape = RoundedCornerShape(2),
+    override var shape: Shape = RoundedCornerShape(1),
     override var size: Size = Size(9f, 9f),
     val interactive: Boolean = true,
 ) : LaunchpadViewportElement() {
@@ -35,132 +50,124 @@ class ViewportLaunchpadX(
     @Composable
     override fun Content() {
         val previewGrid by previewState.grid
+        val density = LocalDensity.current
 
-        Box(
-            modifier = Modifier
-                .requiredSize(width = size.width.dp * 40, height = size.height.dp * 40)
-                .clip(shape)
-                .background(Color(0xFF0d0d0d)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (interactive) {
-                LaunchpadSurfaceDetectionOverlay(
-                    layoutType = layout,
-                    onPadDragStart = { x, y ->
-                        handlePadDragStart(x, y)
-                    },
-                    onPadDrag = { x, y ->
-                        handlePadDrag(x, y)
-                    },
-                    onPadDragEnd = {
-                        handlePadDragEnd()
-                    },
-                    modifier = Modifier.fillMaxSize(0.92f)
-                ) {
-                    GenericLaunchpadLayout(
-                        layoutType = layout,
-                        modifier = Modifier.fillMaxSize()
-                    ) { x, y ->
-                        GridPad(
-                            x = x,
-                            y = y,
-                            effectData = previewGrid[x + y * 10],
-                            modifier = Modifier
+        var buttonsBitmap: ImageBitmap? by remember { mutableStateOf(null) }
+        var deviceBitmap: ImageBitmap? by remember { mutableStateOf(null) }
+        var ledspotsBitmap: ImageBitmap? by remember { mutableStateOf(null) }
+
+        LaunchedEffect(Unit) {
+            buttonsBitmap = Res.readBytes("files/devices/LPX/LPX_Buttons_Layer_ml.png").decodeToImageBitmap()
+            deviceBitmap = Res.readBytes("files/devices/LPX/LPX_Device_Layer_ml.png").decodeToImageBitmap()
+            ledspotsBitmap = Res.readBytes("files/devices/LPX/LPX_Spots_Layer_ml.png").decodeToImageBitmap()
+        }
+
+        if (buttonsBitmap != null && deviceBitmap != null && ledspotsBitmap != null) {
+            Box(
+                modifier = Modifier
+                    .requiredSize(width = size.width.dp * 40, height = size.height.dp * 40)
+                    .clip(shape),
+            ) {
+                val padding = 16f * density.density
+
+                val launchpadCanvas: @Composable () -> Unit = {
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                    ) {
+                        drawRect(
+                            color = Color(0xFF303030),
+                            topLeft = Offset(
+                                x = padding,
+                                y = padding
+                            ),
+                            size = size.copy(
+                                width = size.width + padding * 2,
+                                height = size.height + padding * 2
+                            ),
+                        )
+
+                        for (x in 1..9) {
+                            for (y in 1..9) {
+                                if (previewGrid[x + (y * 10)].color != Color.Black) {
+                                    drawRect(
+                                        color = previewGrid[x + (y * 10)].color.let {
+                                            it.copy(
+                                                red = it.red.pow(0.3f),
+                                                green = it.green.pow(0.3f),
+                                                blue = it.blue.pow(0.3f),
+                                            )
+                                        },
+                                        topLeft = Offset(
+                                            x = (x - 1) * ((size.width - (padding * 2)) / 9) + padding,
+                                            y = (9 - y) * ((size.height - (padding * 2)) / 9) + padding
+                                        ),
+                                        size = size.copy(
+                                            width = size.width / 10,
+                                            height = size.height / 10
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+
+                        drawImage(
+                            image = buttonsBitmap!!,
+                            srcOffset = IntOffset(118, 36),
+                            srcSize = IntSize(870, 870),
+                            dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                            blendMode = BlendMode.Multiply
+                        )
+
+                        drawImage(
+                            image = ledspotsBitmap!!,
+                            srcOffset = IntOffset(118, 36),
+                            srcSize = IntSize(870, 870),
+                            dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                        )
+
+                        drawImage(
+                            image = deviceBitmap!!,
+                            srcOffset = IntOffset(118, 36),
+                            srcSize = IntSize(870, 870),
+                            dstSize = IntSize(size.width.toInt(), size.height.toInt()),
                         )
                     }
                 }
-            } else {
-                GenericLaunchpadLayout(
-                    layoutType = layout,
-                    modifier = Modifier.fillMaxSize(0.92f)
-                ) { x, y ->
-                    GridPad(
-                        x = x,
-                        y = y,
-                        effectData = previewGrid[x + y * 10],
+
+                if (interactive) {
+                    LaunchpadSurfaceDetectionOverlay(
+                        layoutType = layout,
+                        onPadDragStart = { x, y -> handlePadDragStart(x, y) },
+                        onPadDrag = { x, y -> handlePadDrag(x, y) },
+                        onPadDragEnd = { handlePadDragEnd() },
+                        calculatePad = { offset, layoutSize ->
+                            val contentWidth = layoutSize.width.toFloat() - (padding * 2)
+                            val contentHeight = layoutSize.height.toFloat() - (padding * 2)
+
+                            val colWidth = contentWidth / 9f
+                            val rowHeight = contentHeight / 9f
+
+                            if (offset.x >= padding && offset.x <= layoutSize.width - padding &&
+                                offset.y >= padding && offset.y <= layoutSize.height - padding) {
+                                val visualX = floor((offset.x - padding) / colWidth).toInt().coerceIn(0, 8)
+                                val visualY = floor((offset.y - padding) / rowHeight).toInt().coerceIn(0, 8)
+
+                                Pair(visualX, 8 - visualY)
+                            } else {
+                                null
+                            }
+                        },
                         modifier = Modifier
-                    )
+                            .fillMaxSize()
+                    ) {
+                        launchpadCanvas()
+                    }
+                } else {
+                    launchpadCanvas()
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun GridPad(
-    x: Int,
-    y: Int,
-    effectData: RawLEDUpdate,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        if (y == 9 && x > 0 && x < 9) {
-            EdgePad(effectData = effectData)
-        } else if (x == 9 && y > 0 && y < 9) {
-            EdgePad(effectData = effectData)
-        } else if (x in 4..5 && y in 4..5) {
-            ClippedPad(
-                topLeft = x == 4 && y == 5,
-                topRight = x == 5 && y == 5,
-                bottomLeft = x == 4 && y == 4,
-                bottomRight = x == 5 && y == 4,
-                effectData = effectData
-            )
-        } else if (x in 1..8 && y in 1..8) {
-            GenericLaunchpadButton(
-                sizeModifier = Modifier.fillMaxSize(0.82f),
-                effect = effectData,
-                shape = RoundedCornerShape(4)
-            )
-        }
-    }
-}
-
-@Composable
-private fun EdgePad(effectData: RawLEDUpdate) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        GenericLaunchpadButton(
-            sizeModifier = Modifier.fillMaxSize(0.82f),
-            enableLightSpot = false,
-            effect = effectData,
-            shape = RoundedCornerShape(4)
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize(0.72f)
-                .background(Color(0xFF0A0A0A))
-        )
-    }
-}
-
-@Composable
-private fun ClippedPad(
-    topLeft: Boolean,
-    topRight: Boolean,
-    bottomLeft: Boolean,
-    bottomRight: Boolean,
-    effectData: RawLEDUpdate,
-) {
-    GenericLaunchpadButton(
-        sizeModifier = Modifier
-            .clip(
-                CutCornerShape(
-                    bottomEndPercent = if (topLeft) 30 else 0,
-                    bottomStartPercent = if (topRight) 30 else 0,
-                    topEndPercent = if (bottomLeft) 30 else 0,
-                    topStartPercent = if (bottomRight) 30 else 0,
-                )
-            )
-            .fillMaxSize(0.82f),
-        effect = effectData,
-        shape = RoundedCornerShape(4)
-    )
-}

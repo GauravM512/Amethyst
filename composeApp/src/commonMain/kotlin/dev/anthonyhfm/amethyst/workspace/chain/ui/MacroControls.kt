@@ -42,8 +42,14 @@ import dev.anthonyhfm.amethyst.ui.theme.primary
 import dev.anthonyhfm.amethyst.ui.theme.secondary
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
+import dev.anthonyhfm.amethyst.ui.theme.destructive
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.data.Macro
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Trash2
+import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenu
+import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuItem
+import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuItemVariant
 
 @Composable
 fun MacroControls() {
@@ -114,36 +120,48 @@ fun MacroList() {
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         macros.forEachIndexed { index, macro ->
-            StepTextDial(
-                headline = "Macro ${index + 1}",
-                text = macro.value.toString(),
-                steps = IntArray(100) { it }.toList(),
-                value = macro.value,
-                containerColor = Theme[colors][secondary],
-                dialColor = Theme[colors][primary],
-                onResolveTextValue = {
-                    val valueText = it.trim().toIntOrNull()
+            ContextMenu(
+                trigger = {
+                    StepTextDial(
+                        headline = "Macro ${index + 1}",
+                        text = macro.value.toString(),
+                        steps = IntArray(128) { it }.toList(),
+                        value = macro.value,
+                        containerColor = Theme[colors][secondary],
+                        dialColor = Theme[colors][primary],
+                        onResolveTextValue = {
+                            val valueText = it.trim().toIntOrNull()
 
-                    valueText?.let { value ->
-                        if (value in 0..127) {
+                            valueText?.let { value ->
+                                WorkspaceRepository.setMacroValue(
+                                    index = index,
+                                    macro = macro.copy(
+                                        value = value.coerceIn(0, 127)
+                                    )
+                                )
+                            }
+                        },
+                        onValueChange = {
                             WorkspaceRepository.setMacroValue(
                                 index = index,
                                 macro = macro.copy(
-                                    value = value
+                                    value = it
                                 )
                             )
                         }
-                    }
-                },
-                onValueChange = {
-                    WorkspaceRepository.setMacroValue(
-                        index = index,
-                        macro = macro.copy(
-                            value = it
-                        )
                     )
                 }
-            )
+            ) {
+                ContextMenuItem(
+                    variant = ContextMenuItemVariant.Destructive,
+                    onClick = {
+                        WorkspaceRepository.removeMacro(index)
+                    }
+                ) {
+                    Icon(Lucide.Trash2, null, modifier = Modifier.size(16.dp))
+                    Text("Delete Macro", modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 

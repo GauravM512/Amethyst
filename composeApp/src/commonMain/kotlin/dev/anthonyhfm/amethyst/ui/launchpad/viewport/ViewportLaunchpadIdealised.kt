@@ -2,12 +2,9 @@ package dev.anthonyhfm.amethyst.ui.launchpad.viewport
 
 import amethyst.composeapp.generated.resources.Res
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,7 +12,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -29,24 +25,23 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadSurfaceDetectionOverlay
-import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
-import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import kotlin.math.floor
+import org.jetbrains.compose.resources.InternalResourceApi
 import kotlin.math.pow
 
-class ViewportLaunchpadProMk3(
+class ViewportLaunchpadIdealised(
     override var shape: Shape = RoundedCornerShape(1),
     override var size: Size = Size(10f, 10f),
-    val interactive: Boolean = true,
+    val interactive: Boolean = true
 ) : LaunchpadViewportElement() {
-    override val name: String = "Launchpad Pro MK3"
+    override val name: String = "Idealised"
 
     override val layout: LaunchpadLayout = LaunchpadLayout.LAYOUT_10X10
 
+    @OptIn(InternalResourceApi::class)
     @Composable
     override fun Content() {
         val previewGrid by previewState.grid
@@ -57,9 +52,9 @@ class ViewportLaunchpadProMk3(
         var ledspotsBitmap: ImageBitmap? by remember { mutableStateOf(null) }
 
         LaunchedEffect(Unit) {
-            buttonsBitmap = Res.readBytes("files/devices/LPP3/LPP3_Buttons_Layer_ml.png").decodeToImageBitmap()
-            deviceBitmap = Res.readBytes("files/devices/LPP3/LPP3_Device_Layer_ml.png").decodeToImageBitmap()
-            ledspotsBitmap = Res.readBytes("files/devices/LPP3/LPP3_Spots_Layer_ml.png").decodeToImageBitmap()
+            buttonsBitmap = Res.readBytes("files/devices/Idealised/Idealised_Buttons_Layer_ml.png").decodeToImageBitmap()
+            deviceBitmap = Res.readBytes("files/devices/Idealised/Idealised_Device_Layer_ml.png").decodeToImageBitmap()
+            ledspotsBitmap = Res.readBytes("files/devices/Idealised/Idealised_Spots_Layer_ml.png").decodeToImageBitmap()
         }
 
         if (buttonsBitmap != null && deviceBitmap != null && ledspotsBitmap != null) {

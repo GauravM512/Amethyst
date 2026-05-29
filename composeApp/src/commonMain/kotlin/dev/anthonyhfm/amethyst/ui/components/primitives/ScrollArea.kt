@@ -91,7 +91,7 @@ fun ScrollArea(
         }
     }
 
-    val visible = areaHovered || isScrolling
+    val visible = true
     val flingBehavior = ScrollableDefaults.flingBehavior()
     val scrollOrientation = when (orientation) {
         ScrollBarOrientation.Vertical -> Orientation.Vertical
@@ -219,6 +219,8 @@ fun ScrollBar(
                     ScrollBarOrientation.Horizontal -> Modifier.fillMaxWidth().height(8.dp)
                 }
             )
+            .clip(FullShape)
+            .background(Theme[colors][border].copy(alpha = 0.2f))
             .padding(1.dp)
             .onSizeChanged { size ->
                 trackSizePx = when (orientation) {

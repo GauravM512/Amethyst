@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,7 +35,7 @@ import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.gradient.GradientSmoothness
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenu
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuRadioItem
-import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
+import kotlin.math.roundToInt
 import dev.anthonyhfm.amethyst.ui.theme.background as themeBackground
 import dev.anthonyhfm.amethyst.ui.theme.border as themeBorder
 import dev.anthonyhfm.amethyst.ui.theme.colors as themeColors
@@ -76,10 +77,14 @@ fun GradientEditorBar(
                     .background(Theme[themeColors][themeInput])
                     .border(1.dp, Theme[themeColors][themeBorder], RoundedCornerShape(6.dp))
                     .padding(4.dp)
-                    .rightClickable { offset ->
-                        val position = offset.x / constraints.maxWidth.toFloat()
-                        val clampedPosition = position.coerceIn(0f, 1f)
-                        onAddGradientPoint(clampedPosition)
+                    .pointerInput(onAddGradientPoint, constraints.maxWidth) {
+                        detectTapGestures(
+                            onDoubleTap = { offset ->
+                                val position = offset.x / constraints.maxWidth.toFloat()
+                                val clampedPosition = position.coerceIn(0f, 1f)
+                                onAddGradientPoint(clampedPosition)
+                            }
+                        )
                     }
             ) {
                 val sortedColors = colors.map { c ->
@@ -95,9 +100,16 @@ fun GradientEditorBar(
                 for (step in 0..visualSteps) {
                     val progress = step.toDouble() / visualSteps
 
+                    val steppedProgress = if (gradientSteps != null && gradientSteps in 2..16) {
+                        val bin = (progress * (gradientSteps - 1)).roundToInt().coerceIn(0, gradientSteps - 1)
+                        bin.toDouble() / (gradientSteps - 1)
+                    } else {
+                        progress
+                    }
+
                     var segmentIndex = 0
                     for (i in 0 until sortedColors.size - 1) {
-                        if (progress >= sortedColors[i].position && progress <= sortedColors[i + 1].position) {
+                        if (steppedProgress >= sortedColors[i].position && steppedProgress <= sortedColors[i + 1].position) {
                             segmentIndex = i
                             break
                         }
@@ -112,7 +124,7 @@ fun GradientEditorBar(
                     val segmentDuration = segmentEnd - segmentStart
 
                     val linearT = if (segmentDuration > 0.0001) {
-                        ((progress - segmentStart) / segmentDuration).coerceIn(0.0, 1.0)
+                        ((steppedProgress - segmentStart) / segmentDuration).coerceIn(0.0, 1.0)
                     } else {
                         0.0
                     }
@@ -147,18 +159,10 @@ fun GradientEditorBar(
                         }
                     }
 
-                    // Quantize easedT to discrete steps when gradientSteps is set
-                    val steppedT = if (gradientSteps != null && gradientSteps in 2..16) {
-                       val quantizedIndex = (easedT * gradientSteps).toInt().coerceIn(0, gradientSteps - 1)
-                       quantizedIndex.toDouble() / (gradientSteps - 1)
-                    } else {
-                       easedT
-                    }
-
                     val color = Color(
-                      red = (startColor.r + (endColor.r - startColor.r) * steppedT.toFloat()).coerceIn(0f, 1f),
-                      green = (startColor.g + (endColor.g - startColor.g) * steppedT.toFloat()).coerceIn(0f, 1f),
-                      blue = (startColor.b + (endColor.b - startColor.b) * steppedT.toFloat()).coerceIn(0f, 1f)
+                      red = (startColor.r + (endColor.r - startColor.r) * easedT.toFloat()).coerceIn(0f, 1f),
+                      green = (startColor.g + (endColor.g - startColor.g) * easedT.toFloat()).coerceIn(0f, 1f),
+                      blue = (startColor.b + (endColor.b - startColor.b) * easedT.toFloat()).coerceIn(0f, 1f)
                     )
 
                     drawRect(
@@ -207,22 +211,36 @@ fun GradientEditorBar(
                                         onSelectionChange(color.selectionUUID)
                                     }
                                 }
-                                .pointerInput(color.selectionUUID) {
+                                .pointerInput(color.selectionUUID, gradientSteps) {
+                                    var accumulatedDrag = pos
                                     detectDragGestures(
                                         onDragStart = {
                                             onGradientDragStart()
+                                            accumulatedDrag = pos
                                         },
                                         onDrag = { input, offset ->
                                             input.consume()
-                                            val pct = (offset.x / density.density).dp / maxWidth
-                                            val newPos = (pos + pct).coerceIn(0f, 1f)
-                                            pos = newPos
+                                            val pct = offset.x / constraints.maxWidth.toFloat()
+                                            accumulatedDrag = (accumulatedDrag + pct).coerceIn(0f, 1f)
+                                            val snappedPos = if (gradientSteps != null && gradientSteps in 2..16) {
+                                                val stepsMinusOne = gradientSteps - 1
+                                                (accumulatedDrag * stepsMinusOne).roundToInt().toFloat() / stepsMinusOne
+                                            } else {
+                                                accumulatedDrag
+                                            }
+                                            pos = snappedPos
                                         },
                                         onDragEnd = {
                                             val committed = colors.map { c ->
                                                 val p = positionStates[c.selectionUUID]?.value ?: c.position
+                                                val rp = if (c.selectionUUID == color.selectionUUID) {
+                                                    accumulatedDrag
+                                                } else {
+                                                    c.rawPosition ?: c.position
+                                                }
                                                 GradientChainDeviceState.GradientColor(
                                                     position = p,
+                                                    rawPosition = rp,
                                                     r = c.r,
                                                     g = c.g,
                                                     b = c.b,
@@ -236,8 +254,14 @@ fun GradientEditorBar(
                                         onDragCancel = {
                                             val committed = colors.map { c ->
                                                 val p = positionStates[c.selectionUUID]?.value ?: c.position
+                                                val rp = if (c.selectionUUID == color.selectionUUID) {
+                                                    accumulatedDrag
+                                                } else {
+                                                    c.rawPosition ?: c.position
+                                                }
                                                 GradientChainDeviceState.GradientColor(
                                                     position = p,
+                                                    rawPosition = rp,
                                                     r = c.r,
                                                     g = c.g,
                                                     b = c.b,

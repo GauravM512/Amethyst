@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 
 class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
     override val state = MutableStateFlow(PreviewChainDeviceState)
@@ -111,15 +112,17 @@ class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
                 // Route pad interactions through this device's signalExit so the signal
                 // enters the chain at the PreviewChainDevice's position (pre-effect triggering).
                 preview.onCapturePad = { (down, x, y) ->
-                    signalExit?.invoke(listOf(
-                        Signal.LED(
-                            origin = null,
-                            x = x,
-                            y = y,
-                            color = if (down) Color.White else Color.Black,
-                            layer = 0,
+                    signalExit?.invoke(
+                        listOf(
+                            Signal.LED(
+                                origin = null,
+                                x = x,
+                                y = y,
+                                color = if (down) Color.White else Color.Black,
+                                layer = 0,
+                            )
                         )
-                    ))
+                    )
                 }
             }
         }
@@ -146,15 +149,17 @@ class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
         val customMode = remember {
             PreviewWorkspaceMode(
                 onPadInteraction = { down, x, y ->
-                    signalExit?.invoke(listOf(
-                        Signal.LED(
-                            origin = null,
-                            x = x,
-                            y = y,
-                            color = if (down) Color.White else Color.Black,
-                            layer = 0,
+                    signalExit?.invoke(
+                        listOf(
+                            Signal.LED(
+                                origin = null,
+                                x = x,
+                                y = y,
+                                color = if (down) Color.White else Color.Black,
+                                layer = 0,
+                            )
                         )
-                    ))
+                    )
                 }
             ).also { mode ->
                 mode.modeClose = { WorkspaceRepository.switchToPreviousMode() }
@@ -187,13 +192,14 @@ class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
 
 private fun createPreviewViewport(original: LaunchpadViewportElement): LaunchpadViewportElement =
     when (original) {
-        is ViewportLaunchpadPro    -> ViewportLaunchpadPro()
-        is ViewportLaunchpadMk2    -> ViewportLaunchpadMk2()
-        is ViewportLaunchpadX      -> ViewportLaunchpadX()
+        is ViewportLaunchpadPro -> ViewportLaunchpadPro()
+        is ViewportLaunchpadIdealised -> ViewportLaunchpadIdealised()
+        is ViewportLaunchpadMk2 -> ViewportLaunchpadMk2()
+        is ViewportLaunchpadX -> ViewportLaunchpadX()
         is ViewportLaunchpadProMk3 -> ViewportLaunchpadProMk3()
-        is ViewportMystrix         -> ViewportMystrix()
-        is ViewportMidiFighter64   -> ViewportMidiFighter64()
-        else                       -> ViewportLaunchpadX()
+        is ViewportMystrix -> ViewportMystrix()
+        is ViewportMidiFighter64 -> ViewportMidiFighter64()
+        else -> ViewportLaunchpadX()
     }
 
 private fun buildPreviewUpdates(

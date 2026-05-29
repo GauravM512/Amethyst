@@ -49,7 +49,7 @@ fun StartWindow(
             height = 550.dp,
             position = WindowPosition.Aligned(Alignment.Center)
         ),
-        resizable = true,
+        resizable = false,
         icon = when (DesktopPlatform.get()) {
             DesktopPlatform.Windows -> painterResource(Res.drawable.amethyst_windows)
             DesktopPlatform.Linux -> painterResource(Res.drawable.amethyst_linux)

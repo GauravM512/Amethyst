@@ -43,6 +43,7 @@ import dev.anthonyhfm.amethyst.workspace.data.AutoPlayData
 import dev.anthonyhfm.amethyst.workspace.data.WorkspaceMeta
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
+import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 
 object WorkspaceRepository {
     private fun Throwable.isRecoverablePlatformInitFailure(): Boolean {
@@ -196,6 +197,18 @@ object WorkspaceRepository {
         }
     }
 
+    fun removeMacro(index: Int) {
+        if (index < 0 || index >= _macros.value.size) {
+            println("Macro index out of bounds: $index")
+            return
+        }
+        _macros.update { currentMacros ->
+            currentMacros.toMutableList().apply {
+                removeAt(index)
+            }
+        }
+    }
+
     fun updateWorkspaceBounds() {
         if (Heaven.devices.isNotEmpty()) {
             bounds = Pair(
@@ -314,6 +327,7 @@ object WorkspaceRepository {
         Heaven.devices = workspaceData.launchpadDevices.map { savedDevice ->
             val device = when (savedDevice.type) {
                 SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO -> ViewportLaunchpadPro()
+                SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_IDEALISED -> ViewportLaunchpadIdealised()
                 SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO_MK3 -> ViewportLaunchpadProMk3()
                 SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_X -> ViewportLaunchpadX()
                 SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_MK2 -> ViewportLaunchpadMk2()
@@ -409,6 +423,7 @@ object WorkspaceRepository {
                     id = device.launchpadId,
                     type = when (device) {
                         is ViewportLaunchpadPro -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO
+                        is ViewportLaunchpadIdealised -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_IDEALISED
                         is ViewportLaunchpadProMk3 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_PRO_MK3
                         is ViewportLaunchpadX -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_X
                         is ViewportLaunchpadMk2 -> SavableWorkspaceData.SavableViewportLaunchpad.ViewportDeviceType.LAUNCHPAD_MK2

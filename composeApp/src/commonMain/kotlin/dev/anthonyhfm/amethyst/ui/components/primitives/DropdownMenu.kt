@@ -4,6 +4,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -109,8 +110,9 @@ fun DropdownMenuContent(
         modifier = modifier
             .width(IntrinsicSize.Max)
             .shadow(8.dp, DefaultShape)
-            .background(Theme[colors][popover], DefaultShape)
-            .clip(DefaultShape),
+            .clip(DefaultShape)
+            .background(Theme[colors][popover])
+            .border(1.dp, Theme[colors][border], DefaultShape),
         content = content,
     )
 }
@@ -429,8 +431,9 @@ fun DropdownMenuSubContent(
         modifier = modifier
             .width(IntrinsicSize.Max)
             .shadow(8.dp, DefaultShape)
-            .background(Theme[colors][popover], DefaultShape)
-            .clip(DefaultShape),
+            .clip(DefaultShape)
+            .background(Theme[colors][popover])
+            .border(1.dp, Theme[colors][border], DefaultShape),
         content = content,
     )
 }
