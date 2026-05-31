@@ -750,19 +750,51 @@ class TimelineViewModel : ViewModel() {
                 notes = emptyList(),
                 name = "Lights Clip"
             )
+            val before = track.entries.values.toList()
             
             track.addEntry(newEntry)
+            val after = track.entries.values.toList()
             
             val currentTracks = _tracks.value.toMutableList()
             val newTrack = track.copyWithEntries()
             currentTracks[trackIndex] = newTrack
             publishTrackSnapshot(currentTracks.toList())
             
+            UndoManager.addAction(UndoableAction.MidiTimelineChange(trackIndex = trackIndex, beforeEntries = before, afterEntries = after))
+            
             println("Created new lights clip at ${timeMs}ms on track $trackIndex")
             
             val clipContext = TimelineClipContext.midi(trackIndex, newEntry)
             enterPianoRollForEntry(clipContext, newEntry)
         }
+    }
+
+    /**
+     * Create a new MIDI entry for a specific time range.
+     */
+    fun createMidiEntry(trackIndex: Int, startMs: Long, endMs: Long) {
+        val track = _tracks.value.getOrNull(trackIndex) as? MidiTimelineTrack ?: return
+        val before = track.entries.values.toList()
+        
+        val duration = (endMs - startMs).coerceAtLeast(100L) // Ensure minimum duration
+        val newEntry = MidiEntry(
+            startTimeMs = startMs,
+            durationMs = duration,
+            notes = emptyList(),
+            name = "Lights Clip"
+        )
+        
+        track.addEntry(newEntry)
+        val after = track.entries.values.toList()
+        
+        val currentTracks = _tracks.value.toMutableList()
+        val newTrack = track.copyWithEntries()
+        currentTracks[trackIndex] = newTrack
+        publishTrackSnapshot(currentTracks.toList())
+        
+        UndoManager.addAction(UndoableAction.MidiTimelineChange(trackIndex = trackIndex, beforeEntries = before, afterEntries = after))
+        
+        SelectionManager.select(Selectable.TimelineEntryItem(trackIndex = trackIndex, entryStartMs = startMs))
     }
 
     private fun enterPianoRollForEntry(clipContext: TimelineClipContext, entry: MidiEntry) {

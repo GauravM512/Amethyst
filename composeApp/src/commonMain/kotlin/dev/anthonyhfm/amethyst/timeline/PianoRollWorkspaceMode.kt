@@ -370,6 +370,63 @@ class PianoRollWorkspaceMode : WorkspaceContract.WorkspaceMode {
         return true
     }
 
+    fun pasteNotes(pastedNotes: List<MidiNote>) {
+        if (pastedNotes.isEmpty()) return
+
+        val anchorTimeMs = selectedTimeMs 
+            ?: (timingContextProvider?.invoke()?.let { 
+                // Fallback to playhead pos relative to clip start
+                (dev.anthonyhfm.amethyst.timeline.TimelineRepository.playheadPositionMs.value - entryStartMs).coerceAtLeast(0L)
+            } ?: 0L)
+
+        val earliestStartTime = pastedNotes.minOf { it.startTimeMs }
+        
+        val newNotes = pastedNotes.map { note ->
+            val offset = note.startTimeMs - earliestStartTime
+            note.copy(
+                startTimeMs = anchorTimeMs + offset,
+                led = note.led.copy(index = note.pitch)
+            )
+        }
+
+        val localEntry = currentEntry
+        if (isTimelineBackedEditing) {
+            TimelineCommandSurface.createNotes(
+                trackIndex = trackIndex,
+                entryStartMs = entryStartMs,
+                notes = newNotes
+            ).also { result ->
+                if (result.didChange) {
+                    syncCurrentEntry(timelineEntrySnapshot())
+                }
+            }
+        } else if (localEntry != null) {
+            newNotes.forEach { note ->
+                onNoteAdd?.invoke(note)
+            }
+            UndoManager.addAction(
+                UndoableAction.PianoRollNoteMultiCreation(
+                    trackIndex = trackIndex,
+                    entryStartMs = entryStartMs,
+                    notes = newNotes,
+                    onNoteAdd = { note -> onNoteAdd?.invoke(note) },
+                    onNoteDelete = { note -> onNoteDelete?.invoke(note) },
+                    currentEntryGetter = { this@PianoRollWorkspaceMode.currentEntry },
+                    currentEntrySetter = { entry -> this@PianoRollWorkspaceMode.currentEntry = entry }
+                )
+            )
+            currentEntry = localEntry.copy(notes = localEntry.notes + newNotes)
+        }
+
+        SelectionManager.clear()
+        newNotes.forEach { note ->
+            SelectionManager.select(
+                Selectable.PianoRollNote(trackIndex, entryStartMs, note),
+                single = false
+            )
+        }
+    }
+
     @Composable
     fun ModeContent(paddingValues: PaddingValues) {
         val entry = currentEntry ?: return
@@ -1333,6 +1390,8 @@ class PianoRollWorkspaceMode : WorkspaceContract.WorkspaceMode {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (WorkspaceRepository.isInputFocused) return false
+
         if (event.type == KeyEventType.KeyDown) {
             when (event.key) {
                 Key.ShiftLeft, Key.ShiftRight -> multiSelectModifierDown = true
@@ -1374,12 +1433,6 @@ class PianoRollWorkspaceMode : WorkspaceContract.WorkspaceMode {
                     if (event.isCtrlPressed || event.isMetaPressed) {
                         modeClose?.invoke()
                         return true
-                    }
-                }
-
-                Key.A -> {
-                    if (event.isCtrlPressed || event.isMetaPressed) {
-                        return selectAllNotes()
                     }
                 }
 
@@ -1759,16 +1812,6 @@ class PianoRollWorkspaceMode : WorkspaceContract.WorkspaceMode {
 
                         return true
                     }
-                }
-
-                Key.D -> {
-                    if (event.isCtrlPressed || event.isMetaPressed) {
-                        return duplicateSelectedNotes()
-                    }
-                }
-
-                Key.Delete, Key.Backspace -> {
-                    return deleteSelectedNotes()
                 }
             }
         }

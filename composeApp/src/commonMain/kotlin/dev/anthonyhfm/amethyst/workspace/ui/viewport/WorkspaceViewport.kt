@@ -78,7 +78,7 @@ fun WorkspaceViewport(
     val density = LocalDensity.current.density
     val gridSize = (40 * density).toInt()
     val gridColor = Color(0xFF5C6370).copy(alpha = 0.38f)
-    val viewportBackground = Color(0xFF1C1F23)
+    val viewportBackground = Color(0xFF1C1C23)
     val viewportBorder = Color(0xFF3E4451)
     val selectionColor = Theme[colors][selectionBorder]
     val shadowColor = Color.Black.copy(alpha = 0.24f)

@@ -10,6 +10,12 @@ fun handleDeletionShortcut(): Boolean {
     val selections = SelectionManager.selections.value
 
     when {
+        selections.any { it is Selectable.PianoRollNote } -> {
+            val pianoRollMode = dev.anthonyhfm.amethyst.workspace.WorkspaceRepository.mode.value as? dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
+            pianoRollMode?.deleteSelectedNotes()
+            return true
+        }
+
         selections.any { it is Selectable.GroupChainItem } -> {
             val groupItems = selections.filterIsInstance<Selectable.GroupChainItem>()
 

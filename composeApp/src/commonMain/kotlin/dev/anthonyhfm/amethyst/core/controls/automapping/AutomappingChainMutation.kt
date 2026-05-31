@@ -30,7 +30,6 @@ internal object AutomappingChainMutation {
             else -> return false
         }
 
-        // 1. Find a group that exactly maps to THIS clip
         val matchingGroup = groups.find { group ->
             val allClipDevices = group.chain.devices.value.filter { it is SampleChainDevice || it is PianoRollChainDevice }
             val existingClipDevice = allClipDevices.firstOrNull()
@@ -38,17 +37,14 @@ internal object AutomappingChainMutation {
         }
 
         if (matchingGroup != null) {
-            // Modify this group
             val coordFilter = matchingGroup.chain.devices.value.filterIsInstance<CoordinateFilterChainDevice>().firstOrNull() ?: CoordinateFilterChainDevice().also {
                 matchingGroup.chain.add(it, 0, fromUser = false)
             }
             
             val currentFilters = coordFilter.state.value.padFilters
             if (currentFilters.contains(padFilter)) {
-                // Remove pad
                 coordFilter.state.update { it.copy(padFilters = currentFilters - padFilter) }
-                
-                // If it was the last pad, delete the whole group
+
                 if (coordFilter.state.value.padFilters.isEmpty()) {
                     when (parentDevice) {
                         is GroupChainDevice -> parentDevice.removeGroupById(matchingGroup.id)
@@ -56,11 +52,9 @@ internal object AutomappingChainMutation {
                     }
                 }
             } else {
-                // Add pad
                 coordFilter.state.update { it.copy(padFilters = currentFilters + padFilter) }
             }
         } else {
-            // Create a new group
             val newGroup = Group(name = "Mapped")
             val coordFilter = CoordinateFilterChainDevice()
             coordFilter.state.update { it.copy(padFilters = listOf(padFilter)) }

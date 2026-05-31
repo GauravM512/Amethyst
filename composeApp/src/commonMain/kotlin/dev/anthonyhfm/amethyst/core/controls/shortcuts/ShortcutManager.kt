@@ -94,7 +94,8 @@ object ShortcutManager {
         return selections.any {
             it is Selectable.GroupChainItem ||
                 it is Selectable.ChainDevice ||
-                it is Selectable.GradientStep
+                it is Selectable.GradientStep ||
+                it is Selectable.PianoRollNote
         }
     }
 
@@ -103,7 +104,11 @@ object ShortcutManager {
     fun canDuplicateSelection(
         selections: List<Selectable> = SelectionManager.selections.value
     ): Boolean {
-        return selections.any { it is Selectable.GroupChainItem || it is Selectable.ChainDevice }
+        return selections.any {
+            it is Selectable.GroupChainItem ||
+                it is Selectable.ChainDevice ||
+                it is Selectable.PianoRollNote
+        }
     }
 
     fun duplicateSelection(): Boolean = handleDuplicateShortcut()
@@ -134,6 +139,7 @@ object ShortcutManager {
             is WorkspaceContract.WorkspaceMode.LightsChain -> WorkspaceRepository.lightsChain.devices.value.isNotEmpty()
             is WorkspaceContract.WorkspaceMode.SamplingChain -> WorkspaceRepository.samplingChain.devices.value.isNotEmpty()
             is WorkspaceContract.WorkspaceMode.Timeline -> TimelineRepository.tracks.value.isNotEmpty()
+            is dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode -> mode.currentEntry?.notes?.isNotEmpty() == true
             else -> false
         }
     }
@@ -294,6 +300,9 @@ object ShortcutManager {
                     }
                     true
                 } else false
+            }
+            is dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode -> {
+                mode.selectAllNotes()
             }
             else -> false
         }

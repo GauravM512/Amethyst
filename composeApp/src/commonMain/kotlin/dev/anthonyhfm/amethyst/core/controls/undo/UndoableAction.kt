@@ -309,6 +309,16 @@ sealed interface UndoableAction {
         val currentEntrySetter: (dev.anthonyhfm.amethyst.timeline.data.MidiEntry) -> Unit
     ) : UndoableAction
 
+    data class PianoRollNoteMultiCreation(
+        val trackIndex: Int,
+        val entryStartMs: Long,
+        val notes: List<dev.anthonyhfm.amethyst.timeline.data.MidiNote>,
+        val onNoteAdd: (dev.anthonyhfm.amethyst.timeline.data.MidiNote) -> Unit,
+        val onNoteDelete: (dev.anthonyhfm.amethyst.timeline.data.MidiNote) -> Unit,
+        val currentEntryGetter: () -> dev.anthonyhfm.amethyst.timeline.data.MidiEntry?,
+        val currentEntrySetter: (dev.anthonyhfm.amethyst.timeline.data.MidiEntry) -> Unit
+    ) : UndoableAction
+
     data class TrackAddition(
         val trackIndex: Int,
         val track: dev.anthonyhfm.amethyst.timeline.data.TimelineTrack<*>

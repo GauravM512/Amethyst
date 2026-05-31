@@ -45,4 +45,8 @@ sealed interface ClipboardData {
     data class TimelineMidiEntries(
         val entries: List<MidiEntry>
     ) : ClipboardData
+
+    data class PianoRollNotes(
+        val notes: List<dev.anthonyhfm.amethyst.timeline.data.MidiNote>
+    ) : ClipboardData
 }

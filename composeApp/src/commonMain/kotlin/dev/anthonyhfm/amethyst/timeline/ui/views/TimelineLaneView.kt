@@ -45,7 +45,8 @@ import dev.anthonyhfm.amethyst.timeline.utils.computeTimelineContentWidthPx
 fun TimelineLaneView(
     modifier: Modifier = Modifier,
     viewModel: TimelineViewModel,
-    onOpenMidiEntryAtTime: (trackIndex: Int, timeMs: Long) -> Unit = { _, _ -> }
+    onOpenMidiEntryAtTime: (trackIndex: Int, timeMs: Long) -> Unit = { _, _ -> },
+    onCreateMidiEntry: (trackIndex: Int, startMs: Long, endMs: Long) -> Unit = { _, _, _ -> }
 ) {
     val tracks by viewModel.tracks.collectAsState()
     // Single atomic viewport read — zoom and scroll always come from the same snapshot.
@@ -258,7 +259,8 @@ fun TimelineLaneView(
                             else -> { /* ignore for audio for now */ }
                         }
                     },
-                    onDoubleClickLane = { timeMs -> onOpenMidiEntryAtTime(index, timeMs) }
+                    onDoubleClickLane = { timeMs -> onOpenMidiEntryAtTime(index, timeMs) },
+                    onCreateMidiClip = { startMs, endMs -> onCreateMidiEntry(index, startMs, endMs) }
                 )
             }
         }

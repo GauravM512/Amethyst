@@ -9,6 +9,14 @@ import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 fun handleDuplicateShortcut(): Boolean {
     val selections = SelectionManager.selections.value
 
+    // PianoRollNote: duplicate selected notes
+    val pianoRollNotes = selections.filterIsInstance<Selectable.PianoRollNote>()
+    if (pianoRollNotes.isNotEmpty()) {
+        val pianoRollMode = dev.anthonyhfm.amethyst.workspace.WorkspaceRepository.mode.value as? dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
+        pianoRollMode?.duplicateSelectedNotes()
+        return true
+    }
+
     // GroupChainItem: duplicate selected groups
     val groupItems = selections.filterIsInstance<Selectable.GroupChainItem>()
     if (groupItems.isNotEmpty()) {

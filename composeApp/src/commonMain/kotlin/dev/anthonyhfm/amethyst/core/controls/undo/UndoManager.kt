@@ -207,6 +207,13 @@ object UndoManager {
 
                 is UndoableAction.MidiTimelineChange -> {
                     TimelineRepository.setMidiTrackEntries(action.trackIndex, action.beforeEntries)
+                    
+                    val activeMode = WorkspaceRepository.mode.value as? dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
+                    if (activeMode != null && activeMode.trackIndex == action.trackIndex) {
+                        val entry = action.beforeEntries.find { it.startTimeMs == activeMode.entryStartMs }
+                        activeMode.syncCurrentEntry(entry)
+                    }
+
                     redoStack.add(action)
                 }
 
@@ -328,6 +335,23 @@ object UndoManager {
                     if (currentEntry != null) {
                         action.currentEntrySetter(
                             currentEntry.copy(notes = currentEntry.notes.filter { it != action.note })
+                        )
+                    }
+                    dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager.clear()
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.PianoRollNoteMultiCreation -> {
+                    // Undo: Delete all created notes
+                    action.notes.forEach { note ->
+                        action.onNoteDelete(note)
+                    }
+                    val currentEntry = action.currentEntryGetter()
+                    if (currentEntry != null) {
+                        action.currentEntrySetter(
+                            currentEntry.copy(notes = currentEntry.notes.filter { note ->
+                                !action.notes.contains(note)
+                            })
                         )
                     }
                     dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager.clear()
@@ -693,6 +717,13 @@ object UndoManager {
 
                 is UndoableAction.MidiTimelineChange -> {
                     TimelineRepository.setMidiTrackEntries(action.trackIndex, action.afterEntries)
+                    
+                    val activeMode = WorkspaceRepository.mode.value as? dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
+                    if (activeMode != null && activeMode.trackIndex == action.trackIndex) {
+                        val entry = action.afterEntries.find { it.startTimeMs == activeMode.entryStartMs }
+                        activeMode.syncCurrentEntry(entry)
+                    }
+
                     undoStack.add(action)
                 }
 
@@ -793,6 +824,31 @@ object UndoManager {
                         ),
                         single = true
                     )
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.PianoRollNoteMultiCreation -> {
+                    // Redo: Re-add all created notes
+                    action.notes.forEach { note ->
+                        action.onNoteAdd(note)
+                    }
+                    val currentEntry = action.currentEntryGetter()
+                    if (currentEntry != null) {
+                        action.currentEntrySetter(
+                            currentEntry.copy(notes = currentEntry.notes + action.notes)
+                        )
+                    }
+                    dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager.clear()
+                    action.notes.forEach { note ->
+                        dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager.select(
+                            dev.anthonyhfm.amethyst.core.controls.selection.Selectable.PianoRollNote(
+                                action.trackIndex,
+                                action.entryStartMs,
+                                note
+                            ),
+                            single = false
+                        )
+                    }
                     undoStack.add(action)
                 }
 

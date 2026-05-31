@@ -46,6 +46,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import dev.anthonyhfm.amethyst.timeline.ui.components.AudioClip
 import dev.anthonyhfm.amethyst.timeline.ui.components.MidiClip
 import dev.anthonyhfm.amethyst.timeline.ui.components.SelectionCursor
@@ -62,6 +63,17 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import io.github.vinceglb.filekit.extension
 import androidx.compose.material3.Text
 import com.composeunstyled.theme.Theme
+import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
+import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuContent
+import dev.anthonyhfm.amethyst.ui.components.ContextMenuItem
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Plus
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 
 @Composable
@@ -77,7 +89,8 @@ fun TimelineLane(
     onSelectEntry: (Long) -> Unit = {},
     onMoveEntry: (oldStart: Long, newStart: Long) -> Unit = { _, _ -> },
     onResizeEntry: (oldStart: Long, newStart: Long, newDuration: Long) -> Unit = { _, _, _ -> },
-    onDoubleClickLane: (Long) -> Unit = {}
+    onDoubleClickLane: (Long) -> Unit = {},
+    onCreateMidiClip: (Long, Long) -> Unit = { _, _ -> }
 ) {
     val zoomLevel = viewport.zoomX
     val bpm by WorkspaceRepository.bpm.collectAsState()
@@ -85,6 +98,8 @@ fun TimelineLane(
     var rangeStartMs by remember(track, zoomLevel) { mutableStateOf<Long?>(null) }
     var rangeEndMs by remember(track, zoomLevel) { mutableStateOf<Long?>(null) }
     var rangeActive by remember { mutableStateOf(false) }
+    var showContextMenu by remember { mutableStateOf(false) }
+    var contextMenuPosition by remember { mutableStateOf(Offset.Zero) }
     val selections by SelectionManager.selections.collectAsState()
     val selectedRange = selections.filterIsInstance<Selectable.TimelineRange>().firstOrNull { it.trackIndex == trackIndexOf(
         track
@@ -111,7 +126,7 @@ fun TimelineLane(
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
-                        if (event.type == PointerEventType.Press) {
+                        if (event.type == PointerEventType.Press && event.buttons.isPrimaryPressed) {
                             val change = event.changes.firstOrNull() ?: continue
                             val pos = change.position
                             val time = change.uptimeMillis
@@ -279,8 +294,47 @@ fun TimelineLane(
                     }
                 )
                 .clipToBounds()
+                .rightClickable { position ->
+                    if (track is MidiTimelineTrack && selectedRange != null) {
+                        contextMenuPosition = position
+                        showContextMenu = true
+                    }
+                }
                 .then(laneInteractionModifier)
         ) {
+        if (showContextMenu && selectedRange != null) {
+            Popup(
+                popupPositionProvider = object : PopupPositionProvider {
+                    override fun calculatePosition(
+                        anchorBounds: IntRect,
+                        windowSize: IntSize,
+                        layoutDirection: LayoutDirection,
+                        popupContentSize: IntSize,
+                    ): IntOffset {
+                        val x = anchorBounds.left + contextMenuPosition.x.toInt()
+                        val y = anchorBounds.top + contextMenuPosition.y.toInt()
+                        return IntOffset(
+                            x = x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+                            y = y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
+                        )
+                    }
+                },
+                onDismissRequest = { showContextMenu = false },
+                properties = PopupProperties(focusable = true),
+            ) {
+                ContextMenuContent {
+                    ContextMenuItem(
+                        label = "Create MIDI Clip",
+                        icon = Lucide.Plus,
+                        onClick = {
+                            onCreateMidiClip(selectedRange.startMs, selectedRange.endMs)
+                            showContextMenu = false
+                        }
+                    )
+                }
+            }
+        }
+
         // Viewport-relative clip rendering: no large offset container is used.
         // Each clip positions itself at (contentX - scrollX) in screen space, which
         // keeps clamp() and zoomAtX() anchoring correct for any timeline length.

@@ -110,6 +110,9 @@ fun TimelineView(
                 viewModel = viewModel,
                 onOpenMidiEntryAtTime = { trackIndex, timeMs ->
                     viewModel.onDoubleClickMidiTrack(trackIndex, timeMs)
+                },
+                onCreateMidiEntry = { trackIndex, startMs, endMs ->
+                    viewModel.createMidiEntry(trackIndex, startMs, endMs)
                 }
             )
         }

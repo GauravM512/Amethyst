@@ -142,6 +142,15 @@ object ClipboardManager {
                 )
             }
 
+            data.any { it is Selectable.PianoRollNote } -> {
+                val notes = data.filterIsInstance<Selectable.PianoRollNote>().map { it.note }
+                setClipboardData(
+                    data = ClipboardData.PianoRollNotes(
+                        notes = notes.map { it.copy() }
+                    )
+                )
+            }
+
             data.any { it is Selectable.VirtualViewportDevice } -> {
                 println("Copying Virtual Viewport Devices is currently not supported")
             }
@@ -329,6 +338,11 @@ object ClipboardManager {
                         }
                     }
                 }
+            }
+
+            is ClipboardData.PianoRollNotes -> {
+                val pianoRollMode = WorkspaceRepository.mode.value as? dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode ?: return
+                pianoRollMode.pasteNotes(clip.notes)
             }
 
             else -> {
