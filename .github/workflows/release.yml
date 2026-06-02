@@ -24,6 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch ML Graphics
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/ml3-graphics-amethyst
+          token: ${{ secrets.ML_GRAPHICS_TOKEN }}
+          path: ml3-graphics
+          sparse-checkout: devices
+
+      - name: Copy ML Graphics
+        shell: bash
+        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -62,6 +74,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Fetch ML Graphics
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/ml3-graphics-amethyst
+          token: ${{ secrets.ML_GRAPHICS_TOKEN }}
+          path: ml3-graphics
+          sparse-checkout: devices
+
+      - name: Copy ML Graphics
+        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -102,6 +125,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch ML Graphics
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/ml3-graphics-amethyst
+          token: ${{ secrets.ML_GRAPHICS_TOKEN }}
+          path: ml3-graphics
+          sparse-checkout: devices
+
+      - name: Copy ML Graphics
+        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -141,6 +175,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch ML Graphics
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/ml3-graphics-amethyst
+          token: ${{ secrets.ML_GRAPHICS_TOKEN }}
+          path: ml3-graphics
+          sparse-checkout: devices
+
+      - name: Copy ML Graphics
+        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -179,6 +224,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Fetch ML Graphics
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/ml3-graphics-amethyst
+          token: ${{ secrets.ML_GRAPHICS_TOKEN }}
+          path: ml3-graphics
+          sparse-checkout: devices
+
+      - name: Copy ML Graphics
+        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
