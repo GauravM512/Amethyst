@@ -2,6 +2,8 @@ package dev.anthonyhfm.amethyst.core.controls.shortcuts
 
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
+import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import kotlinx.coroutines.flow.update
@@ -66,8 +68,23 @@ fun handleDeletionShortcut(): Boolean {
 
             val sortedDevicesToDelete = devicesToDelete.sortedByDescending { it.third }
 
-            sortedDevicesToDelete.forEach { (chainDevice, chain, _) ->
+            if (sortedDevicesToDelete.size == 1) {
+                val (chainDevice, chain, _) = sortedDevicesToDelete.first()
                 chain.remove(chainDevice.device.selectionUUID)
+            } else {
+                val removals = sortedDevicesToDelete.map { (chainDevice, chain, deviceIndex) ->
+                    UndoableAction.ChainDeviceRemoval(
+                        parent = chain,
+                        device = chainDevice.device,
+                        originalIndex = deviceIndex
+                    )
+                }
+
+                sortedDevicesToDelete.forEach { (chainDevice, chain, _) ->
+                    chain.remove(chainDevice.device.selectionUUID, fromUser = false)
+                }
+
+                UndoManager.addAction(UndoableAction.MultiChainDeviceRemoval(removals))
             }
 
             SelectionManager.clear()

@@ -62,6 +62,16 @@ object ChainSyncCoordinator {
                 }
             }
 
+            is UndoableAction.MultiChainDeviceRemoval -> {
+                action.removals.forEach { removal ->
+                    if (isUndo) {
+                        onDevicePlaced(removal.parent, removal.device, removal.originalIndex)
+                    } else {
+                        onDeviceRemoved(removal.parent, removal.device.selectionUUID)
+                    }
+                }
+            }
+
             is UndoableAction.MovedChainDevice -> {
                 if (isUndo) {
                     onDeviceMoved(

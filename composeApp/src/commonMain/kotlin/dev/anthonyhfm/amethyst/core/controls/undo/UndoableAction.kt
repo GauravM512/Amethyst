@@ -28,6 +28,10 @@ sealed interface UndoableAction {
         val originalIndex: Int,
     ) : UndoableAction
 
+    data class MultiChainDeviceRemoval(
+        val removals: List<ChainDeviceRemoval>
+    ) : UndoableAction
+
     data class ChainDeviceGrouping(
         val parent: Chain,
         val groupDevice: GroupChainDevice,
