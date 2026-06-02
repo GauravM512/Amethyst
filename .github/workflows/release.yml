@@ -34,7 +34,7 @@ jobs:
 
       - name: Copy ML Graphics
         shell: bash
-        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+        run: mkdir -p composeApp/src/commonMain/composeResources/files && cp -r ml3-graphics/. composeApp/src/commonMain/composeResources/files/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -84,7 +84,7 @@ jobs:
           sparse-checkout: devices
 
       - name: Copy ML Graphics
-        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+        run: mkdir -p composeApp/src/commonMain/composeResources/files && cp -r ml3-graphics/. composeApp/src/commonMain/composeResources/files/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -134,7 +134,7 @@ jobs:
           sparse-checkout: devices
 
       - name: Copy ML Graphics
-        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+        run: mkdir -p composeApp/src/commonMain/composeResources/files && cp -r ml3-graphics/. composeApp/src/commonMain/composeResources/files/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -184,7 +184,7 @@ jobs:
           sparse-checkout: devices
 
       - name: Copy ML Graphics
-        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+        run: mkdir -p composeApp/src/commonMain/composeResources/files && cp -r ml3-graphics/. composeApp/src/commonMain/composeResources/files/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -234,7 +234,7 @@ jobs:
           sparse-checkout: devices
 
       - name: Copy ML Graphics
-        run: cp -r ml3-graphics/devices/. composeApp/src/commonMain/composeResources/files/devices/
+        run: mkdir -p composeApp/src/commonMain/composeResources/files && cp -r ml3-graphics/. composeApp/src/commonMain/composeResources/files/
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
