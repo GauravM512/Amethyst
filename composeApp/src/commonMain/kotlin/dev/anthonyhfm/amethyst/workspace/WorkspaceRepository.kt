@@ -260,10 +260,13 @@ object WorkspaceRepository {
      */
     fun syncMacrosSize(remoteMacros: List<Macro>, fromRemote: Boolean = true) {
         val current = _macros.value
-        if (current.size == remoteMacros.size) return
+        if (current.size == remoteMacros.size) {
+            if (fromRemote) isApplyingRemoteMacrosUpdate = false
+            return
+        }
 
         val newMacros = if (remoteMacros.size > current.size) {
-            current + remoteMacros.drop(current.size)
+            current + List(remoteMacros.size - current.size) { Macro(0) }
         } else {
             current.take(remoteMacros.size)
         }
@@ -461,7 +464,11 @@ object WorkspaceRepository {
 
         recursiveRenderingKeyframes(lightsChain)
 
-        _macros.update { workspaceData.macros }
+        if (fromRemote) {
+            syncMacrosSize(workspaceData.macros, fromRemote = true)
+        } else {
+            _macros.update { workspaceData.macros }
+        }
 
         TimelineRepository.loadTracks(workspaceData.timelineData)
         AudioSourceLibrary.load(workspaceData.audioSources)

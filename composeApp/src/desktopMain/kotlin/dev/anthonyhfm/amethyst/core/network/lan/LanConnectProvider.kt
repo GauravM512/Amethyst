@@ -262,13 +262,19 @@ class LanConnectProvider : AmethystConnectProvider() {
             val data = workspaceRepo.saveWorkspace()
             val bytes = dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf.encodeToByteArray(
                 dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData.serializer(),
-                data
+                data.copy(
+                    macros = data.macros.map {
+                        dev.anthonyhfm.amethyst.workspace.data.Macro(0)
+                    }
+                )
             )
             ConnectEvent.FullStateSync(
                 workspaceData = bytes,
                 bpm = workspaceRepo.bpm.value,
                 projectName = workspaceRepo.projectName.value ?: "",
-                macros = workspaceRepo.macros.value
+                macros = List(workspaceRepo.macros.value.size) {
+                    dev.anthonyhfm.amethyst.workspace.data.Macro(0)
+                }
             )
         } catch (e: Exception) {
             null

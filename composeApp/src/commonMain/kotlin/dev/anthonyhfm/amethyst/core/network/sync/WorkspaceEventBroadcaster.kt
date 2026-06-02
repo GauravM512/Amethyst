@@ -16,9 +16,12 @@ class WorkspaceEventBroadcaster(
 ) {
     private val jobs = mutableListOf<Job>()
     private var verificationJob: Job? = null
+    private var lastBroadcastMacroCount: Int = WorkspaceRepository.macros.value.size
 
     fun start() {
         if (jobs.isNotEmpty()) return
+
+        lastBroadcastMacroCount = WorkspaceRepository.macros.value.size
 
         jobs += scope.launch {
             WorkspaceRepository.bpm
@@ -53,9 +56,13 @@ class WorkspaceEventBroadcaster(
                 .collect { macros ->
                     if (WorkspaceRepository.isApplyingRemoteMacrosUpdate) {
                         WorkspaceRepository.markRemoteMacrosUpdateConsumed()
-                    } else {
-                        provider.send(ConnectEvent.MacrosChanged(macros))
+                        lastBroadcastMacroCount = macros.size
+                    } else if (macros.size != lastBroadcastMacroCount) {
+                        lastBroadcastMacroCount = macros.size
+                        provider.send(ConnectEvent.MacrosChanged(macros.asMacroStructure()))
                         triggerVerification()
+                    } else {
+                        lastBroadcastMacroCount = macros.size
                     }
                 }
         }
@@ -89,8 +96,10 @@ class WorkspaceEventBroadcaster(
     }
 
     fun onMacrosChanged(macros: List<Macro>) {
+        if (macros.size == lastBroadcastMacroCount) return
+        lastBroadcastMacroCount = macros.size
         scope.launch {
-            provider.send(ConnectEvent.MacrosChanged(macros))
+            provider.send(ConnectEvent.MacrosChanged(macros.asMacroStructure()))
             triggerVerification()
         }
     }
@@ -106,3 +115,5 @@ class WorkspaceEventBroadcaster(
         }
     }
 }
+
+private fun List<Macro>.asMacroStructure(): List<Macro> = List(size) { Macro(0) }

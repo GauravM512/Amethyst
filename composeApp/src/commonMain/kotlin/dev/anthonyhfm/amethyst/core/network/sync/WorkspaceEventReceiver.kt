@@ -38,7 +38,7 @@ class WorkspaceEventReceiver(
                     }
 
                     is ConnectEvent.MacrosChanged -> {
-                        WorkspaceRepository.setMacros(event.macros, fromRemote = true, undoable = false)
+                        WorkspaceRepository.syncMacrosSize(event.macros, fromRemote = true)
                         WorkspaceSyncCoordinator.triggerVerification()
                     }
 
@@ -118,7 +118,7 @@ class WorkspaceEventReceiver(
             WorkspaceRepository.loadWorkspace(data, fromRemote = true)
             WorkspaceRepository.setBpm(bpm, fromRemote = true, undoable = false)
             WorkspaceRepository.setProjectName(projectName, fromRemote = true)
-            WorkspaceRepository.setMacros(macros, fromRemote = true, undoable = false)
+            WorkspaceRepository.syncMacrosSize(macros, fromRemote = true)
             WorkspaceRepository.deviceRefresh.emit(Unit)
         } catch (e: Exception) {
             println("WorkspaceEventReceiver: Failed to apply $source — ${e.message}")
@@ -130,15 +130,23 @@ class WorkspaceEventReceiver(
         if (provider.localUser.value?.role != ConnectRole.HOST) return
 
         val data = WorkspaceRepository.saveWorkspace()
-        val bytes = AmethystProtoBuf.encodeToByteArray(SavableWorkspaceData.serializer(), data)
+        val bytes = AmethystProtoBuf.encodeToByteArray(
+            SavableWorkspaceData.serializer(),
+            data.withLocalMacroValuesStripped()
+        )
         provider.sendToUser(
             userId = event.userId,
             event = ConnectEvent.ResyncResponse(
                 workspaceData = bytes,
                 bpm = WorkspaceRepository.bpm.value,
                 projectName = WorkspaceRepository.projectName.value ?: "",
-                macros = WorkspaceRepository.macros.value
+                macros = WorkspaceRepository.macros.value.asMacroStructure()
             )
         )
     }
 }
+
+private fun SavableWorkspaceData.withLocalMacroValuesStripped(): SavableWorkspaceData =
+    copy(macros = macros.asMacroStructure())
+
+private fun List<Macro>.asMacroStructure(): List<Macro> = List(size) { Macro(0) }
