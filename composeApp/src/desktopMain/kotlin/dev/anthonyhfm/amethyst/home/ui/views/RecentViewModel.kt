@@ -28,6 +28,10 @@ class RecentViewModel(
 ) : BaseViewModel<RecentViewContract.State, RecentViewContract.Event, RecentViewContract.Effect>(
     RecentViewContract.State()
 ) {
+    private fun log(message: String) {
+        println("[RecentViewModel ${System.currentTimeMillis()}] $message")
+    }
+
     init {
         viewModelScope.launch {
             updateState(state.value.copy(isDiscovering = true))
@@ -38,6 +42,11 @@ class RecentViewModel(
                         isDiscovering = true
                     )
                 )
+            }
+        }
+        viewModelScope.launch {
+            CollaborationManager.initialSyncProgress.collect { progress ->
+                updateState(state.value.copy(initialSyncProgress = progress))
             }
         }
     }
@@ -135,16 +144,22 @@ class RecentViewModel(
             }
 
             is RecentViewContract.Event.OnClickJoinSession -> {
+                log("OnClickJoinSession session=${event.session.session.id}/${event.session.session.name} hostAddress=${event.session.hostAddress} userName='${event.userName}'")
                 viewModelScope.launch {
                     try {
                         LocalUserRepository.setUsername(event.userName)
+                        log("joinSession() call localUser=${LocalUserRepository.localUser.value.id}/${LocalUserRepository.localUser.value.name}")
                         val result = CollaborationManager.joinSession(
                             hostAddress = event.session.hostAddress,
                             localUser = LocalUserRepository.localUser.value
                         )
+                        log("joinSession() returned success=${result.isSuccess} exception=${result.exceptionOrNull()?.message}")
                         result.getOrThrow()
+                        log("triggerEffect(OpenWorkspace)")
                         triggerEffect(RecentViewContract.Effect.OpenWorkspace)
                     } catch (exception: Exception) {
+                        log("join failed ${exception::class.simpleName}: ${exception.message}")
+                        exception.printStackTrace()
                         snackbarHostState.showSnackbar(
                             message = "Failed to join shared workspace",
                             withDismissAction = true,
@@ -188,7 +203,8 @@ class RecentViewModel(
 sealed interface RecentViewContract {
     data class State(
         val discoveredSessions: List<DiscoveredSession> = emptyList(),
-        val isDiscovering: Boolean = false
+        val isDiscovering: Boolean = false,
+        val initialSyncProgress: CollaborationManager.InitialSyncProgress = CollaborationManager.InitialSyncProgress()
     )
 
     sealed interface Event {

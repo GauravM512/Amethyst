@@ -10,9 +10,12 @@ import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.DiscordRPCManager
 import dev.anthonyhfm.amethyst.desktop.about.setupAboutHandler
 import dev.anthonyhfm.amethyst.settings.setupPreferencesHandler
+import dev.anthonyhfm.amethyst.start.EarlyAccessWindow
+import dev.anthonyhfm.amethyst.settings.data.SettingsRepository
 import dev.anthonyhfm.amethyst.start.StartWindow
 import dev.anthonyhfm.amethyst.workspace.WorkspaceWindow
 import io.github.vinceglb.filekit.FileKit
+import kotlin.system.exitProcess
 
 fun main() {
     initializeSentry()
@@ -36,19 +39,38 @@ fun main() {
         FileKit.init(appId = "Amethyst")
 
         var showEditor: Boolean by remember { mutableStateOf(false) }
+        var hasAcceptedEarlyAccess by remember {
+            mutableStateOf(
+                SettingsRepository.platformSettings.getBoolean("early_access_accepted", false)
+            )
+        }
 
-        if (!showEditor) {
+        if (!hasAcceptedEarlyAccess) {
+            EarlyAccessWindow(
+                onAccept = {
+                    SettingsRepository.platformSettings.putBoolean("early_access_accepted", true)
+                    hasAcceptedEarlyAccess = true
+                },
+                onCancel = {
+                    exitProcess(0)
+                }
+            )
+        } else if (!showEditor) {
             StartWindow(
                 onOpenEditor = {
+                    println("[main ${System.currentTimeMillis()}] onOpenEditor -> showEditor=true")
                     showEditor = true
                 }
             )
         } else {
+            println("[main ${System.currentTimeMillis()}] rendering WorkspaceWindow")
             WorkspaceWindow(
                 onClose = {
+                    println("[main ${System.currentTimeMillis()}] WorkspaceWindow onClose -> showEditor=false")
                     showEditor = false
                 }
             )
         }
     }
 }
+

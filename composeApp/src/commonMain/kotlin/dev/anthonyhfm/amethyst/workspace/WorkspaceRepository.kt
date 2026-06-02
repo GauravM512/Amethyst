@@ -436,33 +436,34 @@ object WorkspaceRepository {
             Echo.audioEnter(it.filterIsInstance<Signal.AudioSignal>())
         }
 
-        fun recursiveRenderingKeyframes(chain: Chain) {
+        fun renderKeyframesInChain(chain: Chain): Int {
+            var rendered = 0
             chain.devices.value.forEach { device ->
                 when (device) {
                     is KeyframesChainDevice -> {
                         device.renderAnimation()
+                        rendered += 1
                     }
 
                     is GroupChainDevice -> {
                         device.state.value.groups.forEach {
-                            recursiveRenderingKeyframes(it.chain)
+                            rendered += renderKeyframesInChain(it.chain)
                         }
                     }
 
                     is MultiGroupChainDevice -> {
                         device.state.value.groups.forEach {
-                            recursiveRenderingKeyframes(it.chain)
+                            rendered += renderKeyframesInChain(it.chain)
                         }
                     }
 
                     is ChokeChainDevice -> {
-                        recursiveRenderingKeyframes(device.state.value.chain)
+                        rendered += renderKeyframesInChain(device.state.value.chain)
                     }
                 }
             }
+            return rendered
         }
-
-        recursiveRenderingKeyframes(lightsChain)
 
         if (fromRemote) {
             syncMacrosSize(workspaceData.macros, fromRemote = true)
@@ -495,6 +496,9 @@ object WorkspaceRepository {
         if (Heaven.devices.isNotEmpty()) {
             updateWorkspaceBounds()
         }
+
+        val renderedKeyframes = renderKeyframesInChain(lightsChain) + renderKeyframesInChain(samplingChain)
+        println("[WorkspaceRepository ${System.currentTimeMillis()}] loadWorkspace(fromRemote=$fromRemote) renderedKeyframes=$renderedKeyframes")
 
         _bpm.update {
             workspaceData.settings.bpm

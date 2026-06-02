@@ -23,18 +23,29 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Central orchestrator for the LAN collaboration feature.
  */
 object CollaborationManager {
+    data class InitialSyncProgress(
+        val active: Boolean = false,
+        val phase: String = "",
+        val progress: Float? = null,
+        val detail: String = ""
+    )
 
     val provider: LanConnectProvider = LanConnectProvider()
 
     val connectionState: StateFlow<ConnectionState> = provider.connectionState
     val session: StateFlow<ConnectSession?> = provider.session
     val localUser: StateFlow<ConnectUser?> = provider.localUser
+
+    private val _initialSyncProgress = MutableStateFlow(InitialSyncProgress())
+    val initialSyncProgress: StateFlow<InitialSyncProgress> = _initialSyncProgress.asStateFlow()
 
     val isActive: Boolean
         get() = connectionState.value is ConnectionState.Connected
@@ -46,8 +57,28 @@ object CollaborationManager {
 
     @Volatile private var syncCompletedDeferred: CompletableDeferred<Unit>? = null
 
+    private fun log(message: String) {
+        println("[Collaboration ${System.currentTimeMillis()}] $message")
+    }
+
     private fun onFullSyncCompleted() {
+        log("onFullSyncCompleted(): completing deferred=${syncCompletedDeferred != null}")
         syncCompletedDeferred?.complete(Unit)
+    }
+
+    private fun updateInitialSyncProgress(
+        phase: String,
+        progress: Float? = null,
+        detail: String = "",
+        active: Boolean = true
+    ) {
+        log("initialSyncProgress phase='$phase' progress=$progress detail='$detail' active=$active")
+        _initialSyncProgress.value = InitialSyncProgress(
+            active = active,
+            phase = phase,
+            progress = progress,
+            detail = detail
+        )
     }
 
     private var workspaceBroadcaster: WorkspaceEventBroadcaster? = null
@@ -63,11 +94,15 @@ object CollaborationManager {
         sessionName: String,
         localUser: ConnectUser
     ): Result<ConnectSession> {
+        log("startHosting(): sessionName='$sessionName' localUser=${localUser.id}/${localUser.name}")
         val result = provider.host(sessionName, localUser)
         if (result.isSuccess) {
             val session = result.getOrThrow()
+            log("startHosting(): provider.host success session=${session.id}")
             LanDiscoveryService.startBroadcasting(session)
             startSync(hosting = true)
+        } else {
+            log("startHosting(): failed ${result.exceptionOrNull()?.message}")
         }
         return result
     }
@@ -76,35 +111,49 @@ object CollaborationManager {
         hostAddress: String,
         localUser: ConnectUser
     ): Result<ConnectSession> {
+        log("joinSession(): start hostAddress=$hostAddress localUser=${localUser.id}/${localUser.name}")
+        updateInitialSyncProgress("Connecting", null, hostAddress)
         val deferred = CompletableDeferred<Unit>()
         syncCompletedDeferred = deferred
 
         // Start sync receivers BEFORE joining so they are subscribed to _events before
         // any incoming events (e.g. FullStateSync) can arrive on the WebSocket.
         startSync(hosting = false)
+        log("joinSession(): sync receivers started")
         val result = provider.join(hostAddress, localUser)
         if (!result.isSuccess) {
+            log("joinSession(): provider.join failed ${result.exceptionOrNull()?.message}")
             stopSync()
             syncCompletedDeferred = null
             return result
         }
+        log("joinSession(): provider.join success session=${result.getOrNull()?.id}; waiting initial sync")
+        updateInitialSyncProgress("Waiting for workspace", null, result.getOrNull()?.name.orEmpty())
 
         return try {
-            // Wait for full state sync to be completed and applied
-            kotlinx.coroutines.withTimeout(10000) { // 10 seconds timeout
+            // Large workspaces can include audio sources; allow enough time for encoding, transfer, and load.
+            kotlinx.coroutines.withTimeout(INITIAL_SYNC_TIMEOUT_MS) {
                 deferred.await()
             }
+            log("joinSession(): initial sync signal received")
+            updateInitialSyncProgress("Opening workspace", 1f, "Ready")
             result
         } catch (e: Exception) {
+            log("joinSession(): initial sync failed ${e::class.simpleName}: ${e.message}")
+            e.printStackTrace()
             stopSync()
+            provider.leave()
             syncCompletedDeferred = null
+            updateInitialSyncProgress("Failed to join", null, e.message ?: "", active = false)
             Result.failure(Exception("Failed to complete initial state sync: ${e.message}", e))
         } finally {
+            log("joinSession(): clearing syncCompletedDeferred")
             syncCompletedDeferred = null
         }
     }
 
     suspend fun leaveSession() {
+        log("leaveSession()")
         stopSync()
         LanDiscoveryService.stopBroadcasting()
         provider.leave()
@@ -115,11 +164,19 @@ object CollaborationManager {
     }
 
     private fun startSync(hosting: Boolean) {
+        log("startSync(hosting=$hosting)")
         stopSync()
 
-        workspaceReceiver = WorkspaceEventReceiver(provider, scope) {
-            onFullSyncCompleted()
-        }.also { it.start() }
+        workspaceReceiver = WorkspaceEventReceiver(
+            provider = provider,
+            scope = scope,
+            onFullStateSyncApplied = {
+                onFullSyncCompleted()
+            },
+            onFullStateSyncProgress = { phase, progress, detail ->
+                updateInitialSyncProgress(phase, progress, detail)
+            }
+        ).also { it.start() }
         deviceReceiver = DeviceSyncReceiver(provider, scope).also { it.start() }
         chainReceiver = ChainSyncReceiver(provider, scope).also { it.start() }
         CollaborationPresence.attach(provider, scope)
@@ -142,6 +199,7 @@ object CollaborationManager {
     }
 
     private fun stopSync() {
+        log("stopSync()")
         workspaceBroadcaster?.stop()
         workspaceBroadcaster?.let { WorkspaceSyncCoordinator.detach(it) }
         workspaceBroadcaster = null
@@ -172,4 +230,6 @@ object CollaborationManager {
 
         CollaborationPresence.detach()
     }
+
+    private const val INITIAL_SYNC_TIMEOUT_MS = 5 * 60_000L
 }

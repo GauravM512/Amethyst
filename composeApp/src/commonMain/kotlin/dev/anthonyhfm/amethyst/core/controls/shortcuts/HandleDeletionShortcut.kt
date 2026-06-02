@@ -21,7 +21,6 @@ fun handleDeletionShortcut(): Boolean {
         selections.any { it is Selectable.GroupChainItem } -> {
             val groupItems = selections.filterIsInstance<Selectable.GroupChainItem>()
 
-            // Group by parent device — handle each compound device independently
             groupItems.groupBy { it.parent.selectionUUID }.forEach { (_, items) ->
                 val parent = items.first().parent
                 val indices = items.map { it.groupIndex }.sorted()
@@ -35,7 +34,6 @@ fun handleDeletionShortcut(): Boolean {
 
             SelectionManager.clear()
 
-            // Auto-select nearest remaining group after deletion
             val firstItem = groupItems.first()
             val parent = firstItem.parent
             val remainingGroups = when (parent) {
@@ -89,7 +87,6 @@ fun handleDeletionShortcut(): Boolean {
 
             SelectionManager.clear()
 
-            // After deletion, auto-select the nearest remaining device
             val (_, firstChain, firstIndex) = sortedDevicesToDelete.last()
             val newSelectionIndex = when {
                 firstChain.devices.value.isEmpty() -> -1

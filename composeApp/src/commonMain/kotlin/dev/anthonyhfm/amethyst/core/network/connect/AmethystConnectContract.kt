@@ -102,6 +102,40 @@ object AmethystConnectContract {
         }
 
         @Serializable
+        data class FullStateSyncChunk(
+            val transferId: String,
+            val chunkIndex: Int,
+            val chunkCount: Int,
+            val workspaceDataChunk: ByteArray,
+            val bpm: Double,
+            val projectName: String,
+            val macros: List<Macro>
+        ) : ConnectEvent {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (other !is FullStateSyncChunk) return false
+                return transferId == other.transferId &&
+                    chunkIndex == other.chunkIndex &&
+                    chunkCount == other.chunkCount &&
+                    workspaceDataChunk.contentEquals(other.workspaceDataChunk) &&
+                    bpm == other.bpm &&
+                    projectName == other.projectName &&
+                    macros == other.macros
+            }
+
+            override fun hashCode(): Int {
+                var result = transferId.hashCode()
+                result = 31 * result + chunkIndex
+                result = 31 * result + chunkCount
+                result = 31 * result + workspaceDataChunk.contentHashCode()
+                result = 31 * result + bpm.hashCode()
+                result = 31 * result + projectName.hashCode()
+                result = 31 * result + macros.hashCode()
+                return result
+            }
+        }
+
+        @Serializable
         data class RequestResync(val userId: String) : ConnectEvent
 
         @Serializable

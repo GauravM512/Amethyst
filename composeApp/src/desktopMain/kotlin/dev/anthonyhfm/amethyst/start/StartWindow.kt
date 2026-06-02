@@ -92,6 +92,7 @@ fun StartWindow(
 
                 Home(
                     onOpenWorkspace = {
+                        println("[StartWindow ${System.currentTimeMillis()}] onOpenWorkspace -> onOpenEditor")
                         onOpenEditor()
                     }
                 )

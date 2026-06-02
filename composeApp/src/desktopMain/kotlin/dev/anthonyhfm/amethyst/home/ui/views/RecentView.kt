@@ -56,6 +56,7 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialog
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogCancel
+import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogDescription
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogFooter
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogHeader
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogTitle
@@ -70,6 +71,7 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.DropdownMenuContent
 import dev.anthonyhfm.amethyst.ui.components.primitives.DropdownMenuItem
 import dev.anthonyhfm.amethyst.ui.components.primitives.DropdownMenuTrigger
 import dev.anthonyhfm.amethyst.ui.components.primitives.Input
+import dev.anthonyhfm.amethyst.ui.components.primitives.Progress
 import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollArea
 import dev.anthonyhfm.amethyst.ui.components.primitives.TypographyH2
 import dev.anthonyhfm.amethyst.ui.components.primitives.TypographyLead
@@ -117,6 +119,7 @@ fun RecentView(
         viewModel.effect.collect {
             when (it) {
                 RecentViewContract.Effect.OpenWorkspace -> {
+                    println("[RecentView ${System.currentTimeMillis()}] effect OpenWorkspace received; calling onOpenWorkspace")
                     onOpenWorkspace()
                 }
             }
@@ -213,6 +216,37 @@ fun RecentView(
                     joiningSession = null
                 },
             )
+        }
+
+        if (state.initialSyncProgress.active) {
+            InitialSyncProgressDialog(state.initialSyncProgress)
+        }
+    }
+}
+
+@Composable
+private fun InitialSyncProgressDialog(
+    progress: dev.anthonyhfm.amethyst.core.network.CollaborationManager.InitialSyncProgress,
+) {
+    val dialogState = rememberDialogState(initiallyVisible = true)
+    AlertDialog(
+        state = dialogState,
+        modifier = Modifier.widthIn(min = 360.dp, max = 460.dp),
+        onDismiss = {},
+    ) {
+        AlertDialogHeader {
+            AlertDialogTitle("Joining workspace")
+            AlertDialogDescription(progress.phase.ifBlank { "Preparing collaboration session" })
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Progress(value = progress.progress ?: 0f)
+            if (progress.detail.isNotBlank()) {
+                TypographyMuted(progress.detail)
+            }
         }
     }
 }
