@@ -214,6 +214,10 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                                         )
                                     }
                                     pushStateChange(before, state.value)
+                                    val index = snappedColors.indexOfFirst { it.selectionUUID == newColor.selectionUUID }
+                                    if (index != -1) {
+                                        SelectionManager.select(Selectable.GradientStep(this@GradientChainDevice, index), single = true)
+                                    }
                                 }
                             },
                             onGradientDragStart = {
