@@ -28,6 +28,8 @@ import dev.anthonyhfm.amethyst.ui.theme.ring
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 
+import dev.anthonyhfm.amethyst.ui.modifier.trackInputFocus
+
 @Composable
 fun Textarea(
     value: String,
@@ -53,7 +55,8 @@ fun Textarea(
             .clip(shape)
             .background(Theme[colors][background])
             .border(borderWidth, borderColor, shape)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .trackInputFocus(),
         enabled = enabled,
         singleLine = false,
         minLines = minLines,

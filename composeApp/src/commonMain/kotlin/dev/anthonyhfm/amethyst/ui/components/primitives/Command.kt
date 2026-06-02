@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.ui.components.primitives
 
+import dev.anthonyhfm.amethyst.ui.modifier.trackInputFocus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -104,7 +105,9 @@ fun CommandInput(
             textStyle = Theme[typography][small].copy(color = Theme[colors][foreground]),
             cursorBrush = SolidColor(Theme[colors][foreground]),
             interactionSource = interactionSource,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .trackInputFocus(),
             decorationBox = { innerTextField ->
                 Box(
                     contentAlignment = Alignment.CenterStart,

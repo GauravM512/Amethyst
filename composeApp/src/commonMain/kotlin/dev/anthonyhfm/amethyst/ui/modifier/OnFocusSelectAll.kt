@@ -13,6 +13,8 @@ import androidx.compose.ui.platform.debugInspectorInfo
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+
 fun Modifier.onFocusSelectAll(textFieldValueState: MutableState<TextFieldValue>): Modifier =
     composed(
         inspectorInfo = debugInspectorInfo {
@@ -30,6 +32,7 @@ fun Modifier.onFocusSelectAll(textFieldValueState: MutableState<TextFieldValue>)
             }
         }
         onFocusChanged { focusState ->
+            WorkspaceRepository.isInputFocused = focusState.isFocused
             if (focusState.isFocused) {
                 triggerEffect = triggerEffect?.let { bool ->
                     !bool

@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.ui.components.primitives
 
+import dev.anthonyhfm.amethyst.ui.modifier.trackInputFocus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -99,7 +100,8 @@ fun InputOtp(
             },
             modifier = Modifier
                 .matchParentSize()
-                .alpha(0f),
+                .alpha(0f)
+                .trackInputFocus(),
             enabled = enabled,
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.ui.components
 
+import dev.anthonyhfm.amethyst.ui.modifier.trackInputFocus
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -339,6 +340,7 @@ fun HexColorEditor(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
             .padding(vertical = 6.dp)
+            .trackInputFocus()
     )
 }
 

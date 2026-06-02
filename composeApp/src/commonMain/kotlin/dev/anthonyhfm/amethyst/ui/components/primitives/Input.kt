@@ -29,6 +29,8 @@ import dev.anthonyhfm.amethyst.ui.theme.ring
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 
+import dev.anthonyhfm.amethyst.ui.modifier.trackInputFocus
+
 @Composable
 fun Input(
     value: String,
@@ -54,7 +56,8 @@ fun Input(
             .clip(shape)
             .background(Theme[colors][background])
             .border(borderWidth, borderColor, shape)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp)
+            .trackInputFocus(),
         enabled = enabled,
         singleLine = singleLine,
         textStyle = Theme[typography][small].copy(color = Theme[colors][foreground]),

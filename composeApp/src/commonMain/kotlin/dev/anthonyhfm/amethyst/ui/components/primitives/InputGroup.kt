@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.ui.components.primitives
 
+import dev.anthonyhfm.amethyst.ui.modifier.trackInputFocus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -151,7 +152,8 @@ fun RowScope.InputGroupInput(
         onValueChange = onValueChange,
         modifier = modifier
             .weight(1f)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp)
+            .trackInputFocus(),
         enabled = enabled,
         singleLine = singleLine,
         textStyle = Theme[typography][small].copy(color = Theme[colors][foreground]),

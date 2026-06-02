@@ -11,6 +11,7 @@ import androidx.compose.ui.input.key.type
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 
 class CoordinateFilterWorkspaceMode : WorkspaceContract.WorkspaceMode {
@@ -29,7 +30,7 @@ class CoordinateFilterWorkspaceMode : WorkspaceContract.WorkspaceMode {
         val isExitKey = event.key == Key.Escape ||
             ((event.isCtrlPressed || event.isMetaPressed) && event.key == Key.W)
         if (isExitKey) {
-            modeClose?.invoke()
+            requestClose()
             return true
         }
         return false
@@ -73,5 +74,10 @@ class CoordinateFilterWorkspaceMode : WorkspaceContract.WorkspaceMode {
 
     fun close() {
         modeClose?.invoke()
+    }
+
+    private fun requestClose() {
+        modeClose?.invoke()
+        WorkspaceRepository.switchToPreviousMode()
     }
 }

@@ -28,6 +28,7 @@ import dev.anthonyhfm.amethyst.core.engine.echo.AudioOutput
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.FlatAmethystLaf
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
+import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
 import dev.anthonyhfm.amethyst.ui.theme.AmethystTheme
@@ -82,7 +83,8 @@ fun WorkspaceWindow(
                     mode.onKeyEvent(it)
                 }
 
-                mode is KeyframesWorkspaceMode && (it.key == Key.Escape || ((it.isCtrlPressed || it.isMetaPressed) && it.key == Key.W)) -> {
+                (mode is KeyframesWorkspaceMode || mode is CoordinateFilterWorkspaceMode) &&
+                    (it.key == Key.Escape || ((it.isCtrlPressed || it.isMetaPressed) && it.key == Key.W)) -> {
                     mode.onKeyEvent(it)
                 }
 

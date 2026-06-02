@@ -1,5 +1,7 @@
+// Unused import block starts at top of file
 package dev.anthonyhfm.amethyst.ui.components.primitives
 
+import dev.anthonyhfm.amethyst.ui.modifier.trackInputFocus
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -255,7 +257,8 @@ private fun ComboboxSearchField(
             modifier = Modifier
                 .weight(1f)
                 .height(40.dp)
-                .focusRequester(focusRequester),
+                .focusRequester(focusRequester)
+                .trackInputFocus(),
             singleLine = true,
             textStyle = Theme[typography][small].copy(color = Theme[colors][foreground]),
             cursorBrush = SolidColor(Theme[colors][primary]),
