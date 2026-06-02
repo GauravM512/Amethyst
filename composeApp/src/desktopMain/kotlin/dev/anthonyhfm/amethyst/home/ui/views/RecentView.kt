@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.size
@@ -138,14 +140,8 @@ fun RecentView(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+                .padding(start = 24.dp, top = 24.dp, end = 12.dp, bottom = 24.dp),
         ) {
-            RecentViewHeader(
-                onOpenProject = { viewModel.onEvent(Event.OnClickOpenProject) },
-                onCreateProject = { viewModel.onEvent(Event.OnClickNewProject) },
-            )
-
             ScrollArea(
                 modifier = Modifier.fillMaxSize(),
             ) {
@@ -153,36 +149,47 @@ fun RecentView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(end = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    if (state.discoveredSessions.isNotEmpty()) {
-                        TypographyMuted("Available on the network")
-                        state.discoveredSessions.forEach { session ->
-                            DiscoveredSessionCard(
-                                session = session,
-                                onJoin = { joiningSession = session },
-                            )
-                        }
-                    }
+                    RecentViewHeader(
+                        onOpenProject = { viewModel.onEvent(Event.OnClickOpenProject) },
+                        onCreateProject = { viewModel.onEvent(Event.OnClickNewProject) },
+                    )
 
-                    if (recentProjects.isEmpty()) {
-                        EmptyRecentProjectsCard()
-                    } else {
-                        TypographyMuted("Recently opened")
-                        recentProjects.forEachIndexed { index, project ->
-                            RecentProjectCard(
-                                project = project,
-                                onOpen = {
-                                    viewModel.onEvent(Event.OpenProjectFromHistory(project))
-                                },
-                                onEdit = {
-                                    viewModel.onEvent(Event.OnClickEditProject(project))
-                                },
-                                onDelete = {
-                                    HomeRepository.removeRecentWorkspace(project.path)
-                                    recentProjects = loadRecentProjects()
-                                },
-                            )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (state.discoveredSessions.isNotEmpty()) {
+                            TypographyMuted("Available on the network")
+                            state.discoveredSessions.forEach { session ->
+                                DiscoveredSessionCard(
+                                    session = session,
+                                    onJoin = { joiningSession = session },
+                                )
+                            }
+                        }
+
+                        if (recentProjects.isEmpty()) {
+                            EmptyRecentProjectsCard()
+                        } else {
+                            TypographyMuted("Recently opened")
+                            recentProjects.forEachIndexed { index, project ->
+                                RecentProjectCard(
+                                    project = project,
+                                    onOpen = {
+                                        viewModel.onEvent(Event.OpenProjectFromHistory(project))
+                                    },
+                                    onEdit = {
+                                        viewModel.onEvent(Event.OnClickEditProject(project))
+                                    },
+                                    onDelete = {
+                                        HomeRepository.removeRecentWorkspace(project.path)
+                                        recentProjects = loadRecentProjects()
+                                    },
+                                )
+                            }
                         }
                     }
                 }

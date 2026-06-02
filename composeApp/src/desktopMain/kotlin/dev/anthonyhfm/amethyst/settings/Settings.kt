@@ -41,13 +41,17 @@ fun Settings(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(start = 20.dp, top = 16.dp, end = 8.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             ScrollArea(
                 modifier = Modifier.fillMaxSize(),
             ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 12.dp)
+                ) {
                     SettingsHeader(onBack = onBack)
 
                     Spacer(Modifier.height(24.dp))
@@ -55,8 +59,7 @@ fun Settings(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .widthIn(max = 760.dp)
-                            .padding(end = 12.dp),
+                            .widthIn(max = 760.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         SettingsRepository.settingsGroups.forEach { group ->
