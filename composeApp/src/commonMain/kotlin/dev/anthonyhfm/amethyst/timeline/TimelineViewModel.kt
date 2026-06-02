@@ -46,7 +46,6 @@ class TimelineViewModel : ViewModel() {
     val isPlaying = TimelineRepository.isPlaying
 
     init {
-        initializeDemoData()
         viewModelScope.launch {
             TimelineRepository.tracks.collect { repoTracks ->
                 _tracks.value = repoTracks
@@ -152,28 +151,6 @@ class TimelineViewModel : ViewModel() {
             }
         }
         SelectionManager.replaceSelections(updated)
-    }
-
-    private fun initializeDemoData() {
-        _tracks.value = listOf(AudioTimelineTrack(), MidiTimelineTrack())
-
-        _tracks.value.forEach { track ->
-            TimelineRepository.addTrack(track)
-        }
-    }
-
-    fun addAudioEntry(trackIndex: Int, audioEntry: AudioEntry) {
-        viewModelScope.launch {
-            val currentTracks = _tracks.value.toMutableList()
-            if (trackIndex < currentTracks.size && currentTracks[trackIndex] is AudioTimelineTrack) {
-                val track = currentTracks[trackIndex] as AudioTimelineTrack
-                track.entries[audioEntry.startTimeMs] = audioEntry
-
-                _tracks.value = currentTracks.toList()
-
-                TimelineRepository.tracks.value = currentTracks.toList()
-            }
-        }
     }
 
     private fun snapToGrid(timeMs: Long, intervalMs: Long): Long {
