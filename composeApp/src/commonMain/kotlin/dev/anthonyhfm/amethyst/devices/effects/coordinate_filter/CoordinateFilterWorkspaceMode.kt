@@ -10,6 +10,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.Event
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
@@ -38,7 +39,7 @@ class CoordinateFilterWorkspaceMode : WorkspaceContract.WorkspaceMode {
 
     override fun onMidiInput(data: MidiInputData, offset: Offset) = {
         val globalX: Int = data.pitch % 10 + offset.x.toInt()
-        val globalY: Int = (data.pitch / 10) + offset.y.toInt()
+        val globalY: Int = (9 - (data.pitch / 10)) + offset.y.toInt()
 
         if (data.velocity != 0) {
             val device = Heaven.devices.firstOrNull { device ->
