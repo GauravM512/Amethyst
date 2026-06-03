@@ -43,7 +43,7 @@ fun TutorialsView() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 24.dp),
+                .padding(start = 24.dp, top = 24.dp, end = 12.dp, bottom = 24.dp),
         ) {
             ScrollArea(
                 modifier = Modifier.fillMaxSize(),

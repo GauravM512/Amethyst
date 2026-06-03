@@ -25,6 +25,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class OpacityChainDevice : LEDChainDevice<OpacityChainDeviceState>() {
     override val state = MutableStateFlow(OpacityChainDeviceState())
+    override val helpRef = "Opacity"
 
     @Composable
     override fun Content() {

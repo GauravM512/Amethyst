@@ -41,6 +41,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class LayerChainDevice : LEDChainDevice<LayerChainDeviceState>() {
     override val state = MutableStateFlow(LayerChainDeviceState())
+    override val helpRef = "Layer"
 
     @Composable
     override fun Content() {

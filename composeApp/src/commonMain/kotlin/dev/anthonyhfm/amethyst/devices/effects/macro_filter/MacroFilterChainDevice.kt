@@ -65,6 +65,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class MacroFilterChainDevice : GenericChainDevice<MacroFilterChainDeviceState>() {
     override val state = MutableStateFlow(MacroFilterChainDeviceState())
+    override val helpRef = "MacroFilter"
 
     @Composable
     override fun Content() {

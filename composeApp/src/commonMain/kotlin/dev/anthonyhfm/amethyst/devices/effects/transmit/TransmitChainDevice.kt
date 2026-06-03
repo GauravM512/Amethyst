@@ -42,6 +42,7 @@ class TransmitChainDevice : LEDChainDevice<TransmitChainDeviceState>() {
     private var isAttachedToChain = false
 
     override val state = MutableStateFlow(TransmitChainDeviceState())
+    override val helpRef = "Transmit"
 
     override fun onAddedToChain() {
         isAttachedToChain = true

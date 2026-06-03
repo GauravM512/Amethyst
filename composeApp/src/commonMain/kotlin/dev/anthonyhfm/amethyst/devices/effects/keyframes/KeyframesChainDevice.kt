@@ -57,6 +57,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(KeyframesChainDeviceState())
+    override val helpRef = "Keyframes"
 
     private val customMode: KeyframesWorkspaceMode = KeyframesWorkspaceMode()
     private var lastSelectedFrameIndex: Int? = null
@@ -818,6 +819,22 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
         playOnce(0.0)
     }
 
+    private fun resolveBounds(signal: Signal.LED, isolate: Boolean): Pair<androidx.compose.ui.unit.IntOffset, androidx.compose.ui.unit.IntSize> {
+        if (!isolate) return WorkspaceRepository.bounds
+
+        val device = signal.origin as? LaunchpadViewportElement ?: return WorkspaceRepository.bounds
+        return Pair(
+            first = androidx.compose.ui.unit.IntOffset(
+                x = device.position.value.x.toInt(),
+                y = device.position.value.y.toInt(),
+            ),
+            second = androidx.compose.ui.unit.IntSize(
+                width = device.layout.cols,
+                height = device.layout.rows,
+            )
+        )
+    }
+
     private fun transformSignals(signals: List<Signal>, triggerSignal: Signal.LED): List<Signal> {
         val state = state.value
         val rootKey = state.rootKey ?: return signals
@@ -825,7 +842,13 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
         val dx = triggerSignal.x - (rootKey % 10)
         val dy = triggerSignal.y - (rootKey / 10)
         
-        if (dx == 0 && dy == 0) return signals
+        if (dx == 0 && dy == 0 && !state.isolate && !state.wrap) return signals
+
+        val bounds = resolveBounds(triggerSignal, state.isolate)
+        val minX = bounds.first.x
+        val minY = bounds.first.y
+        val maxX = bounds.first.x + bounds.second.width - 1
+        val maxY = bounds.first.y + bounds.second.height - 1
 
         return signals.map { signal ->
             if (signal is Signal.LED) {
@@ -833,11 +856,13 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
                 var newY = signal.y + dy
                 
                 if (state.wrap) {
-                    newX = (newX % 10 + 10) % 10
-                    newY = (newY % 10 + 10) % 10
+                    val width = bounds.second.width
+                    val height = bounds.second.height
+                    newX = ((newX - minX) % width + width) % width + minX
+                    newY = ((newY - minY) % height + height) % height + minY
                 }
                 
-                if (newX in 0..9 && newY in 0..9) {
+                if (newX in minX..maxX && newY in minY..maxY) {
                     signal.copy(x = newX, y = newY, origin = signal.origin)
                 } else {
                     signal.copy(color = Color.Black, origin = signal.origin)

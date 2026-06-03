@@ -10,7 +10,10 @@ data class Tutorial(
 )
 
 object TutorialsRepository {
-    private val AVAILABLE_TUTORIAL_IDS: List<String> = listOf()
+    private val AVAILABLE_TUTORIAL_IDS: List<String> = listOf(
+        "how_to_workspace",
+        "how_to_setup_launchpad"
+    )
 
     @OptIn(ExperimentalResourceApi::class)
     suspend fun getTutorials(): List<Tutorial> {

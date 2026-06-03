@@ -27,6 +27,7 @@ import kotlin.math.roundToInt
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>(), Chokeable {
+    override val helpRef = "Delay"
     override val state = MutableStateFlow(DelayChainDeviceState())
 
     @Composable

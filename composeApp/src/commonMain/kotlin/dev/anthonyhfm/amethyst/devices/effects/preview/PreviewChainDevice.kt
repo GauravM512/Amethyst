@@ -13,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -29,6 +30,7 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.ChainDeviceShell
+import dev.anthonyhfm.amethyst.ui.components.primitives.ScaleToFit
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadMk2
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadPro
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
@@ -48,25 +50,30 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 
 class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
     override val state = MutableStateFlow(PreviewChainDeviceState)
+    override val helpRef = "Preview"
 
     private val signalBuffer = MutableStateFlow<Map<Pair<Int, Int>, Signal.LED>>(emptyMap())
+
+    private fun updateSignals(ledSignals: List<Signal.LED>) {
+        signalBuffer.update { current ->
+            buildMap {
+                putAll(current)
+                ledSignals.forEach { signal ->
+                    val key = Pair(signal.x, signal.y)
+                    if (signal.color.isLit()) {
+                        put(key, signal)
+                    } else {
+                        remove(key)
+                    }
+                }
+            }
+        }
+    }
 
     override fun signalEnter(n: List<Signal>) {
         val ledSignals = n.filterIsInstance<Signal.LED>()
         if (ledSignals.isNotEmpty()) {
-            signalBuffer.update { current ->
-                buildMap {
-                    putAll(current)
-                    ledSignals.forEach { signal ->
-                        val key = Pair(signal.x, signal.y)
-                        if (signal.color.isLit()) {
-                            put(key, signal)
-                        } else {
-                            remove(key)
-                        }
-                    }
-                }
-            }
+            updateSignals(ledSignals)
         }
 
         signalExit?.invoke(n)
@@ -112,17 +119,17 @@ class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
                 // Route pad interactions through this device's signalExit so the signal
                 // enters the chain at the PreviewChainDevice's position (pre-effect triggering).
                 preview.onCapturePad = { (down, x, y) ->
-                    signalExit?.invoke(
-                        listOf(
-                            Signal.LED(
-                                origin = null,
-                                x = x,
-                                y = y,
-                                color = if (down) Color.White else Color.Black,
-                                layer = 0,
-                            )
+                    val signals = listOf(
+                        Signal.LED(
+                            origin = null,
+                            x = x,
+                            y = y,
+                            color = if (down) Color.White else Color.Black,
+                            layer = 0,
                         )
                     )
+                    updateSignals(signals)
+                    signalExit?.invoke(signals)
                 }
             }
         }
@@ -138,9 +145,12 @@ class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
             modifier = Modifier
                 .padding(8.dp)
                 .shadow(elevation = 4.dp, shape = previewViewport.shape)
-                .aspectRatio(1f)
+                .aspectRatio(1f),
+            contentAlignment = Alignment.Center,
         ) {
-            previewViewport.Content()
+            ScaleToFit {
+                previewViewport.Content()
+            }
         }
     }
 
@@ -149,17 +159,17 @@ class PreviewChainDevice : GenericChainDevice<PreviewChainDeviceState>() {
         val customMode = remember {
             PreviewWorkspaceMode(
                 onPadInteraction = { down, x, y ->
-                    signalExit?.invoke(
-                        listOf(
-                            Signal.LED(
-                                origin = null,
-                                x = x,
-                                y = y,
-                                color = if (down) Color.White else Color.Black,
-                                layer = 0,
-                            )
+                    val signals = listOf(
+                        Signal.LED(
+                            origin = null,
+                            x = x,
+                            y = y,
+                            color = if (down) Color.White else Color.Black,
+                            layer = 0,
                         )
                     )
+                    updateSignals(signals)
+                    signalExit?.invoke(signals)
                 }
             ).also { mode ->
                 mode.modeClose = { WorkspaceRepository.switchToPreviousMode() }

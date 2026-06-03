@@ -53,6 +53,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class OffsetChainDevice : LEDChainDevice<OffsetChainDeviceState>() {
     override val state = MutableStateFlow(OffsetChainDeviceState())
+    override val helpRef = "Offset"
 
     @Composable
     override fun Content() {

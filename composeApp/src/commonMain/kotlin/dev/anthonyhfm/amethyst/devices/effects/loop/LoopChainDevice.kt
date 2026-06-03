@@ -49,6 +49,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
     private val activeHoldKeys = mutableSetOf<String>()
     override val state = MutableStateFlow(LoopChainDeviceState())
+    override val helpRef = "Loop"
 
     @Composable
     override fun Content() {
@@ -258,18 +259,38 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                     // Hold mode: mark key active, send first signal immediately
                     activeHoldKeys.add(ownerKey)
                     signalExit?.invoke(listOf(signal))
+                    
+                    val baseDelay = state.value.timing.toMsValue(bpm) * (state.value.gate * 2)
+                    val offSignal = when (signal) {
+                        is Signal.LED -> signal.copy(color = Color.Black)
+                        is Signal.Midi -> signal.copy(velocity = 0)
+                        else -> signal
+                    }
+                    
+                    Heaven.schedule(baseDelay.toDouble() / 2, owner = signalOwner) {
+                        if (activeHoldKeys.contains(ownerKey) && state.value.onHold) {
+                            signalExit?.invoke(listOf(offSignal))
+                        }
+                    }
 
                     // Then start recursive scheduling for subsequent signals
-                    val baseDelay = state.value.timing.toMsValue(bpm) * (state.value.gate * 2)
                     scheduleSignals(signal, signalOwner, baseDelay.toDouble())
                 }
             } else { // key up
+                val signalOwner = Pair(this, "${coords.first},${coords.second}")
+                val ownerKey = signalOwner.second as String
+                
                 if (!state.value.onHold) {
+                    for (i in 0..state.value.repeat - 1) {
+                        val delay = i * (state.value.timing.toMsValue(bpm) * (state.value.gate * 2))
+
+                        Heaven.schedule(delay.toDouble(), owner = signalOwner) {
+                            signalExit?.invoke(listOf(signal))
+                        }
+                    }
                     return@forEach
                 }
 
-                val signalOwner = Pair(this, "${coords.first},${coords.second}")
-                val ownerKey = signalOwner.second as String
                 activeHoldKeys.remove(ownerKey)
 
                 // Emit a final off to stop the held loop cleanly
@@ -302,6 +323,18 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
             }
 
             signalExit?.invoke(listOf(signal))
+            
+            val offSignal = when (signal) {
+                is Signal.LED -> signal.copy(color = Color.Black)
+                is Signal.Midi -> signal.copy(velocity = 0)
+                else -> signal
+            }
+            
+            Heaven.schedule(delay / 2, owner = signalOwner) {
+                if (activeHoldKeys.contains(ownerKey) && state.value.onHold) {
+                    signalExit?.invoke(listOf(offSignal))
+                }
+            }
 
             // Schedule the next iteration
             scheduleSignals(signal, signalOwner, delay)

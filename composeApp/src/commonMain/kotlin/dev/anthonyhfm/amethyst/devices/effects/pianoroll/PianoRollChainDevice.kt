@@ -41,6 +41,7 @@ private const val NO_TRACK_INDEX = -1
 
 class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>() {
     override val state = MutableStateFlow(PianoRollChainDeviceState())
+    override val helpRef = "PianoRoll"
 
     private val customMode: PianoRollWorkspaceMode = PianoRollWorkspaceMode()
     private var isStandalonePlaying = false

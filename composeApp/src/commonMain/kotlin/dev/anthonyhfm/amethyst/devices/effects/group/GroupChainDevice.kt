@@ -36,6 +36,7 @@ import dev.anthonyhfm.amethyst.devices.NestedChainDevice
 
 class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>(), NestedChainDevice {
     override val state = MutableStateFlow(GroupChainDeviceState())
+    override val helpRef = "Group"
 
     private val actionLayer = GroupEditorActionLayer(
         device = this,

@@ -75,6 +75,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(CopyChainDeviceState())
+    override val helpRef = "Copy"
 
     @Composable
     override fun Content() {

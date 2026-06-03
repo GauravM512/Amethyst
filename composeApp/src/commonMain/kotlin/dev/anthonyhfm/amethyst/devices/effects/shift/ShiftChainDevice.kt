@@ -33,6 +33,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class ShiftChainDevice : LEDChainDevice<ShiftChainDeviceState>() {
     override val state = MutableStateFlow(ShiftChainDeviceState())
+    override val helpRef = "Shift"
 
     @Composable
     override fun Content() {

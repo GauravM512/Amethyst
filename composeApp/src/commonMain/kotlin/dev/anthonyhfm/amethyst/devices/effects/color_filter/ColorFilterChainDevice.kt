@@ -34,6 +34,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class ColorFilterChainDevice : LEDChainDevice<ColorFilterChainDeviceState>() {
     override val state = MutableStateFlow(ColorFilterChainDeviceState())
+    override val helpRef = "ColorFilter"
 
     @Composable
     override fun Content() {

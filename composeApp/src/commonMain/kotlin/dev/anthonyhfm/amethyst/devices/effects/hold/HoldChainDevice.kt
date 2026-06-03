@@ -40,6 +40,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(HoldChainDeviceState())
+    override val helpRef = "Hold"
 
     private val activeJobOwners = mutableSetOf<Any>()
     private val isDown = mutableSetOf<Any>()

@@ -77,6 +77,7 @@ enum class GradientSmoothness {
 
 class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(GradientChainDeviceState())
+    override val helpRef = "Gradient"
 
     private data class FadeSignature(
         val gradientHash: Int,

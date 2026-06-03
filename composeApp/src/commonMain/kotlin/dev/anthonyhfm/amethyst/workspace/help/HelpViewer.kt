@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.workspace.help
 
 import amethyst.composeapp.generated.resources.Res
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,7 @@ import dev.anthonyhfm.amethyst.ui.theme.p
 import dev.anthonyhfm.amethyst.ui.theme.primary
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
+import org.intellij.markdown.ast.getTextInNode
 
 /**
  * Renders device help markdown using the Amethyst shadcn design-system tokens
@@ -119,121 +121,167 @@ internal fun HelpViewer(
                             .padding(horizontal = 40.dp, vertical = 48.dp),
                         contentAlignment = Alignment.TopCenter,
                     ) {
-                        Markdown(
-                            content = markdownContent!!,
-                            imageTransformer = ResourceImageTransformer,
-                            modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth(),
+                        val markdownColors = markdownColor(
+                            text = fg,
+                            codeBackground = mutedBg,
+                            inlineCodeBackground = mutedBg,
+                            dividerColor = borderColor,
+                            tableBackground = mutedBg.copy(alpha = 0.4f),
+                        )
 
-                            colors = markdownColor(
-                                text = fg,
-                                codeBackground = mutedBg,
-                                inlineCodeBackground = mutedBg,
-                                dividerColor = borderColor,
-                                tableBackground = mutedBg.copy(alpha = 0.4f),
+                        val markdownTypo = markdownTypography(
+                            h1 = typoH1,
+                            h2 = typoH2,
+                            h3 = typoH3,
+                            h4 = typoH4,
+                            h5 = TextStyle(
+                                fontFamily = typoP.fontFamily,
+                                fontSize = 18.sp,
+                                lineHeight = 28.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = fg,
                             ),
-
-                            typography = markdownTypography(
-                                h1 = typoH1,
-                                h2 = typoH2,
-                                h3 = typoH3,
-                                h4 = typoH4,
-                                h5 = TextStyle(
-                                    fontFamily = typoP.fontFamily,
-                                    fontSize = 18.sp,
-                                    lineHeight = 28.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = fg,
-                                ),
-                                h6 = TextStyle(
-                                    fontFamily = typoP.fontFamily,
-                                    fontSize = 16.sp,
-                                    lineHeight = 24.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = fg,
-                                ),
-                                text = typoP,
-                                paragraph = typoP,
-                                code = TextStyle(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 14.sp,
-                                    lineHeight = 24.sp,
-                                    fontWeight = FontWeight.Normal,
-                                    color = fg,
-                                ),
-                                inlineCode = typoInlineCode,
-                                quote = typoBlockquote,
-                                ordered = typoP,
-                                bullet = typoP,
-                                list = typoP,
-                                table = typoSmall.copy(lineHeight = 22.sp),
-                                textLink = TextLinkStyles(
-                                    style = SpanStyle(
-                                        color = primaryColor,
-                                        fontWeight = FontWeight.Medium,
-                                        textDecoration = TextDecoration.Underline,
-                                    ),
-                                ),
+                            h6 = TextStyle(
+                                fontFamily = typoP.fontFamily,
+                                fontSize = 16.sp,
+                                lineHeight = 24.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = fg,
                             ),
-
-                            padding = markdownPadding(
-                                block = 8.dp,
-                                list = 6.dp,
-                                listItemTop = 2.dp,
-                                listItemBottom = 2.dp,
-                                listIndent = 24.dp,
-                                codeBlock = PaddingValues(16.dp),
-                                blockQuote = PaddingValues(start = 16.dp, end = 0.dp),
-                                blockQuoteText = PaddingValues(vertical = 8.dp),
-                                blockQuoteBar = PaddingValues.Absolute(
-                                    left = 0.dp, top = 2.dp, right = 8.dp, bottom = 2.dp,
+                            text = typoP,
+                            paragraph = typoP,
+                            code = TextStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp,
+                                lineHeight = 24.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = fg,
+                            ),
+                            inlineCode = typoInlineCode,
+                            quote = typoBlockquote,
+                            ordered = typoP,
+                            bullet = typoP,
+                            list = typoP,
+                            table = typoSmall.copy(lineHeight = 22.sp),
+                            textLink = TextLinkStyles(
+                                style = SpanStyle(
+                                    color = primaryColor,
+                                    fontWeight = FontWeight.Medium,
+                                    textDecoration = TextDecoration.Underline,
                                 ),
-                            ),
-
-                            dimens = markdownDimens(
-                                dividerThickness = 1.dp,
-                                codeBackgroundCornerSize = 6.dp,
-                                blockQuoteThickness = 2.dp,
-                                tableCellWidth = 180.dp,
-                                tableCellPadding = 12.dp,
-                                tableCornerSize = 6.dp,
-                            ),
-
-                            components = markdownComponents(
-                                heading1 = {
-                                    Column {
-                                        Spacer(Modifier.height(8.dp))
-                                        MarkdownHeader(it.content, it.node, style = it.typography.h1)
-                                        Spacer(Modifier.height(12.dp))
-                                        Separator()
-                                    }
-                                },
-                                heading2 = {
-                                    Column {
-                                        Spacer(Modifier.height(20.dp))
-                                        MarkdownHeader(it.content, it.node, style = it.typography.h2)
-                                        Spacer(Modifier.height(8.dp))
-                                        Separator()
-                                    }
-                                },
-                                heading3 = {
-                                    Column {
-                                        Spacer(Modifier.height(16.dp))
-                                        MarkdownHeader(it.content, it.node, style = it.typography.h3)
-                                    }
-                                },
-                                heading4 = {
-                                    Column {
-                                        Spacer(Modifier.height(12.dp))
-                                        MarkdownHeader(it.content, it.node, style = it.typography.h4)
-                                    }
-                                },
-                                horizontalRule = {
-                                    Spacer(Modifier.height(16.dp))
-                                    Separator()
-                                    Spacer(Modifier.height(16.dp))
-                                },
                             ),
                         )
+
+                        val markdownPad = markdownPadding(
+                            block = 8.dp,
+                            list = 6.dp,
+                            listItemTop = 2.dp,
+                            listItemBottom = 2.dp,
+                            listIndent = 24.dp,
+                            codeBlock = PaddingValues(16.dp),
+                            blockQuote = PaddingValues(start = 16.dp, end = 0.dp),
+                            blockQuoteText = PaddingValues(vertical = 8.dp),
+                            blockQuoteBar = PaddingValues.Absolute(
+                                left = 0.dp, top = 2.dp, right = 8.dp, bottom = 2.dp,
+                            ),
+                        )
+
+                        val markdownDim = markdownDimens(
+                            dividerThickness = 1.dp,
+                            codeBackgroundCornerSize = 6.dp,
+                            blockQuoteThickness = 2.dp,
+                            tableCellWidth = 180.dp,
+                            tableCellPadding = 12.dp,
+                            tableCornerSize = 6.dp,
+                        )
+
+                        val markdownComp = markdownComponents(
+                            heading1 = {
+                                Column {
+                                    Spacer(Modifier.height(8.dp))
+                                    MarkdownHeader(it.content, it.node, style = it.typography.h1)
+                                    Spacer(Modifier.height(12.dp))
+                                    Separator()
+                                }
+                            },
+                            heading2 = {
+                                Column {
+                                    Spacer(Modifier.height(20.dp))
+                                    MarkdownHeader(it.content, it.node, style = it.typography.h2)
+                                    Spacer(Modifier.height(8.dp))
+                                    Separator()
+                                }
+                            },
+                            heading3 = {
+                                Column {
+                                    Spacer(Modifier.height(16.dp))
+                                    MarkdownHeader(it.content, it.node, style = it.typography.h3)
+                                }
+                            },
+                            heading4 = {
+                                Column {
+                                    Spacer(Modifier.height(12.dp))
+                                    MarkdownHeader(it.content, it.node, style = it.typography.h4)
+                                }
+                            },
+                            horizontalRule = {
+                                Spacer(Modifier.height(16.dp))
+                                Separator()
+                                Spacer(Modifier.height(16.dp))
+                            },
+                        )
+
+                        Column(modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                            val text = markdownContent!!
+                            val regex = Regex("""!\[.*?\]\((res://.*?)\)""")
+                            val matches = regex.findAll(text).toList()
+                            
+                            var lastIndex = 0
+                            matches.forEach { match ->
+                                val textBefore = text.substring(lastIndex, match.range.first).trim()
+                                if (textBefore.isNotEmpty()) {
+                                    Markdown(
+                                        content = textBefore,
+                                        imageTransformer = ResourceImageTransformer,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = markdownColors,
+                                        typography = markdownTypo,
+                                        padding = markdownPad,
+                                        dimens = markdownDim,
+                                        components = markdownComp,
+                                    )
+                                }
+                                
+                                val link = match.groupValues[1]
+                                val imageData = ResourceImageTransformer.transform(link)
+                                if (imageData != null) {
+                                    Image(
+                                        painter = imageData.painter,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .padding(vertical = 12.dp)
+                                            .height(300.dp),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.FillHeight
+                                    )
+                                }
+                                
+                                lastIndex = match.range.last + 1
+                            }
+                            
+                            val textAfter = text.substring(lastIndex).trim()
+                            if (textAfter.isNotEmpty()) {
+                                Markdown(
+                                    content = textAfter,
+                                    imageTransformer = ResourceImageTransformer,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = markdownColors,
+                                    typography = markdownTypo,
+                                    padding = markdownPad,
+                                    dimens = markdownDim,
+                                    components = markdownComp,
+                                )
+                            }
+                        }
                     }
                 }
             }

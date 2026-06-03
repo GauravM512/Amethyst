@@ -56,6 +56,7 @@ import dev.anthonyhfm.amethyst.devices.NestedChainDevice
 
 class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChainDevice {
     override val state = MutableStateFlow(ChokeChainDeviceState())
+    override val helpRef = "Choke"
 
     init {
         state.value.chain.signalExit = {

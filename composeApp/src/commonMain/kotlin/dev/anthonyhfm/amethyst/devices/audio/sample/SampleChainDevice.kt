@@ -120,6 +120,7 @@ private const val SampleEnvelopeCurvePathSteps = 16
 
 class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>() {
     override val state = MutableStateFlow(SampleChainDeviceState())
+    override val helpRef = "Sample"
 
     companion object : ChainDeviceFactory<SampleChainDeviceState> {
         override val stateClass = SampleChainDeviceState::class

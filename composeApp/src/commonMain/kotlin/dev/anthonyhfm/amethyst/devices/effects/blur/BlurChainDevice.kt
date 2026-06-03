@@ -48,6 +48,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
 class BlurChainDevice : LEDChainDevice<BlurChainDeviceState>() {
     override val state = MutableStateFlow(BlurChainDeviceState())
+    override val helpRef = "Blur"
 
     private val activePads = mutableMapOf<Pair<Int, Int>, Signal.LED>()
     private val previousOutput = mutableMapOf<Pair<Int, Int>, Signal.LED>()

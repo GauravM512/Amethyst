@@ -72,6 +72,7 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 import dev.anthonyhfm.amethyst.devices.NestedChainDevice
 
 class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>(), NestedChainDevice {
+    override val helpRef = "Multi"
     override val state = MutableStateFlow(MultiGroupChainDeviceState())
 
     private val actionLayer = GroupEditorActionLayer(

@@ -52,6 +52,7 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 
 class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDeviceState>() {
     override val state = MutableStateFlow(CoordinateFilterChainDeviceState())
+    override val helpRef = "CoordinateFilter"
 
     private val customMode: CoordinateFilterWorkspaceMode = CoordinateFilterWorkspaceMode()
     private val dragVisitedPads: MutableSet<LaunchpadPadFilter> = mutableSetOf()

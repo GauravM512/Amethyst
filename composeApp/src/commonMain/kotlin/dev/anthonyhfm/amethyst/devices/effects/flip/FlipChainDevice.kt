@@ -42,6 +42,7 @@ import kotlinx.serialization.Serializable
 
 class FlipChainDevice : LEDChainDevice<FlipChainDeviceState>() {
     override val state = MutableStateFlow(FlipChainDeviceState())
+    override val helpRef = "Flip"
 
     @Composable
     override fun Content() {

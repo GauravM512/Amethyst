@@ -42,6 +42,7 @@ import kotlinx.serialization.Serializable
 
 class RotateChainDevice : LEDChainDevice<RotateChainDeviceState>() {
     override val state = MutableStateFlow(RotateChainDeviceState())
+    override val helpRef = "Rotate"
 
     @Composable
     override fun Content() {

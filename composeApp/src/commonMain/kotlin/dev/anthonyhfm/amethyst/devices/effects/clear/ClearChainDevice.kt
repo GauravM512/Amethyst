@@ -37,6 +37,7 @@ import kotlinx.serialization.Serializable
 
 class ClearChainDevice : GenericChainDevice<ClearChainDeviceState>() {
     override val state = MutableStateFlow(ClearChainDeviceState())
+    override val helpRef = "Clear"
 
     @Composable
     override fun Content() {
