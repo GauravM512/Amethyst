@@ -16,6 +16,10 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
 class OriginalSimplerPrerenderer {
+    private companion object {
+        const val MAX_PARALLEL_AUDIO_DECODES = 16
+    }
+
     private data class FullAudio(
         val rawData: ByteArray,
         val sampleRate: Int,
@@ -31,8 +35,8 @@ class OriginalSimplerPrerenderer {
 
         if (simplers.isEmpty()) return emptyMap()
 
-        val limitedIO = Dispatchers.Default.limitedParallelism(8)
-        val gate = Semaphore(8)
+        val limitedIO = Dispatchers.Default.limitedParallelism(MAX_PARALLEL_AUDIO_DECODES)
+        val gate = Semaphore(MAX_PARALLEL_AUDIO_DECODES)
 
         return runBlocking {
             val groupedByPath = simplers.groupBy { it.filePath }
@@ -42,19 +46,28 @@ class OriginalSimplerPrerenderer {
                 val perPathJobs = groupedByPath.map { (path, pathSimplers) ->
                     async(limitedIO) {
                         gate.withPermit {
+                            if (pathSimplers.size == 1) {
+                                val simpler = pathSimplers.first()
+                                val state = decodeSegment(
+                                    filePath = path,
+                                    sampleStart = simpler.sampleStart,
+                                    sampleEnd = simpler.sampleEnd
+                                ) ?: return@async path to emptyMap<OriginalSimplerAdapter.OriginalSimplerData, SampleChainDeviceState>()
+
+                                return@async path to mapOf(simpler to state)
+                            }
+
                             val full = decodeFull(path) ?: return@async path to emptyMap<OriginalSimplerAdapter.OriginalSimplerData, SampleChainDeviceState>()
 
-                            try {
-                                val states = pathSimplers.associateWith { simpler ->
-                                    sliceSegment(
-                                        filePath = path,
-                                        full = full,
-                                        sampleStart = simpler.sampleStart,
-                                        sampleEnd = simpler.sampleEnd
-                                    )
-                                }
-                                path to states
-                            } finally { }
+                            val states = pathSimplers.associateWith { simpler ->
+                                sliceSegment(
+                                    filePath = path,
+                                    full = full,
+                                    sampleStart = simpler.sampleStart,
+                                    sampleEnd = simpler.sampleEnd
+                                )
+                            }
+                            path to states
                         }
                     }
                 }
@@ -67,22 +80,41 @@ class OriginalSimplerPrerenderer {
         }
     }
 
-    private suspend fun decodeFull(filePath: String): FullAudio? = withContext(Dispatchers.IO) {
-        val audioFileBytes: ByteArray = if (AbletonConverter.isZip) {
-            val fileBytes = AbletonConverter.zipEntries[filePath]?.data
-            if (fileBytes == null) {
-                println("OriginalSimplerPrerenderer: file not found in zip: $filePath")
-                return@withContext null
-            }
-            fileBytes
-        } else {
-            val audioFile = PlatformFile(filePath)
-            if (!audioFile.exists() || !audioFile.isRegularFile()) {
-                println("OriginalSimplerPrerenderer: file not found: $filePath")
-                return@withContext null
-            }
-            audioFile.readBytes()
+    private suspend fun decodeSegment(
+        filePath: String,
+        sampleStart: Long,
+        sampleEnd: Long
+    ): SampleChainDeviceState? = withContext(Dispatchers.IO) {
+        val audioFileBytes = readAudioFileBytes(filePath) ?: return@withContext null
+
+        val audioSignal = AudioDecoder.decodeAudioData(
+            audioData = audioFileBytes,
+            fileName = filePath,
+            sampleStart = sampleStart.takeIf { it > 0 },
+            sampleEnd = sampleEnd.takeIf { it > 0 }
+        )
+
+        if (AbletonConverter.isZip) {
+            AbletonConverter.zipEntries.remove(filePath)
         }
+
+        if (audioSignal == null) {
+            println("OriginalSimplerPrerenderer: error while decoding $filePath")
+            return@withContext null
+        }
+
+        SampleChainDeviceState(
+            fileName = filePath,
+            rawData = audioSignal.rawData,
+            sampleRate = audioSignal.sampleRate,
+            channels = audioSignal.channels,
+            bitDepth = audioSignal.bitDepth,
+            isLoaded = true
+        )
+    }
+
+    private suspend fun decodeFull(filePath: String): FullAudio? = withContext(Dispatchers.IO) {
+        val audioFileBytes = readAudioFileBytes(filePath) ?: return@withContext null
 
         val audioSignal = AudioDecoder.decodeAudioData(
             audioData = audioFileBytes,
@@ -111,6 +143,26 @@ class OriginalSimplerPrerenderer {
             bitDepth = audioSignal.bitDepth,
             totalFrames = totalFrames.toLong()
         )
+    }
+
+    private suspend fun readAudioFileBytes(filePath: String): ByteArray? {
+        return if (AbletonConverter.isZip) {
+            val fileBytes = AbletonConverter.zipEntries[filePath]?.data
+            if (fileBytes == null) {
+                println("OriginalSimplerPrerenderer: file not found in zip: $filePath")
+                null
+            } else {
+                fileBytes
+            }
+        } else {
+            val audioFile = PlatformFile(filePath)
+            if (!audioFile.exists() || !audioFile.isRegularFile()) {
+                println("OriginalSimplerPrerenderer: file not found: $filePath")
+                null
+            } else {
+                audioFile.readBytes()
+            }
+        }
     }
 
     private fun sliceSegment(

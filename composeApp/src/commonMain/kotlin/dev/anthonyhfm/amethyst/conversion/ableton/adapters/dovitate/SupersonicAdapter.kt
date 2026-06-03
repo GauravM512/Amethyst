@@ -5,27 +5,33 @@ import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceFileDropList
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceInstrument
-import dev.anthonyhfm.amethyst.conversion.ableton.utils.MidiFileImporter
 import dev.anthonyhfm.amethyst.core.engine.echo.AudioDecoder
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.audio.sample.SampleChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
-import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.exists
 import io.github.vinceglb.filekit.isRegularFile
 import io.github.vinceglb.filekit.readBytes
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class SupersonicAdapter (
     val device: MxDeviceInstrument,
     val offset: IntOffset,
 ) : AbletonAdapter() {
+    private companion object {
+        const val MAX_PARALLEL_AUDIO_DECODES = 16
+    }
+
     override fun toDeviceStates(): List<DeviceState> {
         val idToIndex = mapOf(
             1 to 48,  2 to 47,  3 to 46,  4 to 45,  5 to 38,  6 to 37,  7 to 36,  8 to 35,
@@ -42,14 +48,18 @@ class SupersonicAdapter (
             104 to 93, 105 to 92, 106 to 91, 107 to 8, 108 to 5, 109 to 3, 110 to 2, 111 to 1,
         )
 
+        val drops = device.fileDropList.fileDropList.items
+            .filter {
+                it.ref.fileRef.path?.value != null
+            }
+
+        val audioByPath = decodeAudioFileDrops(drops)
+
         return listOf(
             GroupChainDeviceState(
-                groups = device.fileDropList.fileDropList.items
-                    .filter {
-                        it.ref.fileRef.path?.value != null
-                    }
-                    .map {
-                        val id = Regex("\\d+").find(it.name?.value ?: "0")?.value?.toIntOrNull()
+                groups = drops
+                    .map { drop ->
+                        val id = Regex("\\d+").find(drop.name?.value ?: "0")?.value?.toIntOrNull()
                         val index = idToIndex[id] ?: 0
 
                         Group(
@@ -64,7 +74,7 @@ class SupersonicAdapter (
                                             )
                                         )
                                     ),
-                                    getAudioFromFileDrop(it)
+                                    audioByPath[drop.ref.fileRef.resolvePath()]
                                 )
                             )
                         )
@@ -73,41 +83,57 @@ class SupersonicAdapter (
         )
     }
 
-    fun getAudioFromFileDrop(drop: MxDeviceFileDropList.FileDropList.MxDFullFileDrop): SampleChainDeviceState? {
-        val fileRef = drop.ref.fileRef
+    private fun decodeAudioFileDrops(
+        drops: List<MxDeviceFileDropList.FileDropList.MxDFullFileDrop>
+    ): Map<String, SampleChainDeviceState?> = runBlocking {
+        val paths = drops.map { it.ref.fileRef.resolvePath() }.distinct()
+        val limitedIO = Dispatchers.Default.limitedParallelism(MAX_PARALLEL_AUDIO_DECODES)
+        val gate = Semaphore(MAX_PARALLEL_AUDIO_DECODES)
 
-        val filePath: String = fileRef.resolvePath()
+        coroutineScope {
+            paths.map { path ->
+                async(limitedIO) {
+                    gate.withPermit {
+                        path to decodeAudioFile(path)
+                    }
+                }
+            }.awaitAll().toMap()
+        }
+    }
 
-        val audioFileBytes: ByteArray = if (AbletonConverter.isZip) {
+    private suspend fun readAudioFileBytes(filePath: String): ByteArray? {
+        return if (AbletonConverter.isZip) {
             val fileBytes = AbletonConverter.zipEntries[filePath]?.data
             if (fileBytes == null) {
-                println("OriginalSimplerPrerenderer: file not found in zip: $filePath")
-                return null
+                println("SupersonicAdapter: file not found in zip: $filePath")
+                null
+            } else {
+                fileBytes
             }
-            fileBytes
         } else {
             val audioFile = PlatformFile(filePath)
             if (!audioFile.exists() || !audioFile.isRegularFile()) {
-                println("OriginalSimplerPrerenderer: file not found: $filePath")
-                return null
-            }
-
-            runBlocking {
+                println("SupersonicAdapter: file not found: $filePath")
+                null
+            } else {
                 audioFile.readBytes()
             }
         }
+    }
 
-        val audioSignal = runBlocking(Dispatchers.IO) {
-            return@runBlocking AudioDecoder.decodeAudioData(
-                audioData = audioFileBytes,
-                fileName = filePath,
-                sampleStart = null,
-                sampleEnd = null
-            )
-        } ?: return null
+    private suspend fun decodeAudioFile(filePath: String): SampleChainDeviceState? {
+        val audioFileBytes = readAudioFileBytes(filePath) ?: return null
 
-        val frameSizeBytes = (audioSignal.channels * (audioSignal.bitDepth / 8))
-        val totalFrames = if (frameSizeBytes > 0) (audioSignal.rawData?.size ?: 0) / frameSizeBytes else 0
+        val audioSignal = AudioDecoder.decodeAudioData(
+            audioData = audioFileBytes,
+            fileName = filePath,
+            sampleStart = null,
+            sampleEnd = null
+        ) ?: return null
+
+        if (AbletonConverter.isZip) {
+            AbletonConverter.zipEntries.remove(filePath)
+        }
 
         return SampleChainDeviceState(
             fileName = filePath,
