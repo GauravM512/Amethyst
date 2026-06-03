@@ -27,7 +27,7 @@ jobs:
       - name: Fetch ML Graphics
         uses: actions/checkout@v4
         with:
-          repository: anthonyhfm/ml3-graphics-amethyst
+          repository: ${{ secrets.ML_GRAPHICS_REPOSITORY }}
           token: ${{ secrets.ML_GRAPHICS_TOKEN }}
           path: ml3-graphics
           sparse-checkout: devices

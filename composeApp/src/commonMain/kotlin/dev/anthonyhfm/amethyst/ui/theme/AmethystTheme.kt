@@ -80,22 +80,6 @@ private fun AmethystColorPalette.toTokenMap(): Map<ThemeToken<Color>, Color> = m
     dev.anthonyhfm.amethyst.ui.theme.chart5 to this.chart5,
 )
 
-val AmethystLightTheme = buildTheme {
-    name = "AmethystLight"
-    properties[colors] = AmethystLightPalette.toTokenMap()
-    properties[chainColorTokens] = lightChainColorMap
-    properties[timelineColorTokens] = lightTimelineColorMap
-    properties[timelineDimensionTokens] = timelineDimensionMap
-}
-
-val AmethystDarkTheme = buildTheme {
-    name = "AmethystDark"
-    properties[colors] = AmethystDarkPalette.toTokenMap()
-    properties[chainColorTokens] = darkChainColorMap
-    properties[timelineColorTokens] = darkTimelineColorMap
-    properties[timelineDimensionTokens] = timelineDimensionMap
-}
-
 @Composable
 fun AmethystTheme(darkMode: Boolean = true, content: @Composable () -> Unit) {
     val palette = amethystColorPalette(darkMode)
