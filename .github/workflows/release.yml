@@ -265,7 +265,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: amethyst-linux-appimage
-          path: composeApp/build/compose/binaries/main-release/app-image/*
+          path: composeApp/build/compose/binaries/main-release/app/*
           if-no-files-found: error
 
   release:
