@@ -198,7 +198,7 @@ nucleus.application {
     nativeDistributions {
         packageName = "Amethyst"
         packageVersion = "1.0.0"
-        homepage = "https://github.com/anthonyhfm/amethyst-studio"
+        homepage = "https://amethyst.anthonyhfm.dev"
 
         targetFormats(TargetFormat.Dmg, TargetFormat.Nsis, TargetFormat.Deb, TargetFormat.AppImage)
 
