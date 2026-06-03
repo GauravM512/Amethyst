@@ -270,4 +270,9 @@ class WorkspaceViewModel(
             }
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        amethystMidiManager.close()
+    }
 }

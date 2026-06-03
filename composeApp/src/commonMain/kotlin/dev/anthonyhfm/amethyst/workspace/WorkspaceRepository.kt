@@ -46,6 +46,7 @@ import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadIdealised
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
+import kotlin.concurrent.Volatile
 
 object WorkspaceRepository {
     private fun Throwable.isRecoverablePlatformInitFailure(): Boolean {
@@ -307,6 +308,7 @@ object WorkspaceRepository {
         val element = Heaven.devices.firstOrNull { it.selectionUUID == uuid || it.launchpadId == uuid }
             ?: return false
 
+        element.deviceConfig.input?.close()
         element.deviceConfig.launchpadDevice?.midiOutput?.close()
         if (!fromRemote) {
             DeviceSyncCoordinator.onDeviceRemoved(element.launchpadId)
@@ -475,6 +477,10 @@ object WorkspaceRepository {
         AudioSourceLibrary.load(workspaceData.audioSources)
         migrateAudioEntries()
 
+        Heaven.devices.forEach { device ->
+            device.deviceConfig.input?.close()
+            device.deviceConfig.launchpadDevice?.midiOutput?.close()
+        }
         Heaven.devices = workspaceData.launchpadDevices.map { savedDevice ->
             val device = when (savedDevice) {
                 is SavableWorkspaceData.SavableViewportLaunchpad.LaunchpadPro -> ViewportLaunchpadPro()
@@ -500,9 +506,6 @@ object WorkspaceRepository {
         if (Heaven.devices.isNotEmpty()) {
             updateWorkspaceBounds()
         }
-
-        val renderedKeyframes = renderKeyframesInChain(lightsChain) + renderKeyframesInChain(samplingChain)
-        println("[WorkspaceRepository ${System.currentTimeMillis()}] loadWorkspace(fromRemote=$fromRemote) renderedKeyframes=$renderedKeyframes")
 
         _bpm.update {
             workspaceData.settings.bpm
@@ -701,6 +704,10 @@ object WorkspaceRepository {
         setupChains()
         
         // Clear devices
+        Heaven.devices.forEach { device ->
+            device.deviceConfig.input?.close()
+            device.deviceConfig.launchpadDevice?.midiOutput?.close()
+        }
         Heaven.devices = emptyList()
         
         // Reset state

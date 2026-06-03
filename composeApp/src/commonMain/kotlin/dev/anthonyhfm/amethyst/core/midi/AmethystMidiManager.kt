@@ -36,6 +36,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.cancel
 
 /**
  * # Amethyst Midi Manager
@@ -49,6 +50,13 @@ class AmethystMidiManager {
     private var autoDetectJob: Job? = null
     private var autoConfigureJob: Job? = null
     private var monitorJob: Job? = null
+
+    fun close() {
+        stopAutoDetectLoop()
+        autoConfigureJob?.cancel()
+        autoDetectJob?.cancel()
+        midiInScope.cancel()
+    }
 
     private data class DetectedLaunchpad(
         val inputPort: MidiPortDetails,
