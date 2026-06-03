@@ -7,7 +7,6 @@ import java.lang.UnsupportedOperationException
 
 internal typealias JvmMidiMessage = javax.sound.midi.MidiMessage
 
-// --- ALSA Pretty Name Resolver ---
 private object AlsaNameResolver {
     private var initialized = false
     private val clientNameByCard = mutableMapOf<Int, String>()
@@ -49,56 +48,69 @@ private object AlsaNameResolver {
             proc.waitFor()
             parseAconnect(text)
         } catch (_: Exception) {
-            // kein aconnect? Dann halt ohne Pretty Names.
+
         }
     }
 
     fun prettyNameFor(deviceInfoName: String?): String? {
-        // erwartet sowas wie: "Open [hw:3,0,1]"
         if (deviceInfoName == null) return null
         val m = Regex(""".*\[hw:(\d+),(\d+),(\d+)]""").find(deviceInfoName) ?: return null
         val card = m.groupValues[1].toInt()
-        val sub = m.groupValues[3].toInt() // subdevice ~ ALSA sequencer port index in den üblichen USB-MIDI Fällen
+        val sub = m.groupValues[3].toInt()
         ensure()
         return portNameByCardPort[card to sub]
-            ?: clientNameByCard[card] // Fallback: wenigstens der Clientname
+            ?: clientNameByCard[card]
     }
 }
 
-// --- Access ---
+private fun buildStableIds(prefix: String, names: List<String>): List<String> {
+    val seen = mutableMapOf<String, Int>()
+    return names.map { rawName ->
+        val sanitized = rawName.replace("[^A-Za-z0-9._-]".toRegex(), "_").take(64)
+        val count = seen.getOrDefault(sanitized, 0)
+        seen[sanitized] = count + 1
+        if (count == 0) "$prefix:$sanitized" else "$prefix:$sanitized:$count"
+    }
+}
+
 class LinuxJVMAccess : MidiAccess() {
     override val name: String get() = "Linux JVM"
 
     override val inputs: Iterable<MidiPortDetails>
-        get() = MidiSystem.getMidiDeviceInfo()
-            .map { MidiSystem.getMidiDevice(it) }
-            .filter { dev -> dev.maxTransmitters != 0 }
-            .filter { dev ->
-                // Software-Geräte rausfiltern
-                val n = dev.deviceInfo.name ?: ""
-                !n.contains("Real Time Sequencer", ignoreCase = true) &&
-                        !n.contains("Gervill", ignoreCase = true)
-            }
-            .filter { dev -> dev.maxTransmitters == -1 || dev.transmitters.size < dev.maxTransmitters }
-            .mapIndexed { i, dev ->
+        get() {
+            val devices = MidiSystem.getMidiDeviceInfo()
+                .map { MidiSystem.getMidiDevice(it) }
+                .filter { dev -> dev.maxTransmitters != 0 }
+                .filter { dev ->
+                    val n = dev.deviceInfo.name ?: ""
+                    !n.contains("Real Time Sequencer", ignoreCase = true) &&
+                            !n.contains("Gervill", ignoreCase = true)
+                }
+                .filter { dev -> dev.maxTransmitters == -1 || dev.transmitters.size < dev.maxTransmitters }
+            val ids = buildStableIds("hw-in", devices.map { it.deviceInfo.name ?: "unknown" })
+            return devices.zip(ids).map { (dev, id) ->
                 val pretty = AlsaNameResolver.prettyNameFor(dev.deviceInfo.name)
-                JvmMidiTransmitterPortDetails(dev, "hw-in-$i", pretty)
+                JvmMidiTransmitterPortDetails(dev, id, pretty)
             }
+        }
 
     override val outputs: Iterable<MidiPortDetails>
-        get() = MidiSystem.getMidiDeviceInfo()
-            .map { MidiSystem.getMidiDevice(it) }
-            .filter { dev -> dev.maxReceivers != 0 }
-            .filter { dev ->
-                val n = dev.deviceInfo.name ?: ""
-                !n.contains("Real Time Sequencer", ignoreCase = true) &&
-                        !n.contains("Gervill", ignoreCase = true)
-            }
-            .filter { dev -> dev.maxReceivers == -1 || dev.receivers.size < dev.maxReceivers }
-            .mapIndexed { i, dev ->
+        get() {
+            val devices = MidiSystem.getMidiDeviceInfo()
+                .map { MidiSystem.getMidiDevice(it) }
+                .filter { dev -> dev.maxReceivers != 0 }
+                .filter { dev ->
+                    val n = dev.deviceInfo.name ?: ""
+                    !n.contains("Real Time Sequencer", ignoreCase = true) &&
+                            !n.contains("Gervill", ignoreCase = true)
+                }
+                .filter { dev -> dev.maxReceivers == -1 || dev.receivers.size < dev.maxReceivers }
+            val ids = buildStableIds("hw-out", devices.map { it.deviceInfo.name ?: "unknown" })
+            return devices.zip(ids).map { (dev, id) ->
                 val pretty = AlsaNameResolver.prettyNameFor(dev.deviceInfo.name)
-                JvmMidiReceiverPortDetails(dev, "hw-out-$i", pretty)
+                JvmMidiReceiverPortDetails(dev, id, pretty)
             }
+        }
 
     override suspend fun openInput(portId: String): MidiInput {
         val port = inputs.firstOrNull { it.id == portId }
@@ -125,7 +137,6 @@ class LinuxJVMAccess : MidiAccess() {
     }
 }
 
-// --- Port Details ---
 internal abstract class JvmMidiPortDetails(
     override val id: String,
     private val info: MidiDevice.Info,
@@ -149,7 +160,6 @@ private class JvmMidiReceiverPortDetails(
     prettyName: String?
 ) : JvmMidiPortDetails(id, device.deviceInfo, prettyName)
 
-// --- Message utils ---
 private fun toJvmMidiMessage(data: ByteArray, start: Int, length: Int): JvmMidiMessage {
     require(length > 0) { "non-positive length" }
     val end = start + length
@@ -176,7 +186,6 @@ private fun toJvmMidiMessage(data: ByteArray, start: Int, length: Int): JvmMidiM
     }
 }
 
-// --- I/O ---
 private class JvmMidiInput(private val port: JvmMidiTransmitterPortDetails) : MidiInput {
     override val details: MidiPortDetails = port
     private val state = MidiPortConnectionState.OPEN

@@ -29,14 +29,14 @@ import dev.atsushieno.ktmidi.MidiPortDetails
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * # Amethyst Midi Manager
@@ -50,6 +50,7 @@ class AmethystMidiManager {
     private var autoDetectJob: Job? = null
     private var autoConfigureJob: Job? = null
     private var monitorJob: Job? = null
+    private val deviceConfigMutex = Mutex()
 
     fun close() {
         stopAutoDetectLoop()
@@ -76,7 +77,7 @@ class AmethystMidiManager {
     )
 
     @OptIn(ExperimentalUnsignedTypes::class)
-    fun detect(input: MidiInput, output: MidiOutput): LaunchpadDeviceType? {
+    private suspend fun detect(input: MidiInput, output: MidiOutput): LaunchpadDeviceType? {
         val deviceInquiry = ubyteArrayOf(
             240u,
             126u,
@@ -87,23 +88,13 @@ class AmethystMidiManager {
         )
 
         var deviceType: LaunchpadDeviceType? = null
-        var wait = true
-        var waitCounter = 0
-        val timeout = 2000
-        
-        val listener: (ByteArray, Int, Long, Long) -> Unit = { data, _, _, _ ->
+
+        input.setMessageReceivedListener { data, _, _, _ ->
             val detectedType = getDeviceTypeByInquiry(data)
             if (detectedType != null) {
                 deviceType = detectedType
-                wait = false
             }
         }
-
-        input.setMessageReceivedListener(
-            listener = { data, _, _, _ ->
-                listener(data, 0, 0, 0)
-            }
-        )
 
         output.send(
             mevent = deviceInquiry.toByteArray(),
@@ -112,10 +103,9 @@ class AmethystMidiManager {
             timestampInNanoseconds = 0,
         )
 
-        runBlocking {
-            while (wait && waitCounter < timeout) {
-                waitCounter += 1
-                delay(1)
+        withTimeoutOrNull(2000) {
+            while (deviceType == null) {
+                delay(5)
             }
         }
 
@@ -183,12 +173,14 @@ class AmethystMidiManager {
                     }
                 }
 
-                deviceConfig = deviceConfig.copy(
-                    input = inputDevice,
-                    launchpadDevice = outputDevice?.let { output ->
-                        deviceType?.mapLaunchpadDevice(output)
-                    },
-                )
+                deviceConfigMutex.withLock {
+                    deviceConfig = deviceConfig.copy(
+                        input = inputDevice,
+                        launchpadDevice = outputDevice?.let { output ->
+                            deviceType?.mapLaunchpadDevice(output)
+                        },
+                    )
+                }
             }
         }
     }
@@ -294,11 +286,11 @@ class AmethystMidiManager {
         val outputs = midiAccess.outputs.toList()
 
         for (device in allDevices) {
-            val inputValid = device.deviceConfig.input?.details?.id?.let { id ->
-                inputs.any { it.id == id }
+            val inputValid = device.deviceConfig.input?.details?.let { details ->
+                inputs.any { it.id == details.id || (details.name != null && it.name == details.name) }
             } ?: false
-            val outputValid = device.deviceConfig.launchpadDevice?.midiOutput?.details?.id?.let { id ->
-                outputs.any { it.id == id }
+            val outputValid = device.deviceConfig.launchpadDevice?.midiOutput?.details?.let { details ->
+                outputs.any { it.id == details.id || (details.name != null && it.name == details.name) }
             } ?: false
 
             val incomplete = (device.deviceConfig.input != null && device.deviceConfig.launchpadDevice == null) ||
@@ -370,15 +362,17 @@ class AmethystMidiManager {
                         }
                     }
 
-                    device.deviceConfig.input?.close()
-                    device.deviceConfig.launchpadDevice?.midiOutput?.close()
+                    deviceConfigMutex.withLock {
+                        device.deviceConfig.input?.close()
+                        device.deviceConfig.launchpadDevice?.midiOutput?.close()
 
-                    device.deviceConfig = device.deviceConfig.copy(
-                        input = inputDevice,
-                        launchpadDevice = outputDevice?.let { output ->
-                            deviceType?.mapLaunchpadDevice(output)
-                        }
-                    )
+                        device.deviceConfig = device.deviceConfig.copy(
+                            input = inputDevice,
+                            launchpadDevice = outputDevice?.let { output ->
+                                deviceType?.mapLaunchpadDevice(output)
+                            }
+                        )
+                    }
 
                     matchedInputFinal?.let { availableInputs.remove(it) }
                     matchedOutputFinal?.let { availableOutputs.remove(it) }

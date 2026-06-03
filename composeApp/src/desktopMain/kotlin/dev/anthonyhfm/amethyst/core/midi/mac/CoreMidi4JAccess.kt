@@ -20,27 +20,21 @@ import javax.sound.midi.Transmitter
 class CoreMidi4JAccess : MidiAccess() {
     override val name: String = "CoreMidi4J"
     override val inputs: Iterable<MidiPortDetails>
-        get() = CoreMidiDeviceProvider.getMidiDeviceInfo().map { i -> MidiSystem.getMidiDevice(i) }
-            .flatMap {
-                // make sure the device has an input port that can be retrieved
-                if (it.maxTransmitters == -1 || it.maxTransmitters > it.transmitters.count()) {
-                    listOf(it to it.transmitter)
-                } else {
-                    emptyList()
-                }
-            }
-            .mapIndexed { i, p -> CoreMidi4JMidiTransmitterPortDetails(p.first, i, p.second) }
+        get() {
+            val devices = CoreMidiDeviceProvider.getMidiDeviceInfo()
+                .map { MidiSystem.getMidiDevice(it) }
+                .filter { it.maxTransmitters == -1 || it.maxTransmitters > 0 }
+            val ids = buildStableIds("in", devices.map { it.deviceInfo.name ?: "unknown" })
+            return devices.zip(ids).map { (dev, id) -> CoreMidi4JMidiTransmitterPortDetails(dev, id) }
+        }
     override val outputs: Iterable<MidiPortDetails>
-        get() = CoreMidiDeviceProvider.getMidiDeviceInfo().map { i -> MidiSystem.getMidiDevice(i) }
-            .flatMap {
-                // make sure the device has an output port that can be retrieved
-                if (it.maxReceivers == -1 || it.maxReceivers > it.receivers.count()) {
-                    listOf(it to it.receiver)
-                } else {
-                    emptyList()
-                }
-            }
-            .mapIndexed { i, p -> CoreMidi4JMidiReceiverPortDetails(p.first, i, p.second) }
+        get() {
+            val devices = CoreMidiDeviceProvider.getMidiDeviceInfo()
+                .map { MidiSystem.getMidiDevice(it) }
+                .filter { it.maxReceivers == -1 || it.maxReceivers > 0 }
+            val ids = buildStableIds("out", devices.map { it.deviceInfo.name ?: "unknown" })
+            return devices.zip(ids).map { (dev, id) -> CoreMidi4JMidiReceiverPortDetails(dev, id) }
+        }
 
     init {
         if (!CoreMidiDeviceProvider.isLibraryLoaded()) {
@@ -54,7 +48,8 @@ class CoreMidi4JAccess : MidiAccess() {
             throw IllegalArgumentException("Input port $portId was not found")
         if (!port.device.isOpen)
             port.device.open()
-        return CoreMidi4JMidiInput(port)
+        val transmitter = port.device.transmitter
+        return CoreMidi4JMidiInput(port, transmitter)
     }
 
     override suspend fun openOutput(portId: String): MidiOutput {
@@ -63,7 +58,8 @@ class CoreMidi4JAccess : MidiAccess() {
             throw IllegalArgumentException("Output port $portId was not found")
         if (!port.device.isOpen)
             port.device.open()
-        return CoreMidi4JMidiOutput(port)
+        val receiver = port.device.receiver
+        return CoreMidi4JMidiOutput(port, receiver)
     }
 
     override suspend fun createVirtualInputSender(context: PortCreatorContext): MidiOutput {
@@ -77,6 +73,16 @@ class CoreMidi4JAccess : MidiAccess() {
 
 internal typealias CoreMidi4JMidiMessage = javax.sound.midi.MidiMessage
 
+private fun buildStableIds(prefix: String, names: List<String>): List<String> {
+    val seen = mutableMapOf<String, Int>()
+    return names.map { rawName ->
+        val sanitized = rawName.replace("[^A-Za-z0-9._-]".toRegex(), "_").take(64)
+        val count = seen.getOrDefault(sanitized, 0)
+        seen[sanitized] = count + 1
+        if (count == 0) "$prefix:$sanitized" else "$prefix:$sanitized:$count"
+    }
+}
+
 internal abstract class CoreMidi4JMidiPortDetails(override val id: String, private val info: MidiDevice.Info) : MidiPortDetails {
     override val manufacturer: String? = info.vendor
     override val name: String?
@@ -88,11 +94,11 @@ internal abstract class CoreMidi4JMidiPortDetails(override val id: String, priva
     override val midiTransportProtocol = 1
 }
 
-private class CoreMidi4JMidiTransmitterPortDetails(val device: MidiDevice, portIndex: Int, val transmitter: Transmitter) :
-    CoreMidi4JMidiPortDetails("InPort$portIndex", device.deviceInfo)
+private class CoreMidi4JMidiTransmitterPortDetails(val device: MidiDevice, id: String) :
+    CoreMidi4JMidiPortDetails(id, device.deviceInfo)
 
-private class CoreMidi4JMidiReceiverPortDetails(val device: MidiDevice, portIndex: Int, val receiver: Receiver) :
-    CoreMidi4JMidiPortDetails("OutPort$portIndex", device.deviceInfo)
+private class CoreMidi4JMidiReceiverPortDetails(val device: MidiDevice, id: String) :
+    CoreMidi4JMidiPortDetails(id, device.deviceInfo)
 
 private fun toCoreMidi4JMidiMessage(data: ByteArray, start: Int, length: Int): CoreMidi4JMidiMessage {
     if (length <= 0) throw IllegalArgumentException("non-positive length")
@@ -108,7 +114,7 @@ private fun toCoreMidi4JMidiMessage(data: ByteArray, start: Int, length: Int): C
     }
 }
 
-private class CoreMidi4JMidiInput(val port: CoreMidi4JMidiTransmitterPortDetails) : MidiInput {
+private class CoreMidi4JMidiInput(val port: CoreMidi4JMidiTransmitterPortDetails, private val transmitter: Transmitter) : MidiInput {
 
     override val details: MidiPortDetails = port
 
@@ -118,7 +124,7 @@ private class CoreMidi4JMidiInput(val port: CoreMidi4JMidiTransmitterPortDetails
         get() = state
 
     override fun close() {
-        port.transmitter.close()
+        transmitter.close()
     }
 
     private var listener: OnMidiReceivedEventListener? = null
@@ -128,7 +134,7 @@ private class CoreMidi4JMidiInput(val port: CoreMidi4JMidiTransmitterPortDetails
     }
 
     init {
-        port.transmitter.receiver = object : Receiver {
+        transmitter.receiver = object : Receiver {
             override fun close() {}
 
             override fun send(msg: CoreMidi4JMidiMessage?, timestampInMicroseconds: Long) {
@@ -147,7 +153,7 @@ private class CoreMidi4JMidiInput(val port: CoreMidi4JMidiTransmitterPortDetails
     }
 }
 
-private class CoreMidi4JMidiOutput(val port: CoreMidi4JMidiReceiverPortDetails) : MidiOutput {
+private class CoreMidi4JMidiOutput(val port: CoreMidi4JMidiReceiverPortDetails, private val receiver: Receiver) : MidiOutput {
 
     override val details: MidiPortDetails
         get() = port
@@ -158,7 +164,7 @@ private class CoreMidi4JMidiOutput(val port: CoreMidi4JMidiReceiverPortDetails) 
         get() = state
 
     override fun close() {
-        port.receiver.close()
+        receiver.close()
     }
 
     private var multiPacketSysex = false
@@ -180,6 +186,6 @@ private class CoreMidi4JMidiOutput(val port: CoreMidi4JMidiReceiverPortDetails) 
                 multiPacketSysex = true
             msg = toCoreMidi4JMidiMessage(mevent, offset, length)
         }
-        port.receiver.send(msg, timestampInNanoseconds)
+        receiver.send(msg, timestampInNanoseconds)
     }
 }
