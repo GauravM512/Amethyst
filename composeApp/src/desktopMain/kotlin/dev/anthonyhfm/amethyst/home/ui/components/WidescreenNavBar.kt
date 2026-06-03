@@ -26,6 +26,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.composables.icons.lucide.BadgeInfo
+import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.History
 import com.composables.icons.lucide.Lucide
@@ -69,6 +70,7 @@ fun WidescreenNavBar(
             HomeNavRoute.Recent::class.qualifiedName -> HomeNavRoute.Recent
             HomeNavRoute.Browser::class.qualifiedName -> HomeNavRoute.Browser
             HomeNavRoute.Settings::class.qualifiedName -> HomeNavRoute.Settings
+            HomeNavRoute.Tutorials::class.qualifiedName -> HomeNavRoute.Tutorials
             HomeNavRoute.About::class.qualifiedName -> HomeNavRoute.About
 
             else -> currentNavigation
@@ -82,6 +84,7 @@ fun WidescreenNavBar(
     }
 
     val secondaryItems = listOf(
+        NavRailItem.TUTORIALS,
         NavRailItem.SETTINGS,
         NavRailItem.ABOUT,
     )
@@ -248,6 +251,13 @@ private data class NavRailItem(
             label = "Settings",
             icon = Lucide.Settings2,
             route = HomeNavRoute.Settings
+        )
+
+        val TUTORIALS = NavRailItem(
+            label = "Tutorials",
+            expandedLabel = "Tutorials",
+            icon = Lucide.BookOpen,
+            route = HomeNavRoute.Tutorials
         )
 
         val ABOUT = NavRailItem(

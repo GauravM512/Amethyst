@@ -27,6 +27,7 @@ import dev.anthonyhfm.amethyst.home.nav.HomeNavRoute
 import dev.anthonyhfm.amethyst.home.ui.views.AbletonImportWizard
 import dev.anthonyhfm.amethyst.home.ui.views.AboutView
 import dev.anthonyhfm.amethyst.home.ui.views.BrowserView
+import dev.anthonyhfm.amethyst.home.ui.views.TutorialsView
 import dev.anthonyhfm.amethyst.home.ui.views.LoadingScreenView
 import dev.anthonyhfm.amethyst.home.ui.views.ProjectCreationDialog
 import dev.anthonyhfm.amethyst.home.ui.views.RecentView
@@ -108,6 +109,10 @@ actual fun Home(
 
                     composable<HomeNavRoute.Settings> {
                         SettingsView()
+                    }
+
+                    composable<HomeNavRoute.Tutorials> {
+                        TutorialsView()
                     }
 
                     composable<HomeNavRoute.About> {

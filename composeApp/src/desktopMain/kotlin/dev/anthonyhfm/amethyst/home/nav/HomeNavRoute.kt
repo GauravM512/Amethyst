@@ -14,6 +14,9 @@ sealed interface HomeNavRoute {
     data object Settings : HomeNavRoute
 
     @Serializable
+    data object Tutorials : HomeNavRoute
+
+    @Serializable
     data object About : HomeNavRoute
 
     @Serializable
