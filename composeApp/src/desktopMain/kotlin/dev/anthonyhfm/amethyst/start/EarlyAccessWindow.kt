@@ -8,17 +8,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
+import dev.anthonyhfm.amethyst.desktop.FlatUtilityLaf
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
+import javax.swing.UIManager
 import dev.anthonyhfm.amethyst.desktop.utility.CenterWindowOnFirstShow
 import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
@@ -42,14 +44,16 @@ fun EarlyAccessWindow(
     onAccept: () -> Unit,
     onCancel: () -> Unit,
 ) {
+    UIManager.setLookAndFeel(FlatUtilityLaf())
+
     Window(
         onCloseRequest = {
             exitProcess(0)
         },
         title = "Amethyst - Early Access",
         state = rememberWindowState(
-            width = 480.dp,
-            height = 380.dp,
+            width = Dp.Unspecified,
+            height = Dp.Unspecified,
             position = WindowPosition.Aligned(Alignment.Center)
         ),
         icon = when (DesktopPlatform.get()) {
@@ -61,10 +65,6 @@ fun EarlyAccessWindow(
     ) {
         CenterWindowOnFirstShow(window)
 
-        LaunchedEffect(Unit) {
-            window.minimumSize = java.awt.Dimension(480, 380)
-        }
-
         if (DesktopPlatform.get() == DesktopPlatform.MacOS) {
             window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
             window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
@@ -73,11 +73,14 @@ fun EarlyAccessWindow(
         AmethystTheme {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .width(480.dp)
+                    .wrapContentHeight()
                     .background(Theme[colors][background])
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
                 ) {
                     if (DesktopPlatform.get() == DesktopPlatform.MacOS) {
                         OSXTitleBar()
@@ -85,7 +88,8 @@ fun EarlyAccessWindow(
 
                     Column(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth()
+                            .wrapContentHeight()
                             .padding(horizontal = 32.dp, vertical = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center

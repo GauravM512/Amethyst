@@ -24,18 +24,22 @@ import com.mikepenz.markdown.model.markdownDimens
 import com.mikepenz.markdown.model.markdownPadding
 import androidx.compose.ui.text.TextLinkStyles
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
+import dev.anthonyhfm.amethyst.desktop.FlatUtilityLaf
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
 import dev.anthonyhfm.amethyst.home.data.Tutorial
 import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollArea
 import dev.anthonyhfm.amethyst.ui.components.primitives.Separator
 import dev.anthonyhfm.amethyst.ui.theme.*
 import dev.anthonyhfm.amethyst.workspace.help.ResourceImageTransformer
+import javax.swing.UIManager
 
 @Composable
 fun TutorialWindow(
     tutorial: Tutorial,
     onClose: () -> Unit
 ) {
+    UIManager.setLookAndFeel(FlatUtilityLaf())
+
     Window(
         onCloseRequest = onClose,
         title = tutorial.title,
