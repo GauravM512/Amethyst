@@ -30,9 +30,9 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
-            task: packageReleaseNsis
-            artifact-dir: nsis
-            artifact-ext: exe
+            task: packageReleaseMsi
+            artifact-dir: msi
+            artifact-ext: msi
             artifact-name: amethyst-windows
 
           - os: macos-26
@@ -140,7 +140,7 @@ jobs:
 
             **Build #${{ github.run_number }}** · Commit: `${{ github.sha }}` · @${{ github.actor }}
           files: |
-            release-artifacts/release-assets-amethyst-windows/*.exe
+            release-artifacts/release-assets-amethyst-windows/*.msi
             release-artifacts/release-assets-amethyst-macos-arm/*.dmg
             release-artifacts/release-assets-amethyst-macos-intel/*.dmg
             release-artifacts/release-assets-amethyst-linux-deb/*.deb
