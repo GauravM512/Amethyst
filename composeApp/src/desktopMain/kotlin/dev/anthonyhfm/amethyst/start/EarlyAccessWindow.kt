@@ -19,6 +19,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
+import dev.anthonyhfm.amethyst.desktop.utility.CenterWindowOnFirstShow
 import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.DialogFooter
@@ -58,6 +59,8 @@ fun EarlyAccessWindow(
         },
         resizable = false
     ) {
+        CenterWindowOnFirstShow(window)
+
         LaunchedEffect(Unit) {
             window.minimumSize = java.awt.Dimension(480, 380)
         }

@@ -14,12 +14,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import dev.anthonyhfm.amethyst.core.controls.automapping.AutomappingManager
 import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState.updateFromKeyEvent
@@ -28,6 +30,7 @@ import dev.anthonyhfm.amethyst.core.engine.echo.AudioOutput
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.FlatAmethystLaf
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
+import dev.anthonyhfm.amethyst.desktop.utility.CenterWindowOnFirstShow
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterWorkspaceMode
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
@@ -67,7 +70,8 @@ fun WorkspaceWindow(
         title = "Amethyst - [${WorkspaceRepository.workspaceMeta?.title ?: "Untitled Project"}]",
         state = rememberWindowState(
             width = 1200.dp,
-            height = 800.dp
+            height = 800.dp,
+            position = WindowPosition.Aligned(Alignment.Center)
         ),
         onKeyEvent = {
             updateFromKeyEvent(it)
@@ -98,6 +102,8 @@ fun WorkspaceWindow(
             else -> null
         }
     ) {
+        CenterWindowOnFirstShow(window)
+
         WorkspaceMenuBar()
 
         LaunchedEffect(Unit) {

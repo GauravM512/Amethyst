@@ -2,13 +2,16 @@ package dev.anthonyhfm.amethyst.settings
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.awt.ComposeDialog
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
 import dev.anthonyhfm.amethyst.desktop.utility.DesktopUtilityWindowScaffold
 import dev.anthonyhfm.amethyst.desktop.utility.applyDesktopUtilityLaf
 import dev.anthonyhfm.amethyst.desktop.utility.applyMacUtilityWindowChrome
 import dev.anthonyhfm.amethyst.desktop.utility.configureDesktopUtilityDialog
+import dev.anthonyhfm.amethyst.desktop.utility.CenterWindowOnFirstShow
 import java.awt.Desktop
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -74,9 +77,12 @@ actual fun SettingsDialog(visible: Boolean, onDismiss: () -> Unit) {
         state = rememberDialogState(
             width = 550.dp,
             height = 600.dp,
+            position = WindowPosition.Aligned(Alignment.Center)
         ),
         resizable = false
     ) {
+        CenterWindowOnFirstShow(window)
+
         applyMacUtilityWindowChrome(window.rootPane)
 
         DesktopUtilityWindowScaffold {

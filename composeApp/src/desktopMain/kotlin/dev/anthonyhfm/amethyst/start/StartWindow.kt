@@ -19,6 +19,7 @@ import dev.anthonyhfm.amethyst.home.Home
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.FlatUtilityLaf
 import dev.anthonyhfm.amethyst.desktop.OSXTitleBar
+import dev.anthonyhfm.amethyst.desktop.utility.CenterWindowOnFirstShow
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -75,6 +76,8 @@ fun StartWindow(
             } else false
         }
     ) {
+        CenterWindowOnFirstShow(window)
+
         LaunchedEffect(Unit) {
             window.minimumSize = java.awt.Dimension(750, 550)
         }
