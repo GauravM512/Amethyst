@@ -11,6 +11,8 @@ class ApolloKeyFilterAdapter(
     override fun toDeviceState(): DeviceState {
         return CoordinateFilterChainDeviceState(
             filters = model.filters.mapIndexedNotNull { index, bool ->
+                if (index == 100) return@mapIndexedNotNull null
+
                 val x = index % 10
                 val y = index / 10
 

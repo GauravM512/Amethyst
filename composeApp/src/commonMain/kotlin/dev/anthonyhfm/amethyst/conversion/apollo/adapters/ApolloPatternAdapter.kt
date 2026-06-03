@@ -15,7 +15,7 @@ class ApolloPatternAdapter(
             apolloFrame.colors.forEachIndexed { index, color ->
                 if (color.r != 0.toByte() || color.g != 0.toByte() || color.b != 0.toByte()) {
                     val x = index % 10
-                    val y = index / 10
+                    val y = 9 - (index / 10)
                     entries.add(
                         KeyframesChainDeviceContract.KeyframesEntry(
                             x = x,

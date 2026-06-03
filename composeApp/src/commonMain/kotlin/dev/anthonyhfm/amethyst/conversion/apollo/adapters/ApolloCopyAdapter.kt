@@ -36,10 +36,10 @@ class ApolloCopyAdapter(
             offsets = model.offsets.mapIndexed { index, it ->
                 CopyChainDeviceState.Offset(
                     x = it.x,
-                    y = it.y,
+                    y = -it.y,
                     isAbsolute = it.isAbsolute,
                     absoluteX = it.absoluteX,
-                    absoluteY = it.absoluteY,
+                    absoluteY = 9 - it.absoluteY,
                     angle = model.angles.getOrElse(index) { 0 }
                 )
             }

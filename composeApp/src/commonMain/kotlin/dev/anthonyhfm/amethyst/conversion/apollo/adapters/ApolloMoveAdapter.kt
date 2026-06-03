@@ -10,9 +10,9 @@ class ApolloMoveAdapter(
 ) : ApolloAdapter<ApolloModel.Device.Move>(model) {
     override fun toDeviceState(): DeviceState {
         val (x, y) = if (model.offset.isAbsolute) {
-            model.offset.absoluteX to model.offset.absoluteY
+            model.offset.absoluteX to (9 - model.offset.absoluteY)
         } else {
-            model.offset.x to model.offset.y
+            model.offset.x to -model.offset.y
         }
         return OffsetChainDeviceState(
             offsetX = x,

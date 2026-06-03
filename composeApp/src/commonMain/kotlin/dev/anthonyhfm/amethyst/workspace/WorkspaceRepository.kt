@@ -467,6 +467,8 @@ object WorkspaceRepository {
             return rendered
         }
 
+        renderKeyframesInChain(lightsChain)
+
         if (fromRemote) {
             syncMacrosSize(workspaceData.macros, fromRemote = true)
         } else {
