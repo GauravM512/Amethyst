@@ -16,7 +16,11 @@ Before you can see your lights in action, you need to add your Launchpad to the 
 
 Once your Launchpad is on the canvas:
 * **Positioning:** You can click and drag the device around the canvas. If you have multiple Launchpads, arrange them here exactly as they are on your physical desk.
-* **Connection:** Ensure your Launchpad is connected via USB. Amethyst Studio will automatically handle the MIDI inputs and outputs.
+* **Connection:** Ensure your Launchpad is connected via USB. Amethyst Studio tries to automatically handle the MIDI inputs and outputs via automatic device detection. If it isn't found automatically, you can manually select your MIDI ports: click on the actions menu at the top of your selected Launchpad to open the **Device Configuration Dialog**. Here you can manually choose your Launchpad's MIDI Input and MIDI Output.
+
+  ![Device Configuration Dialog](res://device_configuration_dialog.png)
+
+  *The Device Configuration Dialog*
 * **Routing:** Your chains and tracks will output their light data to the devices you have placed in the layout.
 
 With your Launchpad correctly added to the Layout Mode, you are ready to start creating sequences and chains!
