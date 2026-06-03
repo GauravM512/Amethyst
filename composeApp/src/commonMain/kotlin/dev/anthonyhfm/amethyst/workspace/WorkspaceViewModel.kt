@@ -244,6 +244,8 @@ class WorkspaceViewModel(
                 val element = state.value.viewportElements.find { it.selectionUUID == event.uuid }
 
                 element?.deviceConfig?.launchpadDevice?.midiOutput?.close()
+                element?.deviceConfig?.input?.close()
+
                 element?.let {
                     DeviceSyncCoordinator.onDeviceRemoved(it.launchpadId)
                 }

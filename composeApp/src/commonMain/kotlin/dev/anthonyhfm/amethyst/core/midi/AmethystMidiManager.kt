@@ -20,6 +20,7 @@ import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.workspace.WorkspaceContract
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
+import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.rotateMidiCoordinate
 import dev.atsushieno.ktmidi.EmptyMidiAccess
 import dev.atsushieno.ktmidi.MidiAccess
 import dev.atsushieno.ktmidi.MidiInput
@@ -208,23 +209,24 @@ class AmethystMidiManager {
                 if (WorkspaceRepository.mode.value.claimInputs) {
                     val offset = position.value.copy(
                         x = position.value.x - layout.offsetX,
-                        y = position.value.y - layout.offsetY
+                        y = position.value.y
                     )
 
                     WorkspaceRepository.mode.value.onMidiInput(it, offset).invoke()
                 } else {
                     val offset = position.value.copy(
                         x = position.value.x - layout.offsetX,
-                        y = position.value.y - layout.offsetY
+                        y = position.value.y
                     )
 
                     val x = it.pitch % 10
                     val y = it.pitch / 10
 
-                    val (visX, visY) = dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.rotateMidiCoordinate(x, y, layout, rotationDegrees.floatValue)
+                    val (visX, visY) = rotateMidiCoordinate(x, y, layout, rotationDegrees.floatValue)
 
                     val posX = offset.x.toInt()
                     val posY = offset.y.toInt()
+
                     val globalX = posX + visX
                     val globalY = posY + (9 - visY)
 
