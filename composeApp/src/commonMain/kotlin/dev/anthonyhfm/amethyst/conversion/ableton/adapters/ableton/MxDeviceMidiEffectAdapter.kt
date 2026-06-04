@@ -173,7 +173,8 @@ class MxDeviceMidiEffectAdapter(
                     return MidiLauncherProAdapter(device, offset).toDeviceStates()
                 }
 
-                "aa743dda3d25332ecf3ae084eb7cbd30" -> {
+                "aa743dda3d25332ecf3ae084eb7cbd30",
+                "93c44e78923b4b220be4111f47d7b27e" -> {
                     return LightspeedAdapter(device, offset).toDeviceStates()
                 }
 
