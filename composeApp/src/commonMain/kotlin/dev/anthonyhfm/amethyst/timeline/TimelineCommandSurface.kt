@@ -587,6 +587,20 @@ object TimelineCommandSurface {
             ?.takeIf { it in tracks.indices }
             ?.let { return listOf(it) }
 
+        val timeTrackIndices = selections
+            .filterIsInstance<Selectable.TimelineTime>()
+            .map(Selectable.TimelineTime::trackIndex)
+            .distinct()
+            .filter { it in tracks.indices }
+        if (timeTrackIndices.isNotEmpty()) return timeTrackIndices
+
+        val rangeTrackIndices = selections
+            .filterIsInstance<Selectable.TimelineRange>()
+            .map(Selectable.TimelineRange::trackIndex)
+            .distinct()
+            .filter { it in tracks.indices }
+        if (rangeTrackIndices.isNotEmpty()) return rangeTrackIndices
+
         return SelectionManager.lastSelectedTimelineTrackIndex
             ?.takeIf { it in tracks.indices }
             ?.let { listOf(it) }

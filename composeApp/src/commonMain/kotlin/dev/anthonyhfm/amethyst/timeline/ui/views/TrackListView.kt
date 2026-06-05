@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.timeline.ui.views
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -127,6 +128,11 @@ fun TrackListView(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(verticalScrollState)
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        SelectionManager.clear()
+                    }
+                }
                 .padding(horizontal = 6.dp)
                 .padding(bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(timelineDimensions.laneSpacing),

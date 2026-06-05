@@ -283,7 +283,6 @@ object TimelineKeyHandler {
             TimelineCommandExecutor.execute(
                 TimelineEditCommand.DeleteTracks(trackSelections.map { it.trackIndex })
             )
-            SelectionManager.clear()
             return true
         }
 
