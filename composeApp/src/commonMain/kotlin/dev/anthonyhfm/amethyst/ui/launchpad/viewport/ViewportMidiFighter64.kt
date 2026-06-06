@@ -48,8 +48,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
 import dev.anthonyhfm.amethyst.ui.components.primitives.ScaleToFit
 import dev.anthonyhfm.amethyst.ui.theme.colors
@@ -157,17 +160,19 @@ class ViewportMidiFighter64(
     override fun Content() {
         val previewGrid by previewState.grid
         val density = LocalDensity.current
+        val useSimplified: Boolean by GeneralSettings.simplifiedGraphics.flow.collectAsState()
 
         var deviceBitmap: ImageBitmap? by remember { mutableStateOf(null) }
 
-        LaunchedEffect(style) {
-            val fileName = if (style == MidiFighter64Style.White) {
-                "files/launchpad/MF64/MIDI_Fighter_64_White_ml.png"
-            } else {
-                "files/launchpad/MF64/MIDI_Fighter_64_Black_ml.png"
+        LaunchedEffect(style, useSimplified) {
+            val style: String = if (style == MidiFighter64Style.White) "White" else "Black"
+            val suffix = if (useSimplified) "anth" else "ml"
+
+            try {
+                deviceBitmap = Res.readBytes( "files/launchpad/MF64/MIDI_Fighter_64_${style}_$suffix.png").decodeToImageBitmap()
+            } catch (ex: Exception) {
+                deviceBitmap = Res.readBytes( "files/launchpad/MF64/MIDI_Fighter_64_${style}_anth.png").decodeToImageBitmap()
             }
-            
-            deviceBitmap = Res.readBytes(fileName).decodeToImageBitmap()
         }
 
         if (deviceBitmap != null) {
