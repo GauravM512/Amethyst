@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,10 +15,14 @@ import dev.anthonyhfm.amethyst.start.EarlyAccessWindow
 import dev.anthonyhfm.amethyst.settings.data.SettingsRepository
 import dev.anthonyhfm.amethyst.start.StartWindow
 import dev.anthonyhfm.amethyst.workspace.WorkspaceWindow
+import dev.anthonyhfm.amethyst.workspace.utils.WorkspaceProjectOpenHelper
+import dev.anthonyhfm.amethyst.workspace.utils.WorkspaceProjectOpenResult
 import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.PlatformFile
+import java.io.File
 import kotlin.system.exitProcess
 
-fun main() {
+fun main(args: Array<String>) {
     initializeSentry()
 
     val platform = DesktopPlatform.get()
@@ -43,6 +48,22 @@ fun main() {
             mutableStateOf(
                 SettingsRepository.platformSettings.getBoolean("early_access_accepted", false)
             )
+        }
+
+        LaunchedEffect(hasAcceptedEarlyAccess) {
+            if (hasAcceptedEarlyAccess && args.isNotEmpty()) {
+                val file = File(args[0])
+
+                if (file.exists() && file.isFile) {
+                    val result = WorkspaceProjectOpenHelper.openProject(
+                        PlatformFile(file)
+                    )
+
+                    if (result is WorkspaceProjectOpenResult.Success) {
+                        showEditor = true
+                    }
+                }
+            }
         }
 
         if (!hasAcceptedEarlyAccess) {
@@ -73,4 +94,3 @@ fun main() {
         }
     }
 }
-

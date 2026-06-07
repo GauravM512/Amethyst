@@ -231,5 +231,14 @@ nucleus.application {
             iconFile.set(project.file("../icons/amethyst_linux.png"))
             debMaintainer = "contact@anthonyhfm.dev"
         }
+
+        fileAssociation(
+            mimeType = "application/x-amethyst",
+            extension = "ame",
+            description = "Amethyst Project File",
+            macOSIconFile = project.file("../icons/ame_file.icns"),
+            windowsIconFile = project.file("../icons/ame_file.ico"),
+            linuxIconFile = project.file("../icons/ame_file.png")
+        )
     }
 }
