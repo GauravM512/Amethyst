@@ -83,6 +83,10 @@ object LanDiscoveryService {
                 } catch (_: java.net.SocketTimeoutException) {
                     pruneAndEmit(seen)
                     continue
+                } catch (_: java.net.SocketException) {
+                    break
+                } catch (_: java.nio.channels.AsynchronousCloseException) {
+                    break
                 }
 
                 val text = String(packet.data, 0, packet.length, Charsets.UTF_8)

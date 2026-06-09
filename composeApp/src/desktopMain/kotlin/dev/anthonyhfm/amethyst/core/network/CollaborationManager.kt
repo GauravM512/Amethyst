@@ -19,13 +19,17 @@ import dev.anthonyhfm.amethyst.core.network.sync.TimelineSyncReceiver
 import dev.anthonyhfm.amethyst.core.network.sync.WorkspaceEventBroadcaster
 import dev.anthonyhfm.amethyst.core.network.sync.WorkspaceEventReceiver
 import dev.anthonyhfm.amethyst.core.network.sync.WorkspaceSyncCoordinator
+import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 
 /**
  * Central orchestrator for the LAN collaboration feature.
@@ -38,12 +42,12 @@ object CollaborationManager {
         val detail: String = ""
     )
 
-    val provider: LanConnectProvider = LanConnectProvider()
-
-    val connectionState: StateFlow<ConnectionState> = provider.connectionState
-    val session: StateFlow<ConnectSession?> = provider.session
-    val localUser: StateFlow<ConnectUser?> = provider.localUser
-
+    private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
+    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+    private val _session = MutableStateFlow<ConnectSession?>(null)
+    val session: StateFlow<ConnectSession?> = _session.asStateFlow()
+    private val _localUser = MutableStateFlow<ConnectUser?>(null)
+    val localUser: StateFlow<ConnectUser?> = _localUser.asStateFlow()
     private val _initialSyncProgress = MutableStateFlow(InitialSyncProgress())
     val initialSyncProgress: StateFlow<InitialSyncProgress> = _initialSyncProgress.asStateFlow()
 
@@ -54,12 +58,47 @@ object CollaborationManager {
         get() = localUser.value?.role == ConnectRole.HOST && isActive
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var providerInstance: LanConnectProvider? = null
+    private var connectionStateMirrorJob: Job? = null
+    private var sessionMirrorJob: Job? = null
+    private var localUserMirrorJob: Job? = null
 
     @Volatile private var syncCompletedDeferred: CompletableDeferred<Unit>? = null
 
     private fun log(message: String) {
         println("[Collaboration ${System.currentTimeMillis()}] $message")
     }
+
+    private fun provider(): LanConnectProvider {
+        providerInstance?.let { return it }
+        return synchronized(this) {
+            providerInstance ?: LanConnectProvider().also { provider ->
+                providerInstance = provider
+                bindProvider(provider)
+            }
+        }
+    }
+
+    private fun bindProvider(provider: LanConnectProvider) {
+        connectionStateMirrorJob?.cancel()
+        sessionMirrorJob?.cancel()
+        localUserMirrorJob?.cancel()
+
+        connectionStateMirrorJob = scope.launch {
+            provider.connectionState.collect { _connectionState.value = it }
+        }
+        sessionMirrorJob = scope.launch {
+            provider.session.collect { _session.value = it }
+        }
+        localUserMirrorJob = scope.launch {
+            provider.localUser.collect { _localUser.value = it }
+        }
+    }
+
+    private fun collaborationDisabledFailure(): Result<Nothing> =
+        Result.failure(IllegalStateException("Live Collaboration is disabled"))
+
+    private fun isFeatureEnabled(): Boolean = ExperimentalSettings.liveCollaboration.value
 
     private fun onFullSyncCompleted() {
         log("onFullSyncCompleted(): completing deferred=${syncCompletedDeferred != null}")
@@ -94,6 +133,12 @@ object CollaborationManager {
         sessionName: String,
         localUser: ConnectUser
     ): Result<ConnectSession> {
+        if (!isFeatureEnabled()) {
+            log("startHosting(): blocked because feature is disabled")
+            return collaborationDisabledFailure()
+        }
+
+        val provider = provider()
         log("startHosting(): sessionName='$sessionName' localUser=${localUser.id}/${localUser.name}")
         val result = provider.host(sessionName, localUser)
         if (result.isSuccess) {
@@ -111,6 +156,12 @@ object CollaborationManager {
         hostAddress: String,
         localUser: ConnectUser
     ): Result<ConnectSession> {
+        if (!isFeatureEnabled()) {
+            log("joinSession(): blocked because feature is disabled")
+            return collaborationDisabledFailure()
+        }
+
+        val provider = provider()
         log("joinSession(): start hostAddress=$hostAddress localUser=${localUser.id}/${localUser.name}")
         updateInitialSyncProgress("Connecting", null, hostAddress)
         val deferred = CompletableDeferred<Unit>()
@@ -156,16 +207,17 @@ object CollaborationManager {
         log("leaveSession()")
         stopSync()
         LanDiscoveryService.stopBroadcasting()
-        provider.leave()
+        providerInstance?.leave()
     }
 
     suspend fun sendIfActive(event: ConnectEvent) {
-        if (isActive) provider.send(event)
+        if (isActive) providerInstance?.send(event)
     }
 
     private fun startSync(hosting: Boolean) {
         log("startSync(hosting=$hosting)")
         stopSync()
+        val provider = provider()
 
         workspaceReceiver = WorkspaceEventReceiver(
             provider = provider,

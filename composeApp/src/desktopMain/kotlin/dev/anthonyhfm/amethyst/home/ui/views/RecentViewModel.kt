@@ -13,6 +13,7 @@ import dev.anthonyhfm.amethyst.core.util.ZippedProjectFormat
 import dev.anthonyhfm.amethyst.core.util.determineFormat
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.home.nav.HomeNavRoute
+import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.absolutePath
@@ -20,6 +21,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.path
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class RecentViewModel(
@@ -34,14 +36,31 @@ class RecentViewModel(
 
     init {
         viewModelScope.launch {
-            updateState(state.value.copy(isDiscovering = true))
-            LanDiscoveryService.discoverSessions().collect { sessions ->
+            ExperimentalSettings.liveCollaboration.flow.collectLatest { enabled ->
+                if (!enabled) {
+                    updateState(
+                        state.value.copy(
+                            discoveredSessions = emptyList(),
+                            isDiscovering = false
+                        )
+                    )
+                    return@collectLatest
+                }
+
                 updateState(
                     state.value.copy(
-                        discoveredSessions = sessions,
+                        discoveredSessions = emptyList(),
                         isDiscovering = true
                     )
                 )
+                LanDiscoveryService.discoverSessions().collect { sessions ->
+                    updateState(
+                        state.value.copy(
+                            discoveredSessions = sessions,
+                            isDiscovering = true
+                        )
+                    )
+                }
             }
         }
         viewModelScope.launch {
@@ -146,6 +165,14 @@ class RecentViewModel(
             is RecentViewContract.Event.OnClickJoinSession -> {
                 log("OnClickJoinSession session=${event.session.session.id}/${event.session.session.name} hostAddress=${event.session.hostAddress} userName='${event.userName}'")
                 viewModelScope.launch {
+                    if (!ExperimentalSettings.liveCollaboration.value) {
+                        snackbarHostState.showSnackbar(
+                            message = "Live Collaboration is disabled in Settings",
+                            withDismissAction = true,
+                        )
+                        return@launch
+                    }
+
                     try {
                         LocalUserRepository.setUsername(event.userName)
                         log("joinSession() call localUser=${LocalUserRepository.localUser.value.id}/${LocalUserRepository.localUser.value.name}")

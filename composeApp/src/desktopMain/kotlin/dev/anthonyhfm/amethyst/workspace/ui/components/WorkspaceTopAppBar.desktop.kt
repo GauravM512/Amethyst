@@ -52,6 +52,7 @@ import dev.anthonyhfm.amethyst.core.controls.automapping.AutomappingManager
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.settings.SettingsDialog
+import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
 import dev.anthonyhfm.amethyst.timeline.contract.GridResolution
 import dev.anthonyhfm.amethyst.timeline.contract.TimelineEditorTool
@@ -94,6 +95,7 @@ actual fun WorkspaceTopAppBar(
     onEvent: (WorkspaceContract.Event) -> Unit,
 ) {
     val automappingState by AutomappingManager.state.collectAsState()
+    val liveCollaborationEnabled by ExperimentalSettings.liveCollaboration.flow.collectAsState()
     val collaborationState by CollaborationManager.connectionState.collectAsState()
     val session by CollaborationManager.session.collectAsState()
     val connectLocalUser by CollaborationManager.localUser.collectAsState()
@@ -141,7 +143,7 @@ actual fun WorkspaceTopAppBar(
         CleanupButtons()
 
         WorkspaceToolbarSurface(contentPadding = PaddingValues(4.dp)) {
-            if (collaborationState is ConnectionState.Connected) {
+            if (liveCollaborationEnabled && collaborationState is ConnectionState.Connected) {
                 UserRoster(
                     (session?.participants.orEmpty() + listOfNotNull(connectLocalUser))
                         .distinctBy { it.id }
@@ -152,13 +154,13 @@ actual fun WorkspaceTopAppBar(
                 )
             }
 
-            if (isConnecting) {
+            if (liveCollaborationEnabled && isConnecting) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
                     color = Theme[colors][accent],
                 )
-            } else {
+            } else if (liveCollaborationEnabled) {
                 WorkspaceToolbarIconButton(
                     onClick = {
                         if (isHosting) {
