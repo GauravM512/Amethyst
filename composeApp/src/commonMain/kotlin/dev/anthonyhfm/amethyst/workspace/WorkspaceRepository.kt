@@ -410,6 +410,8 @@ object WorkspaceRepository {
     }
 
     fun loadWorkspace(workspaceData: SavableWorkspaceData, fromRemote: Boolean = false) {
+        Echo.reset()
+
         if (fromRemote) {
             isApplyingRemoteBpmUpdate = true
             isApplyingRemoteProjectNameUpdate = true
@@ -700,6 +702,7 @@ object WorkspaceRepository {
     }
 
     fun clean() {
+        Echo.reset()
         TransmitChainDevice.clearReceiversForTesting()
         AutomappingManager.reset()
 

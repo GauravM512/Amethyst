@@ -9,6 +9,11 @@ object Echo {
     private val audioSignalQueue = Channel<List<Signal.AudioSignal>>(UNLIMITED)
     private val audioScope = CoroutineScope(Dispatchers.Default.limitedParallelism(1) + SupervisorJob())
 
+    fun reset() {
+        drainPendingSignals()
+        AudioOutput.stopAll()
+    }
+
     fun audioEnter(signals: List<Signal.AudioSignal>) {
         audioScope.launch {
             audioSignalQueue.send(signals)
@@ -50,6 +55,11 @@ object Echo {
             AudioOutput.stopByOrigin(signalOrigin)
         } catch (e: Exception) {
             println("Audio cancel error: ${e.message}")
+        }
+    }
+
+    private fun drainPendingSignals() {
+        while (audioSignalQueue.tryReceive().isSuccess) {
         }
     }
 }
