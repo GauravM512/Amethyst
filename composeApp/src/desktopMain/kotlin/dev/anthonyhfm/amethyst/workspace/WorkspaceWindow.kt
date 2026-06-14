@@ -17,9 +17,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
@@ -84,6 +87,21 @@ fun WorkspaceWindow(
             ShortcutManager.handleShortcut(it)
         },
         onPreviewKeyEvent = {
+            if (
+                it.type == KeyEventType.KeyDown &&
+                (it.isCtrlPressed || it.isMetaPressed) &&
+                it.key == Key.S
+            ) {
+                coroutineScope.launch {
+                    if (it.isShiftPressed) {
+                        WorkspaceSaveHelper.saveWorkspaceAs()
+                    } else {
+                        WorkspaceSaveHelper.saveWorkspace()
+                    }
+                }
+                return@Window true
+            }
+
             val mode = WorkspaceRepository.mode.value
             when {
                 mode is WorkspaceContract.WorkspaceMode.Timeline || mode is PianoRollWorkspaceMode -> {

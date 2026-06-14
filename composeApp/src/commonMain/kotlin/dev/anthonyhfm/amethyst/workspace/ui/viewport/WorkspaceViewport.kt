@@ -55,6 +55,8 @@ import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.network.presence.CollaborationPresence
+import dev.anthonyhfm.amethyst.core.util.Platform
+import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.workspace.ui.components.CursorOverlay
 import dev.anthonyhfm.amethyst.ui.components.primitives.FullShape
 import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
@@ -86,7 +88,7 @@ fun WorkspaceViewport(
     val gridSize = (40 * density).toInt()
     val gridColor = Color(0xFF5C6370).copy(alpha = 0.38f)
     val viewportBackground = Color(0xFF1C1C23)
-    val viewportBorder = Color(0xFF3E4451)
+    val viewportBorder = if (platform is Platform.Desktop) Color(0xFF3E4451) else Color.Transparent
     val selectionColor = Theme[colors][selectionBorder]
     val shadowColor = Color.Black.copy(alpha = 0.24f)
     val actionTrayBackground = Color(0xFF282C34)

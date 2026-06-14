@@ -5,12 +5,15 @@ import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import io.github.vinceglb.filekit.FileKit
-import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.dialogs.openFileSaver
 import io.github.vinceglb.filekit.path
-import io.github.vinceglb.filekit.write
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.encodeToByteArray
+import java.nio.file.Files
+import java.nio.file.Paths
+import javax.swing.JOptionPane
 
 object WorkspaceSaveHelper {
     /**
@@ -45,25 +48,39 @@ object WorkspaceSaveHelper {
 
     @OptIn(ExperimentalSerializationApi::class)
     private suspend fun writeToPath(rawPath: String): Boolean {
-        val path = if (rawPath.endsWith(".ame")) rawPath else "$rawPath.ame"
+        val path = if (rawPath.endsWith(".ame", ignoreCase = true)) rawPath else "$rawPath.ame"
+        val bytes = Zip.encode(
+            data = AmethystProtoBuf
+                .encodeToByteArray(
+                    value = WorkspaceRepository.saveWorkspace()
+                )
+        )
 
-        WorkspaceRepository.workspaceMeta = WorkspaceRepository.workspaceMeta?.copy(path = path)
-            ?: WorkspaceRepository.workspaceMeta
+        return runCatching {
+            withContext(Dispatchers.IO) {
+                val outputPath = Paths.get(path)
+                outputPath.parent?.let { Files.createDirectories(it) }
+                Files.write(outputPath, bytes)
+            }
 
-        PlatformFile(path).write(
-            bytes = Zip.encode(
-                data = AmethystProtoBuf
-                    .encodeToByteArray(
-                        value = WorkspaceRepository.saveWorkspace()
-                    )
+            WorkspaceRepository.workspaceMeta = WorkspaceRepository.workspaceMeta?.copy(path = path)
+                ?: WorkspaceRepository.workspaceMeta
+
+            HomeRepository.rememberRecentWorkspace(
+                title = WorkspaceRepository.workspaceMeta?.title ?: "Untitled",
+                path = path,
             )
-        )
 
-        HomeRepository.rememberRecentWorkspace(
-            title = WorkspaceRepository.workspaceMeta?.title ?: "Untitled",
-            path = path,
-        )
-
-        return true
+            true
+        }.getOrElse { cause ->
+            cause.printStackTrace()
+            JOptionPane.showMessageDialog(
+                null,
+                "Unable to save workspace:\n${cause.message ?: cause::class.simpleName}",
+                "Save Workspace Failed",
+                JOptionPane.ERROR_MESSAGE
+            )
+            false
+        }
     }
 }
