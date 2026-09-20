@@ -59,7 +59,7 @@ data class HubProject(
     val title: String,
     val description: String,
     val compatibility: HubProjectCompatibility,
-    val projectType: HubProjectType? = null,
+    val projectType: HubProjectType = HubProjectType.amethyst,
     val views: Long = 0,
     val downloadsCount: Long = 0,
     val likesCount: Long = 0,
@@ -76,6 +76,10 @@ data class HubProject(
     val packageSha256: String? = null,
     val downloadUrl: String? = null,
     val thumbnailUrl: String? = null,
+    val overrideName: String? = null,
+    val overrideSize: Long? = null,
+    val overrideSha256: String? = null,
+    val overrideDownloadUrl: String? = null,
 )
 
 @Serializable
@@ -91,10 +95,44 @@ data class HubFollowResult(
 )
 
 @Serializable
+data class HubLikeResult(
+    val liked: Boolean,
+    val likesCount: Long,
+)
+
+@Serializable
+data class HubProjectViewResult(
+    val ok: Boolean,
+    val views: Long,
+)
+
+@Serializable
+data class HubArtistPage(
+    val items: List<HubArtist>,
+    val nextCursor: String? = null,
+)
+
+@Serializable
 data class HubProjectInput(
     val title: String,
     val description: String,
     val compatibility: HubProjectCompatibility,
     val difficulty: Int,
     val youtubeUrl: String? = null,
+    val projectType: HubProjectType = HubProjectType.amethyst,
 )
+
+@Serializable
+data class HubSearchResult(
+    val query: String,
+    val projects: List<HubProject>,
+    val artists: List<HubArtist>,
+    val projectCount: Long,
+    val artistCount: Long,
+)
+
+@Serializable
+data class HubOk(val ok: Boolean)
+
+@Serializable
+data class HubHealth(val ok: Boolean)

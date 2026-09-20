@@ -71,6 +71,7 @@ kotlin {
             implementation(libs.androidx.core.splashscreen)
             implementation(libs.androidx.lifecycle.process)
             implementation(libs.jetbrains.material3)
+            implementation(libs.ktor.client.okhttp)
 
             implementation(projects.nativeEngine)
         }
@@ -117,9 +118,12 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+            implementation(libs.ktor.client.mock)
         }
         iosMain.dependencies {
             implementation(projects.nativeEngine)
+            implementation(libs.ktor.client.darwin)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs) {
