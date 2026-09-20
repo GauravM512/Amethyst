@@ -21,6 +21,7 @@ sealed class Setting<T>(
 ) {
     val title: String @Composable get() = titleRes?.let { stringResource(it) } ?: rawTitle
     val displayTitle: String get() = rawTitle
+    val localizationKey: String? get() = titleRes?.key
 
     val isSupportedOnCurrentPlatform: Boolean
         get() = platformQuery(platform)

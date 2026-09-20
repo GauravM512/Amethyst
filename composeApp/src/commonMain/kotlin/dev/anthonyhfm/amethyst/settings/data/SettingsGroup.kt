@@ -12,6 +12,7 @@ abstract class SettingsGroup(
 ) {
     val title: String @Composable get() = titleRes?.let { stringResource(it) } ?: rawTitle
     val displayTitle: String get() = rawTitle
+    val localizationKey: String? get() = titleRes?.key
 
     private val _settings = mutableListOf<Setting<*>>()
     val settings: List<Setting<*>>

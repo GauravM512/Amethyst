@@ -6,6 +6,7 @@ import org.jetbrains.compose.resources.getString
 import dev.anthonyhfm.amethyst.ui.components.primitives.ToastState
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
+import dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager
 import dev.anthonyhfm.amethyst.core.network.CollaborationManager
 import dev.anthonyhfm.amethyst.core.network.lan.DiscoveredSession
 import dev.anthonyhfm.amethyst.core.network.lan.LanDiscoveryService
@@ -203,19 +204,19 @@ class RecentViewModel(
         printStackTrace: Boolean = false,
         block: suspend () -> Unit,
     ) {
-        val initialText = loadingText ?: "Starte Ladevorgang..."
-        dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.startLoading(
-            initialTitle = "PROJEKT WIRD GELADEN",
+        val initialText = loadingText ?: "Loading..."
+        ProjectLoadingManager.startLoading(
+            initialTitle = "LOADING PROJECT",
             initialStatus = initialText
         )
         navigator.navigate(HomeNavRoute.LoadingScreen(initialText))
 
         try {
             block()
-            dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.finishLoading()
+            ProjectLoadingManager.finishLoading()
             triggerEffect(RecentViewContract.Effect.OpenWorkspace)
         } catch (exception: Exception) {
-            dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.finishLoading()
+            ProjectLoadingManager.finishLoading()
             navigator.popBackStack()
 
             if (printStackTrace) {

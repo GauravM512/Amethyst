@@ -16,6 +16,7 @@ struct RecentProjectRow: View {
     let onRemove: () -> Void
 
     @Environment(\.amethystTheme) private var theme
+    @Environment(AppLocalization.self) private var localization
 
     private var folderPath: String {
         abbreviatePath(project.path)
@@ -62,23 +63,23 @@ struct RecentProjectRow: View {
         .listRowBackground(theme.muted)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: onRemove) {
-                Label("Remove", systemImage: "trash")
+                Label(localization.string("common_remove", fallback: "Remove"), systemImage: "trash")
             }
             Button(action: onEdit) {
-                Label("Edit", systemImage: "pencil")
+                Label(localization.string("home_projects_item_menu_edit", fallback: "Edit"), systemImage: "pencil")
             }
             .tint(theme.primary)
         }
         .contextMenu {
             Button(action: onOpen) {
-                Label("Open", systemImage: "folder.badge.arrow.up")
+                Label(localization.string("home_projects_item_menu_open", fallback: "Open"), systemImage: "folder.badge.arrow.up")
             }
             Button(action: onEdit) {
-                Label("Edit Details", systemImage: "pencil")
+                Label(localization.string("home_projects_item_menu_edit", fallback: "Edit Details"), systemImage: "pencil")
             }
             Divider()
             Button(role: .destructive, action: onRemove) {
-                Label("Remove from Recent", systemImage: "trash")
+                Label(localization.string("home_projects_item_menu_remove", fallback: "Remove from Recent"), systemImage: "trash")
             }
         }
     }

@@ -37,7 +37,10 @@ final class HomeViewModel {
     var isLoading = false
     var loadingProgress: Double = 0.0
     var loadingTitle: String? = nil
-    var loadingStatusText: String = "Preparing..."
+    var loadingStatusText: String = IosLocalizationBridge.shared.string(
+        key: "home_loading_default_status",
+        fallback: "Preparing..."
+    )
     var loadingDetailText: String? = nil
     var errorMessage: String? = nil
     var activeSheet: HomeSheet? = nil
@@ -83,7 +86,7 @@ final class HomeViewModel {
     }
 
     func openRecent(_ project: RecentWorkspace) {
-        startLoading("Opening Project")
+        startLoading(localized("home_projects_opening_project_msg", fallback: "Opening Project"))
         HomeSwiftBridge.shared.openRecentWorkspace(
             project: project,
             onSuccess: { [weak self] in Task { @MainActor [weak self] in self?.handleWorkspaceOpened() } },
@@ -94,7 +97,7 @@ final class HomeViewModel {
     // ── Project creation / editing ─────────────────────────────────────────
 
     func createProject(name: String, author: String) {
-        startLoading("Creating Project")
+        startLoading(localized("home_project_creation_create_project", fallback: "Creating Project"))
         HomeSwiftBridge.shared.createProject(
             name: name,
             author: author,
@@ -104,7 +107,7 @@ final class HomeViewModel {
     }
 
     func updateProject(path: String, name: String, author: String) {
-        startLoading("Saving Changes")
+        startLoading(localized("home_project_creation_save_changes", fallback: "Saving Changes"))
         HomeSwiftBridge.shared.updateProject(
             path: path,
             name: name,
@@ -118,13 +121,13 @@ final class HomeViewModel {
 
     func openFile(url: URL) {
         guard url.startAccessingSecurityScopedResource() else {
-            errorMessage = "Could not access the selected file."
+            errorMessage = localized("home_projects_file_access_failed", fallback: "Could not access the selected file.")
             return
         }
         defer { url.stopAccessingSecurityScopedResource() }
 
         guard let data = try? Data(contentsOf: url) else {
-            errorMessage = "Failed to read the selected file."
+            errorMessage = localized("home_projects_file_read_failed", fallback: "Failed to read the selected file.")
             return
         }
 
@@ -146,13 +149,14 @@ final class HomeViewModel {
             detectZipAndRoute(storedPath: storedPath)
 
         default:
-            errorMessage = "Unsupported file format: .\(ext)"
+            errorMessage = localized("home_error_unsupported_project_format", fallback: "Unsupported project file format: .%1$s")
+                .replacingOccurrences(of: "%1$s", with: ext)
             HomeSwiftBridge.shared.clearIndexedFile(path: storedPath)
         }
     }
 
     func openIndexedFile(path: String) {
-        startLoading("Loading Project")
+        startLoading(localized("home_projects_loading_project_msg", fallback: "Loading Project"))
         HomeSwiftBridge.shared.openWorkspaceFromPath(
             path: path,
             onSuccess: { [weak self] in
@@ -168,7 +172,7 @@ final class HomeViewModel {
     // ── Ableton import ─────────────────────────────────────────────────────
 
     func importAbleton(path: String, palettePath: String?, apolloPath: String?) {
-        startLoading("Translating your Ableton Live-Set")
+        startLoading(localized("home_import_wizard_translating_message", fallback: "Translating your Ableton Live-Set"))
         activeSheet = nil
         HomeSwiftBridge.shared.importAbletonProject(
             path: path,
@@ -219,6 +223,10 @@ final class HomeViewModel {
         loadingStatusText = text
         loadingDetailText = nil
         isLoading   = true
+    }
+
+    private func localized(_ key: String, fallback: String) -> String {
+        IosLocalizationBridge.shared.string(key: key, fallback: fallback)
     }
 
     private func handleWorkspaceOpened() {

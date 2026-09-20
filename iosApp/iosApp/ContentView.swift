@@ -89,7 +89,7 @@ struct ContentView: View {
         case projects
         case browser
         case arcade
-        case settings
+        case profile
     }
 
     @Environment(\.scenePhase) private var scenePhase
@@ -97,6 +97,9 @@ struct ContentView: View {
 
     @State private var viewModel = HomeViewModel()
     @State private var settingsViewModel = SettingsViewModel()
+    @State private var accountViewModel = AccountViewModel()
+    @State private var localization = AppLocalization()
+    @State private var profileTabAvatar: UIImage?
     @State private var showSettingsSheet = false
     @State private var showSplashScreen = true
     @State private var selectedHomeTab: HomeTab = .projects
@@ -153,7 +156,11 @@ struct ContentView: View {
                         IosWorkspaceBridge.shared.onShowSettings = nil
                     }
                     .sheet(isPresented: $showSettingsSheet) {
-                        SettingsTabView(viewModel: settingsViewModel, showsCloseButton: true)
+                        SettingsTabView(
+                            viewModel: settingsViewModel,
+                            accountViewModel: accountViewModel,
+                            showsCloseButton: true
+                        )
                     }
                 } else {
                     homeTabView
@@ -179,6 +186,8 @@ struct ContentView: View {
                 .transition(.opacity)
             }
         }
+        .environment(localization)
+        .environment(\.locale, Locale(identifier: localization.languageTag))
         .animation(.easeInOut(duration: 0.25), value: viewModel.isLoading)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
@@ -209,7 +218,7 @@ struct ContentView: View {
             ProjectsTabView(viewModel: viewModel)
                 .tag(HomeTab.projects)
                 .tabItem {
-                    Label("Projects", systemImage: "folder")
+                    Label(localization.string("home_nav_tab_projects", fallback: "Projects"), systemImage: "folder")
                 }
 
             NavigationStack {
@@ -219,21 +228,21 @@ struct ContentView: View {
                         Image(systemName: "globe")
                             .font(.largeTitle)
                             .foregroundStyle(theme.mutedForeground)
-                        Text("Work in Progress")
+                        Text(localization.string("home_browser_wip", fallback: "Work in Progress"))
                             .font(.headline)
                             .foregroundStyle(theme.foreground)
-                        Text("Nothing to see here yet.")
+                        Text(localization.string("home_browser_empty", fallback: "Nothing to see here yet."))
                             .font(.subheadline)
                             .foregroundStyle(theme.mutedForeground)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle("Browser")
+                    .navigationTitle(localization.string("home_browser_title", fallback: "Browser"))
                 }
             }
             .tint(theme.glassForeground)
             .tag(HomeTab.browser)
             .tabItem {
-                Label("Browser", systemImage: "globe")
+                Label(localization.string("home_nav_tab_browser", fallback: "Browser"), systemImage: "globe")
             }
 
             NavigationStack {
@@ -243,32 +252,87 @@ struct ContentView: View {
                         Image(systemName: "gamecontroller")
                             .font(.largeTitle)
                             .foregroundStyle(theme.mutedForeground)
-                        Text("Work in Progress")
+                        Text(localization.string("home_arcade_wip", fallback: "Work in Progress"))
                             .font(.headline)
                             .foregroundStyle(theme.foreground)
-                        Text("Nothing to see here yet.")
+                        Text(localization.string("home_arcade_empty", fallback: "Nothing to see here yet."))
                             .font(.subheadline)
                             .foregroundStyle(theme.mutedForeground)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle("Arcade")
+                    .navigationTitle(localization.string("home_arcade_title", fallback: "Arcade"))
                 }
             }
             .tint(theme.glassForeground)
             .tag(HomeTab.arcade)
             .tabItem {
-                Label("Arcade", systemImage: "gamecontroller")
+                Label(localization.string("home_nav_tab_arcade", fallback: "Arcade"), systemImage: "gamecontroller")
             }
 
-            SettingsTabView(viewModel: settingsViewModel)
-                .tag(HomeTab.settings)
+            SettingsTabView(
+                viewModel: settingsViewModel,
+                accountViewModel: accountViewModel
+            )
+                .tag(HomeTab.profile)
                 .tabItem {
-                    Label("Settings", systemImage: "gearshape")
+                    Label {
+                        Text(localization.string("profile_title", fallback: "Profile"))
+                    } icon: {
+                        if let profileTabAvatar {
+                            Image(uiImage: profileTabAvatar)
+                                .renderingMode(.original)
+                        } else {
+                            Image(systemName: "person.crop.circle")
+                        }
+                    }
                 }
         }
         .tint(theme.primary)
         .toolbarBackground(theme.glassSurface, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .amethystThemed()
+        .task(id: accountViewModel.resolvedAvatarURL) {
+            await loadProfileTabAvatar()
+        }
+    }
+
+    @MainActor
+    private func loadProfileTabAvatar() async {
+        guard let avatarURL = accountViewModel.resolvedAvatarURL else {
+            profileTabAvatar = nil
+            return
+        }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: avatarURL)
+            guard !Task.isCancelled, let image = UIImage(data: data) else { return }
+            profileTabAvatar = image.circularTabBarIcon()
+        } catch {
+            guard !Task.isCancelled else { return }
+            profileTabAvatar = nil
+        }
+    }
+}
+
+private extension UIImage {
+    func circularTabBarIcon(diameter: CGFloat = 26) -> UIImage {
+        let size = CGSize(width: diameter, height: diameter)
+        let renderer = UIGraphicsImageRenderer(size: size)
+
+        return renderer.image { _ in
+            let bounds = CGRect(origin: .zero, size: size)
+            UIBezierPath(ovalIn: bounds).addClip()
+
+            let scale = max(diameter / self.size.width, diameter / self.size.height)
+            let drawSize = CGSize(width: self.size.width * scale, height: self.size.height * scale)
+            let drawRect = CGRect(
+                x: (diameter - drawSize.width) / 2,
+                y: (diameter - drawSize.height) / 2,
+                width: drawSize.width,
+                height: drawSize.height
+            )
+            draw(in: drawRect)
+        }
+        .withRenderingMode(.alwaysOriginal)
     }
 }

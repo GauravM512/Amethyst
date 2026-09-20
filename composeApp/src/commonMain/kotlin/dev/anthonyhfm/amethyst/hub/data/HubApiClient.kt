@@ -145,7 +145,7 @@ class HubApiClient internal constructor(
     fun close() = http.close()
 
     companion object {
-        const val DEFAULT_BASE_URL = "https://api.amethyst.anthonyhfm.dev"
+        const val DEFAULT_BASE_URL = "https://api.anthonyhfm.dev"
         private const val DEFAULT_ACCESS_TOKEN_TTL = 300L
         private const val REFRESH_SKEW_SECONDS = 30L
     }

@@ -19,6 +19,7 @@ struct ProjectCreationSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.amethystTheme) private var theme
+    @Environment(AppLocalization.self) private var localization
 
     @State private var name: String = ""
     @State private var author: String = ""
@@ -32,9 +33,9 @@ struct ProjectCreationSheet: View {
                 // Project name
                 Section {
                     TextField(
-                        "Project name",
+                        localization.string("home_project_creation_sheet_name_label", fallback: "Project name"),
                         text: $name,
-                        prompt: Text("My next performance")
+                        prompt: Text(localization.string("home_project_creation_sheet_name_placeholder", fallback: "My next performance"))
                             .foregroundStyle(theme.mutedForeground.opacity(0.72))
                     )
                         .foregroundStyle(theme.foreground)
@@ -45,14 +46,14 @@ struct ProjectCreationSheet: View {
                             }
                         }
                 } header: {
-                    Text("Project Name")
+                    Text(localization.string("home_project_creation_sheet_name_label", fallback: "Project Name"))
                 } footer: {
                     if nameErrorVisible {
-                        Label("Please enter a project name.", systemImage: "exclamationmark.circle.fill")
+                        Label(localization.string("home_project_creation_sheet_name_error", fallback: "Please enter a project name."), systemImage: "exclamationmark.circle.fill")
                             .foregroundStyle(.red)
                             .font(.footnote)
                     } else {
-                        Text("Shown in your workspace and recent projects.")
+                        Text(localization.string("home_project_creation_name_summary", fallback: "Shown in your workspace and recent projects."))
                     }
                 }
                 .listRowBackground(theme.muted)
@@ -60,31 +61,39 @@ struct ProjectCreationSheet: View {
                 // Author
                 Section {
                     TextField(
-                        "Author",
+                        localization.string("home_project_creation_sheet_author_label", fallback: "Author"),
                         text: $author,
-                        prompt: Text("Your name")
+                        prompt: Text(localization.string("home_project_creation_sheet_author_placeholder", fallback: "Your name"))
                             .foregroundStyle(theme.mutedForeground.opacity(0.72))
                     )
                         .foregroundStyle(theme.foreground)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.words)
                 } header: {
-                    Text("Author")
+                    Text(localization.string("home_project_creation_sheet_author_label", fallback: "Author"))
                 } footer: {
-                    Text("Saved as your default. Leave blank to fall back to \"Unknown Author\".")
+                    Text(localization.string("home_project_creation_sheet_author_desc", fallback: "Saved as your default. Leave blank to fall back to \"Unknown Author\"."))
                 }
                 .listRowBackground(theme.muted)
             }
             .scrollContentBackground(.hidden)
             .background(theme.background.ignoresSafeArea())
-            .navigationTitle(isEditing ? "Edit Project" : "New Project")
+            .navigationTitle(
+                isEditing
+                    ? localization.string("home_project_creation_sheet_edit_title", fallback: "Edit Project")
+                    : localization.string("home_project_creation_sheet_new_title", fallback: "New Project")
+            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(localization.string("home_project_creation_sheet_cancel", fallback: "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isEditing ? "Save" : "Create") {
+                    Button(
+                        isEditing
+                            ? localization.string("home_project_creation_sheet_save", fallback: "Save")
+                            : localization.string("home_project_creation_sheet_create", fallback: "Create")
+                    ) {
                         submit()
                     }
                     .fontWeight(.semibold)

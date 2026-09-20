@@ -8,12 +8,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 
 class GetAccountUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(): HubAccount = client.authorized { token ->
         client.http.get("${client.baseUrl}/v1/account") { applyBearerAuth(token) }
     }.hubBody()
 }
 
 class UpdateArtistProfileUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubArtistProfileInput): HubAccount = client.authorized { token ->
         client.http.patch("${client.baseUrl}/v1/account/artist") {
             applyBearerAuth(token)
@@ -24,6 +26,7 @@ class UpdateArtistProfileUseCase(private val client: HubApiClient) {
 }
 
 class SetAccountAvatarUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubAvatarInput): HubAccount = client.authorized { token ->
         client.http.post("${client.baseUrl}/v1/account/avatar") {
             applyBearerAuth(token)
@@ -34,6 +37,7 @@ class SetAccountAvatarUseCase(private val client: HubApiClient) {
 }
 
 class RemoveAccountAvatarUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(): HubAccount = client.authorized { token ->
         client.http.post("${client.baseUrl}/v1/account/avatar-remove") {
             applyBearerAuth(token)
@@ -44,18 +48,21 @@ class RemoveAccountAvatarUseCase(private val client: HubApiClient) {
 }
 
 class GetSessionsUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(): HubSessions = client.authorized { token ->
         client.http.get("${client.baseUrl}/v1/account/sessions") { applyBearerAuth(token) }
     }.hubBody()
 }
 
 class ExportAccountUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(): HubAccountExport = client.authorized { token ->
         client.http.get("${client.baseUrl}/v1/account/export") { applyBearerAuth(token) }
     }.hubBody()
 }
 
 class LogoutUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(sessionId: String? = null, all: Boolean = false): HubOk {
         val result = client.authorized { token ->
             client.http.post("${client.baseUrl}/v1/account/logout") {
@@ -70,11 +77,13 @@ class LogoutUseCase(private val client: HubApiClient) {
 }
 
 class ChangePasswordUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubPasswordChangeInput): HubOk =
         client.revokingAccountRequest("password", input)
 }
 
 class ChangeEmailUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubEmailChangeInput): HubOk = client.authorized { token ->
         client.http.post("${client.baseUrl}/v1/account/email") {
             applyBearerAuth(token)
@@ -85,6 +94,7 @@ class ChangeEmailUseCase(private val client: HubApiClient) {
 }
 
 class RemoveEmailUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubSensitiveInput): HubOk = client.authorized { token ->
         client.http.post("${client.baseUrl}/v1/account/email-remove") {
             applyBearerAuth(token)
@@ -95,6 +105,7 @@ class RemoveEmailUseCase(private val client: HubApiClient) {
 }
 
 class SetupTotpUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubSensitiveInput): HubTotpSetup = client.authorized { token ->
         client.http.post("${client.baseUrl}/v1/account/totp-setup") {
             applyBearerAuth(token)
@@ -105,16 +116,19 @@ class SetupTotpUseCase(private val client: HubApiClient) {
 }
 
 class ConfirmTotpUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubSensitiveInput): HubRecoveryCodes =
         client.revokingAccountRequest("totp-confirm", input)
 }
 
 class DisableTotpUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubSensitiveInput): HubOk =
         client.revokingAccountRequest("totp-disable", input)
 }
 
 class RegenerateRecoveryCodesUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubSensitiveInput): HubRecoveryCodes = client.authorized { token ->
         client.http.post("${client.baseUrl}/v1/account/recovery-codes") {
             applyBearerAuth(token)
@@ -125,6 +139,7 @@ class RegenerateRecoveryCodesUseCase(private val client: HubApiClient) {
 }
 
 class DeleteAccountUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(input: HubSensitiveInput): HubOk =
         client.revokingAccountRequest("delete", input)
 }

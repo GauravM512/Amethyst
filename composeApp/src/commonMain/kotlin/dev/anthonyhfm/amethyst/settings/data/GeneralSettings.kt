@@ -11,7 +11,7 @@ object GeneralSettings : SettingsGroup("General", Res.string.settings_general_gr
     val language: Setting.Select<LanguageOption> = select(
         key = "language",
         title = "Language",
-        titleRes = null,
+        titleRes = Res.string.settings_general_language_title,
         default = LanguageOptions.English,
         options = LanguageOptions.all,
         codec = LanguageOptionCodec,

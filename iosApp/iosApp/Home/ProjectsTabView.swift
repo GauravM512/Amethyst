@@ -19,6 +19,7 @@ struct ProjectsTabView: View {
     @Bindable var viewModel: HomeViewModel
 
     @Environment(\.amethystTheme) private var theme
+    @Environment(AppLocalization.self) private var localization
 
     var body: some View {
         NavigationStack {
@@ -29,7 +30,7 @@ struct ProjectsTabView: View {
                     recentList
                 }
             }
-            .navigationTitle("Recent Projects")
+            .navigationTitle(localization.string("home_projects_title", fallback: "Recent Projects"))
             .navigationBarTitleDisplayMode(.large)
             .background(theme.background)
             .toolbar {
@@ -40,7 +41,7 @@ struct ProjectsTabView: View {
                     } label: {
                         Image(systemName: "folder.badge.plus")
                     }
-                    .accessibilityLabel("Open Project")
+                    .accessibilityLabel(localization.string("home_projects_action_open_desc", fallback: "Open Project"))
 
                     // Create new project
                     Button {
@@ -48,7 +49,7 @@ struct ProjectsTabView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .accessibilityLabel("New Project")
+                    .accessibilityLabel(localization.string("home_projects_action_new_desc", fallback: "New Project"))
                 }
             }
         }
@@ -86,8 +87,8 @@ struct ProjectsTabView: View {
             }
         }
         // ── Error alert ────────────────────────────────────────────────
-        .alert("Something went wrong", isPresented: errorBinding) {
-            Button("OK", role: .cancel) { viewModel.errorMessage = nil }
+        .alert(localization.string("common_error_title", fallback: "Something went wrong"), isPresented: errorBinding) {
+            Button(localization.string("common_ok", fallback: "OK"), role: .cancel) { viewModel.errorMessage = nil }
         } message: {
             if let msg = viewModel.errorMessage {
                 Text(msg)
@@ -128,11 +129,11 @@ struct ProjectsTabView: View {
                     .foregroundStyle(theme.mutedForeground.opacity(0.6))
                     .padding(.bottom, 4)
 
-                Text("No Recent Projects")
+                Text(localization.string("home_projects_empty_title", fallback: "No Recent Projects"))
                     .font(.title2.weight(.bold))
                     .foregroundStyle(theme.foreground)
 
-                Text("Open an existing workspace or create a new project to get started.")
+                Text(localization.string("home_projects_empty_desc", fallback: "Open an existing workspace or create a new project to get started."))
                     .font(.subheadline)
                     .foregroundStyle(theme.mutedForeground)
                     .multilineTextAlignment(.center)
@@ -141,7 +142,7 @@ struct ProjectsTabView: View {
 
             VStack(spacing: 8) {
                 Button(action: { viewModel.activeSheet = .createProject }) {
-                    Label("New Project", systemImage: "plus")
+                    Label(localization.string("home_projects_new_button", fallback: "New Project"), systemImage: "plus")
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity)
                 }
@@ -150,7 +151,7 @@ struct ProjectsTabView: View {
                 .tint(theme.primary)
 
                 Button(action: { viewModel.showingFilePicker = true }) {
-                    Label("Open File", systemImage: "folder.badge.plus")
+                    Label(localization.string("home_projects_open_button", fallback: "Open File"), systemImage: "folder.badge.plus")
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity)
                 }
