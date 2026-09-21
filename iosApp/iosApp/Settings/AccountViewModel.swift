@@ -36,8 +36,9 @@ final class AccountViewModel {
     var isBusy = false
     var errorMessage: String?
     var successMessage: String?
+    private(set) var sessionRevision = 0
 
-    private let repository: HubRepository
+    let repository: HubRepository
     private let defaults = UserDefaults.standard
 
     private enum Keys {
@@ -474,11 +475,15 @@ final class AccountViewModel {
     }
 
     private func setAccount(_ account: HubAccount) {
+        let becameSignedIn = self.account == nil
         self.account = account
         username = account.username
         displayName = account.displayName
         email = account.email ?? ""
         clearMessages()
+        if becameSignedIn {
+            sessionRevision += 1
+        }
     }
 
     private func finish(errorMessage: String) {
@@ -500,6 +505,7 @@ final class AccountViewModel {
     }
 
     private func signOutLocally() {
+        let hadSession = account != nil || repository.client.isAuthenticated
         repository.client.clearSession()
         defaults.removeObject(forKey: Keys.accessToken)
         defaults.removeObject(forKey: Keys.refreshToken)
@@ -508,6 +514,9 @@ final class AccountViewModel {
         confirmation = ""
         mfaChallenge = nil
         isBusy = false
+        if hadSession {
+            sessionRevision += 1
+        }
     }
 }
 

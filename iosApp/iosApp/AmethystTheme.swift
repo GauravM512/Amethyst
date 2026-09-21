@@ -101,3 +101,16 @@ extension View {
         modifier(AmethystThemed())
     }
 }
+
+// MARK: - Material 3 semantic aliases
+
+extension AmethystTheme {
+    var surface: Color { background }
+    var onSurface: Color { foreground }
+    var surfaceContainer: Color { muted }
+    var surfaceContainerHigh: Color { secondary }
+    var onSurfaceVariant: Color { mutedForeground }
+    var primaryContainer: Color { secondary }
+    var onPrimaryContainer: Color { secondaryForeground }
+    var outlineVariant: Color { border }
+}

@@ -97,13 +97,22 @@ struct ContentView: View {
 
     @State private var viewModel = HomeViewModel()
     @State private var settingsViewModel = SettingsViewModel()
-    @State private var accountViewModel = AccountViewModel()
+    @State private var accountViewModel: AccountViewModel
+    @State private var hubFeedViewModel: HubFeedViewModel
     @State private var localization = AppLocalization()
     @State private var profileTabAvatar: UIImage?
     @State private var showSettingsSheet = false
     @State private var showSplashScreen = true
     @State private var selectedHomeTab: HomeTab = .projects
     @State private var hubSearchText = ""
+
+    init() {
+        let accountViewModel = AccountViewModel()
+        _accountViewModel = State(initialValue: accountViewModel)
+        _hubFeedViewModel = State(
+            initialValue: HubFeedViewModel(repository: accountViewModel.repository)
+        )
+    }
 
     private var theme: AmethystTheme {
         AmethystTheme(darkMode: colorScheme == .dark)
@@ -222,30 +231,12 @@ struct ContentView: View {
                     Label(localization.string("home_nav_tab_projects", fallback: "Projects"), systemImage: "folder")
                 }
 
-            NavigationStack {
-                ZStack {
-                    theme.background.ignoresSafeArea()
-                    VStack(spacing: 12) {
-                        Image(systemName: "globe")
-                            .font(.largeTitle)
-                            .foregroundStyle(theme.mutedForeground)
-                        Text(localization.string("home_browser_wip", fallback: "Work in Progress"))
-                            .font(.headline)
-                            .foregroundStyle(theme.foreground)
-                        Text(localization.string("home_browser_empty", fallback: "Nothing to see here yet."))
-                            .font(.subheadline)
-                            .foregroundStyle(theme.mutedForeground)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle(localization.string("home_hub_title", fallback: "Amethyst Hub"))
-                }
-            }
-            .searchable(
-                text: $hubSearchText,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: Text(localization.string("home_hub_search_placeholder", fallback: "Search"))
+            HubTabView(
+                viewModel: hubFeedViewModel,
+                searchText: $hubSearchText,
+                sessionRevision: accountViewModel.sessionRevision,
+                onShowProfile: { selectedHomeTab = .profile }
             )
-            .tint(theme.glassForeground)
             .tag(HomeTab.browser)
             .tabItem {
                 Label(localization.string("home_nav_tab_browser", fallback: "Hub"), systemImage: "globe")
