@@ -187,6 +187,8 @@
     <string name="home_browser_empty">Nothing to see here..</string>
     <string name="home_browser_title">Browser</string>
     <string name="home_browser_wip">Work in Progress</string>
+    <string name="home_hub_search_placeholder">Search</string>
+    <string name="home_hub_title">Amethyst Hub</string>
     <string name="home_error_unsupported_project_format">Unsupported project file format: .%1$s</string>
     <string name="home_import_wizard_apollo_desc">Optional. If set, lights chain will be sourced from the Apollo project instead of Ableton MIDI tracks.</string>
     <string name="home_import_wizard_apollo_project">Apollo lights project (.approj)</string>
@@ -242,7 +244,7 @@
     <string name="home_loading_ableton_title">CONVERTING ABLETON LIVE-SET</string>
     <string name="home_nav_drawer_title">Studio Home</string>
     <string name="home_nav_tab_arcade">Arcade</string>
-    <string name="home_nav_tab_browser">Browser</string>
+    <string name="home_nav_tab_browser">Hub</string>
     <string name="home_nav_tab_projects">Projects</string>
     <string name="home_nav_tab_settings">Settings</string>
     <string name="home_project_creation_author_desc">Saved as your default author.</string>

@@ -103,6 +103,7 @@ struct ContentView: View {
     @State private var showSettingsSheet = false
     @State private var showSplashScreen = true
     @State private var selectedHomeTab: HomeTab = .projects
+    @State private var hubSearchText = ""
 
     private var theme: AmethystTheme {
         AmethystTheme(darkMode: colorScheme == .dark)
@@ -236,13 +237,18 @@ struct ContentView: View {
                             .foregroundStyle(theme.mutedForeground)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle(localization.string("home_browser_title", fallback: "Browser"))
+                    .navigationTitle(localization.string("home_hub_title", fallback: "Amethyst Hub"))
                 }
             }
+            .searchable(
+                text: $hubSearchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text(localization.string("home_hub_search_placeholder", fallback: "Search"))
+            )
             .tint(theme.glassForeground)
             .tag(HomeTab.browser)
             .tabItem {
-                Label(localization.string("home_nav_tab_browser", fallback: "Browser"), systemImage: "globe")
+                Label(localization.string("home_nav_tab_browser", fallback: "Hub"), systemImage: "globe")
             }
 
             NavigationStack {

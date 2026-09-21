@@ -184,6 +184,8 @@
     <string name="home_browser_empty">很遗憾这里什么也没有...</string>
     <string name="home_browser_title">工作区工坊</string>
     <string name="home_browser_wip">正在开发中</string>
+    <string name="home_hub_search_placeholder">搜索</string>
+    <string name="home_hub_title">Amethyst Hub</string>
     <string name="home_error_unsupported_project_format">不支持的工程文件格式：.%1$s</string>
     <string name="home_import_wizard_apollo_desc">选填，如果灯光源自Apollo工程，而不是Ableton MIDI轨道。</string>
     <string name="home_import_wizard_apollo_project">Apollo灯光工程 (.approj)</string>
@@ -238,7 +240,7 @@
     <string name="home_loading_ableton_title">转换ABLETON LIVE-SET</string>
     <string name="home_nav_drawer_title">集成站主页</string>
     <string name="home_nav_tab_arcade">Arcade</string>
-    <string name="home_nav_tab_browser">工坊</string>
+    <string name="home_nav_tab_browser">Hub</string>
     <string name="home_nav_tab_projects">工程</string>
     <string name="home_nav_tab_settings">设置</string>
     <string name="home_project_creation_author_desc">将保存为默认作者名称</string>
