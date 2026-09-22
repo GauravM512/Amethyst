@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.hub.data
 import io.ktor.client.request.get
 
 class GetHomeUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(): HubHome = client.optionallyAuthorized { token ->
         client.http.get("${client.baseUrl}/home") { applyBearerAuth(token) }
     }.hubBody()

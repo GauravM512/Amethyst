@@ -4,6 +4,7 @@ import io.ktor.client.request.*
 import io.ktor.http.encodeURLPathPart
 
 class GetArtistUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(username: String): HubArtist {
         return client.optionallyAuthorized { token ->
             client.http.get("${client.baseUrl}/artists/${username.encodeURLPathPart()}") {
@@ -14,6 +15,7 @@ class GetArtistUseCase(private val client: HubApiClient) {
 }
 
 class GetArtistProjectsUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(username: String, cursor: String? = null, limit: Int = 24): HubProjectPage {
         return client.optionallyAuthorized { token ->
             client.http.get("${client.baseUrl}/artists/${username.encodeURLPathPart()}/projects") {
@@ -26,6 +28,7 @@ class GetArtistProjectsUseCase(private val client: HubApiClient) {
 }
 
 class GetPublishedProjectUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(username: String, slug: String): HubProject {
         return client.optionallyAuthorized { token ->
             client.http.get("${client.baseUrl}/artists/${username.encodeURLPathPart()}/projects/${slug.encodeURLPathPart()}") {

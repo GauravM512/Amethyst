@@ -12,6 +12,7 @@ struct HubFeedView: View {
     let sections: [HubFeedSection]
     let availableWidth: CGFloat
     @Bindable var viewModel: HubFeedViewModel
+    let onOpen: (HubDestination) -> Void
 
     @Environment(\.amethystTheme) private var theme
 
@@ -22,7 +23,8 @@ struct HubFeedView: View {
                     HubSectionRenderer(
                         section: section,
                         availableWidth: availableWidth,
-                        viewModel: viewModel
+                        viewModel: viewModel,
+                        onOpen: onOpen
                     )
                 }
             }
@@ -41,27 +43,28 @@ private struct HubSectionRenderer: View {
     let section: HubFeedSection
     let availableWidth: CGFloat
     @Bindable var viewModel: HubFeedViewModel
+    let onOpen: (HubDestination) -> Void
 
     @ViewBuilder
     var body: some View {
         switch section {
         case .creatorRow(let header, let items):
-            HubCreatorRowSection(header: header, items: items, viewModel: viewModel)
+            HubCreatorRowSection(header: header, items: items, viewModel: viewModel, onOpen: onOpen)
 
         case .heroCarousel(let header, let items):
-            HubHeroCarouselSection(header: header, items: items, availableWidth: availableWidth)
+            HubHeroCarouselSection(header: header, items: items, availableWidth: availableWidth, onOpen: onOpen)
 
         case .squareCardRow(let header, let items):
-            HubSquareCardRowSection(header: header, items: items)
+            HubSquareCardRowSection(header: header, items: items, onOpen: onOpen)
 
         case .mediaCardRow(let header, let items):
-            HubMediaCardRowSection(header: header, items: items)
+            HubMediaCardRowSection(header: header, items: items, onOpen: onOpen)
 
         case .detailedList(let header, let items):
-            HubDetailedListSection(header: header, items: items)
+            HubDetailedListSection(header: header, items: items, onOpen: onOpen)
 
         case .curatedSpotlight(let header, let spotlight):
-            HubSpotlightSection(header: header, spotlight: spotlight)
+            HubSpotlightSection(header: header, spotlight: spotlight, onOpen: onOpen)
         }
     }
 }
@@ -167,6 +170,7 @@ private struct HubCreatorRowSection: View {
     let header: HubSectionHeader
     let items: [HubCreatorItem]
     @Bindable var viewModel: HubFeedViewModel
+    let onOpen: (HubDestination) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -175,7 +179,7 @@ private struct HubCreatorRowSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 16) {
                     ForEach(items) { creator in
-                        HubCreatorCard(creator: creator, viewModel: viewModel)
+                        HubCreatorCard(creator: creator, viewModel: viewModel, onOpen: onOpen)
                     }
                 }
                 .scrollTargetLayout()
@@ -189,6 +193,7 @@ private struct HubCreatorRowSection: View {
 private struct HubCreatorCard: View {
     let creator: HubCreatorItem
     @Bindable var viewModel: HubFeedViewModel
+    let onOpen: (HubDestination) -> Void
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -198,6 +203,9 @@ private struct HubCreatorCard: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
+            Button {
+                if let destination = HubDestination(href: creator.href) { onOpen(destination) }
+            } label: {
             VStack(spacing: 8) {
                 HubAvatarView(artwork: creator.artwork, size: 76)
                     .padding(.bottom, 4)
@@ -221,6 +229,8 @@ private struct HubCreatorCard: View {
                 .accessibilityElement(children: .combine)
             }
             .frame(width: 92)
+            }
+            .buttonStyle(.plain)
 
             Button {
                 Task { await viewModel.toggleFollow(creator) }
@@ -274,6 +284,7 @@ private struct HubHeroCarouselSection: View {
     let header: HubSectionHeader
     let items: [HubHeroProjectItem]
     let availableWidth: CGFloat
+    let onOpen: (HubDestination) -> Void
 
     private var cardWidth: CGFloat {
         min(max(availableWidth * 0.84, 270), 440)
@@ -286,7 +297,12 @@ private struct HubHeroCarouselSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 16) {
                     ForEach(items) { item in
-                        HubHeroCard(item: item, width: cardWidth)
+                        Button {
+                            if let destination = HubDestination(href: item.href) { onOpen(destination) }
+                        } label: {
+                            HubHeroCard(item: item, width: cardWidth)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .scrollTargetLayout()
@@ -346,23 +362,30 @@ private struct HubHeroCard: View {
 private struct HubSquareCardRowSection: View {
     let header: HubSectionHeader
     let items: [HubSquareCardItem]
+    let onOpen: (HubDestination) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HubSectionHeaderView(header: header)
-            HubSquareCardRow(items: items)
+            HubSquareCardRow(items: items, onOpen: onOpen)
         }
     }
 }
 
 private struct HubSquareCardRow: View {
     let items: [HubSquareCardItem]
+    let onOpen: (HubDestination) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(alignment: .top, spacing: 14) {
                 ForEach(items) { item in
-                    HubSquareCard(item: item)
+                    Button {
+                        if let destination = HubDestination(href: item.href) { onOpen(destination) }
+                    } label: {
+                        HubSquareCard(item: item)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .scrollTargetLayout()
@@ -410,6 +433,7 @@ private struct HubSquareCard: View {
 private struct HubMediaCardRowSection: View {
     let header: HubSectionHeader
     let items: [HubMediaCardItem]
+    let onOpen: (HubDestination) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -418,7 +442,12 @@ private struct HubMediaCardRowSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 14) {
                     ForEach(items) { item in
-                        HubMediaCard(item: item)
+                        Button {
+                            if let destination = HubDestination(href: item.href) { onOpen(destination) }
+                        } label: {
+                            HubMediaCard(item: item)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .scrollTargetLayout()
@@ -464,6 +493,7 @@ private struct HubMediaCard: View {
 private struct HubDetailedListSection: View {
     let header: HubSectionHeader
     let items: [HubDetailedListItem]
+    let onOpen: (HubDestination) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -471,7 +501,12 @@ private struct HubDetailedListSection: View {
 
             LazyVStack(spacing: 14) {
                 ForEach(items) { item in
-                    HubDetailedListRow(item: item)
+                    Button {
+                        if let destination = HubDestination(href: item.href) { onOpen(destination) }
+                    } label: {
+                        HubDetailedListRow(item: item)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -523,6 +558,7 @@ private struct HubDetailedListRow: View {
 private struct HubSpotlightSection: View {
     let header: HubSectionHeader
     let spotlight: HubSpotlight
+    let onOpen: (HubDestination) -> Void
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -548,7 +584,7 @@ private struct HubSpotlightSection: View {
             }
             .accessibilityLabel("\(localization.string("home_hub_more_like", fallback: "More like")) \(header.title)")
 
-            HubSquareCardRow(items: spotlight.items)
+            HubSquareCardRow(items: spotlight.items, onOpen: onOpen)
 
             Text(spotlight.description)
                 .font(.subheadline)

@@ -138,6 +138,7 @@ class GetLikedProjectsUseCase(private val client: HubApiClient) {
 }
 
 class ToggleProjectLikeUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(projectId: String): HubLikeResult {
         return client.authorized { token ->
             client.http.post("${client.baseUrl}/v1/account/projects/${projectId.encodeURLPathPart()}/like") {

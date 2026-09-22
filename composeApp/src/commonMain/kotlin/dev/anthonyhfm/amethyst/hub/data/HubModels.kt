@@ -48,8 +48,8 @@ data class HubArtist(
     val bio: String,
     val created: Long,
     val publishedProjectCount: Long,
-    val followersCount: Long,
-    val isFollowing: Boolean,
+    val followersCount: Long = 0,
+    val isFollowing: Boolean = false,
 )
 
 @Serializable

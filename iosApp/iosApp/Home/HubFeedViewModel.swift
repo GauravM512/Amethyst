@@ -23,12 +23,14 @@ final class HubFeedViewModel {
     private(set) var feedback: HubFeedFeedback?
 
     private let provider: any HubFeedProviding
+    let repository: HubRepository
     private var followOverrides: [String: Bool] = [:]
     private var followerCountOverrides: [String: Int] = [:]
     private var pendingFollowUsernames: Set<String> = []
     private var loadGeneration = 0
 
     init(repository: HubRepository) {
+        self.repository = repository
         provider = HubRepositoryFeedProvider(repository: repository)
     }
 

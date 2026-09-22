@@ -55,6 +55,7 @@ struct HubCreatorItem: Identifiable, Equatable {
     let artwork: HubArtwork
     let followersCount: Int
     let isFollowing: Bool
+    let href: String?
 }
 
 struct HubHeroProjectItem: Identifiable, Equatable {
@@ -64,6 +65,7 @@ struct HubHeroProjectItem: Identifiable, Equatable {
     let creatorName: String
     let artwork: HubArtwork
     let creatorArtwork: HubArtwork
+    let href: String?
 }
 
 struct HubSquareCardItem: Identifiable, Equatable {
@@ -72,6 +74,7 @@ struct HubSquareCardItem: Identifiable, Equatable {
     let subtitle: String?
     let itemCount: Int?
     let artwork: HubArtwork
+    let href: String?
 }
 
 struct HubMediaCardItem: Identifiable, Equatable {
@@ -80,6 +83,7 @@ struct HubMediaCardItem: Identifiable, Equatable {
     let subtitle: String?
     let artist: String
     let artwork: HubArtwork
+    let href: String?
 }
 
 struct HubDetailedListItem: Identifiable, Equatable {
@@ -90,6 +94,7 @@ struct HubDetailedListItem: Identifiable, Equatable {
     let uploadedAt: String
     let compatibility: String
     let artwork: HubArtwork
+    let href: String?
 }
 
 struct HubSpotlight: Equatable {

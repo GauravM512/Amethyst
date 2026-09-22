@@ -13,6 +13,7 @@ struct HubTabView: View {
     @Binding var searchText: String
     let sessionRevision: Int
     let onShowProfile: () -> Void
+    @State private var destination: HubDestination?
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -48,6 +49,16 @@ struct HubTabView: View {
             await viewModel.reload()
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.feedback)
+        .sheet(item: $destination) { item in
+            HubDetailView(
+                destination: item,
+                repository: viewModel.repository,
+                onSignIn: {
+                    destination = nil
+                    onShowProfile()
+                }
+            )
+        }
     }
 
     @ViewBuilder
@@ -101,7 +112,8 @@ struct HubTabView: View {
                     HubFeedView(
                         sections: sections,
                         availableWidth: min(max(proxy.size.width - 40, 280), 960),
-                        viewModel: viewModel
+                        viewModel: viewModel,
+                        onOpen: { destination = $0 }
                     )
                 }
                 .refreshable {

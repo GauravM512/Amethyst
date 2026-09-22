@@ -78,7 +78,8 @@ final class HubRepositoryFeedProvider: HubFeedProviding {
                         subtitle: item.subtitle,
                         artwork: artwork(item.imageUrl, symbol: "person.crop.circle.fill"),
                         followersCount: int(item.followersCount) ?? 0,
-                        isFollowing: item.isFollowing?.boolValue ?? false
+                        isFollowing: item.isFollowing?.boolValue ?? false,
+                        href: item.href
                     )
                 }
             )
@@ -93,7 +94,8 @@ final class HubRepositoryFeedProvider: HubFeedProviding {
                         subtitle: item.subtitle ?? item.hardwareModel,
                         creatorName: item.creatorName,
                         artwork: artwork(item.imageUrl, symbol: "square.grid.3x3.square"),
-                        creatorArtwork: artwork(item.creatorAvatarUrl, symbol: "person.crop.circle.fill")
+                        creatorArtwork: artwork(item.creatorAvatarUrl, symbol: "person.crop.circle.fill"),
+                        href: item.href
                     )
                 }
             )
@@ -113,7 +115,8 @@ final class HubRepositoryFeedProvider: HubFeedProviding {
                         title: item.title,
                         subtitle: item.subtitle,
                         artist: item.artist,
-                        artwork: artwork(item.imageUrl, symbol: "music.note")
+                        artwork: artwork(item.imageUrl, symbol: "music.note"),
+                        href: item.href
                     )
                 }
             )
@@ -129,7 +132,8 @@ final class HubRepositoryFeedProvider: HubFeedProviding {
                         description: item.description_,
                         uploadedAt: item.uploadedAt,
                         compatibility: item.compatibility,
-                        artwork: artwork(item.imageUrl, symbol: "waveform")
+                        artwork: artwork(item.imageUrl, symbol: "waveform"),
+                        href: item.href
                     )
                 }
             )
@@ -168,7 +172,8 @@ final class HubRepositoryFeedProvider: HubFeedProviding {
                 item.imageUrl,
                 symbol: symbolName(for: item.iconName),
                 accent: accent(for: item.colorAccent)
-            )
+            ),
+            href: item.href
         )
     }
 
