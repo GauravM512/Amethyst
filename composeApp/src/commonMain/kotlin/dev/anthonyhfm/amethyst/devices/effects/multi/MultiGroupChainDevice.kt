@@ -29,7 +29,6 @@ import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import dev.anthonyhfm.amethyst.core.controls.automapping.AutomappingManager
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager

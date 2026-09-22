@@ -54,10 +54,12 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isAltPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.input.ImeAction
@@ -69,7 +71,6 @@ import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.util.primaryModifierShortcutLabel
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.timeline.TimelineCommandExecutor
 import dev.anthonyhfm.amethyst.timeline.TimelineCommandSurface
 import dev.anthonyhfm.amethyst.timeline.TimelineEditCommand
@@ -116,6 +117,7 @@ fun MidiClip(
     gridType: GridUtils.GridType,
     dragCallbacks: TimelineClipDragCallbacks? = null,
 ) {
+    val windowInfo = LocalWindowInfo.current
     val zoomLevel = viewport.zoomX
     val timelineDimensions = TimelineTheme.dimensions
     val timelinePalette = TimelineTheme.palette
@@ -140,7 +142,7 @@ fun MidiClip(
     val dragOffsetPx = remember(midiEntry.startTimeMs) { mutableStateOf(0f) }
     var clipCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var dragPointerInRoot by remember { mutableStateOf(Offset.Unspecified) }
-    val snapEnabled = !ModifierKeysState.isAltPressed
+    val snapEnabled = !windowInfo.keyboardModifiers.isAltPressed
     val currentSnapEnabled = rememberUpdatedState(snapEnabled)
     val currentViewport = rememberUpdatedState(viewport)
 

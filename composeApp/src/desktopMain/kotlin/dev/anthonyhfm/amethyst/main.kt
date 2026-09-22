@@ -2,12 +2,10 @@ package dev.anthonyhfm.amethyst
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import dev.anthonyhfm.amethyst.core.engine.echo.Echo
-import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.DiscordRPCManager
 import dev.anthonyhfm.amethyst.desktop.utility.rememberTitleBarStyle
 import dev.anthonyhfm.amethyst.settings.data.AudioSettings
@@ -21,9 +19,7 @@ import dev.nucleusframework.application.nucleusApplication
 import dev.nucleusframework.window.NucleusDecoratedWindowTheme
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.PlatformFile
-import java.awt.Desktop
 import java.io.File
-import javax.swing.SwingUtilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -37,8 +33,6 @@ fun main(args: Array<String>) {
 
     initializeSentry()
 
-    val platform = DesktopPlatform.get()
-
     nucleusApplication(args = args, backend = NucleusBackend.Tao) {
         FileKit.init(appId = "Amethyst")
 
@@ -49,8 +43,6 @@ fun main(args: Array<String>) {
         }
 
         var showEditor: Boolean by remember { mutableStateOf(false) }
-        var macQuitRequest by remember { mutableIntStateOf(0) }
-        var pendingMacQuitResponse by remember { mutableStateOf<java.awt.desktop.QuitResponse?>(null) }
 
         // Tao must own the macOS main thread before optional services start.
         // Audio device setup is synchronous, so keep it off Tao's event loop.
@@ -69,25 +61,6 @@ fun main(args: Array<String>) {
 
         LaunchedEffect(Unit) {
             DiscordRPCManager.initialize()
-        }
-
-        LaunchedEffect(Unit) {
-            if (
-                platform == DesktopPlatform.MacOS &&
-                Desktop.isDesktopSupported() &&
-                Desktop.getDesktop().isSupported(Desktop.Action.APP_QUIT_HANDLER)
-            ) {
-                Desktop.getDesktop().setQuitHandler { _, response ->
-                    SwingUtilities.invokeLater {
-                        if (showEditor) {
-                            pendingMacQuitResponse = response
-                            macQuitRequest += 1
-                        } else {
-                            response.performQuit()
-                        }
-                    }
-                }
-            }
         }
 
         LaunchedEffect(Unit) {
@@ -119,16 +92,7 @@ fun main(args: Array<String>) {
                     )
                 } else {
                     WorkspaceWindow(
-                        externalCloseRequest = macQuitRequest,
-                        onExternalCloseConfirmed = {
-                            showEditor = false
-                            pendingMacQuitResponse?.performQuit()
-                            pendingMacQuitResponse = null
-                        },
-                        onExternalCloseCancelled = {
-                            pendingMacQuitResponse?.cancelQuit()
-                            pendingMacQuitResponse = null
-                        },
+                        onQuit = ::exitApplication,
                         onClose = {
                             showEditor = false
                         }

@@ -67,8 +67,12 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -94,7 +98,6 @@ import com.mohamedrejeb.compose.dnd.reorder.ReorderableItem
 import com.mohamedrejeb.compose.dnd.reorder.ReorderableItemScope
 import com.mohamedrejeb.compose.dnd.reorder.rememberReorderState
 import dev.anthonyhfm.amethyst.core.controls.automapping.AutomappingManager
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardData
 import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
@@ -470,6 +473,7 @@ private fun ReorderableItemScope.GroupEditorListItem(
     onRenameChange: (Boolean) -> Unit,
     actions: GroupEditorActions,
 ) {
+    val windowInfo = LocalWindowInfo.current
     val selections by SelectionManager.selections.collectAsState()
     val isSelectedInManager = selections.any {
         it is Selectable.GroupChainItem &&
@@ -563,12 +567,13 @@ private fun ReorderableItemScope.GroupEditorListItem(
                             if (isSelectedInManager && !renameEnabled) {
                                 onRenameChange(true)
                             } else {
+                                val modifiers = windowInfo.keyboardModifiers
                                 handleGroupItemSelection(
                                     parentDevice = parentDevice,
                                     index = index,
                                     openedGroupIndex = openedGroupIndex,
-                                    shiftPressed = ModifierKeysState.isShiftPressed,
-                                    ctrlPressed = ModifierKeysState.isCtrlPressed,
+                                    shiftPressed = modifiers.isShiftPressed,
+                                    ctrlPressed = modifiers.isCtrlPressed || modifiers.isMetaPressed,
                                     onOpenGroup = actions.onOpenGroup,
                                 )
                             }
@@ -1146,35 +1151,6 @@ private fun performGroupRangeSelection(
             ),
             single = false,
         )
-    }
-}
-
-private fun handleNestedChainDeviceSelection(
-    targetChain: Chain,
-    device: GenericChainDevice<*>,
-    devices: List<GenericChainDevice<*>>,
-) {
-    val chainDeviceSelectable = Selectable.ChainDevice(
-        parent = targetChain,
-        device = device,
-    )
-
-    when {
-        ModifierKeysState.isShiftPressed -> {
-            SelectionManager.selectRangeInChain(
-                targetDevice = chainDeviceSelectable,
-                devicesInChain = devices,
-            )
-        }
-
-        ModifierKeysState.isMetaPressed || ModifierKeysState.isAltPressed -> {
-            SelectionManager.select(
-                chainDeviceSelectable,
-                single = false,
-            )
-        }
-
-        else -> SelectionManager.select(chainDeviceSelectable)
     }
 }
 

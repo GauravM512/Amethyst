@@ -16,14 +16,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.isAltPressed
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.mohamedrejeb.compose.dnd.DragAndDropState
 import com.mohamedrejeb.compose.dnd.drag.DraggableItem
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
@@ -57,6 +61,7 @@ fun ChainView(
     onMoveDevice: ((fromIndex: Int, toIndex: Int) -> Unit)? = null,
 ) {
     val density = LocalDensity.current.density
+    val windowInfo = LocalWindowInfo.current
     val devices by chain.devices
     val effectivePrivateTimelineChain = privateTimelineChain || !chain.collaborationSyncEnabled
     val remoteFocuses by CollaborationPresence.remoteFocuses.collectAsState()
@@ -160,18 +165,21 @@ fun ChainView(
                                 Modifier
                                     .clickableWithDoubleTap(
                                         onSingleClick = {
+                                            val modifiers = windowInfo.keyboardModifiers
                                             val chainDeviceSelectable = Selectable.ChainDevice(
                                                 parent = chain,
                                                 device = device
                                             )
                                             when {
-                                                ModifierKeysState.isShiftPressed -> {
+                                                modifiers.isShiftPressed -> {
                                                     SelectionManager.selectRangeInChain(
                                                         targetDevice = chainDeviceSelectable,
                                                         devicesInChain = devices
                                                     )
                                                 }
-                                                ModifierKeysState.isMetaPressed || ModifierKeysState.isAltPressed -> {
+                                                modifiers.isMetaPressed ||
+                                                    modifiers.isCtrlPressed ||
+                                                    modifiers.isAltPressed -> {
                                                     SelectionManager.select(chainDeviceSelectable, single = false)
                                                 }
                                                 else -> SelectionManager.select(chainDeviceSelectable)

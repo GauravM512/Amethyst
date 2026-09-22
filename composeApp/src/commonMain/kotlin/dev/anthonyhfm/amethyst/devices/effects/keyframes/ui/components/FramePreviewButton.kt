@@ -18,6 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,7 +36,6 @@ import com.composables.icons.lucide.Trash2
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
 import com.mohamedrejeb.compose.dnd.reorder.ReorderableItemScope
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardData
 import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
@@ -61,6 +64,7 @@ fun ReorderableItemScope.FramePreviewButton(
     onEvent: (KeyframesChainDeviceContract.Event) -> Unit,
     parent: dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice? = null,
 ) {
+    val windowInfo = LocalWindowInfo.current
     val selections by SelectionManager.selections.collectAsState()
     val isSelectedInManager = parent?.let { parentDevice ->
         selections.any {
@@ -112,11 +116,12 @@ fun ReorderableItemScope.FramePreviewButton(
                         shape = DefaultShape,
                     )
                     .clickable {
+                        val modifiers = windowInfo.keyboardModifiers
                         onEvent(
                             KeyframesChainDeviceContract.Event.OnSelectFrame(
                                 frameIndex = index,
-                                rangeSelect = ModifierKeysState.isShiftPressed,
-                                multiSelect = ModifierKeysState.isCtrlPressed
+                                rangeSelect = modifiers.isShiftPressed,
+                                multiSelect = modifiers.isCtrlPressed || modifiers.isMetaPressed,
                             )
                         )
                     }

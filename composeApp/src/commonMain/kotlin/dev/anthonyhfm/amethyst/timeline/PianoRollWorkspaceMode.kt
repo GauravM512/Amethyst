@@ -11,11 +11,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.theme.Theme
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.undo.UndoManager
@@ -97,7 +100,6 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
     var gridResolution by mutableStateOf(GridResolution.Quarter)
     var gridResolutionLocked by mutableStateOf(false)
 
-    var multiSelectModifierDown by mutableStateOf(false)
     private var deleteSelectedGradientStopHandler: (() -> Unit)? = null
 
     val activeEditorContext: TimelineActiveEditorContext?
@@ -417,6 +419,7 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
     @Composable
     override fun Content(modifier: Modifier) {
         val entry = currentEntry ?: return
+        val windowInfo = LocalWindowInfo.current
         val launchpads = Heaven.devices
         val selections by SelectionManager.selections.collectAsState()
         val playheadPositionMs by TimelineRepository.playheadPositionMs.collectAsState()
@@ -1179,8 +1182,9 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
                                 launchpads = launchpads,
                                 trackIndex = trackIndex,
                                 entryStartMs = entryStartMs,
-                                multiSelectModifierDown = multiSelectModifierDown,
-                                shiftModifierDown = ModifierKeysState.isShiftPressed,
+                                multiSelectModifierDown = windowInfo.keyboardModifiers.isMetaPressed ||
+                                    windowInfo.keyboardModifiers.isCtrlPressed,
+                                shiftModifierDown = windowInfo.keyboardModifiers.isShiftPressed,
                                 selectedColor = selectedColor,
                                 gradientMode = gradientMode,
                                 workingGradient = workingGradient,
@@ -1207,16 +1211,6 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (WorkspaceRepository.isInputFocused) return false
-
-        if (event.type == KeyEventType.KeyDown) {
-            when (event.key) {
-                Key.ShiftLeft, Key.ShiftRight -> multiSelectModifierDown = true
-            }
-        } else if (event.type == KeyEventType.KeyUp) {
-            when (event.key) {
-                Key.ShiftLeft, Key.ShiftRight -> multiSelectModifierDown = false
-            }
-        }
 
         if (event.type == KeyEventType.KeyDown) {
             val isMetaOrCtrl = event.isMetaPressed || event.isCtrlPressed

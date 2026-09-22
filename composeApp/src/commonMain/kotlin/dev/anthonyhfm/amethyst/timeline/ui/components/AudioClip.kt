@@ -52,9 +52,11 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.isAltPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.input.ImeAction
@@ -66,7 +68,6 @@ import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.util.primaryModifierShortcutLabel
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.timeline.TimelineCommandExecutor
 import dev.anthonyhfm.amethyst.timeline.TimelineCommandSurface
 import dev.anthonyhfm.amethyst.timeline.TimelineEditCommand
@@ -119,6 +120,7 @@ fun AudioClip(
     gridType: GridUtils.GridType,
     dragCallbacks: TimelineClipDragCallbacks? = null,
 ) {
+    val windowInfo = LocalWindowInfo.current
     val zoomLevel = viewport.zoomX
     val decodingStates by AudioDecodingManager.loadingStates.collectAsState()
     val clipDecoding = decodingStates[audioEntry.sourceId]
@@ -167,7 +169,7 @@ fun AudioClip(
     var rangeActive by remember { mutableStateOf(false) }
     var rangeStartMs by remember { mutableStateOf<Long?>(null) }
     var rangeEndMs by remember { mutableStateOf<Long?>(null) }
-    val snapEnabled = !ModifierKeysState.isAltPressed
+    val snapEnabled = !windowInfo.keyboardModifiers.isAltPressed
     val currentSnapEnabled = rememberUpdatedState(snapEnabled)
     val currentViewport = rememberUpdatedState(viewport)
 

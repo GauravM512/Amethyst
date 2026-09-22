@@ -40,6 +40,7 @@ import dev.nucleusframework.menu.macos.NativeMenuBar
 @Composable
 fun NucleusDecoratedWindowScope.WorkspaceMenuBar(
     onRequestClose: () -> Unit,
+    onRequestQuit: () -> Unit,
 ) {
     val viewModel = viewModel { WorkspaceMenuBarViewModel() }
     val coroutineScope = rememberCoroutineScope()
@@ -126,6 +127,12 @@ fun NucleusDecoratedWindowScope.WorkspaceMenuBar(
                 text = "Settings...",
                 shortcut = NativeKeyShortcut(","),
                 onClick = { showSettingsDialog = true },
+            )
+            Separator()
+            Item(
+                text = "Quit Amethyst",
+                shortcut = NativeKeyShortcut("q"),
+                onClick = onRequestQuit,
             )
         }
 

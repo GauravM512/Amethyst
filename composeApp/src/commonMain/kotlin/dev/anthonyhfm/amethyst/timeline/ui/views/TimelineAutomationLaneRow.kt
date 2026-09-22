@@ -30,11 +30,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isAltPressed
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.timeline.TimelineCommandSurface
@@ -119,6 +122,7 @@ internal fun TimelineAutomationLaneRow(
     rowHeight: Dp = TimelineAutomationLaneRowHeight,
     overlayMode: Boolean = false,
 ) {
+    val windowInfo = LocalWindowInfo.current
     val zoomLevel = viewport.zoomX
     val scrollOffsetPx = viewport.scrollX
     val timelinePalette = TimelineTheme.palette
@@ -129,11 +133,6 @@ internal fun TimelineAutomationLaneRow(
     val laneKey = normalizedLane.key
     val isSelected = activeAutomationLane?.trackIndex == trackIndex &&
         activeAutomationLane?.laneKey == laneKey
-    val currentIsCurveEditPressed by rememberUpdatedState(ModifierKeysState.isAltPressed)
-    val currentIsSnapBypassPressed by rememberUpdatedState(ModifierKeysState.isAltPressed)
-    val currentIsMetaSelectionPressed by rememberUpdatedState(
-        ModifierKeysState.isMetaPressed || ModifierKeysState.isCtrlPressed
-    )
     // Always-fresh state refs for pointer-input closures keyed on Unit.
     val currentViewport = rememberUpdatedState(viewport)
     val bpm by WorkspaceRepository.bpm.collectAsState()
@@ -331,8 +330,9 @@ internal fun TimelineAutomationLaneRow(
                     val points = currentRenderedLane.value.points
                     val target = currentNormalizedLane.value.target
                     val lk = currentNormalizedLane.value.key
-                    val isMeta = currentIsMetaSelectionPressed
-                    val isCurveEditPressed = currentIsCurveEditPressed
+                    val modifiers = windowInfo.keyboardModifiers
+                    val isMeta = modifiers.isMetaPressed || modifiers.isCtrlPressed
+                    val isCurveEditPressed = modifiers.isAltPressed
                     val selectedIds = currentEffectiveSelectedPointIds.value
                     val laneHeight = size.height.toFloat()
 
@@ -430,7 +430,7 @@ internal fun TimelineAutomationLaneRow(
                                 viewport = vp2,
                                 bpm = currentBpm.value,
                                 gridType = currentGridType.value,
-                                snapToGrid = !currentIsSnapBypassPressed
+                                snapToGrid = !windowInfo.keyboardModifiers.isAltPressed
                             )
                             val minDelta = -(
                                 currentDrag.beforePoints.minOfOrNull(
@@ -443,7 +443,7 @@ internal fun TimelineAutomationLaneRow(
                                 y = change.position.y,
                                 laneHeightPx = laneHeight,
                                 target = target,
-                                snapToDefault = !currentIsSnapBypassPressed
+                                snapToDefault = !windowInfo.keyboardModifiers.isAltPressed
                             )
                             val anchorDisplayValue =
                                 target.valueToDisplayValue(anchorValue)
@@ -624,7 +624,7 @@ internal fun TimelineAutomationLaneRow(
                         viewport = vp,
                         bpm = currentBpm.value,
                         gridType = currentGridType.value,
-                        snapToGrid = !currentIsSnapBypassPressed
+                        snapToGrid = !windowInfo.keyboardModifiers.isAltPressed
                     )
                     dragState = null
 
@@ -657,7 +657,7 @@ internal fun TimelineAutomationLaneRow(
                                 viewport = vp2,
                                 bpm = currentBpm.value,
                                 gridType = currentGridType.value,
-                                snapToGrid = !currentIsSnapBypassPressed
+                                snapToGrid = !windowInfo.keyboardModifiers.isAltPressed
                             )
                             rangeWasApplied = true
                             val normalizedStart = minOf(initTime, rangeEndTimeMs)
@@ -696,7 +696,7 @@ internal fun TimelineAutomationLaneRow(
                                         viewport = vp2,
                                         bpm = currentBpm.value,
                                         gridType = currentGridType.value,
-                                        snapToGrid = !currentIsSnapBypassPressed
+                                        snapToGrid = !windowInfo.keyboardModifiers.isAltPressed
                                     ),
                                     value = pointerOffsetToValue(
                                         y = upPosition.y,
@@ -998,7 +998,7 @@ internal fun TimelineAutomationLaneRow(
                         ) || abs(startPoint.curve) >= 0.001f
                     val shouldShowHandle = hasStoredCurveHandle ||
                         isActiveCurveSegment ||
-                        (isHoveredSegment && currentIsCurveEditPressed)
+                        (isHoveredSegment && windowInfo.keyboardModifiers.isAltPressed)
                     if (!shouldShowHandle) {
                         return@forEach
                     }

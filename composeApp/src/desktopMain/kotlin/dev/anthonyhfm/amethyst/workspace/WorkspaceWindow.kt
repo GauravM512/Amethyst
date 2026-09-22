@@ -6,7 +6,6 @@ import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.amethyst_linux
 import amethyst.composeapp.generated.resources.amethyst_windows
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,9 +53,7 @@ import dev.nucleusframework.window.WindowAppearanceMode
 @Composable
 fun WorkspaceWindow(
     onClose: () -> Unit = { },
-    externalCloseRequest: Int = 0,
-    onExternalCloseConfirmed: () -> Unit = onClose,
-    onExternalCloseCancelled: () -> Unit = { }
+    onQuit: () -> Unit = onClose,
 ) {
     var showSaveDialog by remember { mutableStateOf(false) }
     var pendingCloseAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -87,15 +84,6 @@ fun WorkspaceWindow(
             showSaveDialog = true
         } else {
             closeWorkspace(afterClose)
-        }
-    }
-
-    LaunchedEffect(externalCloseRequest) {
-        if (externalCloseRequest > 0) {
-            requestWorkspaceClose(
-                afterClose = onExternalCloseConfirmed,
-                afterCancel = onExternalCloseCancelled
-            )
         }
     }
 
@@ -167,6 +155,7 @@ fun WorkspaceWindow(
 
         WorkspaceMenuBar(
             onRequestClose = { requestWorkspaceClose(afterClose = onClose) },
+            onRequestQuit = { requestWorkspaceClose(afterClose = onQuit) },
         )
 
         AppLocaleProvider {

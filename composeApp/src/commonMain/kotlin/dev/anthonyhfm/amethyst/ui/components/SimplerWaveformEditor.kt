@@ -26,6 +26,7 @@ import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +34,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composeunstyled.theme.Theme
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
@@ -94,6 +94,7 @@ fun SimplerWaveformEditor(
     playheadPosition: Float? = null,
     modifier: Modifier = Modifier
 ) {
+    val windowInfo = LocalWindowInfo.current
     val resolvedChannels = if (channels > 0) channels else 2
     val resolvedBitDepth = if (bitDepth in listOf(8, 16, 24, 32)) bitDepth else 16
 
@@ -234,7 +235,8 @@ fun SimplerWaveformEditor(
                         val fadeInX = sX + (eX - sX) * fadeInRatio
                         val fadeOutX = eX - (eX - sX) * fadeOutRatio
 
-                        val isCmdOrCtrl = ModifierKeysState.isMetaPressed || ModifierKeysState.isCtrlPressed
+                        val modifiers = windowInfo.keyboardModifiers
+                        val isCmdOrCtrl = modifiers.isMetaPressed || modifiers.isCtrlPressed
                         val hitSlopPx = 28f
 
                         val isTopZone = offset.y <= 28f

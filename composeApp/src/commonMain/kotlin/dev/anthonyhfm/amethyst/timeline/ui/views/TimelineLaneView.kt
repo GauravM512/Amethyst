@@ -29,7 +29,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isAltPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.boundsInRoot
@@ -54,7 +56,6 @@ import dev.anthonyhfm.amethyst.timeline.utils.GridUtils
 import dev.anthonyhfm.amethyst.timeline.TimelineClipMoveEngine
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
@@ -74,6 +75,7 @@ fun TimelineLaneView(
     onOpenMidiEntryAtTime: (trackIndex: Int, timeMs: Long) -> Unit = { _, _ -> },
     onCreateMidiEntry: (trackIndex: Int, startMs: Long, endMs: Long) -> Unit = { _, _, _ -> }
 ) {
+    val windowInfo = LocalWindowInfo.current
     val tracks by viewModel.tracks.collectAsState()
     // Single atomic viewport read — zoom and scroll always come from the same snapshot.
     val viewportState by viewModel.viewport.collectAsState()
@@ -126,7 +128,7 @@ fun TimelineLaneView(
     val clipDragCoordinator = remember { TimelineClipDragCoordinator() }
     val timelinePalette = TimelineTheme.palette
     val timelineDimensions = TimelineTheme.dimensions
-    val clipSnapEnabled = !ModifierKeysState.isAltPressed
+    val clipSnapEnabled = !windowInfo.keyboardModifiers.isAltPressed
     val clipDragPreview = if (clipDragCoordinator.isActive) {
         clipDragCoordinator.preview(
             viewport = renderViewport,
@@ -175,9 +177,6 @@ fun TimelineLaneView(
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
-                        // Pointer modifiers are authoritative for the active drag and also
-                        // recover from a modifier key-up lost during a focus transition.
-                        ModifierKeysState.updateFromPointerModifiers(event.keyboardModifiers)
                         val pointerX = event.changes.firstOrNull()?.position?.x
                         if (event.type == PointerEventType.Exit) {
                             lastPointerX = null
@@ -333,7 +332,7 @@ fun TimelineLaneView(
                     },
                     onSelectTime = { rawClickTimeMs ->
                         val rawTimeMs = rawClickTimeMs.coerceAtLeast(0)
-                        val snapped = if (ModifierKeysState.isAltPressed) {
+                        val snapped = if (windowInfo.keyboardModifiers.isAltPressed) {
                             rawTimeMs
                         } else {
                             GridUtils.snapToGrid(
@@ -391,7 +390,7 @@ fun TimelineLaneView(
                                     viewport = viewportWithTimelineMetrics(viewModel.viewport.value),
                                     bpm = bpm,
                                     gridType = gridType,
-                                    snapEnabled = !ModifierKeysState.isAltPressed,
+                                    snapEnabled = !windowInfo.keyboardModifiers.isAltPressed,
                                 )?.let(TimelineCommandExecutor::execute)
                                 clipDragCoordinator.finish()
                             },

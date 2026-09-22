@@ -28,15 +28,18 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.devices.effects.composition.CompositionChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.composition.CompositionGraphEditor
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.devices.effects.composition.graph.CompositionNode
@@ -96,6 +99,7 @@ fun GraphViewport(
     editor: CompositionGraphEditor,
     modifier: Modifier = Modifier,
 ) {
+    val windowInfo = LocalWindowInfo.current
     val deviceState by device.state.collectAsState()
     val graph = deviceState.graph
     var viewportSize by remember { mutableStateOf(Size.Zero) }
@@ -320,7 +324,15 @@ fun GraphViewport(
                 .pointerInput(graph.connections, cableCurves, viewport) {
                     detectTapGestures(
                         onTap = {
-                            connectionAt(it)?.let { id -> editor.selectConnection(id, additive = isAdditiveSelection()) }
+                            connectionAt(it)?.let { id ->
+                                val modifiers = windowInfo.keyboardModifiers
+                                editor.selectConnection(
+                                    id,
+                                    additive = modifiers.isShiftPressed ||
+                                        modifiers.isCtrlPressed ||
+                                        modifiers.isMetaPressed
+                                )
+                            }
                                 ?: editor.clearSelection()
                             cableDrag = null
                             contextMenuVisible = false
@@ -406,7 +418,15 @@ fun GraphViewport(
                         scaleY = viewport.zoom
                         transformOrigin = TransformOrigin(0f, 0f)
                     },
-                onSelect = { editor.selectNode(node.id, additive = isAdditiveSelection()) },
+                onSelect = {
+                    val modifiers = windowInfo.keyboardModifiers
+                    editor.selectNode(
+                        node.id,
+                        additive = modifiers.isShiftPressed ||
+                            modifiers.isCtrlPressed ||
+                            modifiers.isMetaPressed
+                    )
+                },
                 onDragStart = {
                     if (node.id !in selection.nodeIds) editor.selectNode(node.id)
                     draggedNodeIds = editor.selection.value.nodeIds
@@ -682,9 +702,6 @@ private fun contentBounds(nodes: List<CompositionNode>): Rect? {
         bottom = maxY,
     )
 }
-
-private fun isAdditiveSelection(): Boolean =
-    ModifierKeysState.isShiftPressed || ModifierKeysState.isCtrlPressed || ModifierKeysState.isMetaPressed
 
 private fun distanceToSegment(point: Offset, start: Offset, end: Offset): Float {
     val segment = end - start

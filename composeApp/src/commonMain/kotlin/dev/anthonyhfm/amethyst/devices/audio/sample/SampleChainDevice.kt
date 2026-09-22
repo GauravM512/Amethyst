@@ -22,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,11 +31,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.isAltPressed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.theme.Theme
 import com.mohamedrejeb.compose.dnd.drop.dropTarget
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.core.controls.automation.LiveAutomationTarget
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
@@ -745,6 +745,7 @@ private fun formatDuration(durationMs: Long): String {
         durationMs: Long,
         onLaneCommitted: (beforeLane: TimelineAutomationLane, afterLane: TimelineAutomationLane) -> Unit
     ) {
+        val windowInfo = LocalWindowInfo.current
         val normalizedDurationMs = durationMs.coerceAtLeast(1L)
         val normalizedLane = lane.normalized()
         val palette = Theme[colors]
@@ -752,7 +753,6 @@ private fun formatDuration(durationMs: Long): String {
         val secondaryColor = palette[secondary]
         val envelopeColor = palette[selectionSurface]
         val target = TimelineTrackAutomationTarget.VOLUME
-        val currentIsAltPressed by rememberUpdatedState(ModifierKeysState.isAltPressed)
 
         var dragState by remember(normalizedLane.points) {
             mutableStateOf<SampleEnvelopeDragState?>(null)
@@ -842,7 +842,7 @@ private fun formatDuration(durationMs: Long): String {
                         lastTapState = null
                     }
                 }
-                .pointerInput(normalizedLane.points, normalizedDurationMs, currentIsAltPressed) {
+                .pointerInput(normalizedLane.points, normalizedDurationMs) {
                     detectDragGestures(
                         onDragStart = { offset ->
                             val hitPoint = hitSampleEnvelopePoint(
@@ -862,7 +862,7 @@ private fun formatDuration(durationMs: Long): String {
                                 return@detectDragGestures
                             }
 
-                            if (currentIsAltPressed) {
+                            if (windowInfo.keyboardModifiers.isAltPressed) {
                                 val hitSegment = hitSampleEnvelopeSegment(
                                     points = normalizedLane.points,
                                     tapOffset = offset,

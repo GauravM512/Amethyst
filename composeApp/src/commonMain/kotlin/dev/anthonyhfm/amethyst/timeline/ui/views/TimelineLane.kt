@@ -50,11 +50,13 @@ import dev.anthonyhfm.amethyst.timeline.utils.GridUtils
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import kotlin.math.min
 import kotlin.math.roundToInt
 import androidx.compose.foundation.gestures.detectDragGestures
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isAltPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import dev.anthonyhfm.amethyst.timeline.ui.components.AudioClip
@@ -100,7 +102,6 @@ import dev.anthonyhfm.amethyst.timeline.contract.TimelineClipKey
 import dev.anthonyhfm.amethyst.timeline.ui.TimelineClipDragCallbacks
 import dev.anthonyhfm.amethyst.timeline.ui.components.AudioClipSkeletonView
 import dev.anthonyhfm.amethyst.timeline.utils.computeSnappedTimeFromViewport
-import dev.anthonyhfm.amethyst.core.controls.ModifierKeysState
 import dev.anthonyhfm.amethyst.timeline.data.AudioSource
 import dev.anthonyhfm.amethyst.timeline.data.usToRoundedMs
 import dev.anthonyhfm.amethyst.workspace.audio.LocalAudioLibraryDragAndDropState
@@ -131,6 +132,7 @@ fun TimelineLane(
     onResizeChainEffect: (String, Long, Long) -> Unit = { _, _, _ -> },
     onOpenChainEffect: (String) -> Unit = {},
 ) {
+    val windowInfo = LocalWindowInfo.current
     val zoomLevel = viewport.zoomX
     val bpm by WorkspaceRepository.bpm.collectAsState()
     val gridType by WorkspaceRepository.gridType.collectAsState()
@@ -191,7 +193,7 @@ fun TimelineLane(
     val automationOverlayActive = overlayAutomationLanes.isNotEmpty()
     // Always-fresh viewport for pointer-input closures that are not keyed on scroll changes.
     val currentViewport = rememberUpdatedState(viewport)
-    val currentSnapEnabled = rememberUpdatedState(!ModifierKeysState.isAltPressed)
+    val currentSnapEnabled = rememberUpdatedState(!windowInfo.keyboardModifiers.isAltPressed)
     val laneInteractionModifier = if (automationOverlayActive) {
         Modifier
     } else {
