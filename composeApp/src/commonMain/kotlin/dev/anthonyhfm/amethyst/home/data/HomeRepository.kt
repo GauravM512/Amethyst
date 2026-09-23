@@ -11,6 +11,7 @@ import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.determineProjectArchiveFormat
 import dev.anthonyhfm.amethyst.core.util.platform
+import dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.data.findMaxMacroIndex
 import dev.anthonyhfm.amethyst.workspace.data.Macro
@@ -41,9 +42,56 @@ data class HomeProjectDetails(
 )
 
 object HomeRepository {
+    private const val MOBILE_BUNDLE_VERSION = 1
     fun recentWorkspaces(): List<RecentWorkspace> {
-        return GlobalSettings.recentWorkspaces.sortedByDescending { it.lastOpened }
+        val recent = GlobalSettings.recentWorkspaces.map { it.copy(path = MobileFileStorage.resolvePath(it.path).path) }
+        val recentByPath = recent.associateBy { it.path }
+        val catalog = GlobalSettings.mobileProjects.map { project ->
+            val path = MobileFileStorage.resolvePath(project.originalPath).path
+            RecentWorkspace(
+                title = project.title,
+                path = path,
+                lastOpened = maxOf(project.importedAt, recentByPath[path]?.lastOpened ?: 0L),
+            )
+        }
+        return (catalog + recent.filterNot { item -> catalog.any { it.path == item.path } })
+            .sortedByDescending { it.lastOpened }
     }
+
+    fun registerMobileProject(record: MobileProjectRecord) {
+        val previous = GlobalSettings.mobileProjects.firstOrNull { it.id == record.id }
+        val updated = if (record.convertedPath == null && record.sourceHash != null &&
+            previous != null && previous.sourceHash == record.sourceHash &&
+            previous.converterVersion == MOBILE_BUNDLE_VERSION
+        ) {
+            record.copy(
+                convertedPath = previous.convertedPath,
+                convertedSourceHash = previous.convertedSourceHash,
+                converterVersion = previous.converterVersion,
+            )
+        } else record
+        GlobalSettings.mobileProjects = GlobalSettings.mobileProjects
+            .filterNot { it.id == record.id || it.originalPath == record.originalPath } + updated
+    }
+
+    fun mobileProjectForPath(path: String): MobileProjectRecord? =
+        GlobalSettings.mobileProjects.firstOrNull {
+            MobileFileStorage.resolvePath(it.originalPath).path == path ||
+                it.convertedPath?.let(MobileFileStorage::resolvePath)?.path == path
+        }
+
+    private fun preparedCacheRoot(path: String?): String? {
+        val project = path?.let(::mobileProjectForPath) ?: return null
+        val hash = project.sourceHash ?: return null
+        val originalPath = MobileFileStorage.resolvePath(project.originalPath).path
+        val projectRoot = originalPath.substringBeforeLast("/Original/", "")
+        return if (projectRoot.isBlank()) null else "$projectRoot/Prepared/$hash"
+    }
+
+    fun hasConvertedMobileProject(path: String): Boolean = mobileProjectForPath(path)?.let {
+        it.converterVersion == MOBILE_BUNDLE_VERSION &&
+            it.convertedPath != null && it.convertedSourceHash == it.sourceHash
+    } == true
 
     fun localAuthor(): String = GeneralSettings.localAuthor.value
 
@@ -55,7 +103,12 @@ object HomeRepository {
     }
 
     fun removeRecentWorkspace(path: String) {
-        GlobalSettings.recentWorkspaces = GlobalSettings.recentWorkspaces.filterNot { it.path == path }
+        GlobalSettings.recentWorkspaces = GlobalSettings.recentWorkspaces.filterNot {
+            MobileFileStorage.resolvePath(it.path).path == path
+        }
+        GlobalSettings.mobileProjects = GlobalSettings.mobileProjects.filterNot {
+            MobileFileStorage.resolvePath(it.originalPath).path == path
+        }
     }
 
     @OptIn(ExperimentalTime::class)
@@ -82,7 +135,14 @@ object HomeRepository {
     @OptIn(ExperimentalSerializationApi::class)
     suspend fun loadWorkspaceData(file: PlatformFile): SavableWorkspaceData {
         return withContext(Dispatchers.Default) {
-            val workspace = when (file.extension.lowercase()) {
+            val mobileProject = mobileProjectForPath(file.path)
+            val cached = mobileProject?.takeIf {
+                it.converterVersion == MOBILE_BUNDLE_VERSION &&
+                    it.convertedPath != null && it.convertedSourceHash == it.sourceHash
+            }?.convertedPath?.let { ProjectLoadMetrics.measureSuspend("bundle.load") {
+                MobileProjectBundle.load(MobileFileStorage.resolvePath(it).path)
+            } }
+            val workspace = cached ?: ProjectLoadMetrics.measure("source.convert") { when (file.extension.lowercase()) {
                 "ame" -> {
                     val decodingMsg = runCatching { getString(Res.string.home_loading_decoding_ame) }.getOrDefault("Decoding Amethyst project...")
                     dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.reporter.update(
@@ -113,9 +173,10 @@ object HomeRepository {
                 }
 
                 else -> error("Unsupported project file format: .${file.extension}")
-            }
+            } }
 
             workspace.path = file.path
+            if (cached == null) cacheMobileWorkspace(file.path, workspace)
             val loadingDevicesMsg = runCatching { getString(Res.string.home_loading_loading_devices) }.getOrDefault("Loading devices & chains...")
             dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.reporter.update(
                 0.95f,
@@ -126,12 +187,35 @@ object HomeRepository {
         }
     }
 
+    private suspend fun cacheMobileWorkspace(originalPath: String, workspace: SavableWorkspaceData): Boolean {
+        val record = mobileProjectForPath(originalPath) ?: return false
+        val bundlePath = ProjectLoadMetrics.measureSuspend("bundle.save") {
+            MobileProjectBundle.save(record.id, originalPath, workspace)
+        } ?: return false
+        registerMobileProject(record.copy(
+            originalPath = originalPath,
+            convertedPath = bundlePath,
+            convertedSourceHash = record.sourceHash,
+            converterVersion = MOBILE_BUNDLE_VERSION,
+        ))
+        return true
+    }
+
+    suspend fun saveOpenMobileWorkspace(): Boolean = withContext(Dispatchers.Default) {
+        val workspace = WorkspaceRepository.saveWorkspace()
+        val path = workspace.path ?: return@withContext true
+        if (mobileProjectForPath(path) == null) return@withContext true
+        cacheMobileWorkspace(path, workspace)
+    }
+
     suspend fun openWorkspace(
         workspace: SavableWorkspaceData,
         rememberRecent: Boolean = false,
     ) {
         withContext(Dispatchers.Default) {
-            WorkspaceRepository.loadWorkspace(workspace)
+            ProjectLoadMetrics.measure("workspace.load") {
+                WorkspaceRepository.loadWorkspace(workspace, preparedCacheRoot = preparedCacheRoot(workspace.path))
+            }
 
             val loadedMsg = runCatching { getString(Res.string.home_loading_project_loaded) }.getOrDefault("Project loaded!")
             dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.reporter.update(
@@ -191,7 +275,7 @@ object HomeRepository {
             )
 
             saveLocalAuthor(author)
-            WorkspaceRepository.loadWorkspace(workspace)
+            WorkspaceRepository.loadWorkspace(workspace, preparedCacheRoot = preparedCacheRoot(workspace.path))
         }
     }
 
@@ -274,13 +358,16 @@ object HomeRepository {
                 }
             }
 
+            workspace.path = importedFile.path
+            cacheMobileWorkspace(importedFile.path, workspace)
+
             val loadingDevicesMsg = runCatching { getString(Res.string.home_loading_loading_devices) }.getOrDefault("Loading devices & chains...")
             dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.reporter.update(
                 0.95f,
                 statusText = loadingDevicesMsg,
                 detailText = workspace.title,
             )
-            WorkspaceRepository.loadWorkspace(workspace)
+            WorkspaceRepository.loadWorkspace(workspace, preparedCacheRoot = preparedCacheRoot(workspace.path))
             val loadedMsg = runCatching { getString(Res.string.home_loading_project_loaded) }.getOrDefault("Project loaded!")
             dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.reporter.update(
                 1.0f,

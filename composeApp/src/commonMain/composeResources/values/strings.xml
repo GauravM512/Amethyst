@@ -203,6 +203,9 @@
     <string name="home_hub_detail_download_source">Download source</string>
     <string name="home_hub_detail_copy_checksum">Copy SHA-256 checksum</string>
     <string name="home_hub_detail_download">Download</string>
+    <string name="home_hub_detail_download_open">Download &amp; Open</string>
+    <string name="home_hub_detail_downloading">Downloading…</string>
+    <string name="home_hub_detail_download_error">The project could not be downloaded. Check that the file is publicly accessible.</string>
     <string name="home_hub_detail_downloads">Downloads</string>
     <string name="home_hub_detail_external_hint">Opens external download page</string>
     <string name="home_hub_detail_format">Format</string>
@@ -221,6 +224,7 @@
     <string name="home_hub_detail_size">File size</string>
     <string name="home_hub_detail_unlike">Unlike project</string>
     <string name="home_hub_detail_views">Views</string>
+    <string name="home_hub_detail_watch_youtube">Watch on YouTube</string>
     <string name="home_hub_dismiss">Dismiss</string>
     <string name="home_hub_empty_description">New community projects will appear here.</string>
     <string name="home_hub_empty_title">Nothing here yet</string>
@@ -341,6 +345,8 @@
     <string name="home_projects_item_menu_edit">Edit details</string>
     <string name="home_projects_item_menu_open">Open</string>
     <string name="home_projects_item_menu_remove">Remove from recent</string>
+    <string name="home_projects_delete_local">Delete Local Project</string>
+    <string name="home_projects_delete_local_confirm">Delete this project and its downloaded files from this device?</string>
     <string name="home_projects_item_options_desc">Project options</string>
     <string name="home_projects_loading_project_msg">Loading Project</string>
     <string name="home_projects_new_button">New Project</string>
@@ -410,6 +416,8 @@
     <string name="home_widescreen_navbar_studio_home">Studio Home</string>
     <string name="home_widescreen_navbar_tutorials">Tutorials</string>
     <string name="settings_audio_group_title">Audio</string>
+    <string name="settings_hub_group_title">Hub</string>
+    <string name="settings_hub_ignore_compatibility_title">Ignore compatibility</string>
     <string name="settings_audio_master_volume_title">Master Volume</string>
     <string name="settings_audio_buffer_size_title">Buffer Size</string>
     <string name="settings_audio_output_device_title">Output Device</string>

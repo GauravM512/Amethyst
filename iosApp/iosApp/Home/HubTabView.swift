@@ -13,6 +13,7 @@ struct HubTabView: View {
     @Binding var searchText: String
     let sessionRevision: Int
     let onShowProfile: () -> Void
+    let onOpenDownloadedFile: (URL, String, String) -> Void
     @State private var destination: HubDestination?
 
     @Environment(\.amethystTheme) private var theme
@@ -56,6 +57,10 @@ struct HubTabView: View {
                 onSignIn: {
                     destination = nil
                     onShowProfile()
+                },
+                onOpenDownloadedFile: { url, projectID, title in
+                    destination = nil
+                    onOpenDownloadedFile(url, projectID, title)
                 }
             )
         }

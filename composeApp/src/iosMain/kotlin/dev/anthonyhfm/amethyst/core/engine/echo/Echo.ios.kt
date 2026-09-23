@@ -20,6 +20,7 @@ actual object Echo {
     private var playback = AudioPlaybackEngine(AudioChain())
     private var output: IosAudioOutput? = null
     private var preferredBufferFrames = DEFAULT_BUFFER_FRAMES
+    private var preferredSampleRate: Int? = null
     private val mutableOutputStatus = MutableStateFlow(AudioOutputStatus())
     actual val outputStatus: StateFlow<AudioOutputStatus> = mutableOutputStatus.asStateFlow()
     private val healthLogThrottle = AudioHealthLogThrottle()
@@ -63,6 +64,7 @@ actual object Echo {
             ?: IosAudioOutput(playback, ::onIosHealthUpdate).also { output = it }
         val initialized = activeOutput.initialize(
             preferredBufferFrames = preferredBufferFrames,
+            preferredSampleRate = preferredSampleRate,
             initialMasterGain = AudioSettings.masterVolume.value,
         )
         if (!initialized) {
@@ -98,6 +100,12 @@ actual object Echo {
             if (preferredBufferFrames == normalized) return@withLifecycleLock
             preferredBufferFrames = normalized
             output?.updatePreferredBufferFrames(normalized)
+        }
+    }
+
+    actual fun setPreferredSampleRate(sampleRate: Int?) {
+        withLifecycleLock {
+            preferredSampleRate = sampleRate?.takeIf { it in 8_000..192_000 }
         }
     }
 

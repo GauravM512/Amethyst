@@ -48,3 +48,9 @@ ndk-context = "0.1.1"
 [lib]
 crate-type = ["cdylib", "staticlib"]
 path = "src/lib.rs"
+
+# Debug builds still decode multi-minute audio during project import. At opt-level 0,
+# Symphonia's per-sample MP3 loop dominates Golden's conversion time on desktop.
+[profile.dev]
+opt-level = 2
+debug = 1

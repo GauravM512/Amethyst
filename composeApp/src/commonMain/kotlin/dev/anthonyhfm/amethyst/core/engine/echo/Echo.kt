@@ -65,6 +65,7 @@ expect object Echo {
 
     /** Opens the platform output using the configured low-latency buffer size. */
     fun initialize(): Boolean
+    fun setPreferredSampleRate(sampleRate: Int?)
     fun setPreferredBufferFrames(frames: Int)
     fun outputDevices(): List<AudioOutputDevice>
     fun setPreferredOutputDevice(id: String?)

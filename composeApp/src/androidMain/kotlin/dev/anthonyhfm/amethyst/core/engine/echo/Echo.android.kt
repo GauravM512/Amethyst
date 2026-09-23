@@ -25,6 +25,7 @@ import java.util.concurrent.locks.LockSupport
 import kotlin.math.max
 
 actual object Echo {
+    actual fun setPreferredSampleRate(sampleRate: Int?) = Unit
     private const val TAG = "EchoAudio"
 
     private val decoder = NativeEchoDecoder()

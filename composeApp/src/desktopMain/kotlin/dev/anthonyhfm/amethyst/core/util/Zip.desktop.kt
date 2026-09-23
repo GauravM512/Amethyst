@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.core.util
 
 import io.github.vinceglb.filekit.PlatformFile
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.FileInputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
@@ -142,6 +143,15 @@ private class DesktopProjectArchiveReader(
         if (entry.isDirectory) return ByteArray(0)
         return zipFile.getInputStream(entry).use { it.readBytes() }
     }
+
+    override fun extractEntryToFile(path: String, destinationPath: String): Boolean = runCatching {
+        val entry = entriesByPath[path] ?: return@runCatching false
+        if (closed || entry.isDirectory) return@runCatching false
+        zipFile.getInputStream(entry).use { input ->
+            File(destinationPath).outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+        }
+        true
+    }.getOrDefault(false)
 
     override fun close() {
         if (!closed) {

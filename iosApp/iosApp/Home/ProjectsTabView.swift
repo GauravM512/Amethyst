@@ -17,6 +17,7 @@ import UniformTypeIdentifiers
 /// shared `HomeViewModel`.
 struct ProjectsTabView: View {
     @Bindable var viewModel: HomeViewModel
+    @State private var projectToDelete: RecentWorkspace?
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -94,6 +95,19 @@ struct ProjectsTabView: View {
                 Text(msg)
             }
         }
+        .confirmationDialog(
+            localization.string("home_projects_delete_local_confirm", fallback: "Delete this downloaded project from this device?"),
+            isPresented: Binding(
+                get: { projectToDelete != nil },
+                set: { if !$0 { projectToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(localization.string("home_projects_delete_local", fallback: "Delete Local Project"), role: .destructive) {
+                if let projectToDelete { viewModel.deleteStoredImport(path: projectToDelete.path) }
+                projectToDelete = nil
+            }
+        }
     }
 
     // MARK: - Subviews
@@ -104,13 +118,21 @@ struct ProjectsTabView: View {
                 RecentProjectRow(
                     project: project,
                     onOpen:   { viewModel.openRecent(project) },
-                    onEdit:   { viewModel.activeSheet = .editProject(path: project.path) },
-                    onRemove: { viewModel.removeRecent(path: project.path) }
+                    onEdit:   !viewModel.isStoredImport(path: project.path) && project.path.lowercased().hasSuffix(".ame")
+                        ? { viewModel.activeSheet = .editProject(path: project.path) } : nil,
+                    onRemove: viewModel.isStoredImport(path: project.path)
+                        ? nil : { viewModel.removeRecent(path: project.path) },
+                    onDeleteLocal: viewModel.isStoredImport(path: project.path) ? { projectToDelete = project } : nil
                 )
             }
             .onDelete { indexSet in
                 indexSet.forEach { i in
-                    viewModel.removeRecent(path: viewModel.recentProjects[i].path)
+                    let project = viewModel.recentProjects[i]
+                    if viewModel.isStoredImport(path: project.path) {
+                        projectToDelete = project
+                    } else {
+                        viewModel.removeRecent(path: project.path)
+                    }
                 }
             }
         }

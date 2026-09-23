@@ -89,6 +89,34 @@ class CoreAudioEffectsTest {
         assertTrue(secondTail.all { it == 0f })
     }
 
+    @Test
+    fun eqEightStereoBlockPathMatchesIndependentChannelBanks() {
+        val bands = listOf(
+            EqEightBandState(enabled = true, mode = 2, frequencyHz = 180f, gainDb = 4f),
+            EqEightBandState(enabled = true, mode = 3, frequencyHz = 2_400f, gainDb = -6f, q = 1.2f),
+            EqEightBandState(enabled = true, mode = 7, frequencyHz = 12_000f, q = 0.9f),
+        )
+        val stereo = EqEightChainDevice().apply {
+            state.value = EqEightChainDeviceState(bandsA = bands, bandsB = bands, globalGainDb = -2f)
+            prepareAudio(configuration)
+        }
+        val independent = EqEightChainDevice().apply {
+            state.value = EqEightChainDeviceState(bandsA = bands, bandsB = bands, channelMode = 1, globalGainDb = -2f)
+            prepareAudio(configuration)
+        }
+        repeat(3) { blockIndex ->
+            val input = FloatArray(1_024) { sample ->
+                sin(2.0 * PI * (sample / 2 + blockIndex * 512) *
+                    (if (sample % 2 == 0) 440.0 else 880.0) / configuration.sampleRate).toFloat() * 0.4f
+            }
+            val actual = process(stereo, input)
+            val expected = process(independent, input)
+            actual.indices.forEach { index ->
+                assertTrue(abs(actual[index] - expected[index]) < 0.00001f, "block=$blockIndex sample=$index")
+            }
+        }
+    }
+
     private fun process(device: dev.anthonyhfm.amethyst.devices.AudioChainDevice<*>, input: FloatArray): FloatArray {
         val output = input.copyOf()
         val frames = output.size / 2

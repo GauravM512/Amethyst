@@ -11,7 +11,9 @@ import platform.posix.fileno
 import platform.posix.fopen
 import platform.posix.fseek
 import platform.posix.ftell
+import platform.posix.fwrite
 import platform.posix.pread
+import platform.posix.remove
 import platform.zlib.*
 
 private class ByteArrayBuilder(initialCapacity: Int = 1024) {
@@ -459,13 +461,126 @@ private class IosProjectArchiveReader(
         val fileNameLength = localHeader.readUInt16LE(26)
         val extraFieldLength = localHeader.readUInt16LE(28)
         val dataOffset = entry.localHeaderOffset.toLong() + 30L + fileNameLength + extraFieldLength
-        val compressedBytes = readAt(dataOffset, entry.compressedSize)
-        if (compressedBytes.size != entry.compressedSize) return null
-
         return when (entry.compressionMethod) {
-            0 -> compressedBytes
-            8 -> rawDeflateDecompress(compressedBytes)
+            0 -> readAt(dataOffset, entry.compressedSize)
+                .takeIf { it.size == entry.uncompressedSize }
+            8 -> if (entry.uncompressedSize <= 8 * 1024 * 1024) {
+                val compressed = readAt(dataOffset, entry.compressedSize)
+                if (compressed.size == entry.compressedSize) {
+                    rawDeflateDecompress(compressed)?.takeIf { it.size == entry.uncompressedSize }
+                } else null
+            } else {
+                readLargeEntry(path, entry.uncompressedSize)
+            }
             else -> null
+        }
+    }
+
+    override fun extractEntryToFile(path: String, destinationPath: String): Boolean {
+        if (closed) return false
+        val entry = entriesByPath[path] ?: return false
+        if (entry.isDirectory || entry.compressedSize < 0 || entry.uncompressedSize < 0) return false
+        val header = readAt(entry.localHeaderOffset.toLong(), 30)
+        if (header.size < 30 || header[0] != 0x50.toByte() || header[1] != 0x4B.toByte()) return false
+        val dataOffset = entry.localHeaderOffset.toLong() + 30L +
+            header.readUInt16LE(26) + header.readUInt16LE(28)
+        val output = fopen(destinationPath, "wb") ?: return false
+        var complete = false
+        try {
+            complete = when (entry.compressionMethod) {
+                0 -> entry.compressedSize == entry.uncompressedSize &&
+                    copyStoredEntry(dataOffset, entry.compressedSize, output)
+                8 -> inflateEntryToFile(dataOffset, entry.compressedSize, entry.uncompressedSize, output)
+                else -> false
+            }
+        } finally {
+            fclose(output)
+            if (!complete) remove(destinationPath)
+        }
+        return complete
+    }
+
+    private fun copyStoredEntry(offset: Long, size: Int, output: CPointer<FILE>): Boolean {
+        var copied = 0
+        while (copied < size) {
+            val chunk = readAt(offset + copied, minOf(64 * 1024, size - copied))
+            if (chunk.isEmpty()) return false
+            val written = chunk.usePinned { fwrite(it.addressOf(0), 1uL, chunk.size.toULong(), output) }
+            if (written.toInt() != chunk.size) return false
+            copied += chunk.size
+        }
+        return true
+    }
+
+    private fun inflateEntryToFile(offset: Long, compressedSize: Int, uncompressedSize: Int, output: CPointer<FILE>): Boolean = memScoped {
+        val stream = alloc<z_stream>()
+        if (inflateInit2_(stream.ptr, -15, ZLIB_VERSION, sizeOf<z_stream>().toInt()) != Z_OK) return@memScoped false
+        try {
+            val buffer = ByteArray(64 * 1024)
+            var consumed = 0
+            var producedTotal = 0L
+            var result = Z_OK
+            while (result != Z_STREAM_END && consumed < compressedSize) {
+                val input = readAt(offset + consumed, minOf(64 * 1024, compressedSize - consumed))
+                if (input.isEmpty()) return@memScoped false
+                consumed += input.size
+                input.usePinned { pinnedInput ->
+                    stream.next_in = pinnedInput.addressOf(0).reinterpret()
+                    stream.avail_in = input.size.toUInt()
+                    while (stream.avail_in > 0u && result == Z_OK) {
+                        val inputBefore = stream.avail_in
+                        buffer.usePinned { pinnedOutput ->
+                            stream.next_out = pinnedOutput.addressOf(0).reinterpret()
+                            stream.avail_out = buffer.size.toUInt()
+                            result = inflate(stream.ptr, Z_NO_FLUSH)
+                            val produced = buffer.size - stream.avail_out.toInt()
+                            if (produced > 0) {
+                                val written = fwrite(pinnedOutput.addressOf(0), 1uL, produced.toULong(), output)
+                                if (written.toInt() != produced) return@memScoped false
+                                producedTotal += produced
+                            }
+                            if (result == Z_OK && produced == 0 && stream.avail_in == inputBefore) {
+                                return@memScoped false
+                            }
+                        }
+                    }
+                }
+                if (result != Z_OK && result != Z_STREAM_END) return@memScoped false
+            }
+            result == Z_STREAM_END && producedTotal == uncompressedSize.toLong()
+        } finally {
+            inflateEnd(stream.ptr)
+        }
+    }
+
+    private fun readLargeEntry(path: String, expectedSize: Int): ByteArray? {
+        val temporary = ConversionTempFiles.newPath("entry")
+        try {
+            if (!extractEntryToFile(path, temporary)) return null
+            val input = fopen(temporary, "rb") ?: return null
+            try {
+                val bytes = ByteArray(expectedSize)
+                if (expectedSize == 0) return bytes
+                val inputDescriptor = fileno(input)
+                var offset = 0
+                bytes.usePinned { pinned ->
+                    while (offset < expectedSize) {
+                        val count = pread(
+                            inputDescriptor,
+                            pinned.addressOf(offset),
+                            (expectedSize - offset).toULong(),
+                            offset.toLong(),
+                        ).toInt()
+                        if (count <= 0) break
+                        offset += count
+                    }
+                }
+                return bytes.takeIf { offset == expectedSize }
+            } finally {
+                fclose(input)
+            }
+        } finally {
+            ConversionTempFiles.remove(temporary)
         }
     }
 

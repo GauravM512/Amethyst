@@ -1,6 +1,13 @@
 import SwiftUI
 import ComposeApp
 
+#if DEBUG
+@MainActor
+private enum ProjectBenchmarkGate {
+    static var started = false
+}
+#endif
+
 @main
 struct iOSApp: App {
     init() {
@@ -28,6 +35,27 @@ struct iOSApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.dark)
+#if DEBUG
+                .task {
+                    let arguments = ProcessInfo.processInfo.arguments
+                    guard let index = arguments.firstIndex(of: "--benchmark-project"),
+                          arguments.indices.contains(index + 1),
+                          !ProjectBenchmarkGate.started else { return }
+                    ProjectBenchmarkGate.started = true
+                    let started = CFAbsoluteTimeGetCurrent()
+                    HomeSwiftBridge.shared.openWorkspaceFromPath(
+                        path: arguments[index + 1],
+                        onSuccess: {
+                            print("ProjectBenchmark result=success durationMs=\(Int((CFAbsoluteTimeGetCurrent() - started) * 1000))")
+                            fflush(stdout)
+                        },
+                        onError: {
+                            print("ProjectBenchmark result=error message=\($0) durationMs=\(Int((CFAbsoluteTimeGetCurrent() - started) * 1000))")
+                            fflush(stdout)
+                        }
+                    )
+                }
+#endif
         }
     }
 }

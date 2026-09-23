@@ -3,6 +3,7 @@
 package dev.anthonyhfm.amethyst.devices.audio.sample
 
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.PadTriggerKey
+import dev.anthonyhfm.amethyst.core.engine.audio.source.ByteArrayPcmAudioSource
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.AudioTriggerRuntime
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.ChokeSourceRegistration
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
@@ -28,6 +29,34 @@ class SamplePlaybackTest {
     private val configuration = AudioConfiguration(1_000, 2, 16, 64)
     private val keyA = PadTriggerKey("launchpad-a", 1, 2)
     private val keyB = PadTriggerKey("launchpad-b", 1, 2)
+
+    @Test
+    fun nativeRateSourceKeepsItsDurationAtADifferentOutputRate() {
+        val state = state(frames = 100)
+        val source = ByteArrayPcmAudioSource("native-rate", 1_000, 1, 16, state.rawData!!)
+        val snapshot = checkNotNull(SampleRenderSnapshot.from(state, source))
+        val pool = SampleVoicePool(1).apply { prepare(AudioConfiguration(2_000, 2, 16, 64)) }
+        pool.apply(SampleVoiceCommand.Start(0, keyA, snapshot))
+
+        assertTrue(render(pool, 100).any { it > 0f })
+        assertEquals(1, pool.activeVoiceCount)
+        render(pool, 100)
+        assertEquals(0, pool.activeVoiceCount)
+    }
+
+    @Test
+    fun nativeRateWarpConsumesSourceFramesAtTheCorrectRate() {
+        val state = state(frames = 512, warpMode = SampleWarpMode.Warp, sourceBpm = 120f)
+        val source = ByteArrayPcmAudioSource("native-rate-warp", 1_000, 1, 16, state.rawData!!)
+        val snapshot = checkNotNull(SampleRenderSnapshot.from(state, source, 120.0))
+        val pool = SampleVoicePool(1).apply { prepare(AudioConfiguration(2_000, 2, 16, 64)) }
+        pool.apply(SampleVoiceCommand.Start(0, keyA, snapshot))
+
+        render(pool, 700)
+        assertEquals(1, pool.activeVoiceCount)
+        render(pool, 500)
+        assertEquals(0, pool.activeVoiceCount)
+    }
 
     @Test
     fun playheadProgressAccountsForRendererResampling() {

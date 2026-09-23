@@ -3,10 +3,11 @@ package dev.anthonyhfm.amethyst.core.engine.echo
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.nativeengine.EchoAudioBuffer
 import dev.anthonyhfm.amethyst.nativeengine.EchoEngine as NativeEchoDecoder
-import io.github.vinceglb.filekit.utils.toNSData
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.usePinned
 import platform.AVFAudio.AVAudioFile
 import platform.AVFAudio.AVAudioPCMBuffer
 import platform.AVFAudio.AVAudioPCMFormatFloat32
@@ -14,6 +15,9 @@ import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
 import platform.Foundation.NSUUID
+import platform.posix.fclose
+import platform.posix.fopen
+import platform.posix.fwrite
 import kotlin.math.roundToInt
 
 /**
@@ -69,7 +73,7 @@ internal object IosAudioDecoder {
             append(extension)
         }
         val fileManager = NSFileManager.defaultManager
-        if (!fileManager.createFileAtPath(temporaryPath, audioData.toNSData(), null)) {
+        if (!writeTemporaryAudio(temporaryPath, audioData)) {
             return null
         }
         return try {
@@ -78,6 +82,25 @@ internal object IosAudioDecoder {
                 ?.toSignal(sampleStart, sampleEnd)
         } finally {
             fileManager.removeItemAtPath(temporaryPath, null)
+        }
+    }
+
+    private fun writeTemporaryAudio(path: String, bytes: ByteArray): Boolean {
+        val output = fopen(path, "wb") ?: return false
+        return try {
+            bytes.usePinned { pinned ->
+                var offset = 0
+                while (offset < bytes.size) {
+                    val count = minOf(1024 * 1024, bytes.size - offset)
+                    if (fwrite(pinned.addressOf(offset), 1uL, count.toULong(), output).toInt() != count) {
+                        return false
+                    }
+                    offset += count
+                }
+                true
+            }
+        } finally {
+            fclose(output)
         }
     }
 

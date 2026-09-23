@@ -75,7 +75,9 @@ final class HomeViewModel {
 
     func loadRecents() {
         let raw = HomeSwiftBridge.shared.recentWorkspaces()
-        recentProjects = (raw as? [RecentWorkspace]) ?? []
+        recentProjects = ((raw as? [RecentWorkspace]) ?? []).filter {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
     }
 
     // ── Recent projects ────────────────────────────────────────────────────
@@ -85,7 +87,38 @@ final class HomeViewModel {
         loadRecents()
     }
 
+    func isStoredImport(path: String) -> Bool {
+        guard let documents = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) else { return false }
+        let projects = documents.appendingPathComponent("Amethyst/Projects", isDirectory: true).standardizedFileURL.path
+        let original = URL(fileURLWithPath: path).deletingLastPathComponent()
+        return original.lastPathComponent == "Original" && original.deletingLastPathComponent().standardizedFileURL.path.hasPrefix(projects + "/")
+    }
+
+    func deleteStoredImport(path: String) {
+        guard isStoredImport(path: path) else { return }
+        let projectDirectory = URL(fileURLWithPath: path).deletingLastPathComponent().deletingLastPathComponent()
+        do {
+            try FileManager.default.removeItem(at: projectDirectory)
+            HomeSwiftBridge.shared.removeRecentWorkspace(path: path)
+            loadRecents()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func openRecent(_ project: RecentWorkspace) {
+        if !HomeSwiftBridge.shared.hasConvertedMobileProject(path: project.path) {
+            let ext = (project.path as NSString).pathExtension.lowercased()
+            if ext == "als" {
+                pendingAbletonPath = project.path
+                activeSheet = .abletonWizard(path: project.path)
+                return
+            }
+            if ext == "zip" {
+                detectZipAndRoute(storedPath: project.path)
+                return
+            }
+        }
         startLoading(localized("home_projects_opening_project_msg", fallback: "Opening Project"))
         HomeSwiftBridge.shared.openRecentWorkspace(
             project: project,
@@ -120,22 +153,50 @@ final class HomeViewModel {
     // ── File picker ────────────────────────────────────────────────────────
 
     func openFile(url: URL) {
-        guard url.startAccessingSecurityScopedResource() else {
-            errorMessage = localized("home_projects_file_access_failed", fallback: "Could not access the selected file.")
-            return
-        }
-        defer { url.stopAccessingSecurityScopedResource() }
+        importLocalFile(url: url, projectID: UUID().uuidString, title: url.deletingPathExtension().lastPathComponent, hubProjectID: nil, isSecurityScoped: true)
+    }
 
-        guard let data = try? Data(contentsOf: url) else {
-            errorMessage = localized("home_projects_file_read_failed", fallback: "Failed to read the selected file.")
-            return
-        }
+    func openDownloadedFile(url: URL, projectID: String, title: String) {
+        importLocalFile(url: url, projectID: "hub-\(projectID)", title: title, hubProjectID: projectID, isSecurityScoped: false)
+    }
 
-        let filename  = url.lastPathComponent
-        
-        let storedPath = HomeSwiftBridge.shared.indexFile(data: data, filename: filename)
-
+    private func importLocalFile(url: URL, projectID: String, title: String, hubProjectID: String?, isSecurityScoped: Bool) {
         let ext = url.pathExtension.lowercased()
+        guard ["ame", "approj", "als", "zip"].contains(ext) else {
+            errorMessage = localized("home_error_unsupported_project_format", fallback: "Unsupported project file format: .%1$s")
+                .replacingOccurrences(of: "%1$s", with: ext)
+            return
+        }
+        Task {
+            do {
+                let stored = try await Task.detached(priority: .userInitiated) {
+                    let scoped = isSecurityScoped && url.startAccessingSecurityScopedResource()
+                    guard !isSecurityScoped || scoped else {
+                        throw CocoaError(.fileReadNoPermission)
+                    }
+                    defer {
+                        if scoped { url.stopAccessingSecurityScopedResource() }
+                        if !isSecurityScoped { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+                    }
+                    return try MobileProjectFiles.importOriginal(from: url, projectID: projectID)
+                }.value
+                HomeSwiftBridge.shared.registerMobileProject(
+                    id: projectID,
+                    title: title,
+                    originalPath: stored.url.path,
+                    importedAt: Int64(Date().timeIntervalSince1970 * 1000),
+                    hubProjectId: hubProjectID,
+                    sourceHash: stored.sha256
+                )
+                loadRecents()
+                routeImportedFile(path: stored.url.path, ext: ext)
+            } catch {
+                errorMessage = localized("home_projects_file_read_failed", fallback: "Failed to read the selected file.")
+            }
+        }
+    }
+
+    private func routeImportedFile(path storedPath: String, ext: String) {
         switch ext {
         case "ame", "approj":
             openIndexedFile(path: storedPath)
@@ -149,9 +210,7 @@ final class HomeViewModel {
             detectZipAndRoute(storedPath: storedPath)
 
         default:
-            errorMessage = localized("home_error_unsupported_project_format", fallback: "Unsupported project file format: .%1$s")
-                .replacingOccurrences(of: "%1$s", with: ext)
-            HomeSwiftBridge.shared.clearIndexedFile(path: storedPath)
+            break
         }
     }
 
@@ -209,9 +268,13 @@ final class HomeViewModel {
                 case "ABLETON":
                     self.pendingAbletonPath = storedPath
                     self.activeSheet = .abletonWizard(path: storedPath)
-                default:
-                    // ABLETON_APOLLO and UNIPAD convert directly
+                case "ABLETON_APOLLO", "UNIPAD":
                     self.openIndexedFile(path: storedPath)
+                default:
+                    self.errorMessage = self.localized(
+                        "home_error_unsupported_project_format",
+                        fallback: "Unsupported project file format: .%1$s"
+                    ).replacingOccurrences(of: ".%1$s", with: "ZIP archive")
                 }
             }
         }

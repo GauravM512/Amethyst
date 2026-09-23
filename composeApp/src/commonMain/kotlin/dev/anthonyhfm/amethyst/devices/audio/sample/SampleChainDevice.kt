@@ -299,7 +299,8 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
         }
         val playheadPosition = samplePlayheadProgress(
             renderedFrame = livePlayheadFrame,
-            renderedSampleRate = audioConfiguration.value?.sampleRate ?: deviceState.sampleRate,
+            renderedSampleRate = renderCache.value?.snapshot?.source?.sampleRate
+                ?: audioConfiguration.value?.sampleRate ?: deviceState.sampleRate,
             sourceFrameCount = totalFrames.toLong(),
             sourceSampleRate = deviceState.sampleRate,
         )

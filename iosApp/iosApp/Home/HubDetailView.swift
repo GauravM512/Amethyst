@@ -32,6 +32,7 @@ struct HubDetailView: View {
     let destination: HubDestination
     let repository: HubRepository
     let onSignIn: () -> Void
+    let onOpenDownloadedFile: (URL, String, String) -> Void
     @State private var openedDestination: HubDestination?
 
     @Environment(\.dismiss) private var dismiss
@@ -45,7 +46,7 @@ struct HubDetailView: View {
                 case .artist(let username):
                     HubArtistDetailView(username: username, repository: repository, onOpen: { openedDestination = $0 }, onSignIn: onSignIn)
                 case .project(let username, let slug):
-                    HubProjectDetailView(username: username, slug: slug, repository: repository, onOpen: { openedDestination = $0 }, onSignIn: onSignIn)
+                    HubProjectDetailView(username: username, slug: slug, repository: repository, onOpen: { openedDestination = $0 }, onSignIn: onSignIn, onOpenDownloadedFile: onOpenDownloadedFile)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -292,6 +293,7 @@ private struct HubProjectDetailView: View {
     let repository: HubRepository
     let onOpen: (HubDestination) -> Void
     let onSignIn: () -> Void
+    let onOpenDownloadedFile: (URL, String, String) -> Void
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -302,6 +304,9 @@ private struct HubProjectDetailView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var actionError: String?
+    @State private var isDownloading = false
+    @State private var downloadProgress = 0.0
+    private let actionHeight: CGFloat = 54
 
     var body: some View {
         GeometryReader { available in
@@ -347,17 +352,65 @@ private struct HubProjectDetailView: View {
                             }
                             .padding(.top, overhang + 16)
 
-                            if let url = downloadURL {
-                                Link(destination: url) {
-                                    Label(localization.string("home_hub_detail_download", fallback: "Download"), systemImage: descriptionContent.externalDownloadURL == nil ? "arrow.down" : "arrow.up.right")
+                            VStack(spacing: 10) {
+                                if let source = importSource, canDownloadAndOpen {
+                                    Button {
+                                        Task { await downloadAndOpen(source: source, project: project) }
+                                    } label: {
+                                        Label(
+                                            isDownloading
+                                                ? "\(localization.string("home_hub_detail_downloading", fallback: "Downloading")) (\(Int((downloadProgress * 100).rounded()))%)"
+                                                : localization.string("home_hub_detail_download_open", fallback: "Download & Open"),
+                                            systemImage: isDownloading ? "arrow.down" : "arrow.down.app"
+                                        )
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(theme.primaryForeground)
                                         .frame(maxWidth: .infinity)
+                                        .frame(height: actionHeight)
+                                        .background {
+                                            GeometryReader { proxy in
+                                                ZStack(alignment: .leading) {
+                                                    Capsule().fill(isDownloading ? theme.primary.opacity(0.7) : theme.primary)
+                                                    if isDownloading {
+                                                        Rectangle()
+                                                            .fill(theme.primary)
+                                                            .frame(width: proxy.size.width * min(max(downloadProgress, 0), 1))
+                                                    }
+                                                }
+                                                .clipShape(Capsule())
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(isDownloading)
+                                    .animation(.linear(duration: 0.2), value: downloadProgress)
+                                    .accessibilityValue(isDownloading ? "\(Int((downloadProgress * 100).rounded()))%" : "")
+                                } else if let url = downloadURL {
+                                    Link(destination: url) {
+                                        Label(localization.string("home_hub_detail_download", fallback: "Download"), systemImage: externalDownloadURL == nil ? "arrow.down" : "arrow.up.right")
+                                            .font(.body.weight(.semibold))
+                                            .foregroundStyle(theme.primaryForeground)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: actionHeight)
+                                            .background(theme.primary, in: Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityHint(externalDownloadURL == nil ? "" : localization.string("home_hub_detail_external_hint", fallback: "Opens external download page"))
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .tint(theme.primary)
-                                .accessibilityHint(descriptionContent.externalDownloadURL == nil ? "" : localization.string("home_hub_detail_external_hint", fallback: "Opens external download page"))
-                                .controlSize(.large)
-                                .padding(.top, 24)
+
+                                if let youtubeURL {
+                                    Link(destination: youtubeURL) {
+                                        Label(localization.string("home_hub_detail_watch_youtube", fallback: "Watch on YouTube"), systemImage: "play.rectangle.fill")
+                                            .font(.body.weight(.semibold))
+                                            .foregroundStyle(theme.glassForeground)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: actionHeight)
+                                            .background(theme.primary.opacity(0.16), in: Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
+                            .padding(.top, 24)
 
                             HStack(spacing: 0) {
                                 metric("eye", value: project.views, label: localization.string("home_hub_detail_views", fallback: "Views"))
@@ -407,7 +460,7 @@ private struct HubProjectDetailView: View {
                                             .lineLimit(1)
                                             .truncationMode(.middle)
                                     }
-                                } else if let externalURL = descriptionContent.externalDownloadURL,
+                                } else if let externalURL = externalDownloadURL,
                                           let host = URL(string: externalURL)?.host {
                                     LabeledContent(localization.string("home_hub_detail_download_source", fallback: "Download source"), value: host)
                                 }
@@ -487,9 +540,51 @@ private struct HubProjectDetailView: View {
     private var descriptionContent: HubProjectDescription {
         HubProjectDescription(project?.description_ ?? "")
     }
+    private var externalDownloadURL: String? {
+        let value = project?.externalDownloadUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value?.isEmpty == false ? value : descriptionContent.externalDownloadURL
+    }
     private var downloadURL: URL? {
-        guard let value = descriptionContent.externalDownloadURL ?? project?.overrideDownloadUrl ?? project?.downloadUrl else { return nil }
+        guard let project else { return nil }
+        let value = externalDownloadURL ?? project.overrideDownloadUrl ?? project.downloadUrl
+            ?? (project.packageName == nil ? nil : "/projects/\(project.id)/download")
+        guard let value else { return nil }
         return URL(string: repository.client.resolveUrl(pathOrUrl: value))
+    }
+    private var youtubeURL: URL? {
+        guard let value = project?.youtubeUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else { return nil }
+        if value.count == 11,
+           value.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-").contains($0) }) {
+            return URL(string: "https://www.youtube.com/watch?v=\(value)")
+        }
+        guard let url = URL(string: value), url.scheme == "https",
+              let host = url.host?.lowercased(),
+              ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be"].contains(host) else { return nil }
+        return url
+    }
+    private var importSource: HubProjectDownloadUseCase.Source? {
+        if let externalDownloadURL {
+            guard let url = URL(string: externalDownloadURL) else { return nil }
+            if HubProjectDownloadUseCase.supportsGoogleDrive(url) { return .googleDrive(url) }
+            if HubProjectDownloadUseCase.supportsMediaFire(url) { return .mediaFire(url) }
+            return nil
+        }
+        guard let project else { return nil }
+        let value = project.overrideDownloadUrl ?? project.downloadUrl
+            ?? (project.packageName == nil ? nil : "/projects/\(project.id)/download")
+        guard let value,
+              let url = URL(string: repository.client.resolveUrl(pathOrUrl: value)),
+              let hubHost = URL(string: repository.client.resolveUrl(pathOrUrl: "/"))?.host,
+              url.scheme == "https", url.host == hubHost else { return nil }
+        return .hub(url)
+    }
+    private var canDownloadAndOpen: Bool {
+        guard let project else { return false }
+        return HubSettings.shared.ignoreCompatibility.value?.boolValue == true
+            || project.projectType.name == "amethyst"
+            || project.compatibility.name == "compatible"
+            || project.overrideDownloadUrl != nil
     }
     private var shareURL: URL? { URL(string: "https://projects.launchpadders.com/@\(username)/\(slug)") }
 
@@ -511,6 +606,35 @@ private struct HubProjectDetailView: View {
                 .foregroundStyle(theme.onSurfaceVariant)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func downloadAndOpen(source: HubProjectDownloadUseCase.Source, project: ComposeApp.HubProject) async {
+        guard !isDownloading else { return }
+        isDownloading = true
+        downloadProgress = 0
+        defer { isDownloading = false }
+        let fallbackExtension: String
+        switch project.projectType.name {
+        case "ableton": fallbackExtension = "als"
+        case "apollo": fallbackExtension = "approj"
+        case "unipad": fallbackExtension = "zip"
+        default: fallbackExtension = "ame"
+        }
+        let filename = project.overrideName ?? project.packageName ?? "\(project.title).\(fallbackExtension)"
+        do {
+            let url = try await HubProjectDownloadUseCase().execute(
+                source: source,
+                suggestedFilename: filename,
+                expectedSize: project.overrideSize?.int64Value ?? project.packageSize?.int64Value,
+                onProgress: { progress in
+                    Task { @MainActor in downloadProgress = max(downloadProgress, progress) }
+                }
+            )
+            downloadProgress = 1
+            onOpenDownloadedFile(url, project.id, project.title)
+        } catch {
+            actionError = localization.string("home_hub_detail_download_error", fallback: "The project could not be downloaded. Check that the file is publicly accessible.")
+        }
     }
 
     private func load() async {

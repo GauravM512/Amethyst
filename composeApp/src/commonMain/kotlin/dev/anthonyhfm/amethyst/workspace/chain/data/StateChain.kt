@@ -42,7 +42,7 @@ data class StateChain(
 
     private fun <T : Chain> unpackInto(chain: T): T {
         val restoredIds = mutableSetOf<String>()
-        devices.forEachIndexed { index, deviceState ->
+        val restored = devices.mapIndexed { index, deviceState ->
             val device = DeviceRegistry.unpack(deviceState)
             device.selectionUUID = restoredDeviceId(
                 savedId = deviceIds.getOrNull(index),
@@ -52,10 +52,10 @@ data class StateChain(
             if (index in mutedDeviceIndices || deviceState.isMuted) {
                 device.state.value.isMuted = true
             }
-            chain.add(device, fromUser = false)
+            device
         }
 
-        chain.reroute()
+        chain.restoreDevices(restored)
         ensureUniqueDeviceIds(chain)
 
         return chain

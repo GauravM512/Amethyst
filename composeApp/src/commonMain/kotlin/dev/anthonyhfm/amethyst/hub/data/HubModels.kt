@@ -75,6 +75,7 @@ data class HubProject(
     val packageSize: Long? = null,
     val packageSha256: String? = null,
     val downloadUrl: String? = null,
+    val externalDownloadUrl: String? = null,
     val thumbnailUrl: String? = null,
     val overrideName: String? = null,
     val overrideSize: Long? = null,

@@ -83,6 +83,7 @@ internal class IosAudioOutput(
     private var engine: AVAudioEngine? = null
     private var sourceNode: AVAudioSourceNode? = null
     private var preferredBufferFrames = DEFAULT_BUFFER_FRAMES
+    private var preferredSampleRate: Int? = null
     private var initialMasterGain = 1f
     private var configuredSampleRate = 0
     private var configuredPeriodFrames = 0
@@ -137,6 +138,7 @@ internal class IosAudioOutput(
 
     fun initialize(
         preferredBufferFrames: Int,
+        preferredSampleRate: Int?,
         initialMasterGain: Float,
     ): Boolean = withLifecycleLock {
         wantsRunning.value = true
@@ -149,6 +151,7 @@ internal class IosAudioOutput(
             MIN_BUFFER_FRAMES,
             MAX_PREFERRED_BUFFER_FRAMES,
         )
+        this.preferredSampleRate = preferredSampleRate
         this.initialMasterGain = initialMasterGain.coerceAtLeast(0f)
         startHardware()
     }
@@ -273,6 +276,8 @@ internal class IosAudioOutput(
             lastStartFailure = "AVAudioSession.setCategory failed"
             return false
         }
+
+        preferredSampleRate?.let { session.setPreferredSampleRate(it.toDouble(), null) }
 
         val referenceRate = session.sampleRate
             .takeIf { it > 0.0 }
@@ -541,7 +546,7 @@ internal class IosAudioOutput(
         const val OUTPUT_CHANNELS = 2
         const val MIN_BUFFER_FRAMES = 64
         const val DEFAULT_BUFFER_FRAMES = 128
-        const val FALLBACK_BUFFER_FRAMES = 256
+        const val FALLBACK_BUFFER_FRAMES = 1_024
         const val MAX_PREFERRED_BUFFER_FRAMES = 2_048
         const val MAX_RENDER_FRAMES = 4_096
         const val DEFAULT_SAMPLE_RATE = 48_000.0

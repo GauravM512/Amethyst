@@ -12,8 +12,9 @@ import ComposeApp
 struct RecentProjectRow: View {
     let project: RecentWorkspace
     let onOpen: () -> Void
-    let onEdit: () -> Void
-    let onRemove: () -> Void
+    let onEdit: (() -> Void)?
+    let onRemove: (() -> Void)?
+    let onDeleteLocal: (() -> Void)?
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -62,24 +63,37 @@ struct RecentProjectRow: View {
         .buttonStyle(.plain)
         .listRowBackground(theme.muted)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive, action: onRemove) {
-                Label(localization.string("common_remove", fallback: "Remove"), systemImage: "trash")
+            if let onRemove {
+                Button(role: .destructive, action: onRemove) {
+                    Label(localization.string("common_remove", fallback: "Remove"), systemImage: "trash")
+                }
             }
-            Button(action: onEdit) {
-                Label(localization.string("home_projects_item_menu_edit", fallback: "Edit"), systemImage: "pencil")
+            if let onEdit {
+                Button(action: onEdit) {
+                    Label(localization.string("home_projects_item_menu_edit", fallback: "Edit"), systemImage: "pencil")
+                }
+                .tint(theme.primary)
             }
-            .tint(theme.primary)
         }
         .contextMenu {
             Button(action: onOpen) {
                 Label(localization.string("home_projects_item_menu_open", fallback: "Open"), systemImage: "folder.badge.arrow.up")
             }
-            Button(action: onEdit) {
-                Label(localization.string("home_projects_item_menu_edit", fallback: "Edit Details"), systemImage: "pencil")
+            if let onEdit {
+                Button(action: onEdit) {
+                    Label(localization.string("home_projects_item_menu_edit", fallback: "Edit Details"), systemImage: "pencil")
+                }
             }
-            Divider()
-            Button(role: .destructive, action: onRemove) {
-                Label(localization.string("home_projects_item_menu_remove", fallback: "Remove from Recent"), systemImage: "trash")
+            if onRemove != nil || onDeleteLocal != nil { Divider() }
+            if let onRemove {
+                Button(role: .destructive, action: onRemove) {
+                    Label(localization.string("home_projects_item_menu_remove", fallback: "Remove from Recent"), systemImage: "trash")
+                }
+            }
+            if let onDeleteLocal {
+                Button(role: .destructive, action: onDeleteLocal) {
+                    Label(localization.string("home_projects_delete_local", fallback: "Delete Local Project"), systemImage: "trash.slash")
+                }
             }
         }
     }

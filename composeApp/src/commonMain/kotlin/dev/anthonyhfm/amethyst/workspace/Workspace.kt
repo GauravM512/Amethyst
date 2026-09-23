@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.network.presence.CollaborationPresence
 import dev.anthonyhfm.amethyst.core.util.isMobile
 import dev.anthonyhfm.amethyst.core.util.platform
+import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
@@ -46,12 +48,14 @@ import dev.anthonyhfm.amethyst.workspace.ui.components.PerformanceOverlay
 import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceTopAppBar
 import dev.anthonyhfm.amethyst.timeline.data.AudioSource
 import dev.anthonyhfm.amethyst.workspace.audio.LocalAudioLibraryDragAndDropState
+import kotlinx.coroutines.launch
 
 @Composable
 fun Workspace(onBack: () -> Unit = {}) {
     val mode by WorkspaceRepository.mode.collectAsState()
     val activityToasts by CollaborationPresence.activityToasts.collectAsState()
     var showExitDialog by remember { mutableStateOf(false) }
+    val saveScope = rememberCoroutineScope()
     val audioLibraryDragState = rememberDragAndDropState<AudioSource>()
 
     val showDeviceConfigurator by WorkspaceRepository.showDeviceConfigurator.collectAsState()
@@ -145,8 +149,15 @@ fun Workspace(onBack: () -> Unit = {}) {
                 ExitWorkspaceDialog(
                     onSaveAndExit = {
                         showExitDialog = false
-                        WorkspaceRepository.saveWorkspace()
-                        onBack()
+                        saveScope.launch {
+                            if (platform.isMobile) {
+                                if (HomeRepository.saveOpenMobileWorkspace()) onBack()
+                                else showExitDialog = true
+                            } else {
+                                WorkspaceRepository.saveWorkspace()
+                                onBack()
+                            }
+                        }
                     },
                     onDiscardAndExit = {
                         showExitDialog = false

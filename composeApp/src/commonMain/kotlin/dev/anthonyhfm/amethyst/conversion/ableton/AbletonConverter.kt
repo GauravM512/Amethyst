@@ -23,8 +23,8 @@ import dev.anthonyhfm.amethyst.conversion.ableton.utils.Dual2LightLayoutScanner
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.OriginalSimplerPrerenderer
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.MidiExtensionMaskRouter
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.PaletteFileParser
-import dev.anthonyhfm.amethyst.conversion.ableton.utils.toFileHash
 import dev.anthonyhfm.amethyst.core.util.FileHelper
+import dev.anthonyhfm.amethyst.core.util.ConversionTempFiles
 import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ProjectArchiveEntry
@@ -47,6 +47,7 @@ import dev.anthonyhfm.amethyst.workspace.data.WorkspaceSettings
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.nameWithoutExtension
+import io.github.vinceglb.filekit.path
 import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.readString
 import amethyst.composeapp.generated.resources.*
@@ -93,6 +94,8 @@ object AbletonConverter : AmethystConverter {
     private var zipArchive: ProjectArchiveReader? = null
 
     internal fun readZipEntry(path: String): ByteArray? = zipArchive?.readEntry(path)
+    internal fun extractZipEntryToFile(path: String, destinationPath: String): Boolean =
+        zipArchive?.extractEntryToFile(path, destinationPath) == true
 
     var zipStartPath: String = ""
         private set
@@ -163,14 +166,6 @@ object AbletonConverter : AmethystConverter {
                 !it.path.contains("__MACOSX")
             }
 
-            entries.filter {
-                it.path.endsWith(".amxd")
-            }.forEach {
-                readZipEntry(it.path)?.let { data ->
-                    println("Hash (${data.toFileHash()}) - ${it.path.substringAfterLast("/")}")
-                }
-            }
-
             val alsEntry = entries
                 .filter { it.path.endsWith(".als") }
                 .minBy { it.path.length }
@@ -189,9 +184,20 @@ object AbletonConverter : AmethystConverter {
             val readingAlsMsg = runCatching { runBlocking { getString(Res.string.home_loading_reading_als) } }.getOrDefault("Reading Ableton Live-Set...")
             reporter?.update(0.12f, statusText = readingAlsMsg, detailText = "$projectName.als")
 
-            val abletonData = decodeAbletonAls(
-                checkNotNull(readZipEntry(alsEntry.path)) { "Could not read ${alsEntry.path}" },
-            )
+            val alsPath = ConversionTempFiles.newPath("als")
+            val abletonData = try {
+                if (archive.extractEntryToFile(alsEntry.path, alsPath)) {
+                    dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("als.parseStreaming") {
+                        AbletonXmlDecoder.decodeFile(alsPath, xml)
+                    }
+                } else {
+                    dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("als.parseLegacy") {
+                        decodeAbletonAls(checkNotNull(readZipEntry(alsEntry.path)))
+                    }
+                }
+            } finally {
+                ConversionTempFiles.remove(alsPath)
+            }
             val abletonWorkspace = runLiveConversion(
                 name = projectName,
                 abletonData = abletonData,
@@ -257,9 +263,9 @@ object AbletonConverter : AmethystConverter {
         val readingMsg = runCatching { runBlocking { getString(Res.string.home_loading_reading_als) } }.getOrDefault("Reading Ableton Live-Set...")
         reporter?.update(0.08f, statusText = readingMsg, detailText = file.name)
 
-        val abletonData = decodeAbletonAls(
-            runBlocking { AbletonConverter.file?.readBytes() ?: ByteArray(0) },
-        )
+        val abletonData = dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("als.parseStreaming") {
+            AbletonXmlDecoder.decodeFile(file.path, xml)
+        }
 
         loadPalette(palettePath)
 
@@ -342,7 +348,9 @@ object AbletonConverter : AmethystConverter {
             val decodingSamplesMsg = runCatching { runBlocking { getString(Res.string.home_loading_decoding_audio_samples) } }.getOrDefault("Decoding audio samples...")
             reporter?.update(0.25f, statusText = decodingSamplesMsg, detailText = null)
             val audioReporter = reporter?.subReporter(0.25f, 0.75f)
-            val renderedAudio = audioRenderer.decodeAll(sampleTracks, reporter = audioReporter)
+            val renderedAudio = dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("ableton.audioDecode") {
+                audioRenderer.decodeAll(sampleTracks, reporter = audioReporter)
+            }
             audioMap = renderedAudio.states
             audioSources = renderedAudio.sources
 

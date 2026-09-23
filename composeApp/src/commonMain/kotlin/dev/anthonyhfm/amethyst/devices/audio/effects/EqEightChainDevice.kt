@@ -48,8 +48,27 @@ class EqEightChainDevice : AudioChainDevice<EqEightChainDeviceState>() {
     override fun processAudio(block: AudioProcessingBlock, context: AudioRenderContext) {
         val snapshot = state.value
         configureBank(bankA, snapshot.bandsA, snapshot.scale)
+        val channelMode = snapshot.channelMode.coerceIn(0, 2)
         configureBank(bankB, snapshot.bandsB, snapshot.scale)
         val outputGain = dbToLinear(snapshot.globalGainDb)
+
+        // Most Ableton EQ Eight instances use stereo mode. Process complete
+        // buffers one stage at a time so coefficients and filter histories stay
+        // in local variables instead of crossing a Kotlin call for every sample.
+        if (block.channels == 2 && channelMode == 0) {
+            var band = 0
+            while (band < bankA.size) {
+                bankA[band].processStereoBlock(block.samples, block.frameCount)
+                band++
+            }
+            var sample = 0
+            val sampleCount = block.frameCount * 2
+            while (sample < sampleCount) {
+                block.samples[sample] = (block.samples[sample] * outputGain).finiteEqAudio()
+                sample++
+            }
+            return
+        }
 
         var frame = 0
         while (frame < block.frameCount) {
@@ -59,7 +78,7 @@ class EqEightChainDevice : AudioChainDevice<EqEightChainDeviceState>() {
             } else {
                 var left = block.samples[offset]
                 var right = block.samples[offset + 1]
-                when (snapshot.channelMode.coerceIn(0, 2)) {
+                when (channelMode) {
                     0 -> {
                         left = processBankLeft(bankA, left)
                         right = processBankRight(bankA, right)
@@ -211,6 +230,15 @@ private class EqBandProcessor {
         return value
     }
 
+    fun processStereoBlock(samples: FloatArray, frameCount: Int) {
+        if (!enabled) return
+        var stage = 0
+        while (stage < stageCount) {
+            stages[stage].processStereoBlock(samples, frameCount)
+            stage++
+        }
+    }
+
     fun reset() = stages.forEach(EqBiquad::reset)
 }
 
@@ -258,6 +286,38 @@ private class EqBiquad {
         z1Right = b1 * input - a1 * output + z2Right
         z2Right = b2 * input - a2 * output
         return output.toFloat().finiteEqAudio()
+    }
+
+    fun processStereoBlock(samples: FloatArray, frameCount: Int) {
+        val coefficientB0 = b0
+        val coefficientB1 = b1
+        val coefficientB2 = b2
+        val coefficientA1 = a1
+        val coefficientA2 = a2
+        var leftZ1 = z1Left
+        var leftZ2 = z2Left
+        var rightZ1 = z1Right
+        var rightZ2 = z2Right
+        var frame = 0
+        while (frame < frameCount) {
+            val offset = frame * 2
+            val leftInput = samples[offset]
+            val leftOutput = coefficientB0 * leftInput + leftZ1
+            leftZ1 = coefficientB1 * leftInput - coefficientA1 * leftOutput + leftZ2
+            leftZ2 = coefficientB2 * leftInput - coefficientA2 * leftOutput
+            samples[offset] = leftOutput.toFloat().finiteEqAudio()
+
+            val rightInput = samples[offset + 1]
+            val rightOutput = coefficientB0 * rightInput + rightZ1
+            rightZ1 = coefficientB1 * rightInput - coefficientA1 * rightOutput + rightZ2
+            rightZ2 = coefficientB2 * rightInput - coefficientA2 * rightOutput
+            samples[offset + 1] = rightOutput.toFloat().finiteEqAudio()
+            frame++
+        }
+        z1Left = leftZ1
+        z2Left = leftZ2
+        z1Right = rightZ1
+        z2Right = rightZ2
     }
 
     fun reset() {
@@ -335,7 +395,8 @@ private fun processBankRight(bank: Array<EqBandProcessor>, input: Float): Float 
 
 private fun dbToLinear(db: Float): Float = 10.0.pow((db.takeIf(Float::isFinite) ?: 0f) / 20.0).toFloat()
 
-private fun Float.finiteEqAudio(): Float = if (isFinite()) this else 0f
+private inline fun Float.finiteEqAudio(): Float =
+    if (this <= Float.MAX_VALUE && this >= -Float.MAX_VALUE) this else 0f
 private val DISABLED_EQ_BAND = EqEightBandState()
 /** Eighth-order Butterworth pole pairs; their product is -3 dB at the cutoff. */
 private val STEEP_FILTER_Q = floatArrayOf(0.5097956f, 0.6013449f, 0.8999762f, 2.5629154f)

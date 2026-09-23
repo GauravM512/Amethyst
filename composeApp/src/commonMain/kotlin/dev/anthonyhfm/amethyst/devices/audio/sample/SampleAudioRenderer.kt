@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.devices.audio.sample
 import dev.anthonyhfm.amethyst.core.engine.audio.source.ByteArrayPcmAudioSource
 import dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache
 import dev.anthonyhfm.amethyst.core.engine.audio.source.PolyphaseSincResampler
+import dev.anthonyhfm.amethyst.core.engine.audio.source.useNativeRateForLongSample
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.AudioTriggerBatch
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.PadTriggerKey
 import dev.anthonyhfm.amethyst.devices.AudioConfiguration
@@ -78,6 +79,9 @@ internal class SampleRenderSnapshot private constructor(
                         it.bitDepth == state.bitDepth
                 }
             if (librarySource != null) {
+                if (useNativeRateForLongSample(original.frameCount, original.sampleRate)) {
+                    return original
+                }
                 return PreparedAudioSourceCache.getOrPrepare(
                     source = original,
                     outputRate = outputSampleRate,
@@ -288,6 +292,7 @@ internal class SampleVoiceRenderer {
     private var snapshot: SampleRenderSnapshot? = null
     private var key: PadTriggerKey? = null
     private var sourcePosition = 0.0
+    private var sourceFramesPerOutputFrame = 1.0
     private val sourceFrameBuffer = FloatArray(2)
     private var transitionFramesRemaining = 0
     private var transitionFramesTotal = 0
@@ -320,7 +325,8 @@ internal class SampleVoiceRenderer {
     }
 
     fun trigger(snapshot: SampleRenderSnapshot, key: PadTriggerKey, sequence: Long) {
-        check(snapshot.source.sampleRate == configuration.sampleRate)
+        sourceFramesPerOutputFrame =
+            snapshot.source.sampleRate.toDouble() / configuration.sampleRate
         if (isActive) {
             transitionLeft = lastLeft
             transitionRight = lastRight
@@ -404,7 +410,7 @@ internal class SampleVoiceRenderer {
             }
 
             val relativeFrame = if (active.warpMode == SampleWarpMode.Warp) {
-                (warpOutputFrames * tempoRatio).toLong().coerceAtLeast(0L)
+                (warpOutputFrames * tempoRatio * sourceFramesPerOutputFrame).toLong().coerceAtLeast(0L)
             } else {
                 (sourcePosition - active.startFrame).toLong().coerceAtLeast(0L)
             }
@@ -414,8 +420,10 @@ internal class SampleVoiceRenderer {
                 active,
                 relativeFrame,
                 modulation?.volumeGain?.get(modulationFrame) ?: active.volumeGain,
-                modulation?.fadeInFrames?.get(modulationFrame) ?: active.fadeInFrames,
-                modulation?.fadeOutFrames?.get(modulationFrame) ?: active.fadeOutFrames,
+                modulation?.fadeInFrames?.get(modulationFrame)
+                    ?: (active.fadeInFrames / sourceFramesPerOutputFrame).toInt(),
+                modulation?.fadeOutFrames?.get(modulationFrame)
+                    ?: (active.fadeOutFrames / sourceFramesPerOutputFrame).toInt(),
             )
             if (releaseFramesRemaining > 0) {
                 gain *= releaseFramesRemaining.toFloat() / releaseFramesTotal.toFloat()
@@ -445,8 +453,8 @@ internal class SampleVoiceRenderer {
                 }
             }
             when (active.warpMode) {
-                SampleWarpMode.Off -> sourcePosition += active.pitchRatio
-                SampleWarpMode.Repitch -> sourcePosition += tempoRatio * active.pitchRatio
+                SampleWarpMode.Off -> sourcePosition += active.pitchRatio * sourceFramesPerOutputFrame
+                SampleWarpMode.Repitch -> sourcePosition += tempoRatio * active.pitchRatio * sourceFramesPerOutputFrame
                 SampleWarpMode.Warp -> {
                     if (warpLatencyRemaining > 0) {
                         warpLatencyRemaining--
@@ -471,6 +479,7 @@ internal class SampleVoiceRenderer {
         snapshot = null
         key = null
         sourcePosition = 0.0
+        sourceFramesPerOutputFrame = 1.0
         transitionFramesRemaining = 0
         transitionFramesTotal = 0
         transitionLeft = 0f
@@ -521,11 +530,11 @@ internal class SampleVoiceRenderer {
         val blend = warpGrainPhase.toFloat() / WARP_GRAIN_HOP.toFloat()
         val currentPosition = wrapWarpPosition(
             snapshot,
-            warpCurrentGrainStart + warpGrainPhase * snapshot.pitchRatio,
+            warpCurrentGrainStart + warpGrainPhase * snapshot.pitchRatio * sourceFramesPerOutputFrame,
         )
         val previousPosition = wrapWarpPosition(
             snapshot,
-            warpPreviousGrainStart + (warpGrainPhase + WARP_GRAIN_HOP) * snapshot.pitchRatio,
+            warpPreviousGrainStart + (warpGrainPhase + WARP_GRAIN_HOP) * snapshot.pitchRatio * sourceFramesPerOutputFrame,
         )
         var channel = 0
         while (channel < 2) {
@@ -542,13 +551,13 @@ internal class SampleVoiceRenderer {
 
     private fun advanceWarp(snapshot: SampleRenderSnapshot) {
         warpOutputFrames++
-        warpConsumedSourceFrames += tempoRatio
+        warpConsumedSourceFrames += tempoRatio * sourceFramesPerOutputFrame
         warpGrainPhase++
         if (warpGrainPhase >= WARP_GRAIN_HOP) {
             warpGrainPhase = 0
             warpPreviousGrainStart = warpCurrentGrainStart
             warpPreviousGrainValid = true
-            warpCurrentGrainStart += WARP_GRAIN_HOP * tempoRatio
+            warpCurrentGrainStart += WARP_GRAIN_HOP * tempoRatio * sourceFramesPerOutputFrame
             if (snapshot.playbackMode == SamplePlaybackMode.GateLoop) {
                 warpCurrentGrainStart = wrapWarpPosition(snapshot, warpCurrentGrainStart)
             }
@@ -609,15 +618,17 @@ internal class SampleVoiceRenderer {
         fadeOutFrames: Int,
     ): Float {
         var gain = volumeGain
-        if (fadeInFrames > 0 && relativeFrame < fadeInFrames) {
-            gain *= relativeFrame.toFloat() / fadeInFrames.toFloat()
+        val relativeOutputFrame = relativeFrame.toDouble() / sourceFramesPerOutputFrame
+        val activeOutputFrames = snapshot.activeFrames.toDouble() / sourceFramesPerOutputFrame
+        if (fadeInFrames > 0 && relativeOutputFrame < fadeInFrames) {
+            gain *= (relativeOutputFrame / fadeInFrames).toFloat()
         }
-        val fadeOutStart = snapshot.activeFrames - fadeOutFrames
-        if (fadeOutFrames > 0 && relativeFrame >= fadeOutStart) {
-            gain *= (snapshot.activeFrames - relativeFrame).toFloat() / fadeOutFrames.toFloat()
+        val fadeOutStart = activeOutputFrames - fadeOutFrames
+        if (fadeOutFrames > 0 && relativeOutputFrame >= fadeOutStart) {
+            gain *= ((activeOutputFrames - relativeOutputFrame) / fadeOutFrames).toFloat()
         }
         snapshot.volumeAutomationLane?.let { automation ->
-            val timeMs = (relativeFrame.toDouble() * 1_000.0 / snapshot.source.sampleRate).toLong()
+            val timeMs = (relativeOutputFrame * 1_000.0 / configuration.sampleRate).toLong()
             gain *= automation.valueAt(timeMs, TimelineTrackAutomationTarget.VOLUME.defaultValue)
         }
         return gain

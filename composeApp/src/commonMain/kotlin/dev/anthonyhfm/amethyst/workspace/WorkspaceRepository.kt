@@ -628,7 +628,12 @@ object WorkspaceRepository {
         recursiveResetMulti(samplingChain)
     }
 
-    fun loadWorkspace(workspaceData: SavableWorkspaceData, fromRemote: Boolean = false) {
+    fun loadWorkspace(
+        workspaceData: SavableWorkspaceData,
+        fromRemote: Boolean = false,
+        preparedCacheRoot: String? = null,
+    ) {
+        dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.configurePersistentRoot(preparedCacheRoot)
         AutoPlayRepository.stopAutoPlay()
         TimelineRepository.stop()
         Echo.reset()
@@ -654,9 +659,23 @@ object WorkspaceRepository {
 
         // Audio is a dependency of timeline entries and sample devices. Publish the
         // complete library before either consumer is restored.
-        AudioLibraryRepository.load(workspaceData.audioSources)
-        lightsChain = workspaceData.lights.unpack()
-        samplingChain = workspaceData.sampling.unpackAudio()
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.audioLibrary") {
+            AudioLibraryRepository.load(workspaceData.audioSources)
+        }
+        fun reportDeviceProgress(value: Float, detail: String) {
+            val current = dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.loadingProgress.value ?: return
+            dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.reporter.update(
+                value, current.statusText, detailText = detail,
+            )
+        }
+        reportDeviceProgress(0.96f, "Light chains")
+        lightsChain = dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.lightChains") {
+            workspaceData.lights.unpack()
+        }
+        reportDeviceProgress(0.97f, "Audio chains")
+        samplingChain = dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.audioChains") {
+            workspaceData.sampling.unpackAudio()
+        }
 
         lightsChain.signalExit = {
             Heaven.midiEnter(it.filterIsInstance<Signal.LED>())
@@ -695,14 +714,27 @@ object WorkspaceRepository {
             undoable = false,
         )
 
-        TimelineRepository.loadTracks(workspaceData.timelineData)
-        migrateAudioEntries()
-        canonicalizeSampleSources(samplingChain)
+        reportDeviceProgress(0.98f, "Restoring project data")
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.timeline") {
+            TimelineRepository.loadTracks(workspaceData.timelineData)
+            migrateAudioEntries()
+            canonicalizeSampleSources(samplingChain)
+        }
 
         _bpm.update {
             workspaceData.settings.bpm
         }
-        Echo.attachAudioChain(samplingChain)
+        Echo.setPreferredSampleRate(
+            workspaceData.audioSources
+                .filter { it.sampleRate in 8_000..192_000 }
+                .groupBy { it.sampleRate }
+                .maxByOrNull { (_, sources) -> sources.sumOf { it.totalSamples } }
+                ?.key
+        )
+        reportDeviceProgress(0.985f, "Preparing audio")
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.audioPrepare") {
+            Echo.attachAudioChain(samplingChain)
+        }
 
         ViewportRepository.devices.value.forEach { device ->
             midiManager.detachElement(device)
@@ -736,7 +768,10 @@ object WorkspaceRepository {
             updateWorkspaceBounds()
         }
 
-        renderAnimationsInChain(lightsChain)
+        reportDeviceProgress(0.99f, "Animations")
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.animations") {
+            renderAnimationsInChain(lightsChain)
+        }
 
         _projectName.update {
             workspaceData.title

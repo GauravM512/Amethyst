@@ -235,7 +235,10 @@ struct ContentView: View {
                 viewModel: hubFeedViewModel,
                 searchText: $hubSearchText,
                 sessionRevision: accountViewModel.sessionRevision,
-                onShowProfile: { selectedHomeTab = .profile }
+                onShowProfile: { selectedHomeTab = .profile },
+                onOpenDownloadedFile: { url, projectID, title in
+                    viewModel.openDownloadedFile(url: url, projectID: projectID, title: title)
+                }
             )
             .tag(HomeTab.browser)
             .tabItem {
