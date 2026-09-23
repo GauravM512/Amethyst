@@ -62,7 +62,13 @@ struct RecentProjectRow: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(theme.muted)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        .swipeActions(edge: .trailing, allowsFullSwipe: onDeleteLocal == nil) {
+            if let onDeleteLocal {
+                Button(action: onDeleteLocal) {
+                    Label(localization.string("home_projects_delete_local", fallback: "Delete Local Project"), systemImage: "trash.slash")
+                }
+                .tint(theme.destructive)
+            }
             if let onRemove {
                 Button(role: .destructive, action: onRemove) {
                     Label(localization.string("common_remove", fallback: "Remove"), systemImage: "trash")
@@ -91,7 +97,8 @@ struct RecentProjectRow: View {
                 }
             }
             if let onDeleteLocal {
-                Button(role: .destructive, action: onDeleteLocal) {
+                // The project stays in the list until the confirmation action runs.
+                Button(action: onDeleteLocal) {
                     Label(localization.string("home_projects_delete_local", fallback: "Delete Local Project"), systemImage: "trash.slash")
                 }
             }

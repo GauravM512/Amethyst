@@ -789,7 +789,6 @@
     <string name="workspace_topappbar_mode_timeline">时间线</string>
     <string name="workspace_topappbar_mode_timeline_ios">时间线</string>
     <string name="workspace_topappbar_open_audio_library">音频库</string>
-    <string name="workspace_topappbar_open_audio_library_ios">音频库</string>
     <string name="workspace_topappbar_open_settings">打开设置</string>
     <string name="workspace_topappbar_open_settings_ios">打开设置</string>
     <string name="audio_library_title">音频库</string>
