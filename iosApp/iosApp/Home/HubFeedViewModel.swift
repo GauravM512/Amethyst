@@ -66,11 +66,6 @@ final class HubFeedViewModel {
         }
     }
 
-    func filteredSections(for query: String) -> [HubFeedSection] {
-        guard let feed else { return [] }
-        return feed.sections.compactMap { $0.filtered(matching: query) }
-    }
-
     func isFollowing(_ creator: HubCreatorItem) -> Bool {
         followOverrides[creator.username] ?? creator.isFollowing
     }

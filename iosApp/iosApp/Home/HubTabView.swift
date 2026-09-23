@@ -7,9 +7,11 @@
 //
 
 import SwiftUI
+import ComposeApp
 
 struct HubTabView: View {
     @Bindable var viewModel: HubFeedViewModel
+    @Bindable var searchViewModel: HubSearchViewModel
     @Binding var searchText: String
     let sessionRevision: Int
     let onShowProfile: () -> Void
@@ -23,7 +25,14 @@ struct HubTabView: View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 theme.surface.ignoresSafeArea()
-                content
+                HubSearchContent(
+                    query: searchText,
+                    searchViewModel: searchViewModel,
+                    repository: viewModel.repository,
+                    onOpen: { destination = $0 }
+                ) {
+                    feedContent
+                }
 
                 if let feedback = viewModel.feedback {
                     HubFeedbackBanner(
@@ -67,7 +76,7 @@ struct HubTabView: View {
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var feedContent: some View {
         if viewModel.isLoading, viewModel.feed == nil {
             VStack(spacing: 14) {
                 ProgressView()
@@ -102,11 +111,7 @@ struct HubTabView: View {
             .padding(24)
             .frame(maxWidth: 440)
         } else if let feed = viewModel.feed {
-            let sections = viewModel.filteredSections(for: searchText)
-            if sections.isEmpty, !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                ContentUnavailableView.search(text: searchText)
-                    .foregroundStyle(theme.onSurface)
-            } else if feed.sections.isEmpty {
+            if feed.sections.isEmpty {
                 ContentUnavailableView(
                     localization.string("home_hub_empty_title", fallback: "Nothing here yet"),
                     systemImage: "rectangle.stack",
@@ -115,7 +120,7 @@ struct HubTabView: View {
             } else {
                 GeometryReader { proxy in
                     HubFeedView(
-                        sections: sections,
+                        sections: feed.sections,
                         availableWidth: min(max(proxy.size.width - 40, 280), 960),
                         viewModel: viewModel,
                         onOpen: { destination = $0 }
@@ -125,6 +130,29 @@ struct HubTabView: View {
                     await viewModel.reload()
                 }
             }
+        }
+    }
+}
+
+private struct HubSearchContent<Feed: View>: View {
+    let query: String
+    @Bindable var searchViewModel: HubSearchViewModel
+    let repository: HubRepository
+    let onOpen: (HubDestination) -> Void
+    @ViewBuilder let feed: () -> Feed
+
+    @Environment(\.isSearching) private var isSearching
+
+    var body: some View {
+        if isSearching || !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            HubSearchView(
+                query: query,
+                viewModel: searchViewModel,
+                repository: repository,
+                onOpen: onOpen
+            )
+        } else {
+            feed()
         }
     }
 }

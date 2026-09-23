@@ -10,6 +10,7 @@ class GetHomeUseCase(private val client: HubApiClient) {
 }
 
 class SearchHubUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(query: String, limit: Int = 12): HubSearchResult =
         client.optionallyAuthorized { token ->
             client.http.get("${client.baseUrl}/search") {

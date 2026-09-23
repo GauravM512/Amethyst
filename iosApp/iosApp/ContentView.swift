@@ -99,6 +99,7 @@ struct ContentView: View {
     @State private var settingsViewModel = SettingsViewModel()
     @State private var accountViewModel: AccountViewModel
     @State private var hubFeedViewModel: HubFeedViewModel
+    @State private var hubSearchViewModel: HubSearchViewModel
     @State private var localization = AppLocalization()
     @State private var profileTabAvatar: UIImage?
     @State private var showSettingsSheet = false
@@ -111,6 +112,9 @@ struct ContentView: View {
         _accountViewModel = State(initialValue: accountViewModel)
         _hubFeedViewModel = State(
             initialValue: HubFeedViewModel(repository: accountViewModel.repository)
+        )
+        _hubSearchViewModel = State(
+            initialValue: HubSearchViewModel(repository: accountViewModel.repository)
         )
     }
 
@@ -233,6 +237,7 @@ struct ContentView: View {
 
             HubTabView(
                 viewModel: hubFeedViewModel,
+                searchViewModel: hubSearchViewModel,
                 searchText: $hubSearchText,
                 sessionRevision: accountViewModel.sessionRevision,
                 onShowProfile: { selectedHomeTab = .profile },

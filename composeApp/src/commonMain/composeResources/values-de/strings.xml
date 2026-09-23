@@ -188,6 +188,13 @@
     <string name="home_browser_title">Browser</string>
     <string name="home_browser_wip">Work in Progress</string>
     <string name="home_hub_search_placeholder">Suchen</string>
+    <string name="home_hub_search_prompt_title">Künstler und Projekte suchen</string>
+    <string name="home_hub_search_prompt_description">Durchsuche den gesamten Amethyst Hub.</string>
+    <string name="home_hub_search_artists">Künstler</string>
+    <string name="home_hub_search_projects">Projekte</string>
+    <string name="home_hub_search_error_title">Suche nicht verfügbar</string>
+    <string name="home_hub_search_error">Suche fehlgeschlagen. Bitte versuche es erneut.</string>
+    <string name="home_hub_search_limited">Die ersten 30 Ergebnisse werden angezeigt</string>
     <string name="home_hub_title">Amethyst Hub</string>
     <string name="home_hub_authentication_required">Melde dich an, um Künstlern zu folgen.</string>
     <string name="home_hub_detail_about">Über dieses Projekt</string>
