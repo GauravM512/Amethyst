@@ -126,6 +126,7 @@ class DeleteProjectThumbnailUseCase(private val client: HubApiClient) {
 }
 
 class GetLikedProjectsUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(cursor: String? = null, limit: Int = 24): HubProjectPage {
         return client.authorized { token ->
             client.http.get("${client.baseUrl}/v1/account/projects/liked") {

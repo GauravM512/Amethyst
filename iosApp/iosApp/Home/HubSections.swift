@@ -13,8 +13,10 @@ struct HubFeedView: View {
     let availableWidth: CGFloat
     @Bindable var viewModel: HubFeedViewModel
     let onOpen: (HubDestination) -> Void
+    let onShowAllProjects: () -> Void
 
     @Environment(\.amethystTheme) private var theme
+    @Environment(AppLocalization.self) private var localization
 
     var body: some View {
         ScrollView {
@@ -27,11 +29,25 @@ struct HubFeedView: View {
                         onOpen: onOpen
                     )
                 }
+
+                Button(action: onShowAllProjects) {
+                    HStack {
+                        Text(localization.string("home_hub_show_all_projects", fallback: "Show all projects"))
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.headline)
+                    .padding(.horizontal, 20)
+                    .frame(height: 54)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(theme.primary)
+                .padding(.top, 6)
             }
             .frame(maxWidth: 960, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.top, 8)
-            .padding(.bottom, 40)
+            .padding(.bottom, 110)
             .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.immediately)

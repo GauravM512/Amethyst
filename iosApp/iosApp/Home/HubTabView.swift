@@ -17,6 +17,9 @@ struct HubTabView: View {
     let onShowProfile: () -> Void
     let onOpenDownloadedFile: (URL, String, String) -> Void
     @State private var destination: HubDestination?
+    @State private var showLikedProjects = false
+    @State private var showProjects = false
+    @State private var likedProjectsRevision = 0
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -48,6 +51,34 @@ struct HubTabView: View {
             }
             .navigationTitle(localization.string("home_hub_title", fallback: "Amethyst Hub"))
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showLikedProjects = true
+                    } label: {
+                        Image(systemName: "heart")
+                    }
+                    .accessibilityLabel(localization.string("home_hub_liked_title", fallback: "Liked Projects"))
+                }
+            }
+            .navigationDestination(isPresented: $showLikedProjects) {
+                HubLikedProjectsView(
+                    repository: viewModel.repository,
+                    revision: "\(sessionRevision):\(likedProjectsRevision)",
+                    onOpen: { destination = $0 },
+                    onSignIn: {
+                        showLikedProjects = false
+                        onShowProfile()
+                    }
+                )
+            }
+            .navigationDestination(isPresented: $showProjects) {
+                HubProjectsView(
+                    repository: viewModel.repository,
+                    revision: "\(sessionRevision):\(likedProjectsRevision)",
+                    onOpen: { destination = $0 }
+                )
+            }
         }
         .searchable(
             text: $searchText,
@@ -59,7 +90,7 @@ struct HubTabView: View {
             await viewModel.reload()
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.feedback)
-        .sheet(item: $destination) { item in
+        .sheet(item: $destination, onDismiss: { likedProjectsRevision += 1 }) { item in
             HubDetailView(
                 destination: item,
                 repository: viewModel.repository,
@@ -123,7 +154,8 @@ struct HubTabView: View {
                         sections: feed.sections,
                         availableWidth: min(max(proxy.size.width - 40, 280), 960),
                         viewModel: viewModel,
-                        onOpen: { destination = $0 }
+                        onOpen: { destination = $0 },
+                        onShowAllProjects: { showProjects = true }
                     )
                 }
                 .refreshable {

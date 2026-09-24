@@ -4,6 +4,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 
 class BrowseProjectsUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
     suspend fun execute(
         cursor: String? = null,
         limit: Int = 24,
