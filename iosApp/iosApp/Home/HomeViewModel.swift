@@ -94,16 +94,40 @@ final class HomeViewModel {
         return original.lastPathComponent == "Original" && original.deletingLastPathComponent().standardizedFileURL.path.hasPrefix(projects + "/")
     }
 
-    func deleteStoredImport(path: String) {
-        guard isStoredImport(path: path) else { return }
-        let projectDirectory = URL(fileURLWithPath: path).deletingLastPathComponent().deletingLastPathComponent()
+    func canDeleteLocalProject(path: String) -> Bool {
+        managedProjectDeletionURL(path: path) != nil
+    }
+
+    func deleteLocalProject(path: String) {
+        guard let target = managedProjectDeletionURL(path: path) else { return }
         do {
-            try FileManager.default.removeItem(at: projectDirectory)
+            try FileManager.default.removeItem(at: target)
             HomeSwiftBridge.shared.removeRecentWorkspace(path: path)
             loadRecents()
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func managedProjectDeletionURL(path: String) -> URL? {
+        guard let documents = try? FileManager.default.url(
+            for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false
+        ) else { return nil }
+        let amethyst = documents.appendingPathComponent("Amethyst", isDirectory: true)
+            .standardizedFileURL.resolvingSymlinksInPath()
+        let file = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
+        let parent = file.deletingLastPathComponent()
+
+        if parent.lastPathComponent == "Original" {
+            let projectDirectory = parent.deletingLastPathComponent()
+            let projectsRoot = amethyst.appendingPathComponent("Projects", isDirectory: true)
+            if projectDirectory.deletingLastPathComponent() == projectsRoot {
+                return projectDirectory
+            }
+        }
+
+        let supported = ["ame", "als", "zip", "approj"]
+        return parent == amethyst && supported.contains(file.pathExtension.lowercased()) ? file : nil
     }
 
     func openRecent(_ project: RecentWorkspace) {

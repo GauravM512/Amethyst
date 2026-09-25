@@ -9,8 +9,11 @@ import dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf
 import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
 import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.Zip
+import dev.anthonyhfm.amethyst.core.util.UUID
+import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.core.util.determineProjectArchiveFormat
 import dev.anthonyhfm.amethyst.core.util.platform
+import dev.anthonyhfm.amethyst.core.util.isMobile
 import dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.data.findMaxMacroIndex
@@ -201,11 +204,31 @@ object HomeRepository {
         return true
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     suspend fun saveOpenMobileWorkspace(): Boolean = withContext(Dispatchers.Default) {
         val workspace = WorkspaceRepository.saveWorkspace()
-        val path = workspace.path ?: return@withContext true
-        if (mobileProjectForPath(path) == null) return@withContext true
-        cacheMobileWorkspace(path, workspace)
+        val path = workspace.path
+        if (path != null && mobileProjectForPath(path) != null) {
+            return@withContext cacheMobileWorkspace(path, workspace)
+        }
+        runCatching {
+            val savedPath = saveLocalWorkspace(workspace)
+            WorkspaceRepository.workspaceMeta = WorkspaceRepository.workspaceMeta?.copy(path = savedPath)
+            true
+        }.getOrDefault(false)
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private suspend fun saveLocalWorkspace(workspace: SavableWorkspaceData): String {
+        val bytes = Zip.encode(data = AmethystProtoBuf.encodeToByteArray(value = workspace))
+        val path = workspace.path
+        val file = if (path == null) {
+            MobileFileStorage.copyBytesToPersistentStorage(bytes, "Local-${UUID.randomUUID()}.ame")
+        } else {
+            MobileFileStorage.resolvePath(path).also { it.write(bytes) }
+        }
+        rememberRecentWorkspace(title = workspace.title, path = file.path)
+        return file.path
     }
 
     suspend fun openWorkspace(
@@ -258,6 +281,7 @@ object HomeRepository {
         }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     suspend fun createProject(
         name: String,
         author: String,
@@ -274,6 +298,9 @@ object HomeRepository {
                 )
             )
 
+            if (platform.isMobile) {
+                workspace.path = saveLocalWorkspace(workspace)
+            }
             saveLocalAuthor(author)
             WorkspaceRepository.loadWorkspace(workspace, preparedCacheRoot = preparedCacheRoot(workspace.path))
         }

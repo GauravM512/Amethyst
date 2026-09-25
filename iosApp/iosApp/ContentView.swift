@@ -229,7 +229,11 @@ struct ContentView: View {
 
     private var homeTabView: some View {
         TabView(selection: $selectedHomeTab) {
-            ProjectsTabView(viewModel: viewModel)
+            ProjectsTabView(
+                viewModel: viewModel,
+                repository: accountViewModel.repository,
+                onShowProfile: { selectedHomeTab = .profile }
+            )
                 .tag(HomeTab.projects)
                 .tabItem {
                     Label(localization.string("home_nav_tab_projects", fallback: "Projects"), systemImage: "folder")

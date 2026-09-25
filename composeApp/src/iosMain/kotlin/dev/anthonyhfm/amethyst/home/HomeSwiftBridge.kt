@@ -76,6 +76,9 @@ object HomeSwiftBridge {
     fun hasConvertedMobileProject(path: String): Boolean =
         HomeRepository.hasConvertedMobileProject(path)
 
+    fun mobileProjectForPath(path: String): MobileProjectRecord? =
+        HomeRepository.mobileProjectForPath(path)
+
     fun registerMobileProject(id: String, title: String, originalPath: String, importedAt: Long, hubProjectId: String?, sourceHash: String) {
         HomeRepository.registerMobileProject(
             MobileProjectRecord(id, title, originalPath, importedAt, hubProjectId, sourceHash = sourceHash)

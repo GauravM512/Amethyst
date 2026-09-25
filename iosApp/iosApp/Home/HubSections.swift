@@ -8,6 +8,10 @@
 
 import SwiftUI
 
+private enum HubFeedLayout {
+    static let edgeInset: CGFloat = 20
+}
+
 struct HubFeedView: View {
     let sections: [HubFeedSection]
     let availableWidth: CGFloat
@@ -42,10 +46,10 @@ struct HubFeedView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(theme.primary)
+                .padding(.horizontal, HubFeedLayout.edgeInset)
                 .padding(.top, 6)
             }
-            .frame(maxWidth: 960, alignment: .leading)
-            .padding(.horizontal, 20)
+            .frame(maxWidth: 1000, alignment: .leading)
             .padding(.top, 8)
             .padding(.bottom, 110)
             .frame(maxWidth: .infinity)
@@ -191,6 +195,7 @@ private struct HubCreatorRowSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HubSectionHeaderView(header: header)
+                .padding(.horizontal, HubFeedLayout.edgeInset)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 16) {
@@ -199,6 +204,7 @@ private struct HubCreatorRowSection: View {
                     }
                 }
                 .scrollTargetLayout()
+                .padding(.horizontal, HubFeedLayout.edgeInset)
                 .padding(.vertical, 4)
             }
             .scrollTargetBehavior(.viewAligned)
@@ -309,6 +315,7 @@ private struct HubHeroCarouselSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HubSectionHeaderView(header: header)
+                .padding(.horizontal, HubFeedLayout.edgeInset)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 16) {
@@ -322,6 +329,7 @@ private struct HubHeroCarouselSection: View {
                     }
                 }
                 .scrollTargetLayout()
+                .padding(.horizontal, HubFeedLayout.edgeInset)
                 .padding(.vertical, 4)
             }
             .scrollTargetBehavior(.viewAligned)
@@ -383,6 +391,7 @@ private struct HubSquareCardRowSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HubSectionHeaderView(header: header)
+                .padding(.horizontal, HubFeedLayout.edgeInset)
             HubSquareCardRow(items: items, onOpen: onOpen)
         }
     }
@@ -405,6 +414,7 @@ private struct HubSquareCardRow: View {
                 }
             }
             .scrollTargetLayout()
+            .padding(.horizontal, HubFeedLayout.edgeInset)
             .padding(.vertical, 4)
         }
         .scrollTargetBehavior(.viewAligned)
@@ -454,6 +464,7 @@ private struct HubMediaCardRowSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HubSectionHeaderView(header: header)
+                .padding(.horizontal, HubFeedLayout.edgeInset)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 14) {
@@ -467,6 +478,7 @@ private struct HubMediaCardRowSection: View {
                     }
                 }
                 .scrollTargetLayout()
+                .padding(.horizontal, HubFeedLayout.edgeInset)
                 .padding(.vertical, 4)
             }
             .scrollTargetBehavior(.viewAligned)
@@ -526,6 +538,7 @@ private struct HubDetailedListSection: View {
                 }
             }
         }
+        .padding(.horizontal, HubFeedLayout.edgeInset)
     }
 }
 
@@ -599,6 +612,7 @@ private struct HubSpotlightSection: View {
                 Spacer(minLength: 8)
             }
             .accessibilityLabel("\(localization.string("home_hub_more_like", fallback: "More like")) \(header.title)")
+            .padding(.horizontal, HubFeedLayout.edgeInset)
 
             HubSquareCardRow(items: spotlight.items, onOpen: onOpen)
 
@@ -607,6 +621,7 @@ private struct HubSpotlightSection: View {
                 .foregroundStyle(theme.onSurfaceVariant)
                 .lineLimit(3)
                 .frame(maxWidth: 680, alignment: .leading)
+                .padding(.horizontal, HubFeedLayout.edgeInset)
         }
     }
 }

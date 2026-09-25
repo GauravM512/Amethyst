@@ -1,16 +1,29 @@
 package dev.anthonyhfm.amethyst.hub.data
 
-class HubRepository(
-    baseUrl: String = HubApiClient.DEFAULT_BASE_URL,
-    bearerToken: String? = null,
-    refreshToken: String? = null,
-    onSessionChanged: ((HubSessionTokens?) -> Unit)? = null,
-) {
-    val client = HubApiClient(
-        baseUrl = baseUrl,
-        bearerToken = bearerToken,
-        refreshToken = refreshToken,
-        onSessionChanged = onSessionChanged,
+/** Platform-specific secure storage; session restore and updates remain in common Kotlin. */
+interface HubSessionStore {
+    fun load(): HubSessionTokens?
+    fun save(tokens: HubSessionTokens?)
+}
+
+class HubRepository internal constructor(val client: HubApiClient) {
+    constructor(
+        baseUrl: String = HubApiClient.DEFAULT_BASE_URL,
+        sessionStore: HubSessionStore,
+    ) : this(persistedHubClient(baseUrl, sessionStore))
+
+    constructor(
+        baseUrl: String = HubApiClient.DEFAULT_BASE_URL,
+        bearerToken: String? = null,
+        refreshToken: String? = null,
+        onSessionChanged: ((HubSessionTokens?) -> Unit)? = null,
+    ) : this(
+        HubApiClient(
+            baseUrl = baseUrl,
+            bearerToken = bearerToken,
+            refreshToken = refreshToken,
+            onSessionChanged = onSessionChanged,
+        )
     )
 
     val getHealth = GetHealthUseCase(client)
@@ -73,4 +86,14 @@ class HubRepository(
     val unfollowArtist = UnfollowArtistUseCase(client)
 
     fun close() = client.close()
+}
+
+private fun persistedHubClient(baseUrl: String, store: HubSessionStore): HubApiClient {
+    val tokens = store.load()
+    return HubApiClient(
+        baseUrl = baseUrl,
+        bearerToken = tokens?.accessToken,
+        refreshToken = tokens?.refreshToken,
+        onSessionChanged = store::save,
+    )
 }

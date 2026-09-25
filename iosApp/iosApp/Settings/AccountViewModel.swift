@@ -7,7 +7,6 @@
 
 import Foundation
 import ComposeApp
-import CommonCrypto
 
 @Observable
 @MainActor
@@ -39,31 +38,17 @@ final class AccountViewModel {
     private(set) var sessionRevision = 0
 
     let repository: HubRepository
-    private let defaults = UserDefaults.standard
-
-    private enum Keys {
-        static let accessToken = "amethyst.hub.accessToken"
-        static let refreshToken = "amethyst.hub.refreshToken"
-    }
+    private let accountService: HubAccountService
+    private let tokenStore: HubTokenStore
 
     init() {
-        let sessionDefaults = UserDefaults.standard
-        let accessToken = sessionDefaults.string(forKey: Keys.accessToken)
-        let refreshToken = sessionDefaults.string(forKey: Keys.refreshToken)
+        let store = HubTokenStore()
+        tokenStore = store
         repository = HubRepository(
             baseUrl: HubApiClient.companion.DEFAULT_BASE_URL,
-            bearerToken: accessToken,
-            refreshToken: refreshToken,
-            onSessionChanged: { tokens in
-                if let tokens {
-                    sessionDefaults.set(tokens.accessToken, forKey: Keys.accessToken)
-                    sessionDefaults.set(tokens.refreshToken, forKey: Keys.refreshToken)
-                } else {
-                    sessionDefaults.removeObject(forKey: Keys.accessToken)
-                    sessionDefaults.removeObject(forKey: Keys.refreshToken)
-                }
-            }
+            sessionStore: store
         )
+        accountService = HubAccountService(repository: repository)
 
         if repository.client.isAuthenticated {
             refreshAccount()
@@ -135,73 +120,24 @@ final class AccountViewModel {
 
         Task { [weak self] in
             do {
-                let passwordHash = try await PasswordPrehasher.hash(plainPassword, username: cleanUsername)
                 guard let self else { return }
+                let result: HubAuthResult
                 if selectedMode == .register {
-                    self.register(
+                    result = try await self.accountService.registerAndLogin(
                         username: cleanUsername,
-                        passwordHash: passwordHash,
+                        password: plainPassword,
                         displayName: registrationDisplayName,
                         email: registrationEmail
                     )
                 } else {
-                    self.login(
+                    result = try await self.accountService.login(
                         username: cleanUsername,
-                        passwordHash: passwordHash,
-                        legacyPassword: plainPassword
+                        password: plainPassword
                     )
                 }
+                self.handleAuthResult(result, error: nil)
             } catch {
                 self?.finish(errorMessage: error.localizedDescription)
-            }
-        }
-    }
-
-    private func register(username: String, passwordHash: String, displayName: String, email: String) {
-        let input = HubRegisterInput(
-            username: username,
-            password: passwordHash,
-            displayName: displayName,
-            email: email
-        )
-        repository.register_.execute(input: input) { [weak self] _, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let error {
-                    self.finish(errorMessage: error.localizedDescription)
-                    return
-                }
-                self.login(username: username, passwordHash: passwordHash, legacyPassword: nil)
-            }
-        }
-    }
-
-    private func login(username: String, passwordHash: String, legacyPassword: String?) {
-        performLogin(
-            username: username,
-            password: passwordHash,
-            legacyFallback: legacyPassword
-        )
-    }
-
-    private func performLogin(username: String, password: String, legacyFallback: String?) {
-        let input = HubLoginInput(
-            username: username,
-            password: password,
-            remember: true
-        )
-        repository.login.execute(input: input) { [weak self] result, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let error, let legacyFallback, self.isInvalidCredentials(error) {
-                    self.performLogin(
-                        username: username,
-                        password: legacyFallback,
-                        legacyFallback: nil
-                    )
-                    return
-                }
-                self.handleAuthResult(result, error: error)
             }
         }
     }
@@ -210,11 +146,14 @@ final class AccountViewModel {
         clearMessages()
         guard let challenge = mfaChallenge, !mfaCode.isEmpty else { return }
         isBusy = true
-        repository.completeMfa.execute(
-            input: HubMfaInput(challenge: challenge, code: mfaCode)
-        ) { [weak self] result, error in
-            Task { @MainActor [weak self] in
-                self?.handleAuthResult(result, error: error)
+        let code = mfaCode
+        Task { [weak self] in
+            do {
+                guard let self else { return }
+                let result = try await self.accountService.completeMfa(challenge: challenge, code: code)
+                self.handleAuthResult(result, error: nil)
+            } catch {
+                self?.finish(errorMessage: error.localizedDescription)
             }
         }
     }
@@ -314,15 +253,12 @@ final class AccountViewModel {
         let accountUsername = account?.username ?? normalizedUsername
         Task { [weak self] in
             do {
-                let currentHash = try await PasswordPrehasher.hash(current, username: accountUsername)
-                let newHash = try await PasswordPrehasher.hash(newPassword, username: accountUsername)
                 guard let self else { return }
-                self.performPasswordChange(
-                    currentCredential: currentHash,
-                    newPasswordHash: newHash,
-                    legacyFallback: current,
-                    completion: completion
+                _ = try await self.accountService.changePassword(
+                    username: accountUsername, current: current, replacement: newPassword
                 )
+                self.isBusy = false
+                completion(nil)
             } catch {
                 self?.isBusy = false
                 completion(error)
@@ -337,15 +273,12 @@ final class AccountViewModel {
         let accountUsername = account?.username ?? normalizedUsername
         Task { [weak self] in
             do {
-                let passwordHash = try await PasswordPrehasher.hash(password, username: accountUsername)
                 guard let self else { return }
-                self.performEmailChange(
-                    passwordCredential: passwordHash,
-                    newEmail: newEmail,
-                    code: code,
-                    legacyFallback: password,
-                    completion: completion
+                _ = try await self.accountService.changeEmail(
+                    username: accountUsername, password: password, email: newEmail, code: code
                 )
+                self.isBusy = false
+                completion(nil)
             } catch {
                 self?.isBusy = false
                 completion(error)
@@ -360,97 +293,15 @@ final class AccountViewModel {
         let accountUsername = account?.username ?? normalizedUsername
         Task { [weak self] in
             do {
-                let passwordHash = try await PasswordPrehasher.hash(password, username: accountUsername)
                 guard let self else { return }
-                self.performEmailRemoval(
-                    passwordCredential: passwordHash,
-                    code: code,
-                    legacyFallback: password,
-                    completion: completion
+                _ = try await self.accountService.removeEmail(
+                    username: accountUsername, password: password, code: code
                 )
+                self.isBusy = false
+                self.refreshAccount()
+                completion(nil)
             } catch {
                 self?.isBusy = false
-                completion(error)
-            }
-        }
-    }
-
-    private func performPasswordChange(
-        currentCredential: String,
-        newPasswordHash: String,
-        legacyFallback: String?,
-        completion: @escaping (Error?) -> Void
-    ) {
-        repository.changePassword.execute(
-            input: HubPasswordChangeInput(password: currentCredential, newPassword: newPasswordHash, code: "")
-        ) { [weak self] _, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let error, let legacyFallback, self.isInvalidCredentials(error) {
-                    self.performPasswordChange(
-                        currentCredential: legacyFallback,
-                        newPasswordHash: newPasswordHash,
-                        legacyFallback: nil,
-                        completion: completion
-                    )
-                    return
-                }
-                self.isBusy = false
-                completion(error)
-            }
-        }
-    }
-
-    private func performEmailChange(
-        passwordCredential: String,
-        newEmail: String,
-        code: String,
-        legacyFallback: String?,
-        completion: @escaping (Error?) -> Void
-    ) {
-        repository.changeEmail.execute(
-            input: HubEmailChangeInput(password: passwordCredential, email: newEmail, code: code)
-        ) { [weak self] _, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let error, let legacyFallback, self.isInvalidCredentials(error) {
-                    self.performEmailChange(
-                        passwordCredential: legacyFallback,
-                        newEmail: newEmail,
-                        code: code,
-                        legacyFallback: nil,
-                        completion: completion
-                    )
-                    return
-                }
-                self.isBusy = false
-                completion(error)
-            }
-        }
-    }
-
-    private func performEmailRemoval(
-        passwordCredential: String,
-        code: String,
-        legacyFallback: String?,
-        completion: @escaping (Error?) -> Void
-    ) {
-        repository.removeEmail.execute(
-            input: HubSensitiveInput(password: passwordCredential, code: code)
-        ) { [weak self] _, error in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let error, let legacyFallback, self.isInvalidCredentials(error) {
-                    self.performEmailRemoval(
-                        passwordCredential: legacyFallback,
-                        code: code,
-                        legacyFallback: nil,
-                        completion: completion
-                    )
-                    return
-                }
-                self.isBusy = false
-                if error == nil { self.refreshAccount() }
                 completion(error)
             }
         }
@@ -459,10 +310,10 @@ final class AccountViewModel {
     func signOut() {
         guard !isBusy else { return }
         isBusy = true
-        repository.logout.execute(sessionId: nil, all: false) { [weak self] _, _ in
-            Task { @MainActor [weak self] in
-                self?.signOutLocally()
-            }
+        Task { [weak self] in
+            guard let self else { return }
+            _ = try? await self.accountService.signOut()
+            self.signOutLocally()
         }
     }
 
@@ -496,19 +347,9 @@ final class AccountViewModel {
         successMessage = nil
     }
 
-    private func isInvalidCredentials(_ error: Error) -> Bool {
-        let nsError = error as NSError
-        if let hubError = nsError.kotlinException as? HubApiException {
-            return hubError.errorCode == "invalid_credentials"
-        }
-        return error.localizedDescription.contains("invalid_credentials")
-    }
-
     private func signOutLocally() {
         let hadSession = account != nil || repository.client.isAuthenticated
         repository.client.clearSession()
-        defaults.removeObject(forKey: Keys.accessToken)
-        defaults.removeObject(forKey: Keys.refreshToken)
         account = nil
         password = ""
         confirmation = ""
@@ -533,63 +374,4 @@ enum AccountViewModelError: LocalizedError {
 
 private func sharedString(_ key: String, fallback: String) -> String {
     IosLocalizationBridge.shared.string(key: key, fallback: fallback)
-}
-
-private enum PasswordPrehasher {
-    private static let prefix = "$prehash$v1$"
-    private static let iterations: UInt32 = 120_000
-    private static let derivedKeyLength = 32
-
-    static func hash(_ password: String, username: String) async throws -> String {
-        try await Task.detached(priority: .userInitiated) {
-            try derive(password: password, username: username)
-        }.value
-    }
-
-    private static func derive(password: String, username: String) throws -> String {
-        let passwordData = Data(password.utf8)
-        let normalizedUsername = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let saltData = Data("\(normalizedUsername):amethyst-prehash-v1".utf8)
-        var derivedKey = [UInt8](repeating: 0, count: derivedKeyLength)
-
-        let status = passwordData.withUnsafeBytes { passwordBytes in
-            saltData.withUnsafeBytes { saltBytes in
-                derivedKey.withUnsafeMutableBytes { derivedKeyBytes in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        passwordBytes.bindMemory(to: Int8.self).baseAddress,
-                        passwordData.count,
-                        saltBytes.bindMemory(to: UInt8.self).baseAddress,
-                        saltData.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        iterations,
-                        derivedKeyBytes.bindMemory(to: UInt8.self).baseAddress,
-                        derivedKeyLength
-                    )
-                }
-            }
-        }
-
-        guard status == kCCSuccess else {
-            throw PasswordPrehashError.derivationFailed(status)
-        }
-
-        let encoded = Data(derivedKey)
-            .base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-        return prefix + encoded
-    }
-}
-
-private enum PasswordPrehashError: LocalizedError {
-    case derivationFailed(Int32)
-
-    var errorDescription: String? {
-        switch self {
-        case .derivationFailed(let status):
-            return "Password preparation failed (\(status))."
-        }
-    }
 }

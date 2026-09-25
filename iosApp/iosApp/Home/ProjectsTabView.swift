@@ -18,8 +18,12 @@ import UIKit
 /// shared `HomeViewModel`.
 struct ProjectsTabView: View {
     @Bindable var viewModel: HomeViewModel
+    let repository: HubRepository
+    let onShowProfile: () -> Void
     @State private var projectToDelete: RecentWorkspace?
     @State private var recentRowFrames: [String: CGRect] = [:]
+    @State private var hubProjects: [String: ComposeApp.HubProject] = [:]
+    @State private var hubDestination: HubDestination?
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -57,6 +61,23 @@ struct ProjectsTabView: View {
             }
         }
         .tint(theme.glassForeground)
+        .sheet(item: $hubDestination) { destination in
+            HubDetailView(
+                destination: destination,
+                repository: repository,
+                onSignIn: {
+                    hubDestination = nil
+                    onShowProfile()
+                },
+                onOpenDownloadedFile: { url, projectID, title in
+                    hubDestination = nil
+                    viewModel.openDownloadedFile(url: url, projectID: projectID, title: title)
+                }
+            )
+        }
+        .task(id: downloadKey) {
+            await loadHubProjects()
+        }
         // ── File picker ────────────────────────────────────────────────
         .fileImporter(
             isPresented: $viewModel.showingFilePicker,
@@ -103,39 +124,122 @@ struct ProjectsTabView: View {
 
     private var recentList: some View {
         List {
-            ForEach(viewModel.recentProjects, id: \.path) { project in
-                RecentProjectRow(
-                    project: project,
-                    onOpen:   { viewModel.openRecent(project) },
-                    onEdit:   !viewModel.isStoredImport(path: project.path) && project.path.lowercased().hasSuffix(".ame")
-                        ? { viewModel.activeSheet = .editProject(path: project.path) } : nil,
-                    onRemove: viewModel.isStoredImport(path: project.path)
-                        ? nil : { viewModel.removeRecent(path: project.path) },
-                    onDeleteLocal: viewModel.isStoredImport(path: project.path) ? { projectToDelete = project } : nil
+            if !localProjects.isEmpty {
+                sectionHeading(localization.string("home_projects_local_section", fallback: "Local Projects"), isFirst: true)
+                ForEach(localProjects, id: \.path) { project in
+                    recentRow(project)
+                        .listRowSeparator(project.path == localProjects.last?.path ? .hidden : .visible, edges: .bottom)
+                }
+            }
+            if !downloadedProjects.isEmpty {
+                sectionHeading(
+                    localization.string("home_projects_downloaded_section", fallback: "Downloaded"),
+                    isFirst: localProjects.isEmpty
                 )
-                .background {
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: RecentRowFrameKey.self,
-                            value: [project.path: proxy.frame(in: .global)]
-                        )
-                    }
+                ForEach(downloadedProjects, id: \.path) { project in
+                    recentRow(project)
+                        .listRowSeparator(project.path == downloadedProjects.last?.path ? .hidden : .visible, edges: .bottom)
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(theme.background)
         .background {
             DeleteProjectConfirmationPresenter(
                 project: $projectToDelete,
                 rowFrames: recentRowFrames,
-                prompt: localization.string("home_projects_delete_local_confirm", fallback: "Delete this downloaded project from this device?"),
+                prompt: localization.string("home_projects_delete_local_confirm", fallback: "Delete this project and its files from this device?"),
                 deleteTitle: localization.string("home_projects_delete_local", fallback: "Delete Local Project"),
-                onDelete: { viewModel.deleteStoredImport(path: $0) }
+                onDelete: { viewModel.deleteLocalProject(path: $0) }
             )
         }
         .onPreferenceChange(RecentRowFrameKey.self) { recentRowFrames = $0 }
+    }
+
+    private func sectionHeading(_ title: String, isFirst: Bool) -> some View {
+        Text(title)
+            .font(.title3.weight(.bold))
+            .foregroundStyle(theme.foreground)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, isFirst ? 0 : 12)
+            .padding(.bottom, 2)
+            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+            .listRowSeparator(.hidden)
+            .listRowBackground(theme.background)
+    }
+
+    private var downloadedProjects: [RecentWorkspace] {
+        viewModel.recentProjects.filter { hubID(for: $0) != nil }
+    }
+
+    private var localProjects: [RecentWorkspace] {
+        viewModel.recentProjects.filter { hubID(for: $0) == nil }
+    }
+
+    private var downloadKey: String {
+        downloadedProjects.map { "\($0.path):\($0.title)" }.joined(separator: "|")
+    }
+
+    private func hubID(for project: RecentWorkspace) -> String? {
+        HomeSwiftBridge.shared.mobileProjectForPath(path: project.path)?.hubProjectId
+    }
+
+    private func recentRow(_ project: RecentWorkspace) -> some View {
+        let isStoredImport = viewModel.isStoredImport(path: project.path)
+        let canDelete = viewModel.canDeleteLocalProject(path: project.path)
+        let hubProject = hubID(for: project).flatMap { hubProjects[$0] }
+        return RecentProjectRow(
+            project: project,
+            isStoredImport: isStoredImport,
+            isHubDownload: hubID(for: project) != nil,
+            hubProject: hubProject,
+            repository: repository,
+            onOpen: { viewModel.openRecent(project) },
+            onViewHub: hubProject.map { item in
+                { hubDestination = .project(username: item.artist.username, slug: item.slug) }
+            },
+            onViewArtist: hubProject.map { item in
+                { hubDestination = .artist(item.artist.username) }
+            },
+            onEdit: !isStoredImport && project.path.lowercased().hasSuffix(".ame")
+                ? { viewModel.activeSheet = .editProject(path: project.path) } : nil,
+            onRemove: canDelete ? nil : { viewModel.removeRecent(path: project.path) },
+            onDeleteLocal: canDelete ? { projectToDelete = project } : nil
+        )
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: RecentRowFrameKey.self,
+                    value: [project.path: proxy.frame(in: .global)]
+                )
+            }
+        }
+    }
+
+    private func loadHubProjects() async {
+        for project in downloadedProjects {
+            guard !Task.isCancelled, let id = hubID(for: project), hubProjects[id] == nil else { continue }
+            do {
+                let page: ComposeApp.HubProjectPage = try await withCheckedThrowingContinuation { continuation in
+                    repository.browseProjects.execute(
+                        cursor: nil, limit: 50, compatibility: nil, type: nil,
+                        sort: nil, query: project.title, difficulty: nil
+                    ) { page, error in
+                        if let page {
+                            continuation.resume(returning: page)
+                        } else {
+                            continuation.resume(throwing: error ?? RecentProjectHubError.missingResponse)
+                        }
+                    }
+                }
+                if let match = page.items.first(where: { $0.id == id }) {
+                    hubProjects[id] = match
+                }
+            } catch {
+                // Local projects remain available when Hub metadata cannot be reached.
+            }
+        }
     }
 
     private var emptyState: some View {
@@ -195,6 +299,10 @@ struct ProjectsTabView: View {
             set:  { if !$0 { viewModel.errorMessage = nil } }
         )
     }
+}
+
+private enum RecentProjectHubError: Error {
+    case missingResponse
 }
 
 private struct RecentRowFrameKey: PreferenceKey {
