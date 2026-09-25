@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.home.ui.views
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,6 +36,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import amethyst.composeapp.generated.resources.Res
@@ -118,7 +122,7 @@ internal fun HubSearchContent(
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         HubFilterBar(filters, onChange = { filters = it })
         when {
             trimmed.isEmpty() && !browse -> HubSearchMessage(
@@ -231,7 +235,22 @@ private fun <T> HubFilterChip(title: String, selected: T, default: T, options: L
     var expanded by remember { mutableStateOf(false) }
     val selectedLabel = options.firstOrNull { it.first == selected }?.second?.let { stringResource(it) } ?: title
     Box {
-        FilterChip(selected = selected != default, onClick = { expanded = true }, label = { Text(if (selected == default) title else selectedLabel) })
+        FilterChip(
+            selected = selected != default,
+            onClick = { expanded = true },
+            label = { Text(if (selected == default) title else selectedLabel) },
+            trailingIcon = { androidx.compose.material3.Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+            shape = CircleShape,
+            border = null,
+            colors = FilterChipDefaults.filterChipColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                labelColor = MaterialTheme.colorScheme.onSurface,
+                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { (value, label) ->
                 DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = { expanded = false; onSelect(value) })

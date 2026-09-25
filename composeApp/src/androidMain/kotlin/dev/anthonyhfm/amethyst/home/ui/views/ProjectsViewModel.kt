@@ -13,6 +13,9 @@ import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ZippedProjectFormat
 import dev.anthonyhfm.amethyst.core.util.determineFormat
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
+import dev.anthonyhfm.amethyst.home.data.AndroidLocalProjectDeletion
+import dev.anthonyhfm.amethyst.home.data.AndroidProjectImporter
+import dev.anthonyhfm.amethyst.home.data.MobileProjectRecord
 import dev.anthonyhfm.amethyst.home.nav.HomeNavRoute
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import io.github.vinceglb.filekit.FileKit
@@ -20,8 +23,11 @@ import io.github.vinceglb.filekit.absolutePath
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import io.github.vinceglb.filekit.extension
+import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class ProjectsViewModel(
     private val navigator: NavHostController,
@@ -43,8 +49,7 @@ class ProjectsViewModel(
 
                     if (file == null) return@launch
 
-                    val persistentFile = MobileFileStorage.copyToPersistentStorage(file)
-                    val extension = persistentFile.extension.lowercase()
+                    val extension = file.extension.lowercase()
                     if (extension !in SUPPORTED_PROJECT_EXTENSIONS) {
                         snackbarHostState.showSnackbar(
                             message = getString(Res.string.home_projects_invalid_project_msg),
@@ -52,6 +57,27 @@ class ProjectsViewModel(
                         )
                         return@launch
                     }
+
+                    val imported = try {
+                        AndroidProjectImporter.importOriginal(file)
+                    } catch (error: Exception) {
+                        error.printStackTrace()
+                        snackbarHostState.showSnackbar(
+                            message = getString(Res.string.home_projects_file_read_failed),
+                            withDismissAction = true,
+                        )
+                        return@launch
+                    }
+                    val persistentFile = imported.file
+                    HomeRepository.registerMobileProject(
+                        MobileProjectRecord(
+                            id = imported.id,
+                            title = file.name.substringBeforeLast('.', file.name),
+                            originalPath = persistentFile.path,
+                            importedAt = System.currentTimeMillis(),
+                            sourceHash = imported.sha256,
+                        )
+                    )
 
                     when (extension) {
                         "ame" -> {
@@ -80,7 +106,16 @@ class ProjectsViewModel(
                         }
 
                         "zip" -> {
-                            val format = Zip.determineFormat(persistentFile)
+                            val format = try {
+                                Zip.determineFormat(persistentFile)
+                            } catch (error: Exception) {
+                                error.printStackTrace()
+                                snackbarHostState.showSnackbar(
+                                    message = getString(Res.string.home_projects_invalid_project_msg),
+                                    withDismissAction = true,
+                                )
+                                return@launch
+                            }
 
                             when (format) {
                                 ZippedProjectFormat.ABLETON -> {
@@ -119,6 +154,15 @@ class ProjectsViewModel(
 
             is ProjectsViewContract.Event.OpenProjectFromHistory -> {
                 viewModelScope.launch {
+                    val recentFile = MobileFileStorage.resolvePath(event.project.path)
+                    if (!HomeRepository.hasConvertedMobileProject(recentFile.path) &&
+                        (recentFile.extension.equals("als", ignoreCase = true) ||
+                            (recentFile.extension.equals("zip", ignoreCase = true) &&
+                                runCatching { Zip.determineFormat(recentFile) }.getOrNull() == ZippedProjectFormat.ABLETON))
+                    ) {
+                        navigator.navigate(HomeNavRoute.AbletonImportWizard(recentFile.path))
+                        return@launch
+                    }
                     runWorkspaceLoad(
                         loadingText = getString(Res.string.home_projects_opening_project_msg),
                         errorMessage = getString(Res.string.home_projects_failed_open_recent_msg),
@@ -134,7 +178,19 @@ class ProjectsViewModel(
             }
 
             is ProjectsViewContract.Event.OnClickDeleteProject -> {
-                HomeRepository.removeRecentWorkspace(event.path)
+                viewModelScope.launch {
+                    val deleted = withContext(Dispatchers.IO) {
+                        AndroidLocalProjectDeletion.delete(event.path)
+                    }
+                    if (deleted) {
+                        HomeRepository.removeRecentWorkspace(event.path)
+                        triggerEffect(ProjectsViewContract.Effect.ProjectDeleted)
+                    }
+                    else snackbarHostState.showSnackbar(
+                        message = getString(Res.string.home_projects_delete_local_error),
+                        withDismissAction = true,
+                    )
+                }
             }
         }
     }
@@ -200,6 +256,7 @@ sealed interface ProjectsViewContract {
 
     sealed interface Effect {
         data object OpenWorkspace : Effect
+        data object ProjectDeleted : Effect
         data object ShowCreateSheet : Effect
         data class ShowEditSheet(val projectPath: String) : Effect
     }

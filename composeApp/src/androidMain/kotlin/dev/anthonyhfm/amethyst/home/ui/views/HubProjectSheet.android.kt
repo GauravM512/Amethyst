@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.text.format.Formatter
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +23,10 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -63,6 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -70,11 +76,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
-import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
 import dev.anthonyhfm.amethyst.home.account.AndroidHubAccount
-import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.hub.data.HubProject
+import dev.anthonyhfm.amethyst.hub.data.HubProjectCompatibility
 import dev.anthonyhfm.amethyst.hub.data.HubProjectType
+import dev.anthonyhfm.amethyst.settings.data.HubSettings
+import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.json.JSONObject
@@ -92,9 +99,10 @@ internal fun HubProjectSheet(
     onClose: () -> Unit,
     onSignIn: () -> Unit,
     onOpenArtist: (String) -> Unit,
-    onOpenWorkspace: () -> Unit,
+    onDownloadedFile: (PlatformFile) -> Unit,
 ) {
     val context = LocalContext.current
+    val contentHeight = (LocalConfiguration.current.screenHeightDp.dp - 112.dp).coerceAtLeast(280.dp)
     val scope = rememberCoroutineScope()
     var project by remember(username, slug) { mutableStateOf<HubProject?>(null) }
     var loading by remember(username, slug) { mutableStateOf(true) }
@@ -103,6 +111,12 @@ internal fun HubProjectSheet(
     var actionError by remember { mutableStateOf<String?>(null) }
     var likeBusy by remember { mutableStateOf(false) }
     var downloadBusy by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf<Float?>(null) }
+    val animatedProgress by animateFloatAsState(
+        targetValue = downloadProgress ?: 0f,
+        animationSpec = tween(durationMillis = 200, easing = LinearEasing),
+        label = "Hub download progress",
+    )
     val shareUrl = remember(username, slug) { "https://projects.launchpadders.com/@$username/$slug" }
     val likeError = stringResource(Res.string.home_hub_detail_like_error)
     val downloadError = stringResource(Res.string.home_hub_detail_download_error)
@@ -128,6 +142,8 @@ internal fun HubProjectSheet(
         sheetState = sheetState,
         sheetMaxWidth = 720.dp,
         containerColor = MaterialTheme.colorScheme.surface,
+        // A fixed content height keeps the sheet anchors stable while its offset changes.
+        contentWindowInsets = { WindowInsets(0) },
         dragHandle = {
             TopAppBar(
                 title = {},
@@ -163,7 +179,7 @@ internal fun HubProjectSheet(
             )
         },
     ) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight(0.96f), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().height(contentHeight), horizontalAlignment = Alignment.CenterHorizontally) {
 
                 when {
                     loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -177,6 +193,9 @@ internal fun HubProjectSheet(
                         val externalUrl = current.externalDownloadUrl?.takeIf(String::isNotBlank) ?: description.externalDownloadUrl
                         val internalSource = current.overrideDownloadUrl ?: current.downloadUrl ?: current.packageName?.let { "/projects/${current.id}/download" }
                         val youtubeUrl = remember(current.youtubeUrl) { validYoutubeUrl(current.youtubeUrl) }
+                        val canImport = HubProjectDownloader.canImport(account.repository, current, externalUrl) &&
+                            (externalUrl != null || HubSettings.ignoreCompatibility.value || current.projectType == HubProjectType.amethyst ||
+                                current.compatibility == HubProjectCompatibility.compatible || current.overrideDownloadUrl != null)
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                             contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
@@ -209,40 +228,57 @@ internal fun HubProjectSheet(
 
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                         if (externalUrl != null || internalSource != null) {
-                                            Button(
-                                                onClick = {
-                                                    when {
-                                                        externalUrl != null -> openHubLink(context, externalUrl) { actionError = downloadError }
-                                                        internalSource != null -> scope.launch {
+                                            val progress = downloadProgress
+                                            Box(Modifier.fillMaxWidth().height(52.dp).clip(CircleShape)) {
+                                                Box(
+                                                    Modifier.fillMaxSize().background(
+                                                        if (downloadBusy) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                                        else MaterialTheme.colorScheme.primary
+                                                    )
+                                                )
+                                                if (downloadBusy && progress != null) {
+                                                    Box(
+                                                        Modifier.fillMaxHeight().fillMaxWidth(animatedProgress.coerceIn(0f, 1f))
+                                                            .background(MaterialTheme.colorScheme.primary)
+                                                    )
+                                                }
+                                                Button(
+                                                    onClick = {
+                                                        if (!canImport) {
+                                                            openHubLink(context, externalUrl ?: account.repository.client.resolveUrl(internalSource!!)) { actionError = downloadError }
+                                                        } else scope.launch {
                                                             downloadBusy = true
+                                                            downloadProgress = null
                                                             try {
-                                                                val extension = when {
-                                                                    current.overrideDownloadUrl != null -> "ame"
-                                                                    current.projectType == HubProjectType.ableton -> "als"
-                                                                    current.projectType == HubProjectType.apollo -> "approj"
-                                                                    current.projectType == HubProjectType.unipad -> "zip"
-                                                                    else -> "ame"
-                                                                }
-                                                                val bytes = if (current.overrideDownloadUrl != null) account.repository.downloadOverride.execute(current.id)
-                                                                    else account.repository.downloadPackage.execute(current.id)
-                                                                val filename = "Hub-${current.id.take(12)}-${System.currentTimeMillis()}.$extension"
-                                                                val file = MobileFileStorage.copyBytesToPersistentStorage(bytes, filename)
-                                                                val workspace = HomeRepository.loadWorkspaceData(file)
-                                                                HomeRepository.openWorkspace(workspace, rememberRecent = true)
-                                                                onClose()
-                                                                onOpenWorkspace()
-                                                            } catch (_: Exception) { actionError = downloadError }
+                                                                val file = HubProjectDownloader.download(account.repository, current, externalUrl) { downloadProgress = it }
+                                                                onDownloadedFile(file)
+                                                            } catch (failure: Exception) {
+                                                                android.util.Log.e("HubProjectDownload", "Could not import Hub project ${current.id}", failure)
+                                                                actionError = downloadError
+                                                            }
                                                             finally { downloadBusy = false }
                                                         }
-                                                    }
-                                                },
-                                                enabled = !downloadBusy,
-                                                modifier = Modifier.fillMaxWidth().height(52.dp),
-                                            ) {
-                                                if (downloadBusy) CircularProgressIndicator(Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary)
-                                                else Icon(Icons.Default.Download, contentDescription = null)
-                                                Spacer(Modifier.width(10.dp))
-                                                Text(stringResource(if (externalUrl != null) Res.string.home_hub_detail_download else Res.string.home_hub_detail_download_open))
+                                                    },
+                                                    enabled = !downloadBusy,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = Color.Transparent,
+                                                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                                                        disabledContainerColor = Color.Transparent,
+                                                        disabledContentColor = MaterialTheme.colorScheme.onPrimary,
+                                                    ),
+                                                ) {
+                                                    Icon(Icons.Default.Download, contentDescription = null)
+                                                    Spacer(Modifier.width(10.dp))
+                                                    Text(
+                                                        when {
+                                                            downloadBusy && progress != null -> "${stringResource(Res.string.home_hub_detail_downloading)} (${(progress * 100).toInt()}%)"
+                                                            downloadBusy -> stringResource(Res.string.home_hub_detail_downloading)
+                                                            canImport -> stringResource(Res.string.home_hub_detail_download_open)
+                                                            else -> stringResource(Res.string.home_hub_detail_download)
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                         if (youtubeUrl != null) FilledTonalButton(
@@ -273,7 +309,17 @@ internal fun HubProjectSheet(
                                         HubProjectDifficulty(stringResource(Res.string.home_hub_detail_difficulty), current.difficulty)
                                         val published = current.publishedAt ?: current.created
                                         if (published > 0) HubProjectAttribute(stringResource(Res.string.home_hub_detail_published), DateFormat.getDateInstance(DateFormat.LONG).format(Date(published * 1000)))
-                                        current.packageName?.let { HubProjectAttribute(stringResource(Res.string.home_hub_detail_package_file), it) }
+                                        if (current.overrideDownloadUrl != null) {
+                                            val overrideName = current.overrideName ?: "Amethyst .ame"
+                                            val overrideValue = current.overrideSize?.let { "$overrideName (${Formatter.formatFileSize(context, it)})" } ?: overrideName
+                                            HubProjectAttribute(stringResource(Res.string.home_hub_detail_amethyst_file), overrideValue)
+                                        }
+                                        if (current.packageName != null) HubProjectAttribute(stringResource(Res.string.home_hub_detail_package_file), current.packageName)
+                                        else externalUrl?.let { url ->
+                                            Uri.parse(url).host?.let { host ->
+                                                HubProjectAttribute(stringResource(Res.string.home_hub_detail_download_source), host)
+                                            }
+                                        }
                                         current.packageSize?.let { HubProjectAttribute(stringResource(Res.string.home_hub_detail_size), Formatter.formatFileSize(context, it)) }
                                     }
                                 }

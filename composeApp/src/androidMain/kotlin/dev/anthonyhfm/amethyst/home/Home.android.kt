@@ -8,10 +8,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -33,6 +37,19 @@ import dev.anthonyhfm.amethyst.home.ui.views.EditProfileScreen
 import dev.anthonyhfm.amethyst.home.ui.views.HubDetailScreen
 import dev.anthonyhfm.amethyst.home.ui.views.HubLikedScreen
 import dev.anthonyhfm.amethyst.home.ui.views.HubProjectSheet
+import dev.anthonyhfm.amethyst.home.data.HomeRepository
+import dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager
+import dev.anthonyhfm.amethyst.core.util.Zip
+import dev.anthonyhfm.amethyst.core.util.ZippedProjectFormat
+import dev.anthonyhfm.amethyst.core.util.determineFormat
+import io.github.vinceglb.filekit.extension
+import io.github.vinceglb.filekit.path
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import amethyst.composeapp.generated.resources.Res
+import amethyst.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 actual fun Home(
@@ -42,6 +59,17 @@ actual fun Home(
     val currentBackStackEntry by navigator.currentBackStackEntryAsState()
     val currentTab = HomeNavigationTab.fromRoute(currentBackStackEntry?.destination?.route)
     var selectedProject by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var openError by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val openingText = stringResource(Res.string.home_projects_opening_project_msg)
+    val openErrorText = stringResource(Res.string.home_projects_failed_open_recent_msg)
+
+    if (openError) AlertDialog(
+        onDismissRequest = { openError = false },
+        title = { Text(stringResource(Res.string.home_hub_title)) },
+        text = { Text(openErrorText) },
+        confirmButton = { TextButton(onClick = { openError = false }) { Text(stringResource(Res.string.home_hub_dismiss)) } },
+    )
 
     AdaptiveHomeNavLayout(
         navigator = navigator,
@@ -172,7 +200,37 @@ actual fun Home(
             onClose = { selectedProject = null },
             onSignIn = { selectedProject = null; navigator.navigate(HomeNavRoute.ProfileAuth) },
             onOpenArtist = { artist -> selectedProject = null; navigator.navigate(HomeNavRoute.HubDetail(artist, null)) },
-            onOpenWorkspace = onOpenWorkspace,
+            onDownloadedFile = { file ->
+                selectedProject = null
+                scope.launch {
+                    var loadingShown = false
+                    try {
+                        val isAbleton = when (file.extension.lowercase()) {
+                            "als" -> true
+                            "zip" -> withContext(Dispatchers.IO) {
+                                Zip.determineFormat(file) == ZippedProjectFormat.ABLETON
+                            }
+                            else -> false
+                        }
+                        if (isAbleton) {
+                            navigator.navigate(HomeNavRoute.AbletonImportWizard(file.path))
+                        } else {
+                            ProjectLoadingManager.startLoading(initialStatus = openingText)
+                            navigator.navigate(HomeNavRoute.LoadingScreen(openingText))
+                            loadingShown = true
+                            val workspace = HomeRepository.loadWorkspaceData(file)
+                            HomeRepository.openWorkspace(workspace, rememberRecent = true)
+                            ProjectLoadingManager.finishLoading()
+                            onOpenWorkspace()
+                        }
+                    } catch (error: Exception) {
+                        error.printStackTrace()
+                        ProjectLoadingManager.finishLoading()
+                        if (loadingShown) navigator.popBackStack()
+                        openError = true
+                    }
+                }
+            },
         )
     }
 }

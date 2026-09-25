@@ -202,7 +202,7 @@ struct HubSearchView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.surface)
+        .background(theme.background.ignoresSafeArea())
         .task(id: requestKey) { await viewModel.search(query: query, filters: filters) }
         .onDisappear { viewModel.clear() }
     }

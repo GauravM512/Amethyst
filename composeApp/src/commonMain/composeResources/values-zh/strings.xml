@@ -382,6 +382,7 @@
     <string name="home_projects_item_menu_remove">从最近列表中移除</string>
     <string name="home_projects_delete_local">删除本地工程</string>
     <string name="home_projects_delete_local_confirm">要从此设备删除该工程及其文件吗？</string>
+    <string name="home_projects_delete_local_error">无法删除本地工程。</string>
     <string name="home_projects_item_options_desc">工程选项</string>
     <string name="home_projects_loading_project_msg">正在加载工程</string>
     <string name="home_projects_new_button">新建工程</string>

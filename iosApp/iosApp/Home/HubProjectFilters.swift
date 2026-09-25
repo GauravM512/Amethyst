@@ -156,6 +156,7 @@ struct HubProjectFilterBar: View {
             .frame(height: 38)
             .background(isSelected ? theme.primary : theme.surfaceContainerHigh, in: Capsule())
         }
+        .buttonStyle(.plain)
         .accessibilityLabel(isSelected ? "\(title): \(selectedLabel)" : title)
     }
 

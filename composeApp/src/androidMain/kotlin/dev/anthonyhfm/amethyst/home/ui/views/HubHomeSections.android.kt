@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.home.ui.views
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,28 +18,46 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import amethyst.composeapp.generated.resources.Res
+import amethyst.composeapp.generated.resources.*
+import dev.anthonyhfm.amethyst.home.account.AndroidHubAccount
+import dev.anthonyhfm.amethyst.hub.data.HubCreatorItem
 import dev.anthonyhfm.amethyst.hub.data.HubHomeSection
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import java.text.NumberFormat
 
 private val hubEdge = 20.dp
 
 @Composable
 internal fun HubHomeSectionView(
     section: HubHomeSection,
+    account: AndroidHubAccount,
     onOpenHref: (String?) -> Unit,
     onAction: (String?) -> Unit,
+    onSignIn: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         HubSectionHeader(section.title, section.actionHref) { onAction(section.actionHref) }
@@ -48,15 +67,7 @@ internal fun HubHomeSectionView(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = hubEdge),
             ) {
                 items(section.items, key = { it.id }) { artist ->
-                    Column(
-                        Modifier.width(104.dp).clickable { onOpenHref(artist.href ?: "/@${artist.username}") },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        HubArtwork(artist.imageUrl, Modifier.size(88.dp), CircleShape, Icons.Default.Person)
-                        Text(artist.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("@${artist.username}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+                    HubCreatorCard(artist, account, onOpenHref, onSignIn)
                 }
             }
             is HubHomeSection.HeroCarousel -> BoxWithConstraints {
@@ -66,21 +77,13 @@ internal fun HubHomeSectionView(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = hubEdge),
                 ) {
                     items(section.items, key = { it.id }) { project ->
-                        Card(
-                            onClick = { onOpenHref(project.href) },
-                            modifier = Modifier.width(cardWidth),
-                            shape = MaterialTheme.shapes.extraLarge,
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                        ) {
+                        Column(Modifier.width(cardWidth).clickable { onOpenHref(project.href) }) {
                             HubArtwork(project.imageUrl, Modifier.fillMaxWidth().aspectRatio(1.55f), MaterialTheme.shapes.extraLarge)
-                            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 HubArtwork(project.creatorAvatarUrl, Modifier.size(38.dp), CircleShape, Icons.Default.Person)
                                 Column(Modifier.weight(1f)) {
                                     Text(project.creatorName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                     Text(project.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.padding(10.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                                 }
                             }
                         }
@@ -132,6 +135,78 @@ internal fun HubHomeSectionView(
 }
 
 @Composable
+private fun HubCreatorCard(
+    artist: HubCreatorItem,
+    account: AndroidHubAccount,
+    onOpenHref: (String?) -> Unit,
+    onSignIn: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var following by remember(artist.username, account.sessionRevision) { mutableStateOf(artist.isFollowing == true) }
+    var followers by remember(artist.username, account.sessionRevision) { mutableStateOf(artist.followersCount ?: 0L) }
+    var busy by remember(artist.username) { mutableStateOf(false) }
+    var failed by remember(artist.username) { mutableStateOf(false) }
+    val followLabel = stringResource(if (following) Res.string.home_hub_unfollow else Res.string.home_hub_follow)
+    if (failed) AlertDialog(
+        onDismissRequest = { failed = false },
+        title = { Text(stringResource(Res.string.home_hub_title)) },
+        text = { Text(stringResource(Res.string.home_hub_follow_error)) },
+        confirmButton = { TextButton(onClick = { failed = false }) { Text(stringResource(Res.string.home_hub_dismiss)) } },
+    )
+    Box(Modifier.width(92.dp)) {
+        Column(
+            Modifier.width(92.dp).clickable { onOpenHref(artist.href ?: "/@${artist.username}") },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            HubArtwork(artist.imageUrl, Modifier.size(76.dp), CircleShape, Icons.Default.Person)
+            Text(artist.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("@${artist.username}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                "${NumberFormat.getIntegerInstance().format(followers)} ${stringResource(if (followers == 1L) Res.string.home_hub_follower else Res.string.home_hub_followers)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+        IconButton(
+            onClick = {
+                if (!account.repository.client.isAuthenticated) { onSignIn(); return@IconButton }
+                val oldFollowing = following
+                val oldFollowers = followers
+                following = !following
+                followers = (followers + if (following) 1 else -1).coerceAtLeast(0)
+                scope.launch {
+                    busy = true
+                    try {
+                        val result = if (following) account.repository.followArtist.execute(artist.username)
+                            else account.repository.unfollowArtist.execute(artist.username)
+                        following = result.following
+                        followers = result.followersCount
+                    } catch (_: Exception) {
+                        following = oldFollowing
+                        followers = oldFollowers
+                        failed = true
+                    } finally { busy = false }
+                }
+            },
+            enabled = !busy,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 48.dp),
+        ) {
+            Surface(shape = CircleShape, color = if (following) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary) {
+                if (busy) CircularProgressIndicator(Modifier.padding(6.dp).size(16.dp), strokeWidth = 2.dp)
+                else Icon(
+                    if (following) Icons.Default.Check else Icons.Default.Add,
+                    contentDescription = "$followLabel ${artist.title}",
+                    modifier = Modifier.padding(6.dp).size(16.dp),
+                    tint = if (following) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun HubSectionHeader(title: String, actionHref: String?, onAction: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = hubEdge),
@@ -140,7 +215,7 @@ private fun HubSectionHeader(title: String, actionHref: String?, onAction: () ->
     ) {
         Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
         if (actionHref != null) Surface(onClick = onAction, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = title, modifier = Modifier.padding(8.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = title, modifier = Modifier.padding(12.dp))
         }
     }
 }

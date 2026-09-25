@@ -204,7 +204,6 @@ struct ProjectsTabView: View {
             },
             onEdit: !isStoredImport && project.path.lowercased().hasSuffix(".ame")
                 ? { viewModel.activeSheet = .editProject(path: project.path) } : nil,
-            onRemove: canDelete ? nil : { viewModel.removeRecent(path: project.path) },
             onDeleteLocal: canDelete ? { projectToDelete = project } : nil
         )
         .background {

@@ -157,7 +157,13 @@ fun BrowserView(navigator: NavHostController, onOpenProject: (String, String) ->
                         verticalArrangement = Arrangement.spacedBy(30.dp),
                     ) {
                         items(feed!!.sections, key = { it.id }) { section ->
-                            HubHomeSectionView(section, onOpenHref = ::openHref, onAction = ::openHref)
+                            HubHomeSectionView(
+                                section = section,
+                                account = account,
+                                onOpenHref = ::openHref,
+                                onAction = ::openHref,
+                                onSignIn = { navigator.navigate(HomeNavRoute.ProfileAuth) },
+                            )
                         }
                         item(key = "all_projects") {
                             Button(
@@ -174,6 +180,7 @@ fun BrowserView(navigator: NavHostController, onOpenProject: (String, String) ->
     ExpandedFullScreenSearchBar(
         state = searchState,
         inputField = inputField,
+        colors = SearchBarDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         HubSearchContent(

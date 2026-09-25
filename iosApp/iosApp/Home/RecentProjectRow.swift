@@ -11,7 +11,6 @@ struct RecentProjectRow: View {
     let onViewHub: (() -> Void)?
     let onViewArtist: (() -> Void)?
     let onEdit: (() -> Void)?
-    let onRemove: (() -> Void)?
     let onDeleteLocal: (() -> Void)?
 
     @Environment(\.amethystTheme) private var theme
@@ -63,17 +62,12 @@ struct RecentProjectRow: View {
         }
         .padding(.vertical, 5)
         .listRowBackground(theme.background)
-        .swipeActions(edge: .trailing, allowsFullSwipe: onDeleteLocal == nil) {
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if let onDeleteLocal {
                 Button(action: onDeleteLocal) {
                     Label(localization.string("home_projects_delete_local", fallback: "Delete Local Project"), systemImage: "trash.slash")
                 }
                 .tint(theme.destructive)
-            }
-            if let onRemove {
-                Button(role: .destructive, action: onRemove) {
-                    Label(localization.string("common_remove", fallback: "Remove"), systemImage: "trash")
-                }
             }
         }
         .contextMenu { actions }
@@ -105,12 +99,7 @@ struct RecentProjectRow: View {
                 Label(localization.string("home_projects_item_menu_edit", fallback: "Edit Details"), systemImage: "pencil")
             }
         }
-        if onRemove != nil || onDeleteLocal != nil { Divider() }
-        if let onRemove {
-            Button(role: .destructive, action: onRemove) {
-                Label(localization.string("home_projects_item_menu_remove", fallback: "Remove from Recent"), systemImage: "trash")
-            }
-        }
+        if onDeleteLocal != nil { Divider() }
         if let onDeleteLocal {
             Button(action: onDeleteLocal) {
                 Label(localization.string("home_projects_delete_local", fallback: "Delete Local Project"), systemImage: "trash.slash")

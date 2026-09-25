@@ -386,6 +386,7 @@
     <string name="home_projects_item_menu_remove">Aus Verlauf entfernen</string>
     <string name="home_projects_delete_local">Lokales Projekt löschen</string>
     <string name="home_projects_delete_local_confirm">Dieses Projekt und seine Dateien von diesem Gerät löschen?</string>
+    <string name="home_projects_delete_local_error">Das lokale Projekt konnte nicht gelöscht werden.</string>
     <string name="home_projects_item_options_desc">Projekt-Optionen</string>
     <string name="home_projects_loading_project_msg">Projekt wird geladen</string>
     <string name="home_projects_new_button">Neues Projekt</string>

@@ -386,6 +386,7 @@
     <string name="home_projects_item_menu_remove">Remove from recent</string>
     <string name="home_projects_delete_local">Delete Local Project</string>
     <string name="home_projects_delete_local_confirm">Delete this project and its files from this device?</string>
+    <string name="home_projects_delete_local_error">Could not delete the local project.</string>
     <string name="home_projects_item_options_desc">Project options</string>
     <string name="home_projects_loading_project_msg">Loading Project</string>
     <string name="home_projects_new_button">New Project</string>

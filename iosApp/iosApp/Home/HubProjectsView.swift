@@ -107,7 +107,7 @@ struct HubProjectsView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await reload() }
-        .background(theme.surface.ignoresSafeArea())
+        .background(theme.background.ignoresSafeArea())
         .navigationTitle(localization.string("home_hub_catalog_title", fallback: "Explore Projects"))
         .navigationBarTitleDisplayMode(.large)
         .task(id: requestKey) { await reload(debounce: true) }
