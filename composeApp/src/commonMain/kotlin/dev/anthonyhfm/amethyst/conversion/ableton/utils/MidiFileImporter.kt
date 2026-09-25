@@ -181,7 +181,7 @@ object MidiFileImporter {
                     }
                     val noteOn = isNoteOn && velocity != 0
 
-                    if (pitch in 0 until DRUM_RACK_TO_XY.size) {
+                    if (pitch in 0 until DRUM_RACK_TO_XY.size && DRUM_RACK_TO_XY[pitch] != 0) {
                         val xy = DRUM_RACK_TO_XY[pitch]
                         val localX = xy % 10
                         val localY = 9 - (xy / 10)

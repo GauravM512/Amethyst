@@ -26,7 +26,7 @@ import kotlin.test.assertIs
 class MultiAdapterTest {
 
     private fun stringToHex(s: String): String =
-        s.toByteArray().joinToString("") { "%02x".format(it) }
+        s.encodeToByteArray().joinToString("") { it.toUByte().toString(16).padStart(2, '0') }
 
     private fun createMxDevice(steps: Int, isMacro: Boolean = false): MxDeviceMidiEffect {
         val json = if (isMacro) {

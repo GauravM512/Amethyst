@@ -201,10 +201,12 @@ object AbletonTutorialDetector {
 
             val keyTracks = clip.notes.keyTracks.tracks
 
-            keyTracks.forEach { keyTrack ->
+            keyTracks.forEach keyTrackLoop@{ keyTrack ->
                 val pitch = keyTrack.midiKey.value
 
-                val padIndex = DRUM_RACK_TO_XY[pitch]
+                val padIndex = DRUM_RACK_TO_XY.getOrNull(pitch)
+                    ?.takeIf { it != 0 }
+                    ?: return@keyTrackLoop
 
                 keyTrack.notes.notes.forEach { note ->
                     val velocity = note.velocity

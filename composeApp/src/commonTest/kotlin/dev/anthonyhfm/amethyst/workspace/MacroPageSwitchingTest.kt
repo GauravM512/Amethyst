@@ -17,6 +17,10 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.exists
+import io.github.vinceglb.filekit.readBytes
+import kotlinx.coroutines.runBlocking
 
 class MacroPageSwitchingTest {
 
@@ -248,8 +252,9 @@ class MacroPageSwitchingTest {
     @Test
     fun stateOfMindDebug() {
         val alsPath = "/Users/anthony/Downloads/Teminite - State Of Mind/State Of Mind.als"
-        if (!java.io.File(alsPath).exists()) return
-        val bytes = java.io.File(alsPath).readBytes()
+        val platformFile = PlatformFile(alsPath)
+        if (!platformFile.exists()) return
+        val bytes = runBlocking { platformFile.readBytes() }
         val abletonData = dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter.decodeAbletonAls(bytes)
         val layout = dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonLayoutDetector.detectLayout(abletonData.liveSet.tracks.midiTracks)
         dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter.launchpadLayout =
@@ -273,7 +278,6 @@ class MacroPageSwitchingTest {
         }
 
 
-        val platformFile = io.github.vinceglb.filekit.PlatformFile(alsPath)
         dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter.file = platformFile
         println("Layout: $layout")
         val singleLayout = layout as? dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonLayout.Single

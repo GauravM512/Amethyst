@@ -125,6 +125,7 @@ object AbletonConverter : AmethystConverter {
                 runBlocking {
                     val content = paletteFile.readString()
                     palette = PaletteFileParser.parsePaletteFileContent(content)
+                        .takeIf { it.isNotEmpty() } ?: Palettes.novation
                 }
             } catch (e: Exception) {
                 println("Failed to load palette file ($palettePath): ${e.message}")
