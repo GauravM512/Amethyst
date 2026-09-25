@@ -183,6 +183,9 @@
     <string name="home_about_version">Version %1$s</string>
     <string name="home_arcade_empty">Hier gibt's noch nix zu sehen...</string>
     <string name="home_arcade_title">Arcade</string>
+    <string name="home_arcade_coming_title">Amethyst Arcade</string>
+    <string name="home_arcade_coming_description">Spielbare Beatmaps, Punktesysteme und interaktive Rhythmus-Challenges kommen bald zu Amethyst!</string>
+    <string name="home_arcade_explore_hub">Hub entdecken</string>
     <string name="home_arcade_wip">Work in Progress</string>
     <string name="home_browser_empty">Hier gibt's noch nix zu sehen...</string>
     <string name="home_browser_title">Browser</string>

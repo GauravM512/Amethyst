@@ -180,7 +180,9 @@ internal object HubProjectDownloader {
         require(info.getString("privacy") == "public" && info.getString("password_protected") == "no")
         val page = info.getJSONObject("links").getString("normal_download")
         require(Uri.parse(page).scheme == "https" && Uri.parse(page).host in setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com"))
-        val html = readText(page)
+        // MediaFire serves a JavaScript-only redirect page to Dalvik's default mobile user agent.
+        // A neutral client user agent returns the direct HTTPS download link, as on iOS.
+        val html = readText(page, userAgent = "Amethyst/1.0")
         val tag = Regex("<a\\b(?=[^>]*\\bid=[\\\"']downloadButton[\\\"'])[^>]*>", RegexOption.DOT_MATCHES_ALL)
             .find(html)?.value ?: error("MediaFire download unavailable")
         val href = Regex("\\bhref=[\\\"']([^\\\"']+)[\\\"']").find(tag)?.groupValues?.get(1)?.replace("&amp;", "&")
@@ -191,10 +193,11 @@ internal object HubProjectDownloader {
         return url
     }
 
-    private fun readText(url: String): String {
+    private fun readText(url: String, userAgent: String? = null): String {
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 20_000
             readTimeout = 20_000
+            userAgent?.let { setRequestProperty("User-Agent", it) }
         }
         return try {
             check(connection.responseCode in 200..299)

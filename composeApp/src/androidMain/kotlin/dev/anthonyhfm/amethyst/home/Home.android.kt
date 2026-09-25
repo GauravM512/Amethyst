@@ -17,6 +17,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.navigation.compose.NavHost
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.dialog
@@ -127,7 +128,13 @@ actual fun Home(
             }
 
             composable<HomeNavRoute.Arcade> {
-                ArcadeView()
+                ArcadeView(onExploreHub = {
+                    navigator.navigate(HomeNavRoute.Browser) {
+                        popUpTo(navigator.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                })
             }
 
             composable<HomeNavRoute.Settings> {

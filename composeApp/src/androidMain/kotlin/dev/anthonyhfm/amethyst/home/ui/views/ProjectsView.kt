@@ -31,7 +31,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -44,7 +43,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,7 +55,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -144,10 +141,6 @@ fun ProjectsView(
         }
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = rememberTopAppBarState(),
-    )
-
     projectToDelete?.let { project ->
         AlertDialog(
             onDismissRequest = { projectToDelete = null },
@@ -201,30 +194,23 @@ fun ProjectsView(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(Res.string.home_projects_title)) },
                 actions = {
-                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { viewModel.onEvent(Event.OnClickOpenProject) }) {
-                                Icon(
-                                    imageVector = Lucide.FolderOpen,
-                                    contentDescription = stringResource(Res.string.home_projects_action_open_desc),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                            IconButton(onClick = { viewModel.onEvent(Event.OnClickNewProject) }) {
-                                Icon(
-                                    imageVector = Lucide.Plus,
-                                    contentDescription = stringResource(Res.string.home_project_creation_sheet_new_title),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
+                    IconButton(onClick = { viewModel.onEvent(Event.OnClickOpenProject) }) {
+                        Icon(
+                            imageVector = Lucide.FolderOpen,
+                            contentDescription = stringResource(Res.string.home_projects_action_open_desc),
+                        )
+                    }
+                    IconButton(onClick = { viewModel.onEvent(Event.OnClickNewProject) }) {
+                        Icon(
+                            imageVector = Lucide.Plus,
+                            contentDescription = stringResource(Res.string.home_project_creation_sheet_new_title),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -233,7 +219,6 @@ fun ProjectsView(
                     titleContentColor = MaterialTheme.colorScheme.onBackground,
                     actionIconContentColor = MaterialTheme.colorScheme.onBackground,
                 ),
-                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = {

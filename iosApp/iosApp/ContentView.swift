@@ -257,17 +257,27 @@ struct ContentView: View {
             NavigationStack {
                 ZStack {
                     theme.background.ignoresSafeArea()
-                    VStack(spacing: 12) {
+                    VStack(spacing: 18) {
                         Image(systemName: "gamecontroller")
-                            .font(.largeTitle)
-                            .foregroundStyle(theme.mutedForeground)
-                        Text(localization.string("home_arcade_wip", fallback: "Work in Progress"))
-                            .font(.headline)
+                            .font(.system(size: 44))
+                            .foregroundStyle(theme.primary)
+                        Text(localization.string("home_arcade_coming_title", fallback: "Amethyst Arcade"))
+                            .font(.title.bold())
                             .foregroundStyle(theme.foreground)
-                        Text(localization.string("home_arcade_empty", fallback: "Nothing to see here yet."))
-                            .font(.subheadline)
+                        Text(localization.string("home_arcade_coming_description", fallback: "Playable beatmaps, score systems, and interactive rhythm challenges are coming to Amethyst soon!"))
+                            .font(.body)
                             .foregroundStyle(theme.mutedForeground)
+                            .multilineTextAlignment(.center)
+                        Button(localization.string("home_arcade_explore_hub", fallback: "Explore Hub")) {
+                            selectedHomeTab = .browser
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(theme.primary)
+                        .controlSize(.large)
+                        .padding(.top, 8)
                     }
+                    .frame(maxWidth: 360)
+                    .padding(.horizontal, 24)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .navigationTitle(localization.string("home_arcade_title", fallback: "Arcade"))
                 }

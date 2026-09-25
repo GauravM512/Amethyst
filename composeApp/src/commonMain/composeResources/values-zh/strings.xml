@@ -180,6 +180,9 @@
     <string name="home_about_version">版本 %1$s</string>
     <string name="home_arcade_empty">很遗憾这里什么也没有...</string>
     <string name="home_arcade_title">Arcade</string>
+    <string name="home_arcade_coming_title">Amethyst Arcade</string>
+    <string name="home_arcade_coming_description">可游玩的节奏谱面、分数系统和互动节奏挑战即将登陆 Amethyst！</string>
+    <string name="home_arcade_explore_hub">探索 Hub</string>
     <string name="home_arcade_wip">正在开发中</string>
     <string name="home_browser_empty">很遗憾这里什么也没有...</string>
     <string name="home_browser_title">工作区工坊</string>

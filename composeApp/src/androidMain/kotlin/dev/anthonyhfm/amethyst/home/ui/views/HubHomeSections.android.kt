@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.home.ui.views
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -56,11 +57,10 @@ internal fun HubHomeSectionView(
     section: HubHomeSection,
     account: AndroidHubAccount,
     onOpenHref: (String?) -> Unit,
-    onAction: (String?) -> Unit,
     onSignIn: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        HubSectionHeader(section.title, section.actionHref) { onAction(section.actionHref) }
+        HubSectionHeader(section.title)
         when (section) {
             is HubHomeSection.CreatorRow -> LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -159,7 +159,9 @@ private fun HubCreatorCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            HubArtwork(artist.imageUrl, Modifier.size(76.dp), CircleShape, Icons.Default.Person)
+            Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.TopCenter) {
+                HubArtwork(artist.imageUrl, Modifier.size(76.dp), CircleShape, Icons.Default.Person)
+            }
             Text(artist.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("@${artist.username}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
@@ -191,14 +193,19 @@ private fun HubCreatorCard(
                 }
             },
             enabled = !busy,
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = 48.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 48.dp).size(48.dp),
         ) {
-            Surface(shape = CircleShape, color = if (following) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary) {
-                if (busy) CircularProgressIndicator(Modifier.padding(6.dp).size(16.dp), strokeWidth = 2.dp)
+            Surface(
+                modifier = Modifier.size(30.dp),
+                shape = CircleShape,
+                color = if (following) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+                border = BorderStroke(3.dp, MaterialTheme.colorScheme.background),
+            ) {
+                if (busy) CircularProgressIndicator(Modifier.padding(5.dp).size(14.dp), strokeWidth = 2.dp)
                 else Icon(
                     if (following) Icons.Default.Check else Icons.Default.Add,
                     contentDescription = "$followLabel ${artist.title}",
-                    modifier = Modifier.padding(6.dp).size(16.dp),
+                    modifier = Modifier.padding(5.dp).size(14.dp),
                     tint = if (following) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
                 )
             }
@@ -207,17 +214,13 @@ private fun HubCreatorCard(
 }
 
 @Composable
-private fun HubSectionHeader(title: String, actionHref: String?, onAction: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = hubEdge),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-        if (actionHref != null) Surface(onClick = onAction, shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = title, modifier = Modifier.padding(12.dp))
-        }
-    }
+private fun HubSectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = hubEdge),
+    )
 }
 
 @Composable

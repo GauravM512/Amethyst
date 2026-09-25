@@ -161,7 +161,6 @@ fun BrowserView(navigator: NavHostController, onOpenProject: (String, String) ->
                                 section = section,
                                 account = account,
                                 onOpenHref = ::openHref,
-                                onAction = ::openHref,
                                 onSignIn = { navigator.navigate(HomeNavRoute.ProfileAuth) },
                             )
                         }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -23,6 +24,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,10 +38,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
@@ -128,6 +133,7 @@ internal fun HubSearchContent(
             trimmed.isEmpty() && !browse -> HubSearchMessage(
                 stringResource(Res.string.home_hub_search_prompt_title),
                 stringResource(Res.string.home_hub_search_prompt_description),
+                icon = Icons.Default.Search,
             )
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             error -> HubSearchMessage(stringResource(Res.string.home_hub_search_error_title), stringResource(Res.string.home_hub_search_error)) {
@@ -271,6 +277,7 @@ private fun HubArtistResult(artist: HubArtist, onClick: () -> Unit) {
         supportingContent = { Text("@${artist.username}") },
         leadingContent = { HubArtwork(artist.avatarUrl, Modifier.size(52.dp), androidx.compose.foundation.shape.CircleShape, Icons.Default.Person) },
         modifier = Modifier.fillMaxWidth().then(Modifier.clickable(onClick = onClick)),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
     )
     HorizontalDivider(Modifier.padding(start = 84.dp))
 }
@@ -282,15 +289,21 @@ internal fun HubProjectResult(project: HubProject, onClick: () -> Unit) {
         supportingContent = { Text(project.artist.displayName.ifBlank { "@${project.artist.username}" }, maxLines = 1) },
         leadingContent = { HubArtwork(project.thumbnailUrl, Modifier.size(58.dp), MaterialTheme.shapes.medium) },
         modifier = Modifier.fillMaxWidth().then(Modifier.clickable(onClick = onClick)),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
     )
     HorizontalDivider(Modifier.padding(start = 90.dp))
 }
 
 @Composable
-private fun HubSearchMessage(title: String, description: String, action: @Composable (() -> Unit)? = null) {
-    Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun HubSearchMessage(title: String, description: String, icon: ImageVector? = null, action: @Composable (() -> Unit)? = null) {
+    Column(
+        Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
+    ) {
+        if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+        Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         action?.invoke()
     }
 }
