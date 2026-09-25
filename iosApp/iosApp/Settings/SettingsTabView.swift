@@ -52,7 +52,7 @@ struct SettingsTabView: View {
                                 Text(localization.string("account_email_title", fallback: "Email"))
                                     .lineLimit(1)
                                 Spacer()
-                                Text(accountViewModel.account?.email ?? localization.string("common_not_added", fallback: "Not added"))
+                                Text(accountViewModel.account?.email ?? localization.string("common_not_added", fallback: "Not set"))
                                     .foregroundStyle(theme.mutedForeground)
                                     .lineLimit(1)
                             }
@@ -567,14 +567,6 @@ private struct AccountSecurityView: View {
             }
             .listRowBackground(theme.secondary)
 
-            Section(localization.string("account_active_sessions", fallback: "Active sessions")) {
-                NavigationLink {
-                    SessionsView(viewModel: viewModel, theme: theme)
-                } label: {
-                    Text(localization.string("account_manage_sessions", fallback: "Manage sessions"))
-                }
-            }
-            .listRowBackground(theme.secondary)
         }
         .scrollContentBackground(.hidden)
         .background(theme.background.ignoresSafeArea())
@@ -608,7 +600,7 @@ private struct AccountEmailView: View {
             Section(localization.string("account_current_email", fallback: "Current email")) {
                 LabeledContent(
                     localization.string("account_email_title", fallback: "Email"),
-                    value: viewModel.account?.email ?? localization.string("common_not_added", fallback: "Not added")
+                    value: viewModel.account?.email ?? localization.string("common_not_added", fallback: "Not set")
                 )
             }
             .listRowBackground(theme.secondary)
@@ -735,53 +727,6 @@ private struct PasswordChangeView: View {
                     }
                     .disabled(viewModel.isBusy || current.isEmpty || newPassword.isEmpty)
                 }
-            }
-        }
-        .tint(theme.glassForeground)
-    }
-}
-
-private struct SessionsView: View {
-    @Bindable var viewModel: AccountViewModel
-    let theme: AmethystTheme
-    @State private var sessions: [HubSession] = []
-    @State private var errorMessage: String?
-    @Environment(AppLocalization.self) private var localization
-
-    var body: some View {
-        List {
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .listRowBackground(theme.secondary)
-            } else if sessions.isEmpty {
-                Text(localization.string("account_loading_sessions", fallback: "Loading sessions…"))
-                    .foregroundStyle(theme.mutedForeground)
-                    .listRowBackground(theme.secondary)
-            } else {
-                ForEach(sessions, id: \.id) { session in
-                    HStack {
-                        Text(session.client.isEmpty ? localization.string("account_amethyst_app", fallback: "Amethyst app") : session.client)
-                            .foregroundStyle(theme.foreground)
-                        Spacer()
-                        Text(
-                            session.current
-                                ? localization.string("account_this_device", fallback: "This device")
-                                : localization.string("common_active", fallback: "Active")
-                        )
-                            .foregroundStyle(theme.mutedForeground)
-                    }
-                    .listRowBackground(theme.secondary)
-                }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(theme.background.ignoresSafeArea())
-        .navigationTitle(localization.string("account_active_sessions", fallback: "Active sessions"))
-        .task {
-            viewModel.loadSessions { loaded, error in
-                sessions = loaded
-                errorMessage = error?.localizedDescription
             }
         }
         .tint(theme.glassForeground)

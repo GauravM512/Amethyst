@@ -317,14 +317,6 @@ final class AccountViewModel {
         }
     }
 
-    func loadSessions(completion: @escaping ([HubSession], Error?) -> Void) {
-        repository.getSessions.execute { sessions, error in
-            Task { @MainActor in
-                completion(sessions?.sessions ?? [], error)
-            }
-        }
-    }
-
     private func setAccount(_ account: HubAccount) {
         let becameSignedIn = self.account == nil
         self.account = account

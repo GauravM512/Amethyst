@@ -41,14 +41,17 @@ class MainActivity : ComponentActivity() {
 
         splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
             val splashView = splashScreenViewProvider.view
-            val iconView = splashScreenViewProvider.iconView
-
-            val scaleX = android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_X, 1.0f, 1.75f)
-            val scaleY = android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_Y, 1.0f, 1.75f)
+            // Some Samsung splashscreen implementations expose no icon view here.
+            val iconView = runCatching { splashScreenViewProvider.iconView }.getOrNull()
             val fadeOut = android.animation.ObjectAnimator.ofFloat(splashView, android.view.View.ALPHA, 1.0f, 0.0f)
+            val animations = mutableListOf<android.animation.Animator>(fadeOut)
+            if (iconView != null) {
+                animations += android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_X, 1.0f, 1.75f)
+                animations += android.animation.ObjectAnimator.ofFloat(iconView, android.view.View.SCALE_Y, 1.0f, 1.75f)
+            }
 
             val exitAnimatorSet = android.animation.AnimatorSet().apply {
-                playTogether(scaleX, scaleY, fadeOut)
+                playTogether(animations)
                 duration = 500L
                 interpolator = android.view.animation.DecelerateInterpolator(1.5f)
                 startDelay = 100L

@@ -928,7 +928,7 @@
     <string name="account_section_title">Account</string>
     <string name="account_security_title">Security</string>
     <string name="account_email_title">Email</string>
-    <string name="common_not_added">Not added</string>
+    <string name="common_not_added">Not set</string>
     <string name="account_sign_out">Sign out</string>
     <string name="settings_close">Close settings</string>
     <string name="account_signed_out">Signed out</string>
@@ -936,6 +936,7 @@
     <string name="account_create">Create account</string>
     <string name="profile_edit">Edit profile</string>
     <string name="profile_picture">Profile picture</string>
+    <string name="profile_avatar_read_error">Could not read image (maximum 5 MB).</string>
     <string name="account_welcome_title">Welcome to Amethyst</string>
     <string name="account_sync_description">Use your Amethyst account to sync your profile and projects.</string>
     <string name="account_action">Account action</string>
