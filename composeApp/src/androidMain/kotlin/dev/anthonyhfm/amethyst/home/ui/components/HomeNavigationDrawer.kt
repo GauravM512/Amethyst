@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import dev.anthonyhfm.amethyst.home.nav.HomeNavigationTab
+import dev.anthonyhfm.amethyst.settings.AppLocaleRefreshBoundary
 
 @Composable
 fun HomeNavigationDrawer(
@@ -41,6 +42,7 @@ fun HomeNavigationDrawer(
 
     PermanentNavigationDrawer(
         drawerContent = {
+            AppLocaleRefreshBoundary {
             PermanentDrawerSheet(
                 modifier = Modifier
                     .width(240.dp)
@@ -92,6 +94,7 @@ fun HomeNavigationDrawer(
 
                     Spacer(modifier = Modifier.weight(1f))
                 }
+            }
             }
         }
     ) {

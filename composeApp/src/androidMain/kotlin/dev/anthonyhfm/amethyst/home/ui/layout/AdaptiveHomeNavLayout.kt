@@ -17,6 +17,7 @@ import dev.anthonyhfm.amethyst.home.nav.HomeNavigationTab
 import dev.anthonyhfm.amethyst.home.ui.components.HomeBottomNavBar
 import dev.anthonyhfm.amethyst.home.ui.components.HomeNavigationDrawer
 import dev.anthonyhfm.amethyst.home.ui.components.HomeNavigationRail
+import dev.anthonyhfm.amethyst.settings.AppLocaleRefreshBoundary
 
 @Composable
 fun AdaptiveHomeNavLayout(
@@ -41,10 +42,12 @@ fun AdaptiveHomeNavLayout(
 
             maxWidth >= 600.dp -> {
                 Row(modifier = Modifier.fillMaxSize()) {
-                    HomeNavigationRail(
-                        navigator = navigator,
-                        currentTab = currentTab,
-                    )
+                    AppLocaleRefreshBoundary {
+                        HomeNavigationRail(
+                            navigator = navigator,
+                            currentTab = currentTab,
+                        )
+                    }
 
                     Box(
                         modifier = Modifier
@@ -59,10 +62,12 @@ fun AdaptiveHomeNavLayout(
             else -> {
                 Scaffold(
                     bottomBar = {
-                        HomeBottomNavBar(
-                            navigator = navigator,
-                            currentTab = currentTab,
-                        )
+                        AppLocaleRefreshBoundary {
+                            HomeBottomNavBar(
+                                navigator = navigator,
+                                currentTab = currentTab,
+                            )
+                        }
                     },
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 ) { innerPadding ->

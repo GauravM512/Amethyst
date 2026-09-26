@@ -53,6 +53,7 @@ import dev.anthonyhfm.amethyst.home.account.AndroidHubAccount
 import dev.anthonyhfm.amethyst.hub.data.HubAccount
 import dev.anthonyhfm.amethyst.settings.data.SettingsRepository
 import dev.anthonyhfm.amethyst.settings.ui.SettingsRenderer
+import dev.anthonyhfm.amethyst.settings.AppLocaleRefreshBoundary
 import org.jetbrains.compose.resources.stringResource
 
 private enum class ProfilePage { Main, Security, Email }
@@ -69,6 +70,7 @@ fun SettingsView(onRequestAuth: () -> Unit, onRequestEditProfile: () -> Unit) {
     BackHandler(page != ProfilePage.Main) { page = ProfilePage.Main }
     LaunchedEffect(account) { if (account == null) page = ProfilePage.Main }
 
+    AppLocaleRefreshBoundary {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
@@ -129,6 +131,7 @@ fun SettingsView(onRequestAuth: () -> Unit, onRequestEditProfile: () -> Unit) {
     }
 
     if (showPassword && account != null) PasswordDialog(accountState, onDismiss = { showPassword = false })
+    }
 }
 
 @Composable

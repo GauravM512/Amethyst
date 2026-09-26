@@ -17,6 +17,7 @@ import java.net.URL
 import java.net.URLDecoder
 import java.security.MessageDigest
 import java.util.UUID
+import androidx.core.net.toUri
 
 /** Streams a Hub project into the same persistent catalog used by the Projects tab. */
 internal object HubProjectDownloader {
@@ -106,7 +107,7 @@ internal object HubProjectDownloader {
 
     fun canImport(repository: HubRepository, project: HubProject, externalUrl: String?): Boolean {
         if (!externalUrl.isNullOrBlank()) {
-            val uri = Uri.parse(externalUrl)
+            val uri = externalUrl.toUri()
             return uri.scheme == "https" && uri.host?.lowercase() in setOf(
                 "drive.google.com", "www.drive.google.com", "drive.usercontent.google.com",
                 "mediafire.com", "www.mediafire.com", "m.mediafire.com",
@@ -114,8 +115,8 @@ internal object HubProjectDownloader {
         }
         val path = project.overrideDownloadUrl ?: project.downloadUrl
             ?: project.packageName?.let { "/projects/${project.id}/download" } ?: return false
-        val uri = Uri.parse(repository.client.resolveUrl(path))
-        return uri.scheme == "https" && uri.host == Uri.parse(repository.client.resolveUrl("/")).host
+        val uri = repository.client.resolveUrl(path).toUri()
+        return uri.scheme == "https" && uri.host == repository.client.resolveUrl("/").toUri().host
     }
 
     private fun extensionFor(project: HubProject): String = when (project.projectType.name) {
