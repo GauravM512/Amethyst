@@ -22,6 +22,8 @@ import androidx.core.net.toUri
 /** Streams a Hub project into the same persistent catalog used by the Projects tab. */
 internal object HubProjectDownloader {
     private val supportedExtensions = setOf("ame", "als", "approj", "zip")
+    private val driveHosts = setOf("drive.google.com", "www.drive.google.com", "drive.usercontent.google.com")
+    private val mediaFireHosts = setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com")
 
     suspend fun download(
         repository: HubRepository,
@@ -108,10 +110,7 @@ internal object HubProjectDownloader {
     fun canImport(repository: HubRepository, project: HubProject, externalUrl: String?): Boolean {
         if (!externalUrl.isNullOrBlank()) {
             val uri = externalUrl.toUri()
-            return uri.scheme == "https" && uri.host?.lowercase() in setOf(
-                "drive.google.com", "www.drive.google.com", "drive.usercontent.google.com",
-                "mediafire.com", "www.mediafire.com", "m.mediafire.com",
-            )
+            return googleDriveFileId(uri) != null || mediaFireQuickKey(uri) != null
         }
         val path = project.overrideDownloadUrl ?: project.downloadUrl
             ?: project.packageName?.let { "/projects/${project.id}/download" } ?: return false
@@ -144,18 +143,15 @@ internal object HubProjectDownloader {
             val uri = Uri.parse(raw)
             require(uri.scheme == "https")
             val host = uri.host?.lowercase().orEmpty()
-            if (host in setOf("drive.google.com", "www.drive.google.com", "drive.usercontent.google.com")) {
-                val segments = uri.pathSegments
-                val id = if (segments.size >= 3 && segments[0] == "file" && segments[1] == "d") segments[2]
-                    else uri.getQueryParameter("id")
-                require(id != null && id.matches(Regex("[A-Za-z0-9_-]+")))
+            if (host in driveHosts) {
+                val id = requireNotNull(googleDriveFileId(uri)) { "Google Drive file unavailable" }
                 return Uri.parse("https://drive.usercontent.google.com/download").buildUpon()
                     .appendQueryParameter("id", id).appendQueryParameter("export", "download")
                     .appendQueryParameter("confirm", "t")
                     .apply { uri.getQueryParameter("resourcekey")?.let { appendQueryParameter("resourcekey", it) } }
                     .build().toString()
             }
-            if (host in setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com")) {
+            if (host in mediaFireHosts) {
                 return resolveMediaFire(uri)
             }
             error("External source is not directly importable")
@@ -170,17 +166,14 @@ internal object HubProjectDownloader {
     }
 
     private fun resolveMediaFire(uri: Uri): String {
-        val segments = uri.pathSegments
-        require(segments.size >= 2 && segments[0] in setOf("file", "download"))
-        val key = segments[1]
-        require(key.length in 10..20 && key.all(Char::isLetterOrDigit))
+        val key = requireNotNull(mediaFireQuickKey(uri)) { "MediaFire file unavailable" }
         val api = "https://www.mediafire.com/api/1.5/file/get_info.php?quick_key=$key&response_format=json"
         val payload = JSONObject(readText(api)).getJSONObject("response")
         require(payload.getString("result") == "Success")
         val info = payload.getJSONObject("file_info")
         require(info.getString("privacy") == "public" && info.getString("password_protected") == "no")
         val page = info.getJSONObject("links").getString("normal_download")
-        require(Uri.parse(page).scheme == "https" && Uri.parse(page).host in setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com"))
+        require(Uri.parse(page).scheme == "https" && Uri.parse(page).host in mediaFireHosts)
         // MediaFire serves a JavaScript-only redirect page to Dalvik's default mobile user agent.
         // A neutral client user agent returns the direct HTTPS download link, as on iOS.
         val html = readText(page, userAgent = "Amethyst/1.0")
@@ -192,6 +185,25 @@ internal object HubProjectDownloader {
         val host = Uri.parse(url).host.orEmpty()
         require(Uri.parse(url).scheme == "https" && host.matches(Regex("download[0-9]+\\.mediafire\\.com")))
         return url
+    }
+
+    private fun googleDriveFileId(uri: Uri): String? {
+        if (uri.scheme != "https" || uri.host?.lowercase() !in driveHosts) return null
+        val segments = uri.pathSegments
+        val fileIndex = segments.indexOf("file")
+        val id = when {
+            fileIndex >= 0 && segments.size > fileIndex + 2 && segments[fileIndex + 1] == "d" -> segments[fileIndex + 2]
+            uri.path in setOf("/open", "/uc", "/download") -> runCatching { uri.getQueryParameter("id") }.getOrNull()
+            else -> null
+        }
+        return id?.takeIf { it.matches(Regex("[A-Za-z0-9_-]+")) }
+    }
+
+    private fun mediaFireQuickKey(uri: Uri): String? {
+        if (uri.scheme != "https" || uri.host?.lowercase() !in mediaFireHosts) return null
+        val segments = uri.pathSegments
+        if (segments.size < 2 || segments[0] !in setOf("file", "download")) return null
+        return segments[1].takeIf { it.length in 10..20 && it.all(Char::isLetterOrDigit) }
     }
 
     private fun readText(url: String, userAgent: String? = null): String {

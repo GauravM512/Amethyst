@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -194,7 +195,7 @@ internal fun HubProjectSheet(
                         val internalSource = current.overrideDownloadUrl ?: current.downloadUrl ?: current.packageName?.let { "/projects/${current.id}/download" }
                         val youtubeUrl = remember(current.youtubeUrl) { validYoutubeUrl(current.youtubeUrl) }
                         val canImport = HubProjectDownloader.canImport(account.repository, current, externalUrl) &&
-                            (externalUrl != null || HubSettings.ignoreCompatibility.value || current.projectType == HubProjectType.amethyst ||
+                            (HubSettings.ignoreCompatibility.value || current.projectType == HubProjectType.amethyst ||
                                 current.compatibility == HubProjectCompatibility.compatible || current.overrideDownloadUrl != null)
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().fillMaxHeight(),
@@ -268,7 +269,10 @@ internal fun HubProjectSheet(
                                                         disabledContentColor = MaterialTheme.colorScheme.onPrimary,
                                                     ),
                                                 ) {
-                                                    Icon(Icons.Default.Download, contentDescription = null)
+                                                    Icon(
+                                                        if (!canImport && externalUrl != null) Icons.Default.OpenInNew else Icons.Default.Download,
+                                                        contentDescription = null,
+                                                    )
                                                     Spacer(Modifier.width(10.dp))
                                                     Text(
                                                         when {
