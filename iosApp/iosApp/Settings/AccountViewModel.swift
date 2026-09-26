@@ -242,6 +242,19 @@ final class AccountViewModel {
         }
     }
 
+    func removeAvatar(completion: @escaping (Error?) -> Void) {
+        guard !isBusy else { return }
+        isBusy = true
+        repository.removeAccountAvatar.execute { [weak self] account, error in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isBusy = false
+                if let account { self.setAccount(account) }
+                completion(error)
+            }
+        }
+    }
+
     func changePassword(current: String, newPassword: String, confirmation: String, completion: @escaping (Error?) -> Void) {
         guard newPassword == confirmation else {
             completion(AccountViewModelError.passwordMismatch)

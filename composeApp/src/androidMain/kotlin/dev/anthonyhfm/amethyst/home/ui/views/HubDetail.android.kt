@@ -60,7 +60,10 @@ internal fun HubDetailScreen(
     val scope = rememberCoroutineScope()
     var artist by remember(username) { mutableStateOf<HubArtist?>(null) }
     var artistProjects by remember(username) { mutableStateOf<List<HubProject>>(emptyList()) }
+    var nextCursor by remember(username) { mutableStateOf<String?>(null) }
     var loading by remember(username) { mutableStateOf(true) }
+    var loadingMore by remember(username) { mutableStateOf(false) }
+    var moreError by remember(username) { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableStateOf(0) }
@@ -68,9 +71,14 @@ internal fun HubDetailScreen(
     LaunchedEffect(username, reload, account.sessionRevision) {
         loading = true
         error = null
+        artistProjects = emptyList()
+        nextCursor = null
+        moreError = false
         try {
             artist = account.repository.getArtist.execute(username)
-            artistProjects = account.repository.getArtistProjects.execute(username).items
+            val page = account.repository.getArtistProjects.execute(username)
+            artistProjects = page.items
+            nextCursor = page.nextCursor
         } catch (cause: Exception) { error = cause.message ?: cause.toString() }
         finally { loading = false }
     }
@@ -120,6 +128,28 @@ internal fun HubDetailScreen(
                     }
                     item { Text(stringResource(Res.string.home_hub_detail_projects_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(20.dp)) }
                     items(artistProjects, key = { it.id }) { item -> HubProjectResult(item) { onOpenProject(item.artist.username, item.slug) } }
+                    if (nextCursor != null) item {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (moreError) Text(stringResource(Res.string.home_hub_detail_projects_error), color = MaterialTheme.colorScheme.error)
+                            TextButton(onClick = {
+                                val cursor = nextCursor ?: return@TextButton
+                                scope.launch {
+                                    loadingMore = true
+                                    moreError = false
+                                    try {
+                                        val page = account.repository.getArtistProjects.execute(username, cursor = cursor)
+                                        val seen = artistProjects.mapTo(mutableSetOf()) { it.id }
+                                        artistProjects = artistProjects + page.items.filter { seen.add(it.id) }
+                                        nextCursor = page.nextCursor
+                                    } catch (_: Exception) { moreError = true }
+                                    finally { loadingMore = false }
+                                }
+                            }, enabled = !loadingMore) {
+                                if (loadingMore) CircularProgressIndicator(Modifier.size(20.dp))
+                                else Text(stringResource(if (moreError) Res.string.home_hub_retry else Res.string.home_hub_detail_load_more))
+                            }
+                        }
+                    }
                 }
             }
         }

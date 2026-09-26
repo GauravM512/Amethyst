@@ -461,15 +461,22 @@ private struct EditProfileView: View {
         NavigationStack {
             Form {
                 Section {
-                    HStack {
-                        Spacer()
+                    VStack(spacing: 8) {
                         if #available(iOS 16.0, *) {
                             AvatarPickerButton(item: $avatarItem, viewModel: viewModel, theme: theme)
                         } else {
                             AvatarView(url: viewModel.account?.avatarUrl, name: displayName, size: 96, theme: theme)
                         }
-                        Spacer()
+                        if viewModel.account?.avatarUrl != nil {
+                            Button(localization.string("common_remove", fallback: "Remove"), role: .destructive) {
+                                viewModel.removeAvatar { error in
+                                    if let error { message = error.localizedDescription }
+                                }
+                            }
+                            .disabled(viewModel.isBusy)
+                        }
                     }
+                    .frame(maxWidth: .infinity)
                 }
 
                 Section(localization.string("profile_title", fallback: "Profile")) {
