@@ -89,8 +89,10 @@ final class AccountViewModel {
                     self.username = account.username
                     self.displayName = account.displayName
                     self.email = account.email ?? ""
-                } else if error != nil {
+                } else if let error, isAuthenticationError(error) {
                     self.signOutLocally()
+                } else if let error {
+                    self.errorMessage = error.localizedDescription
                 }
             }
         }
@@ -345,6 +347,14 @@ final class AccountViewModel {
     private func finish(errorMessage: String) {
         isBusy = false
         self.errorMessage = errorMessage
+    }
+
+    private func isAuthenticationError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if let hubError = nsError.kotlinException as? HubApiException {
+            return hubError.statusCode == 401 || hubError.errorCode == "authentication_required"
+        }
+        return false
     }
 
     private func clearMessages() {

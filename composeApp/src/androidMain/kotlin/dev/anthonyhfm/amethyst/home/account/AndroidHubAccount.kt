@@ -171,7 +171,11 @@ class AndroidHubAccount private constructor(context: Context) {
         busy = true
         scope.launch {
             try { block() }
-            catch (cause: Exception) { error = cause.message ?: cause.toString() }
+            catch (cause: Exception) {
+                if (cause is dev.anthonyhfm.amethyst.hub.data.HubApiException &&
+                    cause.statusCode == 401 && !repository.client.isAuthenticated) clearAccount()
+                error = cause.message ?: cause.toString()
+            }
             finally { busy = false }
         }
     }
