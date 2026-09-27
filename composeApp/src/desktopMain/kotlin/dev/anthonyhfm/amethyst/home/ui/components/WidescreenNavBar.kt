@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -32,13 +33,21 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.composables.icons.lucide.BadgeInfo
 import com.composables.icons.lucide.BookOpen
 import com.composables.icons.lucide.FolderOpen
+import com.composables.icons.lucide.Globe
 import com.composables.icons.lucide.Gamepad2
+import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.History
+import com.composables.icons.lucide.House
+import com.composables.icons.lucide.LayoutGrid
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Settings2
+import com.composables.icons.lucide.UserRound
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.home.nav.HomeNavRoute
+import dev.anthonyhfm.amethyst.home.ui.views.DesktopHubSection
+import dev.anthonyhfm.amethyst.home.account.DesktopHubAccount
+import dev.anthonyhfm.amethyst.home.ui.views.DesktopHubAvatar
 import dev.anthonyhfm.amethyst.ui.components.primitives.LocalSidebarState
 import dev.anthonyhfm.amethyst.ui.components.primitives.Sidebar
 import dev.anthonyhfm.amethyst.ui.components.primitives.SidebarContent
@@ -66,13 +75,17 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun WidescreenNavBar(
-    navigator: NavHostController
+    navigator: NavHostController,
+    hubSection: DesktopHubSection,
+    onHubSectionChange: (DesktopHubSection) -> Unit,
 ) {
     val current by navigator.currentBackStackEntryAsState()
     var currentNavigation: HomeNavRoute by remember { mutableStateOf(HomeNavRoute.Recent) }
     var sidebarToggleCount by remember { mutableStateOf(0) }
     var hasObservedInitialSidebarState by remember { mutableStateOf(false) }
     val sidebarState = LocalSidebarState.current
+    val hubAccount = remember { DesktopHubAccount.get() }
+    val account = hubAccount.account
 
     LaunchedEffect(sidebarState.expanded) {
         if (hasObservedInitialSidebarState) {
@@ -88,6 +101,7 @@ fun WidescreenNavBar(
             HomeNavRoute.Browser::class.qualifiedName -> HomeNavRoute.Browser
             HomeNavRoute.Arcade::class.qualifiedName -> HomeNavRoute.Arcade
             HomeNavRoute.Settings::class.qualifiedName -> HomeNavRoute.Settings
+            HomeNavRoute.Account::class.qualifiedName -> HomeNavRoute.Account
             HomeNavRoute.Tutorials::class.qualifiedName -> HomeNavRoute.Tutorials
             HomeNavRoute.About::class.qualifiedName -> HomeNavRoute.About
 
@@ -103,20 +117,18 @@ fun WidescreenNavBar(
     val secondaryItems = listOf(
         NavRailItem.TUTORIALS,
         NavRailItem.SETTINGS,
+        NavRailItem.ACCOUNT,
         NavRailItem.ABOUT,
     )
 
     Sidebar {
         SidebarHeader {
             if (sidebarState.expanded) {
-                Column(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
                         SidebarBrandMark(size = 42.dp)
 
                         Column(
@@ -131,8 +143,7 @@ fun WidescreenNavBar(
                                 style = Theme[typography][small].copy(color = Theme[colors][mutedForeground]),
                             )
                         }
-                    }
-
+                    Spacer(Modifier.weight(1f))
                     SidebarTrigger()
                 }
             } else {
@@ -165,17 +176,15 @@ fun WidescreenNavBar(
                             SidebarMenuItem {
                                 SidebarMenuButton(
                                     onClick = {
+                                        if (item.route == HomeNavRoute.Browser) onHubSectionChange(DesktopHubSection.Home)
                                         if (currentNavigation != item.route) {
                                             navigator.navigate(item.route) {
                                                 launchSingleTop = true
-                                                restoreState = true
-                                                popUpTo(navigator.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
+                                                popUpTo(navigator.graph.findStartDestination().id)
                                             }
                                         }
                                     },
-                                    isActive = currentNavigation == item.route,
+                                    isActive = currentNavigation == item.route && (item.route != HomeNavRoute.Browser || hubSection == DesktopHubSection.Search),
                                     icon = {
                                         Icon(
                                             imageVector = item.icon,
@@ -190,6 +199,29 @@ fun WidescreenNavBar(
                                     },
                                 ) {
                                     Text(item.expandedLabel)
+                                }
+                            }
+                            if (item.route == HomeNavRoute.Browser && currentNavigation == HomeNavRoute.Browser) {
+                                listOf(
+                                    Triple(DesktopHubSection.Home, Res.string.home_widescreen_navbar_group_home, Lucide.House),
+                                    Triple(DesktopHubSection.Liked, Res.string.home_hub_liked_title, Lucide.Heart),
+                                    Triple(DesktopHubSection.Projects, Res.string.home_hub_search_projects, Lucide.LayoutGrid),
+                                ).forEach { (section, label, icon) ->
+                                    SidebarMenuItem {
+                                        SidebarMenuButton(
+                                            onClick = { onHubSectionChange(section) },
+                                            modifier = Modifier.padding(start = if (sidebarState.expanded) 18.dp else 0.dp),
+                                            isActive = hubSection == section,
+                                            icon = {
+                                                Icon(
+                                                    imageVector = icon,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(17.dp),
+                                                    tint = if (hubSection == section) Theme[colors][accentForeground] else Theme[colors][foreground].copy(alpha = 0.7f),
+                                                )
+                                            },
+                                        ) { Text(stringResource(label)) }
+                                    }
                                 }
                             }
                         }
@@ -227,28 +259,41 @@ fun WidescreenNavBar(
                                         if (currentNavigation != item.route) {
                                             navigator.navigate(item.route) {
                                                 launchSingleTop = true
-                                                restoreState = true
-                                                popUpTo(navigator.graph.findStartDestination().id) {
-                                                    saveState = true
-                                                }
+                                                popUpTo(navigator.graph.findStartDestination().id)
                                             }
                                         }
                                     },
                                     isActive = currentNavigation == item.route,
                                     icon = {
-                                        Icon(
-                                            imageVector = item.icon,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                            tint = if (currentNavigation == item.route) {
-                                                Theme[colors][accentForeground]
-                                            } else {
-                                                Theme[colors][foreground].copy(alpha = 0.75f)
-                                            },
-                                        )
+                                        if (item.route == HomeNavRoute.Account) {
+                                            DesktopHubAvatar(
+                                                username = account?.username.orEmpty(),
+                                                avatarUrl = account?.avatarUrl,
+                                                size = 20.dp,
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = item.icon,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                                tint = if (currentNavigation == item.route) {
+                                                    Theme[colors][accentForeground]
+                                                } else {
+                                                    Theme[colors][foreground].copy(alpha = 0.75f)
+                                                },
+                                            )
+                                        }
                                     },
                                 ) {
-                                    Text(item.expandedLabel)
+                                    if (item.route == HomeNavRoute.Account && account != null) {
+                                        Text(
+                                            "${account.displayName.ifBlank { account.username }} · @${account.username}",
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    } else {
+                                        Text(item.expandedLabel)
+                                    }
                                 }
                             }
                         }
@@ -277,9 +322,8 @@ private data class NavRailItem(
         )
 
         val BROWSER = NavRailItem(
-            labelRes = Res.string.home_widescreen_navbar_browser,
-            expandedLabelRes = Res.string.home_widescreen_navbar_project_browser,
-            icon = Lucide.FolderOpen,
+            labelRes = Res.string.home_hub_title,
+            icon = Lucide.Globe,
             route = HomeNavRoute.Browser
         )
 
@@ -294,6 +338,12 @@ private data class NavRailItem(
             labelRes = Res.string.home_widescreen_navbar_settings,
             icon = Lucide.Settings2,
             route = HomeNavRoute.Settings
+        )
+
+        val ACCOUNT = NavRailItem(
+            labelRes = Res.string.account_section_title,
+            icon = Lucide.UserRound,
+            route = HomeNavRoute.Account
         )
 
         val TUTORIALS = NavRailItem(

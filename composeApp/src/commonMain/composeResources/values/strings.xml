@@ -199,10 +199,12 @@
     <string name="home_hub_search_error">Search failed. Please try again.</string>
     <string name="home_hub_search_limited">Showing the first 30 results</string>
     <string name="home_hub_title">Amethyst Hub</string>
+    <string name="home_hub_home_subtitle">Discover music and projects from the community.</string>
     <string name="home_hub_authentication_required">Sign in to follow artists.</string>
     <string name="home_hub_detail_about">About</string>
     <string name="home_hub_detail_artist_error">The artist could not be loaded.</string>
     <string name="home_hub_detail_artist_unavailable">Artist unavailable</string>
+    <string name="home_hub_detail_artist_title">Artist profile</string>
     <string name="home_hub_detail_compatibility">Compatibility</string>
     <string name="home_hub_detail_could_not_load">Could not load</string>
     <string name="home_hub_detail_details">Details</string>
@@ -290,6 +292,7 @@
     <string name="home_import_wizard_apollo_desc">Optional. If set, lights chain will be sourced from the Apollo project instead of Ableton MIDI tracks.</string>
     <string name="home_import_wizard_apollo_project">Apollo lights project (.approj)</string>
     <string name="home_import_wizard_cancel">Cancel</string>
+    <string name="home_import_wizard_conversion_failed">Conversion failed. Check the source file or optional import settings, then try again.</string>
     <string name="home_import_wizard_close_desc">Close</string>
     <string name="home_import_wizard_custom_palette">Custom palette</string>
     <string name="home_import_wizard_description">Choose an optional custom palette before converting your Live set into an Amethyst workspace.</string>

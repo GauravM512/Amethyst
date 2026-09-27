@@ -199,10 +199,12 @@
     <string name="home_hub_search_error">Suche fehlgeschlagen. Bitte versuche es erneut.</string>
     <string name="home_hub_search_limited">Die ersten 30 Ergebnisse werden angezeigt</string>
     <string name="home_hub_title">Amethyst Hub</string>
+    <string name="home_hub_home_subtitle">Entdecke Musik und Projekte aus der Community.</string>
     <string name="home_hub_authentication_required">Melde dich an, um Künstlern zu folgen.</string>
     <string name="home_hub_detail_about">Über dieses Projekt</string>
     <string name="home_hub_detail_artist_error">Der Künstler konnte nicht geladen werden.</string>
     <string name="home_hub_detail_artist_unavailable">Künstler nicht verfügbar</string>
+    <string name="home_hub_detail_artist_title">Künstlerprofil</string>
     <string name="home_hub_detail_compatibility">Kompatibilität</string>
     <string name="home_hub_detail_could_not_load">Laden fehlgeschlagen</string>
     <string name="home_hub_detail_details">Details</string>
@@ -290,6 +292,7 @@
     <string name="home_import_wizard_apollo_desc">Optional. Falls angegeben, wird die Lights-Chain aus dem Apollo-Projekt statt aus Ableton MIDI-Tracks geladen.</string>
     <string name="home_import_wizard_apollo_project">Apollo Lights-Projekt (.approj)</string>
     <string name="home_import_wizard_cancel">Abbrechen</string>
+    <string name="home_import_wizard_conversion_failed">Die Konvertierung ist fehlgeschlagen. Prüfe die Quelldatei oder die optionalen Importeinstellungen und versuche es erneut.</string>
     <string name="home_import_wizard_close_desc">Schließen</string>
     <string name="home_import_wizard_custom_palette">Custom Palette</string>
     <string name="home_import_wizard_description">Wähle eine optionale Custom Palette, bevor du dein Live-Set in einen Amethyst Workspace konvertierst.</string>
