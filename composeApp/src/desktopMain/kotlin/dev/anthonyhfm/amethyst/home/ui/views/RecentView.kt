@@ -108,6 +108,8 @@ fun RecentView(
     }
 
     var recentProjects: List<RecentWorkspace> by remember { mutableStateOf(loadRecentProjects()) }
+    val localProjects = recentProjects.filter { HomeRepository.mobileProjectForPath(it.path)?.hubProjectId == null }
+    val downloadedProjects = recentProjects.filter { HomeRepository.mobileProjectForPath(it.path)?.hubProjectId != null }
     var joiningSession by remember { mutableStateOf<DiscoveredSession?>(null) }
     val state by viewModel.state.collectAsState()
     val localUser by LocalUserRepository.localUser.collectAsState()
@@ -177,9 +179,25 @@ fun RecentView(
                             if (recentProjects.isEmpty()) {
                                 EmptyRecentProjectsCard()
                             } else {
-                                TypographyMuted(stringResource(Res.string.home_recent_collaboration_recent_opened))
-
-                                recentProjects.forEachIndexed { index, project ->
+                                if (localProjects.isNotEmpty()) {
+                                    RecentProjectsSectionTitle(stringResource(Res.string.home_projects_local_section))
+                                }
+                                localProjects.forEach { project ->
+                                    RecentProjectCard(
+                                        project = project,
+                                        onOpen = { viewModel.onEvent(Event.OpenProjectFromHistory(project)) },
+                                        onEdit = { viewModel.onEvent(Event.OnClickEditProject(project)) },
+                                        onDelete = {
+                                            HomeRepository.removeRecentWorkspace(project.path)
+                                            recentProjects = loadRecentProjects()
+                                        },
+                                    )
+                                }
+                                if (downloadedProjects.isNotEmpty()) {
+                                    if (localProjects.isNotEmpty()) Spacer(Modifier.height(8.dp))
+                                    RecentProjectsSectionTitle(stringResource(Res.string.home_projects_downloaded_section))
+                                }
+                                downloadedProjects.forEach { project ->
                                     RecentProjectCard(
                                         project = project,
                                         onOpen = {
@@ -222,6 +240,16 @@ fun RecentView(
             }
         }
     }
+}
+
+@Composable
+private fun RecentProjectsSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = Theme[typography][p],
+        fontWeight = FontWeight.SemiBold,
+        color = Theme[colors][foreground],
+    )
 }
 
 @Composable
