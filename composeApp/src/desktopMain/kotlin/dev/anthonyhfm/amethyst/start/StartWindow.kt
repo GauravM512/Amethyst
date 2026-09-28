@@ -42,8 +42,8 @@ fun StartWindow(
         },
         title = "Amethyst",
         state = rememberWindowState(
-            width = 750.dp,
-            height = 550.dp,
+            width = 950.dp,
+            height = 750.dp,
             position = WindowPosition.Aligned(Alignment.Center)
         ),
         icon = when (DesktopPlatform.get()) {

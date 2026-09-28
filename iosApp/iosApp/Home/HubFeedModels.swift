@@ -27,6 +27,8 @@ struct HubFeed: Equatable {
 struct HubSectionHeader: Identifiable, Equatable {
     let id: String
     let title: String
+    let actionLabel: String?
+    let actionHref: String?
 }
 
 enum HubArtworkAccent: Equatable {

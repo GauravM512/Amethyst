@@ -60,7 +60,7 @@ internal fun HubHomeSectionView(
     onSignIn: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        HubSectionHeader(section.title)
+        HubSectionHeader(section.title, section.actionLabel, section.actionHref, onOpenHref)
         when (section) {
             is HubHomeSection.CreatorRow -> LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -214,13 +214,13 @@ private fun HubCreatorCard(
 }
 
 @Composable
-private fun HubSectionHeader(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = hubEdge),
-    )
+private fun HubSectionHeader(title: String, actionLabel: String?, actionHref: String?, onOpenHref: (String?) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = hubEdge), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        if (!actionLabel.isNullOrBlank() && !actionHref.isNullOrBlank()) {
+            TextButton(onClick = { onOpenHref(actionHref) }) { Text(actionLabel) }
+        }
+    }
 }
 
 @Composable

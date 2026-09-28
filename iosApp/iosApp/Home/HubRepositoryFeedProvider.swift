@@ -158,7 +158,9 @@ final class HubRepositoryFeedProvider: HubFeedProviding {
     private func header(for section: any ComposeApp.HubHomeSection) -> HubSectionHeader {
         HubSectionHeader(
             id: section.id_,
-            title: section.title
+            title: section.title,
+            actionLabel: section.actionLabel,
+            actionHref: section.actionHref
         )
     }
 

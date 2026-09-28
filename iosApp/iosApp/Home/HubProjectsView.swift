@@ -6,10 +6,17 @@ struct HubProjectsView: View {
     let revision: String
     let onOpen: (HubDestination) -> Void
 
+    init(repository: HubRepository, revision: String, initialSort: String, onOpen: @escaping (HubDestination) -> Void) {
+        self.repository = repository
+        self.revision = revision
+        self.onOpen = onOpen
+        _filters = State(initialValue: HubProjectFilters(sort: initialSort))
+    }
+
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
     @State private var searchText = ""
-    @State private var filters = HubProjectFilters()
+    @State private var filters: HubProjectFilters
     @State private var projects: [ComposeApp.HubProject] = []
     @State private var nextCursor: String?
     @State private var isLoading = true

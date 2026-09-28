@@ -85,10 +85,7 @@ final class AccountViewModel {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let account {
-                    self.account = account
-                    self.username = account.username
-                    self.displayName = account.displayName
-                    self.email = account.email ?? ""
+                    self.setAccount(account)
                 } else if let error, isAuthenticationError(error) {
                     self.signOutLocally()
                 } else if let error {
@@ -272,7 +269,7 @@ final class AccountViewModel {
                 _ = try await self.accountService.changePassword(
                     username: accountUsername, current: current, replacement: newPassword
                 )
-                self.isBusy = false
+                self.signOutLocally()
                 completion(nil)
             } catch {
                 self?.isBusy = false

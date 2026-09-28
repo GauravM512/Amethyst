@@ -228,6 +228,7 @@
     <string name="home_hub_detail_loading">Loading…</string>
     <string name="home_hub_detail_no_projects">No published projects yet.</string>
     <string name="home_hub_detail_project_error">The project could not be loaded.</string>
+    <string name="home_hub_detail_project_title">Project details</string>
     <string name="home_hub_detail_project_unavailable">Project unavailable</string>
     <string name="home_hub_detail_projects">projects</string>
     <string name="home_hub_detail_projects_error">Projects could not be loaded.</string>

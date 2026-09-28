@@ -176,7 +176,10 @@ fun WidescreenNavBar(
                             SidebarMenuItem {
                                 SidebarMenuButton(
                                     onClick = {
-                                        if (item.route == HomeNavRoute.Browser) onHubSectionChange(DesktopHubSection.Home)
+                                        if (item.route == HomeNavRoute.Browser) {
+                                            onHubSectionChange(DesktopHubSection.Home)
+                                        }
+
                                         if (currentNavigation != item.route) {
                                             navigator.navigate(item.route) {
                                                 launchSingleTop = true
@@ -189,7 +192,8 @@ fun WidescreenNavBar(
                                         Icon(
                                             imageVector = item.icon,
                                             contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier
+                                                .size(18.dp),
                                             tint = if (currentNavigation == item.route) {
                                                 Theme[colors][accentForeground]
                                             } else {
@@ -198,9 +202,12 @@ fun WidescreenNavBar(
                                         )
                                     },
                                 ) {
-                                    Text(item.expandedLabel)
+                                    Text(
+                                        text = item.expandedLabel
+                                    )
                                 }
                             }
+
                             if (item.route == HomeNavRoute.Browser && currentNavigation == HomeNavRoute.Browser) {
                                 listOf(
                                     Triple(DesktopHubSection.Home, Res.string.home_widescreen_navbar_group_home, Lucide.House),
@@ -209,18 +216,30 @@ fun WidescreenNavBar(
                                 ).forEach { (section, label, icon) ->
                                     SidebarMenuItem {
                                         SidebarMenuButton(
-                                            onClick = { onHubSectionChange(section) },
-                                            modifier = Modifier.padding(start = if (sidebarState.expanded) 18.dp else 0.dp),
+                                            onClick = {
+                                                onHubSectionChange(section)
+                                            },
+                                            modifier = Modifier
+                                                .padding(start = if (sidebarState.expanded) 18.dp else 0.dp),
                                             isActive = hubSection == section,
                                             icon = {
                                                 Icon(
                                                     imageVector = icon,
                                                     contentDescription = null,
-                                                    modifier = Modifier.size(17.dp),
-                                                    tint = if (hubSection == section) Theme[colors][accentForeground] else Theme[colors][foreground].copy(alpha = 0.7f),
+                                                    modifier = Modifier
+                                                        .size(17.dp),
+                                                    tint = if (hubSection == section) {
+                                                        Theme[colors][accentForeground]
+                                                    } else {
+                                                        Theme[colors][foreground].copy(alpha = 0.7f)
+                                                    },
                                                 )
                                             },
-                                        ) { Text(stringResource(label)) }
+                                        ) {
+                                            Text(
+                                                text = stringResource(label)
+                                            )
+                                        }
                                     }
                                 }
                             }

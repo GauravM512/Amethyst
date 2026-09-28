@@ -19,6 +19,7 @@ struct HubTabView: View {
     @State private var destination: HubDestination?
     @State private var showLikedProjects = false
     @State private var showProjects = false
+    @State private var projectsInitialSort = "newest"
     @State private var likedProjectsRevision = 0
 
     @Environment(\.amethystTheme) private var theme
@@ -76,8 +77,10 @@ struct HubTabView: View {
                 HubProjectsView(
                     repository: viewModel.repository,
                     revision: "\(sessionRevision):\(likedProjectsRevision)",
+                    initialSort: projectsInitialSort,
                     onOpen: { destination = $0 }
                 )
+                .id(projectsInitialSort)
             }
         }
         .searchable(
@@ -155,7 +158,12 @@ struct HubTabView: View {
                         availableWidth: min(max(proxy.size.width - 40, 280), 960),
                         viewModel: viewModel,
                         onOpen: { destination = $0 },
-                        onShowAllProjects: { showProjects = true }
+                        onShowAllProjects: { href in
+                            let components = href.flatMap { URLComponents(string: $0) }
+                            projectsInitialSort = components?.queryItems?.first(where: { $0.name == "sort" })?.value == "popular"
+                                ? "popular" : "newest"
+                            showProjects = true
+                        }
                     )
                 }
                 .refreshable {

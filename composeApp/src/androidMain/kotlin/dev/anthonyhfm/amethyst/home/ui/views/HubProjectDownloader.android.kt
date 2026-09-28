@@ -97,6 +97,11 @@ internal object HubProjectDownloader {
                     sourceHash = hash,
                 )
             )
+            directory.listFiles()?.filter { it.isFile && it != destination && supportedExtension(it.name) != null }
+                ?.forEach { previous ->
+                    runCatching { HomeRepository.removeRecentWorkspace(previous.absolutePath) }
+                    runCatching { previous.delete() }
+                }
             withContext(Dispatchers.Main) { onProgress(1f) }
             PlatformFile(destination.absolutePath)
         } catch (error: Exception) {

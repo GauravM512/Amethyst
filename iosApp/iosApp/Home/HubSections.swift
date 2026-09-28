@@ -17,7 +17,7 @@ struct HubFeedView: View {
     let availableWidth: CGFloat
     @Bindable var viewModel: HubFeedViewModel
     let onOpen: (HubDestination) -> Void
-    let onShowAllProjects: () -> Void
+    let onShowAllProjects: (String?) -> Void
 
     @Environment(\.amethystTheme) private var theme
     @Environment(AppLocalization.self) private var localization
@@ -26,15 +26,29 @@ struct HubFeedView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 34) {
                 ForEach(sections) { section in
-                    HubSectionRenderer(
-                        section: section,
-                        availableWidth: availableWidth,
-                        viewModel: viewModel,
-                        onOpen: onOpen
-                    )
+                    VStack(alignment: .leading, spacing: 8) {
+                        HubSectionRenderer(
+                            section: section,
+                            availableWidth: availableWidth,
+                            viewModel: viewModel,
+                            onOpen: onOpen
+                        )
+                        if let label = section.header.actionLabel,
+                           let href = section.header.actionHref,
+                           URLComponents(string: href)?.path == "/projects" {
+                            Button {
+                                onShowAllProjects(href)
+                            } label: {
+                                Label(label, systemImage: "arrow.right")
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.horizontal, HubFeedLayout.edgeInset)
+                        }
+                    }
                 }
 
-                Button(action: onShowAllProjects) {
+                Button { onShowAllProjects(nil) } label: {
                     HStack {
                         Text(localization.string("home_hub_show_all_projects", fallback: "Show all projects"))
                         Spacer()

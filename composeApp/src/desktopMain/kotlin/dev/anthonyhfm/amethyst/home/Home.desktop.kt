@@ -138,27 +138,47 @@ actual fun Home(
 
                     composable<HomeNavRoute.Browser> {
                         AppLocaleRefreshBoundary {
-                            Box(Modifier.fillMaxSize()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                            ) {
                                 BrowserView(
                                     repository = hubAccount.repository,
                                     sessionRevision = hubAccount.sessionRevision,
                                     section = hubSection,
-                                    onSectionChange = { hubSection = it },
-                                    onOpenArtist = { hubStack.add(DesktopHubDestination.Artist(it)) },
-                                    onOpenProject = { username, slug -> hubStack.add(DesktopHubDestination.Project(username, slug)) },
-                                    onSignIn = { navigator.navigate(HomeNavRoute.Account) },
+                                    onSectionChange = {
+                                        hubSection = it
+                                    },
+                                    onOpenArtist = {
+                                        hubStack.add(DesktopHubDestination.Artist(it))
+                                    },
+                                    onOpenProject = { username, slug ->
+                                        hubStack.add(DesktopHubDestination.Project(username, slug))
+                                    },
+                                    onSignIn = {
+                                        navigator.navigate(HomeNavRoute.Account)
+                                    },
                                 )
+
                                 hubStack.lastOrNull()?.let { destination ->
                                     DesktopHubDetail(
                                         destination = destination,
                                         repository = hubAccount.repository,
-                                        onBack = { hubStack.removeAt(hubStack.lastIndex) },
-                                        onNavigate = { hubStack.add(it) },
-                                        onSignIn = { navigator.navigate(HomeNavRoute.Account) },
+                                        onBack = {
+                                            hubStack.removeAt(hubStack.lastIndex)
+                                        },
+                                        onNavigate = {
+                                            hubStack.add(it)
+                                        },
+                                        onSignIn = {
+                                            navigator.navigate(HomeNavRoute.Account)
+                                        },
                                         onOpenDownloadedFile = { file, project ->
                                             openHubProject(file, project, navigator, onOpenWorkspace)
                                         },
-                                        modifier = Modifier.fillMaxSize().background(Theme[colors][background]),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Theme[colors][background]),
                                     )
                                 }
                             }
@@ -166,7 +186,9 @@ actual fun Home(
                     }
 
                     composable<HomeNavRoute.Account> {
-                        AppLocaleRefreshBoundary { DesktopAccountView() }
+                        AppLocaleRefreshBoundary {
+                            DesktopAccountView()
+                        }
                     }
 
                     composable<HomeNavRoute.Arcade> {

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
@@ -130,9 +131,14 @@ fun TypographySmall(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun TypographyMuted(text: String, modifier: Modifier = Modifier) {
+fun TypographyMuted(
+    text: String,
+    textAlign: TextAlign = TextAlign.Unspecified,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text,
+        textAlign = textAlign,
         style = Theme[typography][mutedText].copy(color = Theme[colors][mutedForeground]),
         modifier = modifier,
     )
