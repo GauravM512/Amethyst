@@ -167,7 +167,10 @@ abstract class AbletonAdapter {
                     is OriginalSimpler -> OriginalSimplerAdapter(device)
                     is MidiNoteLength -> MidiNoteLengthAdapter(device, rackMacroValues)
                     is MidiVelocity -> MidiVelocityAdapter(device, rackMacroValues)
-                    is MidiPitcher -> MidiPitcherAdapter(device)
+                    is MidiPitcher -> MidiPitcherAdapter(
+                        device = device,
+                        rackMacroValues = rackMacroValues,
+                    )
                     is MidiRandom -> MidiRandomAdapter(device)
                     is MidiChord -> MidiChordAdapter(device)
                     is MidiArpeggiator -> MidiArpeggiatorAdapter(device, rackMacroValues)

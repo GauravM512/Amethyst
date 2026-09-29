@@ -1,7 +1,9 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.data.devices
 
 import dev.anthonyhfm.amethyst.conversion.ableton.data.AbletonDevice
+import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonKeyMidi
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonManual
+import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonMidiControllerRange
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonOn
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -19,6 +21,10 @@ data class MidiPitcher(
 ) : AbletonDevice {
     @Serializable
     data class Pitch(
-        val manual: AbletonManual<Int>
+        val manual: AbletonManual<Int>,
+        @XmlElement
+        val keyMidi: AbletonKeyMidi? = null,
+        @XmlElement
+        val midiControllerRange: AbletonMidiControllerRange? = null,
     )
 }

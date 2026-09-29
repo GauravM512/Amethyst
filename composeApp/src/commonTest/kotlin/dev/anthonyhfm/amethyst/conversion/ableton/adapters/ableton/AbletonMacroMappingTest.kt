@@ -1,16 +1,53 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton
 
+import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiPitcher
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiVelocity
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonKeyMidi
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonManual
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonMidiControllerRange
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitcherChainDeviceState
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonVelocityChainDevice
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonVelocityChainDeviceState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AbletonMacroMappingTest {
+    @Test
+    fun mappedPitchUsesEnclosingRackMacro() {
+        val source = AbletonConverter.xml.decodeFromString(
+            deserializer = MidiPitcher.serializer(),
+            string = """
+                <MidiPitcher Id="1">
+                    <Pitch>
+                        <Manual Value="0"/>
+                        <KeyMidi>
+                            <Channel Value="16"/>
+                            <NoteOrController Value="1"/>
+                        </KeyMidi>
+                        <MidiControllerRange>
+                            <Min Value="-128"/>
+                            <Max Value="128"/>
+                        </MidiControllerRange>
+                    </Pitch>
+                </MidiPitcher>
+            """.trimIndent(),
+        )
+
+        val mapped = AbletonAdapter.resolveAdapter(
+            device = source,
+            rackMacroValues = listOf(0f, 64.4921875f),
+        )!!.toDeviceStates().single() as AbletonPitcherChainDeviceState
+        val saved = AbletonAdapter.resolveAdapter(
+            device = source,
+        )!!.toDeviceStates().single() as AbletonPitcherChainDeviceState
+
+        assertEquals(expected = 2, actual = mapped.pitch)
+        assertEquals(expected = 0, actual = saved.pitch)
+    }
+
     @Test
     fun nestedRackMacrosResolveMappedTimeAndColorIncludingZero() {
         val outerMacros = listOf(32f, 8f, 21f, 34f, 47f, 62f, 91f, 0f)
