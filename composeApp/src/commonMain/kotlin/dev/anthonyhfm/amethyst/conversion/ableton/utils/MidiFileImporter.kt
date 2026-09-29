@@ -2,7 +2,7 @@ package dev.anthonyhfm.amethyst.conversion.ableton.utils
 
 import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
 import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.core.util.UUID
@@ -26,6 +26,7 @@ object MidiFileImporter {
             r: Float,
             g: Float,
             b: Float,
+            abletonPitch: Int? = null,
         ): KeyframesChainDeviceContract.KeyframesEntry =
             KeyframesChainDeviceContract.KeyframesEntry(
                 x = localX + offset.x,
@@ -36,6 +37,7 @@ object MidiFileImporter {
                 launchpadId = launchpadId,
                 localX = localX,
                 localY = localY,
+                abletonPitch = abletonPitch,
             )
     }
 
@@ -181,15 +183,14 @@ object MidiFileImporter {
                     }
                     val noteOn = isNoteOn && velocity != 0
 
-                    if (pitch in 0 until DRUM_RACK_TO_XY.size) {
-                        val xy = DRUM_RACK_TO_XY[pitch]
-                        val localX = xy % 10
-                        val localY = 9 - (xy / 10)
+                    if (pitch in 0..127) {
+                        val xy = AbletonNoteSpace.padIndex(pitch)
+                        val localX = xy?.rem(10) ?: -1 - pitch
+                        val localY = xy?.div(10)?.let { 9 - it } ?: -1
 
                         val filtered = currentFrame.entries.filterNot {
                             it.launchpadId == launchpad.launchpadId &&
-                                it.localX == localX &&
-                                it.localY == localY
+                                it.abletonPitch == pitch
                         }
                         val updatedEntries =
                             if (noteOn) {
@@ -201,6 +202,7 @@ object MidiFileImporter {
                                     r = triple.first / 63f,
                                     g = triple.second / 63f,
                                     b = triple.third / 63f,
+                                    abletonPitch = pitch,
                                 )
                             } else {
                                 filtered

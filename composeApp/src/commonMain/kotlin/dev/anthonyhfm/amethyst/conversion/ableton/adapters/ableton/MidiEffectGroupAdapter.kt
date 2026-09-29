@@ -13,7 +13,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffec
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonPageIndexing
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.getFileHash
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.toFileHash
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitchRangeChainDeviceState
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
@@ -29,8 +29,17 @@ class MidiEffectGroupAdapter(
     private val outputOffset: IntOffset = IntOffset.Zero,
     private val chainDepth: Int = 0,
     private val isInsideDrumRack: Boolean = false,
+    private val parentMacroValues: List<Float>? = null,
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
+        val macroValues = device.macros.map { macro ->
+            AbletonMacroMapping.effectiveValue(
+                manualValue = macro.manual.value,
+                keyMidi = macro.keyMidi,
+                controllerRange = macro.midiControllerRange,
+                parentMacroValues = parentMacroValues,
+            )
+        }
         val branches: List<MidiEffectGroupDevice.Branches.MidiEffectBranch> = device.branches.branches
 
         val selectorRanges = branches.map {
@@ -53,13 +62,6 @@ class MidiEffectGroupAdapter(
         }
 
         val groups = mutableListOf<Group>()
-
-        val branch1Name = branches.getOrNull(0)?.name?.effectiveName?.value
-        val branch2Name = branches.getOrNull(1)?.name?.effectiveName?.value
-
-        if (branch1Name == "Magic" && branch2Name == "Rate Preview") {
-            return VelocityArpeggiatorAdapter(device).toDeviceStates().withMuteState(device.on.manual.value)
-        }
 
         groups.addAll(
             branches.mapIndexed { index, branch ->
@@ -104,18 +106,9 @@ class MidiEffectGroupAdapter(
 
                             if (maxKey - minKey != 127 || minKey == maxKey) {
                                 add(
-                                    AbletonConverter.coordinateFilter(
-                                        launchpad = AbletonConverter.launchpadTarget(offset),
-                                        localCoordinates = IntArray(maxKey + 1 - minKey) {
-                                            minKey + it
-                                        }.map {
-                                            val xy = DRUM_RACK_TO_XY[it]
-
-                                            val x: Int = xy % 10
-                                            val y: Int = xy / 10
-
-                                            Pair(x, 9 - y)
-                                        },
+                                    AbletonPitchRangeChainDeviceState(
+                                        minimum = minKey,
+                                        maximum = maxKey,
                                     )
                                 )
                             }
@@ -166,6 +159,7 @@ class MidiEffectGroupAdapter(
                                                 offset = offset,
                                                 outputOffset = outputOffset,
                                                 chainDepth = chainDepth + 1,
+                                                rackMacroValues = macroValues,
                                             )?.toDeviceStates() ?: emptyList()
                                         }
                                     )
@@ -211,6 +205,7 @@ class MidiEffectGroupAdapter(
                                                     offset = offset,
                                                     outputOffset = outputOffset,
                                                     chainDepth = chainDepth + 1,
+                                                    rackMacroValues = macroValues,
                                                 )?.toDeviceStates() ?: emptyList()
                                             }
                                         )
@@ -244,7 +239,8 @@ class MidiEffectGroupAdapter(
                                         device = it,
                                         offset = offset,
                                         outputOffset = outputOffset,
-                                        chainDepth = chainDepth + 1
+                                        chainDepth = chainDepth + 1,
+                                        rackMacroValues = macroValues,
                                     )?.toDeviceStates() ?: emptyList()
                                 }
                             )

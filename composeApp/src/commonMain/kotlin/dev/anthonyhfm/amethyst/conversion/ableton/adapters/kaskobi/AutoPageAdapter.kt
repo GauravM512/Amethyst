@@ -9,24 +9,33 @@ import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDeviceState
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class AutoPageAdapter(private val blob: String) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val data = jsonDecoder.decodeFromString<AutoPageData>(blob)
 
         return mutableListOf<DeviceState>().apply {
-            val time = timeSplits[data.delay.first().toInt()]
+            val delayIndex = data.delay.firstOrNull()?.toInt() ?: 0
+            val synchronized = data.synchronized.firstOrNull() != 0
+            val timing = if (synchronized && delayIndex == 0) {
+                Duration.ZERO
+            } else if (synchronized) {
+                val time = timeSplits.getOrNull(delayIndex) ?: timeSplits.first()
+                rythmIndexToDuration(
+                    timing = "${time.first}/${time.second}",
+                    bpm = AbletonConverter.bpm,
+                    steps = 1
+                )
+            } else {
+                (data.delayMs.firstOrNull() ?: 0f).toDouble().milliseconds
+            }
 
-            if (data.delay.first() != 0f) {
+            if (timing.inWholeMilliseconds > 0L) {
                 add(
                     DelayChainDeviceState(
-                        timing = Timing.Duration(
-                            rythmIndexToDuration(
-                                timing = "${time.first}/${time.second}",
-                                bpm = AbletonConverter.bpm,
-                                steps = 1
-                            )
-                        )
+                        timing = Timing.Duration(timing)
                     )
                 )
             }
@@ -63,6 +72,12 @@ class AutoPageAdapter(private val blob: String) : AbletonAdapter() {
         val targetPage: List<Int>,
 
         @SerialName("live.numbox[43]")
-        val delay: List<Float>
+        val delay: List<Float>,
+
+        @SerialName("live.numbox[44]")
+        val delayMs: List<Float> = emptyList(),
+
+        @SerialName("live.text[39]")
+        val synchronized: List<Int> = listOf(1)
     )
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.MidiFileImporter
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.engine.heaven.isLit
@@ -902,11 +903,22 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
             y = gy,
             launchpadId = launchpadId.takeIf { isDeviceAnchored },
         ) ?: this
-        return Signal.LED(origin = origin, x = gx, y = gy, color = color, layer = 0)
+        val signal = Signal.LED(origin = origin, x = gx, y = gy, color = color, layer = 0)
+        val pitch = abletonPitch ?: return signal
+        val targetX = gx - (localX ?: 0)
+        val targetY = gy - (localY ?: 0)
+        return AbletonNoteSpace.withPitch(
+            signal = signal,
+            note = AbletonNoteSpace.Note(pitch, targetX, targetY),
+            pitch = pitch,
+        ) as? Signal.LED ?: signal
     }
 
     /** Returns true when [other] occupies the same physical position as this entry. */
     private fun KeyframesEntry.samePosition(other: KeyframesEntry): Boolean {
+        if (abletonPitch != null && other.abletonPitch != null && launchpadId == other.launchpadId) {
+            return abletonPitch == other.abletonPitch
+        }
         return if (isDeviceAnchored && other.isDeviceAnchored && launchpadId == other.launchpadId) {
             localX == other.localX && localY == other.localY
         } else {

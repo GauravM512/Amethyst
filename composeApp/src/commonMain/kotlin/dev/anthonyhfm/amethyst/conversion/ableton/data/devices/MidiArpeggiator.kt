@@ -2,6 +2,8 @@ package dev.anthonyhfm.amethyst.conversion.ableton.data.devices
 
 import dev.anthonyhfm.amethyst.conversion.ableton.data.AbletonDevice
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonManual
+import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonKeyMidi
+import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonMidiControllerRange
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonOn
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -14,6 +16,9 @@ data class MidiArpeggiator(
 
     @XmlElement
     val on: AbletonOn = AbletonOn(),
+
+    @XmlElement
+    val mode: Mode = Mode(AbletonManual(0)),
 
     @XmlElement
     val transposeDistance: TransposeDistance,
@@ -37,11 +42,19 @@ data class MidiArpeggiator(
     val gate: Gate,
 
     @XmlElement
+    val hold: Hold = Hold(AbletonManual(false)),
+
+    @XmlElement
     val velocityEnabled: VelocitySwitch,
 
     @XmlElement
     val velocityTarget: VelocityTarget,
 ) : AbletonDevice {
+    @Serializable
+    data class Mode(
+        val manual: AbletonManual<Int>,
+    )
+
     @Serializable
     data class SyncState(
         val manual: AbletonManual<Boolean>,
@@ -50,6 +63,10 @@ data class MidiArpeggiator(
     @Serializable
     data class SyncedRate(
         val manual: AbletonManual<Int>,
+        @XmlElement
+        val keyMidi: AbletonKeyMidi? = null,
+        @XmlElement
+        val midiControllerRange: AbletonMidiControllerRange? = null,
     )
 
     @Serializable
@@ -65,6 +82,11 @@ data class MidiArpeggiator(
     @Serializable
     data class Gate(
         val manual: AbletonManual<Float>,
+    )
+
+    @Serializable
+    data class Hold(
+        val manual: AbletonManual<Boolean>,
     )
 
     @Serializable

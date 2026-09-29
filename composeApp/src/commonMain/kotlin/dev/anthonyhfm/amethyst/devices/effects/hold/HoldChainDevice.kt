@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.isSilentReplay
 import dev.anthonyhfm.amethyst.core.util.Timing
@@ -54,6 +55,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
 
     private val activeJobOwners = mutableSetOf<Any>()
     private val isDown = mutableSetOf<Any>()
+    private val releaseInputs = mutableMapOf<Any, Signal>()
 
     @Composable
     override fun Content() {
@@ -264,7 +266,10 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                 else -> null
             }
 
-            val signalOwner: Any = if (signalX != null && signalY != null) {
+            val note = AbletonNoteSpace.note(signal)
+            val signalOwner: Any = if (note != null) {
+                Pair(this, note)
+            } else if (signalX != null && signalY != null) {
                 Pair(this, "${signalX},${signalY}")
             } else {
                 Pair(this, signal.hashCode()) // fallback for signals without coordinates
@@ -296,6 +301,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
             if (down) {
                 isDown.add(signalOwner)
                 if (state.value.onRelease) {
+                    releaseInputs[signalOwner] = signal
                     return@forEach
                 }
 
@@ -308,6 +314,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                 updateSchedule()
             } else {
                 isDown.remove(signalOwner)
+                val releaseInput = releaseInputs.remove(signalOwner)
                 if (!state.value.onRelease) {
                     if (state.value.mode == HoldMode.Minimum) {
                         // In minimum mode, if the key is released, we might need to release the signal
@@ -330,12 +337,12 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                     return@forEach
                 }
 
+                if (releaseInput == null) {
+                    return@forEach
+                }
+
                 Heaven.schedule(0.0, owner = this) {
-                    if (signal is Signal.LED) {
-                        signalExit?.invoke(listOf(signal.copy(color = Color.White)))
-                    } else if (signal is Signal.Midi) {
-                        signalExit?.invoke(listOf(signal.copy(velocity = 127)))
-                    }
+                    signalExit?.invoke(listOf(releaseInput))
                 }
 
                 if (state.value.mode == HoldMode.Infinite) {
@@ -348,8 +355,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
     }
 
     override fun onChoke() {
-        // Cancel all scheduled Heaven tasks owned by this device
-        // The hold device uses Pair(this, "${signalX},${signalY}") as owner
+        releaseInputs.clear()
         Heaven.cancelJobs { job ->
             job.owner is Pair<*, *> && job.owner.first == this
         }

@@ -14,7 +14,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffec
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonPageIndexing
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.getFileHash
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.toFileHash
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitchRangeChainDeviceState
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
@@ -96,18 +96,9 @@ class InstrumentGroupAdapter(
 
                             if (maxKey - minKey != 127 || minKey == maxKey) {
                                 add(
-                                    AbletonConverter.coordinateFilter(
-                                        launchpad = AbletonConverter.launchpadTarget(offset),
-                                        localCoordinates = IntArray(maxKey + 1 - minKey) {
-                                            minKey + it
-                                        }.map {
-                                            val xy = DRUM_RACK_TO_XY[it]
-
-                                            val x: Int = xy % 10
-                                            val y: Int = xy / 10
-
-                                            Pair(x, 9 - y)
-                                        },
+                                    AbletonPitchRangeChainDeviceState(
+                                        minimum = minKey,
+                                        maximum = maxKey,
                                     )
                                 )
                             }
@@ -219,6 +210,8 @@ class InstrumentGroupAdapter(
                                     )?.toDeviceStates() ?: emptyList()
                                 }
                             )
+                        }.also { devices ->
+                            devices.appendMixerVolume(branch.masterDevice.volume.manual.value)
                         }.withMuteState(enabled)
                     )
                 )

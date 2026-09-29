@@ -9,22 +9,31 @@ import dev.anthonyhfm.amethyst.devices.ableton.AbletonArpeggiatorChainDeviceStat
 import kotlin.time.Duration.Companion.milliseconds
 
 class MidiArpeggiatorAdapter(
-    private val device: MidiArpeggiator
+    private val device: MidiArpeggiator,
+    private val rackMacroValues: List<Float>? = null,
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val palette = AbletonConverter.palette
         val velocity = device.velocityTarget.manual.value
+        val syncedRate = AbletonMacroMapping.effectiveInt(
+            manualValue = device.syncRate.manual.value,
+            keyMidi = device.syncRate.keyMidi,
+            controllerRange = device.syncRate.midiControllerRange,
+            parentMacroValues = rackMacroValues,
+        )
 
         return listOf(
             AbletonArpeggiatorChainDeviceState(
                 rate = if (device.syncState.manual.value) {
-                    Timing.Rythm(Timing.Rythm.RythmTiming.entries[device.syncRate.manual.value])
+                    Timing.Rythm(Timing.Rythm.RythmTiming.entries[syncedRate])
                 } else {
                     Timing.Duration(device.freeRate.manual.value.toInt().milliseconds)
                 },
                 distance = device.transposeDistance.manual.value,
+                mode = device.mode.manual.value,
                 steps = device.transposeSteps.manual.value,
                 repeats = device.repeatCount.manual.value,
+                hold = device.hold.manual.value,
                 color = if (device.velocityEnabled.manual.value) {
                     Triple(
                         palette[velocity].first / 63f,

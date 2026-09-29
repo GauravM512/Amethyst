@@ -221,12 +221,21 @@ data class InstrumentGroupDevice(
             @Serializable
             data class MixerDevice(
                 @XmlElement
-                val speaker: Branches.InstrumentBranch.MixerDevice.Speaker
+                val speaker: Branches.InstrumentBranch.MixerDevice.Speaker,
+
+                @XmlElement
+                val volume: Volume = Volume(AbletonManual(1f)),
             ) {
                 @Serializable
                 data class Speaker(
                     @XmlElement
                     val manual: AbletonManual<Boolean>
+                )
+
+                @Serializable
+                data class Volume(
+                    @XmlElement
+                    val manual: AbletonManual<Float>
                 )
             }
         }

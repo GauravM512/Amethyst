@@ -58,13 +58,52 @@ object AbletonLayoutDetector {
                 lightsRight = lightCandidates[1].second
             )
         } else if (audioCandidates.size == 2 && lightCandidates.size == 4) {
+            val selectedIds = lightCandidates.map { it.second.id }.toSet()
+            val orderedLights = tracks.filter { it.id in selectedIds }
+            fun port(target: String): String? = target
+                .substringAfter("Dev:", "")
+                .substringBeforeLast("/", "")
+                .takeIf(String::isNotBlank)
+
+            val inputs = orderedLights.mapNotNull {
+                port(it.deviceChain.midiInputRouting.target.value)
+            }.distinct()
+            val outputs = orderedLights.mapNotNull {
+                port(it.deviceChain.midiOutputRouting.target.value)
+            }.distinct()
+            val routed = if (inputs.size == 2 && outputs.size == 2) {
+                val audioPorts = audioCandidates.mapNotNull { candidate ->
+                    port(candidate.second.deviceChain.midiInputRouting.target.value)
+                }
+                val inputPorts = audioPorts.takeIf { ports ->
+                    ports.size == 2 && ports.toSet() == inputs.toSet()
+                } ?: inputs
+                val outputPorts = audioPorts.takeIf { ports ->
+                    ports.size == 2 && ports.toSet() == outputs.toSet()
+                } ?: outputs
+
+                fun find(input: String, output: String): MidiTrack? = orderedLights.firstOrNull {
+                    port(it.deviceChain.midiInputRouting.target.value) == input &&
+                        port(it.deviceChain.midiOutputRouting.target.value) == output
+                }
+
+                listOf(
+                    find(inputPorts[0], outputPorts[0]),
+                    find(inputPorts[0], outputPorts[1]),
+                    find(inputPorts[1], outputPorts[0]),
+                    find(inputPorts[1], outputPorts[1]),
+                ).takeIf { it.all { track -> track != null } }
+            } else {
+                null
+            }
+
             return AbletonLayout.Dual4Light(
                 audioLeft = audioCandidates[0].second,
                 audioRight = audioCandidates[1].second,
-                lightsLeft = lightCandidates[0].second,
-                lightsLeftToRight = lightCandidates[1].second,
-                lightsRightToLeft = lightCandidates[2].second,
-                lightsRight = lightCandidates[3].second
+                lightsLeft = routed?.get(0) ?: lightCandidates[0].second,
+                lightsLeftToRight = routed?.get(1) ?: lightCandidates[1].second,
+                lightsRightToLeft = routed?.get(2) ?: lightCandidates[2].second,
+                lightsRight = routed?.get(3) ?: lightCandidates[3].second
             )
         } else {
             return AbletonLayout.Single(

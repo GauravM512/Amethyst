@@ -1,7 +1,6 @@
 package dev.anthonyhfm.amethyst.devices.ableton
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -15,10 +14,6 @@ import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
-import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
-import dev.anthonyhfm.amethyst.core.midi.data.XY_TO_DRUM_RACK
-import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
@@ -45,62 +40,35 @@ class AbletonPitcherChainDevice : GenericChainDevice<AbletonPitcherChainDeviceSt
             title = "Pitcher",
             isSelected = isSelected,
             isDragging = isDragging.value,
-            modifier = Modifier.width(200.dp),
+            modifier = Modifier.width(150.dp),
             titleBarModifier = LocalTitleBarModifier.current
         ) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.padding(all = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "This device's origin is the Ableton Converter. It is not interactable and only used for simulating Abletons Pitcher.",
+                    text = "${state.value.pitch} semitones",
                     color = Theme[colors][primaryForeground],
                     textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = 6.dp)
                 )
             }
         }
     }
 
     override fun signalEnter(n: List<Signal>) {
-        n.forEach { signal ->
-            when (signal) {
-                is Signal.AudioSignal -> signalExit?.invoke(listOf(signal))
-                is Signal.LED, is Signal.Midi -> Heaven.devices.forEach deviceLoop@ { device ->
-                    val pos = device.position.value
-                    val (x, y) = when (signal) {
-                        is Signal.LED -> signal.x to signal.y
-                        is Signal.Midi -> signal.x to signal.y
-                        is Signal.AudioSignal -> error("Audio signals are handled before coordinate conversion")
-                    }
-
-                    if (pos.x > x || pos.x + device.layout.cols < x || pos.y > y || pos.y + device.layout.cols < y) {
-                        return@deviceLoop
-                    }
-
-                    val signalX = x - pos.x
-                    val signalY = y - pos.y
-
-                    val local = (signalX + ((9 - (signalY)) * 10)).toInt()
-
-                    val drIndex: Int = (XY_TO_DRUM_RACK.getOrNull(local) ?: return@deviceLoop) + state.value.pitch
-                    val newPad = DRUM_RACK_TO_XY.getOrNull(drIndex) ?: return@deviceLoop
-                    val newX = newPad % 10 + pos.x.toInt()
-                    val newY = 9 - newPad / 10 + pos.y.toInt()
-
-                    signalExit?.invoke(
-                        listOf(
-                            when (signal) {
-                                is Signal.LED -> signal.copy(x = newX, y = newY)
-                                is Signal.Midi -> signal.copy(x = newX, y = newY)
-                                is Signal.AudioSignal -> error("Audio signals are handled before coordinate conversion")
-                            }
-                        )
-                    )
-                }
+        signalExit?.invoke(n.mapNotNull { signal ->
+            if (signal is Signal.AudioSignal) {
+                signal
+            } else {
+                val note = AbletonNoteSpace.note(signal) ?: return@mapNotNull null
+                AbletonNoteSpace.withPitch(
+                    signal = signal,
+                    note = note,
+                    pitch = (note.pitch + state.value.pitch).coerceIn(0, 127),
+                )
             }
-        }
+        })
     }
 
     companion object : ChainDeviceFactory<AbletonPitcherChainDeviceState> {

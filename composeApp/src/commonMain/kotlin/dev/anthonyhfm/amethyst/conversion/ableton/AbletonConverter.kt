@@ -227,6 +227,8 @@ object AbletonConverter : AmethystConverter {
                         lights = apolloWorkspace.lights,
                         launchpadDevices = apolloWorkspace.launchpadDevices.ifEmpty { abletonWorkspace.launchpadDevices },
                         macros = mergedMacros
+                    ).rebindLaunchpadBindings(
+                        previousLaunchpads = abletonWorkspace.launchpadDevices,
                     )
                 } catch (e: Exception) {
                     println("Apollo conversion failed, falling back to Ableton lights: ${e.message}")
@@ -364,6 +366,29 @@ object AbletonConverter : AmethystConverter {
                 }
             }
 
+            fun dualFourLightTrack(
+                track: MidiTrack?,
+                inputIndex: Int,
+                outputOffset: IntOffset = IntOffset.Zero,
+            ): StateChain {
+                if (track == null) {
+                    return StateChain(emptyList())
+                }
+
+                val target = launchpadLayout.target(index = inputIndex)
+                val inputFilter = coordinateFilter(
+                    launchpad = target,
+                    localCoordinates = (0..9).flatMap { x ->
+                        (0..9).map { y -> x to y }
+                    },
+                )
+                val devices = MidiChainReader(
+                    offset = target.offset,
+                    outputOffset = outputOffset,
+                ).readMidiChain(track).devices
+                return StateChain(devices = listOf(inputFilter) + devices)
+            }
+
             val rawLights = if (layout is AbletonLayout.Dual2Light || layout is AbletonLayout.Dual4Light) {
                 StateChain(
                     devices = listOf(
@@ -389,37 +414,33 @@ object AbletonConverter : AmethystConverter {
                                 listOf(
                                     Group(
                                         name = "Left",
-                                        stateChain = layout.lightsLeft?.let {
-                                            MidiChainReader(offset = leftLaunchpadOffset)
-                                                .readMidiChain(it)
-                                        } ?: StateChain(emptyList())
+                                        stateChain = dualFourLightTrack(
+                                            track = layout.lightsLeft,
+                                            inputIndex = 0,
+                                        ),
                                     ),
                                     Group(
                                         name = "Left to Right",
-                                        stateChain = layout.lightsLeftToRight?.let {
-                                            MidiChainReader(
-                                                offset = leftLaunchpadOffset,
-                                                outputOffset = launchpadLayout.offsetBetween(fromIndex = 0, toIndex = 1),
-                                            )
-                                                .readMidiChain(it)
-                                        } ?: StateChain(emptyList())
+                                        stateChain = dualFourLightTrack(
+                                            track = layout.lightsLeftToRight,
+                                            inputIndex = 0,
+                                            outputOffset = launchpadLayout.offsetBetween(fromIndex = 0, toIndex = 1),
+                                        ),
                                     ),
                                     Group(
                                         name = "Right",
-                                        stateChain = layout.lightsRight?.let {
-                                            MidiChainReader(offset = launchpadLayout.target(index = 1).offset)
-                                                .readMidiChain(it)
-                                        } ?: StateChain(emptyList())
+                                        stateChain = dualFourLightTrack(
+                                            track = layout.lightsRight,
+                                            inputIndex = 1,
+                                        ),
                                     ),
                                     Group(
                                         name = "Right to Left",
-                                        stateChain = layout.lightsRightToLeft?.let {
-                                            MidiChainReader(
-                                                offset = launchpadLayout.target(index = 1).offset,
-                                                outputOffset = launchpadLayout.offsetBetween(fromIndex = 1, toIndex = 0),
-                                            )
-                                                .readMidiChain(it)
-                                        } ?: StateChain(emptyList())
+                                        stateChain = dualFourLightTrack(
+                                            track = layout.lightsRightToLeft,
+                                            inputIndex = 1,
+                                            outputOffset = launchpadLayout.offsetBetween(fromIndex = 1, toIndex = 0),
+                                        ),
                                     )
                                 ) + maskGroups()
                             } else error("This should never happen")
@@ -522,7 +543,7 @@ object AbletonConverter : AmethystConverter {
                 sampling = rawSamples,
                 autoPlay = autoPlayData,
                 settings = WorkspaceSettings(
-                    bpm = bpm
+                    bpm = bpm,
                 ),
                 launchpadDevices = launchpadLayout.launchpads,
                 macros = macros,

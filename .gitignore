@@ -5,6 +5,7 @@
 .gradle
 **/build/
 **/target/
+/dist/
 xcuserdata
 !src/**/build/
 local.properties

@@ -206,6 +206,9 @@ class DrumGroupDeviceAdapter(
                             }
                         )
                     }
+                        .also { devices ->
+                            devices.appendMixerVolume(branch.masterDevice.volume.manual.value)
+                        }
                         .withMuteState(branch.masterDevice.speaker.manual.value)
                         .withAbletonDrumChoke(
                             chokeGroup = chokeGroup,

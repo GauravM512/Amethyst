@@ -87,6 +87,7 @@ sealed interface KeyframesChainDeviceContract {
         val launchpadId: String? = null,
         val localX: Int? = null,
         val localY: Int? = null,
+        val abletonPitch: Int? = null,
     ) {
         /** True when this entry carries device-local coordinate data. */
         val isDeviceAnchored: Boolean get() = launchpadId != null && localX != null && localY != null

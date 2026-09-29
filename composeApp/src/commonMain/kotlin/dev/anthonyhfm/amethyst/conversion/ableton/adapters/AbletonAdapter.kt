@@ -10,6 +10,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiChordAdap
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiEffectGroupAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiNoteLengthAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiPitcherAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiRandomAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MidiVelocityAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MxDeviceInstrumentAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.MxDeviceMidiEffectAdapter
@@ -123,6 +124,7 @@ abstract class AbletonAdapter {
             outputOffset: IntOffset = IntOffset.Zero,
             chainDepth: Int = 0,
             isInsideDrumRack: Boolean = false,
+            rackMacroValues: List<Float>? = null,
         ): AbletonAdapter? {
             try {
                 return when (device) {
@@ -147,6 +149,7 @@ abstract class AbletonAdapter {
                         outputOffset = outputOffset,
                         chainDepth = chainDepth,
                         isInsideDrumRack = isInsideDrumRack,
+                        parentMacroValues = rackMacroValues,
                     )
 
                     is MxDeviceMidiEffect -> MxDeviceMidiEffectAdapter(
@@ -162,11 +165,12 @@ abstract class AbletonAdapter {
                     )
 
                     is OriginalSimpler -> OriginalSimplerAdapter(device)
-                    is MidiNoteLength -> MidiNoteLengthAdapter(device)
-                    is MidiVelocity -> MidiVelocityAdapter(device)
+                    is MidiNoteLength -> MidiNoteLengthAdapter(device, rackMacroValues)
+                    is MidiVelocity -> MidiVelocityAdapter(device, rackMacroValues)
                     is MidiPitcher -> MidiPitcherAdapter(device)
+                    is MidiRandom -> MidiRandomAdapter(device)
                     is MidiChord -> MidiChordAdapter(device)
-                    is MidiArpeggiator -> MidiArpeggiatorAdapter(device)
+                    is MidiArpeggiator -> MidiArpeggiatorAdapter(device, rackMacroValues)
                     is Eq8 -> Eq8Adapter(device)
                     is StereoGain -> StereoGainAdapter(device)
                     is Limiter -> LimiterAdapter(device)

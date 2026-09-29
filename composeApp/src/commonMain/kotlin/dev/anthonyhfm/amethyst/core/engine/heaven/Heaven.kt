@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.core.engine.heaven
 import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.core.diagnostics.PerformanceDiagnostics
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
 import dev.anthonyhfm.amethyst.core.engine.elements.SIGNAL_EXTRA_SILENT_REPLAY
 import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
@@ -161,7 +162,8 @@ object Heaven {
     }
 
     fun midiEnter(signals: List<Signal.LED>) {
-        val nonSilent = signals.filterNot { it.extras[SIGNAL_EXTRA_SILENT_REPLAY] == 1 }
+        val nonSilent = signals.mapNotNull(AbletonNoteSpace::project)
+            .filterNot { it.extras[SIGNAL_EXTRA_SILENT_REPLAY] == 1 }
         if (nonSilent.isEmpty()) return
         signalQueue.trySend(nonSilent)
         wakeRenderer()

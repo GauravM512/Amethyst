@@ -223,6 +223,11 @@ fun Timing.toMsValue(bpm: Double): Long = when (this) {
     }
 }
 
+fun Timing.toExactMsValue(bpm: Double): Double = when (this) {
+    is Timing.Duration -> duration.inWholeNanoseconds / 1_000_000.0
+    is Timing.Rythm -> timing.factor.toDouble() * 4.0 * 60_000.0 / bpm
+}
+
 fun String.asTiming(): Timing? {
     val trimmed = this.trim().lowercase()
 

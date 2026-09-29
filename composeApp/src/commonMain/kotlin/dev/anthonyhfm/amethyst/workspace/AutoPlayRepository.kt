@@ -4,12 +4,18 @@ import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.engine.audio.command.AudioStopTicket
 import dev.anthonyhfm.amethyst.core.engine.echo.Echo
 import dev.anthonyhfm.amethyst.core.engine.elements.AudioChain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.SIGNAL_EXTRA_SILENT_REPLAY
 import dev.anthonyhfm.amethyst.core.engine.elements.currentSignalMacroValues
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.devices.Chokeable
+import dev.anthonyhfm.amethyst.devices.NestedChainDevice
+import dev.anthonyhfm.amethyst.devices.TimelineDuration
+import dev.anthonyhfm.amethyst.devices.TimelineDurationContext
 import dev.anthonyhfm.amethyst.devices.devicesDepthFirst
+import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,6 +45,40 @@ internal const val AUTO_PLAY_AUDIO_LOOKAHEAD_MS = 12.0
 private const val AUTO_PLAY_RESET_POLL_MS = 1.0
 private const val AUTO_PLAY_AUDIO_PUMP_MAX_SLEEP_NANOS = 1_000_000_000L
 private const val AUTO_PLAY_AUDIO_PUMP_ID = "autoplay-audio-pump"
+
+internal fun autoPlayDelayTailMs(
+    chains: List<Chain>,
+    bpm: Double,
+): Long {
+    val context = TimelineDurationContext(bpm = bpm)
+    return chains.maxOfOrNull { chain -> chain.autoPlayDelayTailMs(context) } ?: 0L
+}
+
+private fun Chain.autoPlayDelayTailMs(context: TimelineDurationContext): Long {
+    fun add(first: Long, second: Long): Long =
+        if (Long.MAX_VALUE - first < second) Long.MAX_VALUE else first + second
+
+    return devices.value
+        .asSequence()
+        .filterNot { device -> device.isMuted }
+        .fold(0L) { total, device ->
+            val duration = when (device) {
+                is DelayChainDevice ->
+                    (device.timelineDuration(context) as? TimelineDuration.Finite)?.milliseconds ?: 0L
+                is MultiGroupChainDevice -> {
+                    val nested = device.nestedChains()
+                    val preprocess = nested.lastOrNull()?.autoPlayDelayTailMs(context) ?: 0L
+                    val branch = nested.dropLast(1)
+                        .maxOfOrNull { chain -> chain.autoPlayDelayTailMs(context) } ?: 0L
+                    add(preprocess, branch)
+                }
+                is NestedChainDevice -> device.nestedChains()
+                    .maxOfOrNull { chain -> chain.autoPlayDelayTailMs(context) } ?: 0L
+                else -> 0L
+            }
+            add(total, duration)
+        }
+}
 
 private data class AutoPlayAudioTimeline(
     val playbackStartNanos: Long,
@@ -363,8 +403,15 @@ object AutoPlayRepository {
 
         // Schedule this after all actions so equal deadlines retain action-before-stop ordering.
         val remainingDuration = (totalDuration - playbackOffset).coerceAtLeast(0.0)
+        val delayTail = autoPlayDelayTailMs(
+            chains = listOf(
+                WorkspaceRepository.samplingChain,
+                WorkspaceRepository.lightsChain,
+            ),
+            bpm = WorkspaceRepository.bpm.value,
+        )
         Heaven.scheduleAt(
-            targetTimeNanos = playbackStartNanos + millisecondsToNanos(remainingDuration + 50.0),
+            targetTimeNanos = playbackStartNanos + millisecondsToNanos(remainingDuration + delayTail + 50.0),
             owner = this,
         ) {
             stopAutoPlay()

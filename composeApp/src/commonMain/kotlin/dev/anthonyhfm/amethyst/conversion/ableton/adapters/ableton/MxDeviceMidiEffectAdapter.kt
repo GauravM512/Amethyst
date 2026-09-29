@@ -181,9 +181,17 @@ class MxDeviceMidiEffectAdapter(
                 "5aa613617ae0b0e24cbe715dbe3960e2",
                 "f004d757e3910cc81b317a55e4dd6263",
                 "d53dcb292a173ab7853183f3cab7620c",
-                "f2504fe314d81dcc9b57e2466a157033",
-                "ffd72babd9b6051d8b3b0a4a5602d5fe" -> {
+                "ffd72babd9b6051d8b3b0a4a5602d5fe",
+                "6996d81ae12c12a7d1d2a45548bcd45e" -> {
                     return GenericMidiExtAdapter(device, offset).toDeviceStates()
+                }
+
+                "f2504fe314d81dcc9b57e2466a157033" -> {
+                    return GenericMidiExtAdapter(
+                        device = device,
+                        offset = offset,
+                        midiFire = true,
+                    ).toDeviceStates()
                 }
 
                 "2ef098a53fe4e9a4b035588561080343" -> {
@@ -201,7 +209,7 @@ class MxDeviceMidiEffectAdapter(
                 }
 
                 "93b3690b7e7036ab0ba662e589d7ef37" -> {
-                    return CycleLightsAdapter(device).toDeviceStates()
+                    return CycleLightsAdapter(device, offset).toDeviceStates()
                 }
 
                 "b3ff29c822cdd8573e901042f68900b3" -> {
@@ -216,7 +224,8 @@ class MxDeviceMidiEffectAdapter(
                     return MultiResetAdapter(device).toDeviceStates()
                 }
 
-                "3d3de9b05506f279ad6cfe14d26e0084" -> {
+                "3d3de9b05506f279ad6cfe14d26e0084",
+                "7361d4c4b12bea802d369a0bb5ba7c68" -> {
                     return WormholeAdapter(blob).toDeviceStates()
                 }
 
@@ -235,7 +244,11 @@ class MxDeviceMidiEffectAdapter(
                     val fileName = maxFile.nameWithoutExtension.lowercase()
 
                     if (fileName.contains("midifire") || fileName.contains("genericmidi")) {
-                        return GenericMidiExtAdapter(device, offset).toDeviceStates()
+                        return GenericMidiExtAdapter(
+                            device = device,
+                            offset = offset,
+                            midiFire = fileName.contains("midifire"),
+                        ).toDeviceStates()
                     }
 
                     if (fileName.contains("resonator")) {

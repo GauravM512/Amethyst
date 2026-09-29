@@ -106,6 +106,15 @@ data class FileRef(
             ?.let { absolutePath ->
                 candidates += absolutePath
 
+                val archiveRoot = projectPath.substringAfterLast('/')
+                if (archiveRoot.isNotBlank()) {
+                    val normalizedPath = absolutePath.replace('\\', '/')
+                    val suffix = normalizedPath.substringAfterLast("/$archiveRoot/", missingDelimiterValue = "")
+                    if (suffix.isNotBlank()) {
+                        candidates += "$projectPath/$suffix"
+                    }
+                }
+
                 // Core Library references contain the creator's installed Live version.
                 // Try other installed Suite versions so a Live 11 set can use the same
                 // bundled sample from Live 12 (and vice versa).
