@@ -49,6 +49,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.composeunstyled.Icon
+import com.composeunstyled.LocalContentColor
 import com.composeunstyled.ProvideTextStyle
 import com.composeunstyled.Text
 import com.composeunstyled.UnstyledButton
@@ -239,13 +240,15 @@ fun ContextMenuItem(
             .background(bgColor)
             .alpha(if (enabled) 1f else 0.5f),
     ) {
-        ProvideTextStyle(Theme[typography][small].copy(color = fgColor)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                content()
+        CompositionLocalProvider(LocalContentColor provides fgColor) {
+            ProvideTextStyle(Theme[typography][small].copy(color = fgColor)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    content()
+                }
             }
         }
     }
