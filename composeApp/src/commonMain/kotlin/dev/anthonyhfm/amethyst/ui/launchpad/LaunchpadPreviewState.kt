@@ -8,7 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
 import dev.anthonyhfm.amethyst.core.util.mainDispatcherOrDefault
-import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.locks.SynchronizedObject
@@ -18,15 +17,21 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
-private val GAMMA_LUT = FloatArray(256) { i ->
-    (i / 255f).pow(0.3f)
-}
+private val MICRO_LIGHT_GRADE = intArrayOf(
+    0, 17, 21, 23, 25, 26, 27, 28,
+    29, 30, 30, 31, 32, 32, 33, 33,
+    34, 35, 35, 36, 36, 37, 38, 38,
+    39, 39, 40, 41, 41, 42, 42, 43,
+    44, 44, 45, 46, 46, 47, 47, 48,
+    49, 49, 50, 50, 51, 52, 52, 53,
+    53, 54, 55, 55, 56, 56, 57, 58,
+    58, 59, 59, 60, 61, 61, 62, 63
+)
 
-fun Color.applyLaunchpadGamma(): Color {
-    if (this == Color.Black) return Color.Black
-    val r = GAMMA_LUT[(red * 255f).roundToInt().coerceIn(0, 255)]
-    val g = GAMMA_LUT[(green * 255f).roundToInt().coerceIn(0, 255)]
-    val b = GAMMA_LUT[(blue * 255f).roundToInt().coerceIn(0, 255)]
+fun Color.applyMicroLightGrade(): Color {
+    val r = MICRO_LIGHT_GRADE[(red * 63f).roundToInt().coerceIn(0, 63)] / 63f
+    val g = MICRO_LIGHT_GRADE[(green * 63f).roundToInt().coerceIn(0, 63)] / 63f
+    val b = MICRO_LIGHT_GRADE[(blue * 63f).roundToInt().coerceIn(0, 63)] / 63f
     return Color(red = r, green = g, blue = b, alpha = alpha)
 }
 
