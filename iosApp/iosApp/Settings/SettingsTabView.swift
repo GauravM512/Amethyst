@@ -165,6 +165,7 @@ private struct ProfileHeaderView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 9)
                         .background(theme.primary, in: Capsule())
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 8)
@@ -428,12 +429,24 @@ private struct AuthSecureField: View {
     }
 }
 
-private extension View {
-    func authPrimaryButton(theme: AmethystTheme) -> some View {
-        frame(maxWidth: .infinity)
+private struct AuthPrimaryButtonStyle: ButtonStyle {
+    let theme: AmethystTheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .frame(maxWidth: .infinity)
             .frame(height: 48)
             .background(theme.primary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .foregroundStyle(theme.primaryForeground)
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .opacity(configuration.isPressed ? 0.85 : 1)
+    }
+}
+
+private extension View {
+    func authPrimaryButton(theme: AmethystTheme) -> some View {
+        buttonStyle(AuthPrimaryButtonStyle(theme: theme))
     }
 }
 

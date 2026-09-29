@@ -82,6 +82,281 @@ private struct WorkspaceView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: OrientationContainerViewController, context: Context) {}
 }
 
+private struct LaunchpadPreviewView: UIViewControllerRepresentable {
+    let index: Int
+    let darkMode: Bool
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        let controller = IosLaunchpadPickerKt.launchpadPreviewViewController(
+            index: Int32(index),
+            darkMode: darkMode
+        )
+        controller.view.isUserInteractionEnabled = false
+        controller.view.isOpaque = false
+        controller.view.backgroundColor = .clear
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+
+private struct LaunchpadPickerSheet: View {
+    private enum Category: String, CaseIterable {
+        case novation = "Novation"
+        case other = "Other"
+    }
+
+    private struct Option: Identifiable {
+        let id: Int
+        let name: String
+        let detail: String
+        let category: Category
+    }
+
+    private let options: [Option] = [
+        Option(id: 0, name: "Launchpad Pro", detail: "Classic performance layout", category: .novation),
+        Option(id: 1, name: "Launchpad X", detail: "Compact grid with side controls", category: .novation),
+        Option(id: 2, name: "Launchpad Pro MK3", detail: "Expanded performance controls", category: .novation),
+        Option(id: 3, name: "Launchpad MK2", detail: "Classic Launchpad grid", category: .novation),
+        Option(id: 4, name: "Idealised", detail: "A clean virtual grid", category: .novation),
+        Option(id: 5, name: "Mystrix", detail: "Alternative controller layout", category: .other),
+        Option(id: 6, name: "Midi Fighter 64", detail: "A focused 8 × 8 grid", category: .other)
+    ]
+
+    let darkMode: Bool
+    let onDismiss: () -> Void
+
+    @State private var category: Category = .novation
+    @State private var selectedIndex = 0
+
+    private var visibleOptions: [Option] {
+        options.filter { $0.category == category }
+    }
+
+    private var theme: AmethystTheme {
+        AmethystTheme(darkMode: darkMode)
+    }
+
+    private func previewSize(in geometry: GeometryProxy) -> CGFloat {
+        max(80, min(geometry.size.width - 48, geometry.size.height - 245))
+    }
+
+    var body: some View {
+        NavigationStack {
+            GeometryReader { geometry in
+                VStack(spacing: 8) {
+                    Text("Choose a Launchpad for this workspace")
+                        .font(.subheadline)
+                        .foregroundStyle(theme.mutedForeground)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 8)
+
+                    Picker("Device family", selection: $category) {
+                        ForEach(Category.allCases, id: \.self) { category in
+                            Text(category.rawValue).tag(category)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .tint(theme.primary)
+                    .onChange(of: category) { _, newCategory in
+                        selectedIndex = options.first { $0.category == newCategory }?.id ?? 0
+                    }
+
+                    TabView(selection: $selectedIndex) {
+                        ForEach(visibleOptions) { option in
+                            LaunchpadPreviewView(index: option.id, darkMode: darkMode)
+                                .frame(
+                                    width: previewSize(in: geometry),
+                                    height: previewSize(in: geometry)
+                                )
+                                .frame(maxWidth: .infinity)
+                                .tag(option.id)
+                                .accessibilityLabel(option.name)
+                        }
+                    }
+                    .frame(height: previewSize(in: geometry))
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+
+                    if let selectedOption = options.first(where: { $0.id == selectedIndex }) {
+                        VStack(spacing: 3) {
+                            Text(selectedOption.name)
+                                .font(.headline)
+                                .foregroundStyle(theme.foreground)
+                            Text(selectedOption.detail)
+                                .font(.subheadline)
+                                .foregroundStyle(theme.mutedForeground)
+                        }
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityElement(children: .combine)
+                    }
+
+                    HStack(spacing: 0) {
+                        ForEach(visibleOptions) { option in
+                            Button {
+                                selectedIndex = option.id
+                            } label: {
+                                Circle()
+                                    .fill(option.id == selectedIndex ? theme.primary : theme.mutedForeground.opacity(0.45))
+                                    .frame(width: option.id == selectedIndex ? 9 : 7, height: option.id == selectedIndex ? 9 : 7)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(option.name)
+                            .accessibilityAddTraits(option.id == selectedIndex ? .isSelected : [])
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    Button {
+                        IosLaunchpadPickerKt.addVirtualLaunchpadFromIosPicker(index: Int32(selectedIndex))
+                        onDismiss()
+                    } label: {
+                        Label("Add to Workspace", systemImage: "plus")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 50)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(theme.primaryForeground)
+                    .background(theme.primary, in: Capsule())
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle("Add device")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if #available(iOS 26.0, *) {
+                        Button(role: .close, action: onDismiss)
+                    } else {
+                        Button(action: onDismiss) {
+                            Image(systemName: "xmark")
+                        }
+                    }
+                }
+            }
+        }
+        .presentationDetents([.fraction(0.72)])
+        .presentationDragIndicator(.hidden)
+        .presentationBackground(theme.background)
+    }
+}
+
+private struct DeviceConfigurationSheet: View {
+    let uuid: String
+    let darkMode: Bool
+    let onDismiss: () -> Void
+
+    @State private var devices: [IosMidiDeviceOption] = []
+    @State private var selectedId: String?
+
+    private var theme: AmethystTheme {
+        AmethystTheme(darkMode: darkMode)
+    }
+
+    private var selectedName: String {
+        if devices.isEmpty {
+            return "No devices available"
+        }
+
+        return devices.first(where: { $0.id == selectedId })?.name ?? "Automatic"
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Choose the MIDI device for this layout element.")
+                    .font(.subheadline)
+                    .foregroundStyle(theme.mutedForeground)
+
+                Text("MIDI Device")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(theme.foreground)
+
+                Menu {
+                    Button("Automatic") {
+                        selectedId = nil
+                    }
+
+                    ForEach(devices, id: \.id) { device in
+                        Button(device.name) {
+                            selectedId = device.id
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(selectedName)
+                        Spacer()
+                        Image(systemName: "chevron.up.chevron.down")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(devices.isEmpty ? theme.mutedForeground : theme.foreground)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .padding(.horizontal, 16)
+                    .background(theme.secondary, in: RoundedRectangle(cornerRadius: 12))
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(devices.isEmpty)
+
+                Text("Launchpad devices are detected automatically.")
+                    .font(.footnote)
+                    .foregroundStyle(theme.mutedForeground)
+
+                Button {
+                    IosDeviceConfigurationKt.iosSaveMidiDeviceConfiguration(
+                        uuid: uuid,
+                        deviceId: selectedId
+                    )
+                    onDismiss()
+                } label: {
+                    Text("Save")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 50)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(theme.primaryForeground)
+                .background(theme.primary, in: Capsule())
+                .padding(.top, 8)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(theme.background.ignoresSafeArea())
+            .navigationTitle("Device Configuration")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if #available(iOS 26.0, *) {
+                        Button(role: .close, action: onDismiss)
+                    } else {
+                        Button(action: onDismiss) {
+                            Image(systemName: "xmark")
+                        }
+                    }
+                }
+            }
+            .task {
+                selectedId = IosDeviceConfigurationKt.iosConfiguredMidiDeviceId(uuid: uuid)
+
+                while !Task.isCancelled {
+                    devices = IosDeviceConfigurationKt.iosMidiDeviceOptions()
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                }
+            }
+        }
+        .presentationDetents([.height(310)])
+        .presentationDragIndicator(.hidden)
+        .presentationBackground(theme.background)
+    }
+}
+
 // MARK: - Root content
 
 struct ContentView: View {
@@ -103,6 +378,9 @@ struct ContentView: View {
     @State private var localization = AppLocalization()
     @State private var profileTabAvatar: UIImage?
     @State private var showSettingsSheet = false
+    @State private var showDevicePickerSheet = false
+    @State private var showDeviceConfigurationSheet = false
+    @State private var configuringDeviceId = ""
     @State private var showSplashScreen = true
     @State private var selectedHomeTab: HomeTab = .projects
     @State private var hubSearchText = ""
@@ -133,6 +411,13 @@ struct ContentView: View {
                     .onAppear {
                         IosWorkspaceBridge.shared.onShowSettings = {
                             showSettingsSheet = true
+                        }
+                        IosWorkspaceBridge.shared.onShowDevicePicker = {
+                            showDevicePickerSheet = true
+                        }
+                        IosWorkspaceBridge.shared.onShowDeviceConfigurator = { uuid in
+                            configuringDeviceId = uuid
+                            showDeviceConfigurationSheet = true
                         }
                         IosWorkspaceBridge.shared.createLiquidGlassEffect = {
                             if #available(iOS 26.0, *) {
@@ -168,6 +453,8 @@ struct ContentView: View {
                     .onDisappear {
                         IosWorkspaceBridge.shared.onOrientationChanged = nil
                         IosWorkspaceBridge.shared.onShowSettings = nil
+                        IosWorkspaceBridge.shared.onShowDevicePicker = nil
+                        IosWorkspaceBridge.shared.onShowDeviceConfigurator = nil
                     }
                     .sheet(isPresented: $showSettingsSheet) {
                         SettingsTabView(
@@ -175,6 +462,19 @@ struct ContentView: View {
                             accountViewModel: accountViewModel,
                             showsCloseButton: true
                         )
+                    }
+                    .sheet(isPresented: $showDevicePickerSheet) {
+                        LaunchpadPickerSheet(darkMode: colorScheme == .dark) {
+                            showDevicePickerSheet = false
+                        }
+                    }
+                    .sheet(isPresented: $showDeviceConfigurationSheet) {
+                        DeviceConfigurationSheet(
+                            uuid: configuringDeviceId,
+                            darkMode: colorScheme == .dark
+                        ) {
+                            showDeviceConfigurationSheet = false
+                        }
                     }
                 } else {
                     homeTabView

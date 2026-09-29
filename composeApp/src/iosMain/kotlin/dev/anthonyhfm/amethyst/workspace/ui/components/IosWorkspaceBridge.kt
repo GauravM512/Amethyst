@@ -5,6 +5,8 @@ import kotlin.native.concurrent.ThreadLocal
 @ThreadLocal
 object IosWorkspaceBridge {
     var onShowSettings: (() -> Unit)? = null
+    var onShowDevicePicker: (() -> Unit)? = null
+    var onShowDeviceConfigurator: ((String) -> Unit)? = null
     var onOrientationChanged: ((Boolean) -> Unit)? = null
     var createLiquidGlassEffect: (() -> platform.UIKit.UIVisualEffect)? = null
     var createLiquidGlassContainerEffect: (() -> platform.UIKit.UIVisualEffect)? = null

@@ -32,7 +32,7 @@ actual fun AddDeviceButton(
                 }
                 addAction(
                     UIAction.actionWithHandler {
-                        onClick()
+                        IosWorkspaceBridge.onShowDevicePicker?.invoke() ?: onClick()
                     },
                     forControlEvents = UIControlEventTouchUpInside,
                 )

@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -62,6 +63,7 @@ import dev.anthonyhfm.amethyst.ui.theme.selectionBorder
 import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.workspace.ViewportRepository
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.isMobilePhone
 import dev.anthonyhfm.amethyst.workspace.modes.defaults.LayoutWorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import kotlin.math.abs
@@ -89,12 +91,14 @@ fun WorkspaceViewport(
     val alwaysShowGrid by GeneralSettings.alwaysShowGrid.flow.collectAsState()
 
     val virtualLaunchpads = elements.filterIsInstance<LaunchpadViewportElement>()
-    val isSingleVirtualDeviceMode = (platform is Platform.Android || platform is Platform.iOS) && virtualLaunchpads.size == 1
+    val isSingleVirtualDeviceMode = (platform is Platform.Android || (platform is Platform.iOS && isMobilePhone())) && virtualLaunchpads.size == 1
+    val renderedElementWidths = remember { mutableStateMapOf<String, Int>() }
     val effectiveConfig = if (isSingleVirtualDeviceMode) {
         config.copy(
             minZoom = minOf(config.minZoom, 0.1f),
             maxZoom = maxOf(config.maxZoom, 4f),
             enablePanning = false,
+            draggableObjects = false,
         )
     } else {
         config
@@ -285,6 +289,9 @@ fun WorkspaceViewport(
                         scaleY = viewportState.zoom
                         transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
                     }
+                    .onSizeChanged { size ->
+                        renderedElementWidths[element.selectionUUID] = size.width
+                    }
             ) {
                 Box(
                     modifier = Modifier
@@ -407,7 +414,7 @@ fun WorkspaceViewport(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
                     ) {
-                        if (WorkspaceRepository.mode.value is LayoutWorkspaceMode && effectiveConfig.draggableObjects) {
+                        if (WorkspaceRepository.mode.value is LayoutWorkspaceMode && config.draggableObjects) {
                             SelectionManager.select(
                                 Selectable.VirtualViewportDevice(
                                     element = element as LaunchpadViewportElement
@@ -439,23 +446,38 @@ fun WorkspaceViewport(
                 val selected = selections.any { it.selectionUUID == element.selectionUUID }
                 if (!selected) return@forEach
 
-                var traySize by remember { mutableStateOf(Size(164f * density, 44f * density)) }
+                val isIosTray = platform is Platform.iOS
+                val iosButtonCount = if ((element as? LaunchpadViewportElement)?.hasStyleOptions == true) 4 else 3
+                val trayWidthDp = if (isIosTray) iosButtonCount * 44f else 164f
+                var traySize by remember(element.selectionUUID, trayWidthDp) {
+                    mutableStateOf(Size(trayWidthDp * density, 44f * density))
+                }
 
                 val scaledGridSize = gridSize * viewportState.zoom
-                val trayScreenCenterX = element.position.value.x * scaledGridSize + effectiveOffset.x + element.size.width * scaledGridSize / 2
+                val renderedWidth = renderedElementWidths[element.selectionUUID]?.toFloat() ?: element.size.width * gridSize
+                val trayScreenCenterX = element.position.value.x * scaledGridSize + effectiveOffset.x + renderedWidth * viewportState.zoom / 2
                 val trayScreenTopY = element.position.value.y * scaledGridSize + effectiveOffset.y
 
                 Row(
                     modifier = Modifier
                         .zIndex(2000f)
+                        .then(
+                            if (isIosTray) {
+                                Modifier.size(width = trayWidthDp.dp, height = 44.dp)
+                            } else {
+                                Modifier
+                            }
+                        )
                         .offset {
                             IntOffset(
                                 x = (trayScreenCenterX - traySize.width / 2).roundToInt(),
                                 y = (trayScreenTopY - traySize.height - 8.dp.toPx()).roundToInt(),
-                                            )
+                            )
                         }
                         .onSizeChanged { size ->
-                            traySize = Size(size.width.toFloat(), size.height.toFloat())
+                            if (!isIosTray) {
+                                traySize = Size(size.width.toFloat(), size.height.toFloat())
+                            }
                         },
                 ) {
                     element.Actions(this)

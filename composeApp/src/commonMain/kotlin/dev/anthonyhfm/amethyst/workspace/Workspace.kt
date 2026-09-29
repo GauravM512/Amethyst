@@ -14,7 +14,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -33,6 +36,7 @@ import com.mohamedrejeb.compose.dnd.DragAndDropContainer
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.network.presence.CollaborationPresence
 import dev.anthonyhfm.amethyst.core.util.isMobile
+import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.ui.theme.background
@@ -46,6 +50,7 @@ import dev.anthonyhfm.amethyst.workspace.ui.components.ExitWorkspaceDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.InsertLaunchpadDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.PerformanceOverlay
 import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceTopAppBar
+import dev.anthonyhfm.amethyst.workspace.modes.defaults.LayoutWorkspaceMode
 import dev.anthonyhfm.amethyst.timeline.data.AudioSource
 import dev.anthonyhfm.amethyst.workspace.audio.LocalAudioLibraryDragAndDropState
 import kotlinx.coroutines.launch
@@ -82,6 +87,17 @@ fun Workspace(onBack: () -> Unit = {}) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .then(
+                    if (platform is Platform.iOS && mode !is LayoutWorkspaceMode) {
+                        Modifier
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .padding(top = 8.dp)
+                    } else if (platform is Platform.iOS) {
+                        Modifier.padding(top = 8.dp)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             CompositionLocalProvider(LocalAudioLibraryDragAndDropState provides audioLibraryDragState) {
                 DragAndDropContainer(
