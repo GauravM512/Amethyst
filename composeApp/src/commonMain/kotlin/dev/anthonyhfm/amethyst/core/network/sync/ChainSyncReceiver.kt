@@ -223,7 +223,6 @@ class ChainSyncReceiver(
 
             device is ChokeChainDevice && state is ChokeChainDeviceState -> {
                 val chain = state.stateChain.unpack()
-                chain.signalExit = { signal -> device.signalExit?.invoke(signal) }
                 device.state.value = state.copy(chain = chain)
                 device.onStateRestored()
                 return true
