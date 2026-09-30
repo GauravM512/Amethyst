@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
@@ -70,14 +69,29 @@ class LayoutWorkspaceMode(
 
     @Composable
     override fun Content(modifier: Modifier) {
+        val isMobile = platform !is Platform.Desktop
+
         Box(
             modifier = modifier
                 .fillMaxSize()
+                .then(
+                    if (isMobile) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp)
+                    }
+                )
         ) {
             WorkspaceViewport(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(shape = RoundedCornerShape(size = 32.dp)),
+                modifier = if (isMobile) {
+                    Modifier
+                        .fillMaxSize()
+                        .clip(shape = RoundedCornerShape(size = 32.dp))
+                } else {
+                    Modifier
+                },
                 viewportKey = "workspace-layout",
                 config = ViewportConfig(
                     minZoom = 0.5f,
@@ -90,7 +104,7 @@ class LayoutWorkspaceMode(
                     showOrigin = true,
                     showActions = true,
                     showRemoteCursors = true,
-                    contentPadding = 32.dp
+                    contentPadding = if (isMobile) 32.dp else 80.dp
                 ),
             )
 
@@ -100,7 +114,13 @@ class LayoutWorkspaceMode(
                 exit = fadeOut() + scaleOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
+                    .then(
+                        if (isMobile) {
+                            Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                        } else {
+                            Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
+                        }
+                    )
                     .padding(24.dp),
             ) {
                 AddDeviceButton(
