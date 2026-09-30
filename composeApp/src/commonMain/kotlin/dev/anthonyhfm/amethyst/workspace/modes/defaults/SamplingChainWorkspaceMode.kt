@@ -26,7 +26,6 @@ import dev.anthonyhfm.amethyst.workspace.isMobilePhone
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.MobileWorkspaceChainEditor
 import dev.anthonyhfm.amethyst.workspace.chain.ui.WorkspaceChainEditor
-import dev.anthonyhfm.amethyst.ui.components.primitives.rememberScrollAreaState
 import dev.anthonyhfm.amethyst.workspace.chain.ui.MacroControls
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportConfig
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportPanBoundsPolicy
@@ -47,7 +46,6 @@ class SamplingChainWorkspaceMode(
 
     @Composable
     override fun Content(modifier: Modifier) {
-        val scrollState = rememberScrollAreaState()
         var macrosVisible by remember { mutableStateOf(false) }
 
         if (isMobilePhone()) {
@@ -111,7 +109,7 @@ class SamplingChainWorkspaceMode(
                 }
 
                 WorkspaceChainEditor(
-                    scrollState = scrollState,
+                    scrollState = WorkspaceRepository.samplingChainScrollState,
                 )
             }
         }

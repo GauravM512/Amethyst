@@ -27,6 +27,7 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadX
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMidiFighter64
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMystrix
+import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollAreaState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.data.Macro
 import dev.anthonyhfm.amethyst.workspace.data.ParameterMapping
@@ -81,6 +82,14 @@ object WorkspaceRepository {
     private val changeRevision = atomic(0L)
     private val savedRevision = atomic(0L)
     private val loadingWorkspace = atomic(false)
+
+    val lightsChainScrollState = ScrollAreaState()
+    val samplingChainScrollState = ScrollAreaState()
+
+    private fun resetChainScrollStates() {
+        lightsChainScrollState.scrollValue = 0
+        samplingChainScrollState.scrollValue = 0
+    }
 
     fun markDirty() {
         if (!loadingWorkspace.value) {
@@ -698,6 +707,7 @@ object WorkspaceRepository {
         fromRemote: Boolean,
         preparedCacheRoot: String?,
     ) {
+        resetChainScrollStates()
         dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.configurePersistentRoot(preparedCacheRoot)
         AutoPlayRepository.stopAutoPlay()
         TimelineRepository.stop()
@@ -1138,6 +1148,7 @@ object WorkspaceRepository {
     }
 
     fun clean() {
+        resetChainScrollStates()
         AutoPlayRepository.stopAutoPlay()
         TimelineRepository.stop()
         TimelineRepository.loadTracks(emptyList())

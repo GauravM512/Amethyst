@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import com.composeunstyled.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -84,6 +85,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>(), 
     override val helpRef = "Multi"
     override val capabilities: Set<DeviceCapability> = setOf(DeviceCapability.Container)
     override val state = MutableStateFlow(MultiGroupChainDeviceState())
+    private val groupListScrollState = LazyListState()
 
     override fun timelineDuration(context: TimelineDurationContext): TimelineDuration {
         val groupDuration = state.value.groups
@@ -184,6 +186,7 @@ class MultiGroupChainDevice : GenericChainDevice<MultiGroupChainDeviceState>(), 
                         Box(modifier = Modifier.weight(1f)) {
                             GroupEditorList(
                                 parentDevice = this@MultiGroupChainDevice,
+                                lazyListState = groupListScrollState,
                                 groups = deviceState.groups,
                                 openedGroupIndex = deviceState.openedGroupIndex,
                                 uiState = editorUiState,

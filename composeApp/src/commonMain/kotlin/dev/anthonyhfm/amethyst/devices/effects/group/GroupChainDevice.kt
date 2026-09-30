@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.devices.effects.group
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +42,7 @@ import dev.anthonyhfm.amethyst.devices.timelineDuration
 
 class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>(), NestedChainDevice {
     override val state = MutableStateFlow(GroupChainDeviceState())
+    private val groupListScrollState = LazyListState()
     override val helpRef = "Group"
     override val capabilities: Set<DeviceCapability> = setOf(DeviceCapability.Container)
 
@@ -114,6 +116,7 @@ class GroupChainDevice : GenericChainDevice<GroupChainDeviceState>(), NestedChai
             groupList = {
                 GroupEditorList(
                     parentDevice = this@GroupChainDevice,
+                    lazyListState = groupListScrollState,
                     groups = deviceState.groups,
                     openedGroupIndex = deviceState.openedGroupIndex,
                     uiState = editorUiState,
