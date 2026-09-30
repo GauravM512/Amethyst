@@ -252,14 +252,6 @@ actual object Echo {
         }
     }
 
-    actual fun getActiveDragFile(): String? {
-        return try {
-            decoder.getActiveDragFile()
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
     actual suspend fun probeAudioFile(
         filePath: String
     ): AudioFileMetadata? = withContext(Dispatchers.IO) {

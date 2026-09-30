@@ -55,8 +55,6 @@ actual object Echo {
     actual fun isFormatSupported(fileName: String): Boolean =
         fileName.substringAfterLast('.', "").lowercase() in IosAudioDecoder.formats
 
-    actual fun getActiveDragFile(): String? = null
-
     actual fun getSupportedFormats(): List<String> = IosAudioDecoder.formats
 
     actual fun initialize(): Boolean = withLifecycleLock {

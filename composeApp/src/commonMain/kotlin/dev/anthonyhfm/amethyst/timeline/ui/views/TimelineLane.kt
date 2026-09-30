@@ -155,16 +155,17 @@ fun TimelineLane(
     LaunchedEffect(isFileHovering, hoverFiles) {
         if (isFileHovering) {
             val candidatePath = hoverFiles.firstOrNull { it.extension.lowercase() in Echo.getSupportedFormats() }?.path
-                ?: Echo.getActiveDragFile()
 
             if (candidatePath != null && candidatePath != lastProbedPath) {
                 lastProbedPath = candidatePath
+                probedDurationMs = null
+                probedFileName = null
                 val ext = candidatePath.substringAfterLast('.').lowercase()
                 if (ext in Echo.getSupportedFormats()) {
                     val meta = Echo.probeAudioFile(candidatePath)
                     if (meta != null && meta.durationMs > 0) {
                         probedDurationMs = meta.durationMs
-                        probedFileName = candidatePath.substringAfterLast('/').substringBeforeLast('.')
+                        probedFileName = candidatePath.replace('\\', '/').substringAfterLast('/').substringBeforeLast('.')
                     }
                 }
             }

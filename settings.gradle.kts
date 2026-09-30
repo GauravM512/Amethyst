@@ -18,3 +18,13 @@ dependencyResolutionManagement {
 
 include(":composeApp")
 include(":nativeEngine")
+
+val nucleusPath = providers.gradleProperty("amethyst.nucleus.path").orNull
+if (nucleusPath != null) {
+    includeBuild(nucleusPath) {
+        dependencySubstitution {
+            substitute(module("dev.nucleusframework:nucleus.decorated-window-tao"))
+                .using(project(":decorated-window-tao"))
+        }
+    }
+}
