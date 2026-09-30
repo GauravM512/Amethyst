@@ -42,7 +42,6 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.atomicfu.atomic
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
@@ -111,7 +110,7 @@ class MacroControlChainDevice : GenericChainDevice<MacroControlChainDeviceState>
                                 macroText?.let { macro ->
                                     if (macro in 1..macros.size) {
                                         clearAutomationOverride()
-                                        state.update {
+                                        updateStateFromUser {
                                             it.copy(macro = macro - 1, macroId = macros[macro - 1].id)
                                         }
                                     }
@@ -128,7 +127,7 @@ class MacroControlChainDevice : GenericChainDevice<MacroControlChainDeviceState>
                             },
                             onValueChange = { value ->
                                 clearAutomationOverride()
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(macro = value, macroId = macros[value].id)
                                 }
                             }
@@ -161,7 +160,7 @@ class MacroControlChainDevice : GenericChainDevice<MacroControlChainDeviceState>
                             valueText?.let { value ->
                                 if (value in 0..127) {
                                     clearAutomationOverride()
-                                    state.update {
+                                    updateStateFromUser {
                                         it.copy(value = value)
                                     }
                                 }
@@ -169,7 +168,7 @@ class MacroControlChainDevice : GenericChainDevice<MacroControlChainDeviceState>
                         },
                         onValueChange = { value ->
                             clearAutomationOverride()
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(value = value)
                             }
                         },

@@ -122,12 +122,12 @@ class FilterChainDevice : AudioChainDevice<FilterChainDeviceState>(), ParameterO
                 Column(Modifier.width(104.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     LabeledFilterSelect("Type", deviceState.type.label, FilterType.entries.map { it.label }) { label ->
                         val before = state.value
-                        state.update { it.copy(type = FilterType.entries.first { type -> type.label == label }) }
+                        updateStateFromUser { it.copy(type = FilterType.entries.first { type -> type.label == label }) }
                         pushStateChange(before, state.value)
                     }
                     LabeledFilterSelect("Slope", deviceState.slope.label, FilterSlope.entries.map { it.label }) { label ->
                         val before = state.value
-                        state.update { it.copy(slope = FilterSlope.entries.first { slope -> slope.label == label }) }
+                        updateStateFromUser { it.copy(slope = FilterSlope.entries.first { slope -> slope.label == label }) }
                         pushStateChange(before, state.value)
                     }
                 }
@@ -135,18 +135,18 @@ class FilterChainDevice : AudioChainDevice<FilterChainDeviceState>(), ParameterO
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         FilterDial("cutoff", "Cutoff", PARAMETERS[0].normalize(deviceState.cutoffHz), "${deviceState.cutoffHz.roundToInt()} Hz") {
-                            state.update { s -> s.copy(cutoffHz = PARAMETERS[0].denormalize(it)) }
+                            updateStateFromUser { s -> s.copy(cutoffHz = PARAMETERS[0].denormalize(it)) }
                         }
                         FilterDial("resonance", "Resonance", PARAMETERS[1].normalize(deviceState.resonance), "${(deviceState.resonance * 100).roundToInt() / 100f}") {
-                            state.update { s -> s.copy(resonance = PARAMETERS[1].denormalize(it)) }
+                            updateStateFromUser { s -> s.copy(resonance = PARAMETERS[1].denormalize(it)) }
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         FilterDial("dryWet", "Dry / Wet", deviceState.dryWet, "${(deviceState.dryWet * 100).roundToInt()}%") {
-                            state.update { s -> s.copy(dryWet = it) }
+                            updateStateFromUser { s -> s.copy(dryWet = it) }
                         }
                         FilterDial("drive", "Drive", deviceState.driveDb / 24f, "${deviceState.driveDb.roundToInt()} dB") {
-                            state.update { s -> s.copy(driveDb = it * 24f) }
+                            updateStateFromUser { s -> s.copy(driveDb = it * 24f) }
                         }
                     }
                 }

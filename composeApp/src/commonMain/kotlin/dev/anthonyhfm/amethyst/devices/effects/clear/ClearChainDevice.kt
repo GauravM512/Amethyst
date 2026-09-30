@@ -35,7 +35,6 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
 class ClearChainDevice : GenericChainDevice<ClearChainDeviceState>() {
@@ -83,7 +82,7 @@ class ClearChainDevice : GenericChainDevice<ClearChainDeviceState>() {
                                 checked = checked,
                                 onCheckedChange = { value ->
                                     val before = state.value
-                                    state.update {
+                                    updateStateFromUser {
                                         when (label) {
                                             "Lights" -> it.copy(clearLights = value)
                                             "Audio"  -> it.copy(clearAudio = value)

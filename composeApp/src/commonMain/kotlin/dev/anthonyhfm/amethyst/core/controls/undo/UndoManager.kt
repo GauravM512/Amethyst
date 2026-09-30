@@ -45,6 +45,7 @@ object UndoManager {
             ) {
                 undoStack[undoStack.lastIndex] = previous.copy(afterTrack = action.afterTrack)
                 redoStack.clear()
+                WorkspaceRepository.markDirty()
                 publishState()
                 return
             }
@@ -52,6 +53,10 @@ object UndoManager {
 
         undoStack.add(action)
         redoStack.clear()
+        if (action !is UndoableAction.WorkspaceModeChange) {
+            WorkspaceRepository.markDirty()
+        }
+
         if (action is UndoableAction.MovedChainDevice) {
             ChainSyncCoordinator.onDeviceMoved(
                 chainBefore = action.chainBefore,
@@ -677,6 +682,10 @@ object UndoManager {
                 }
             }
 
+            if (action !is UndoableAction.WorkspaceModeChange) {
+                WorkspaceRepository.markDirty()
+            }
+
             publishState()
             ChainSyncCoordinator.onUndoAction(action, isUndo = true)
         }
@@ -1287,6 +1296,10 @@ object UndoManager {
                     TimelineRepository.replaceTrack(action.trackIndex, action.afterTrack)
                     undoStack.add(action)
                 }
+            }
+
+            if (action !is UndoableAction.WorkspaceModeChange) {
+                WorkspaceRepository.markDirty()
             }
 
             publishState()

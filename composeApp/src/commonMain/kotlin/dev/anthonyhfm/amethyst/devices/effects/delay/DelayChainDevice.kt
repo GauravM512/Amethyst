@@ -26,7 +26,6 @@ import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlinx.atomicfu.atomic
 import kotlin.math.roundToInt
@@ -71,7 +70,7 @@ class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>(), Chokeable 
                     title = "Delay",
                     timing = deviceState.timing,
                     onSelectTiming = { timing, msValue ->
-                        state.update {
+                        updateStateFromUser {
                             it.copy(timing = timing, delayMs = msValue)
                         }
                     },
@@ -102,7 +101,7 @@ class DelayChainDevice : GenericChainDevice<DelayChainDeviceState>(), Chokeable 
                         beforeGateDrag = deviceState.gate
                     },
                     onValueChange = { value ->
-                        state.update {
+                        updateStateFromUser {
                             it.copy(gate = value)
                         }
                     },

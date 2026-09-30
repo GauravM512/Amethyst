@@ -37,7 +37,6 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
@@ -98,7 +97,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                 beforeHold = Pair(t, ms)
                             },
                             onSelectTiming = { timing, msValue ->
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(
                                         timing = timing,
                                         delayMs = msValue
@@ -127,7 +126,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                 beforeGate = it
                             },
                             onValueChange = { value ->
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(gate = value)
                                 }
                             },
@@ -136,7 +135,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
 
                                 gateText?.let { gate ->
                                     if (gate in 0..200) {
-                                        state.update {
+                                        updateStateFromUser {
                                             it.copy(gate = gate / 200f) // Convert to float between 0.0 and 1.0
                                         }
                                     }
@@ -168,7 +167,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                         before = deviceState,
                                         after = deviceState.copy(mode = mode)
                                     )
-                                    state.update { it.copy(mode = mode) }
+                                    updateStateFromUser { it.copy(mode = mode) }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -187,7 +186,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                         after = deviceState.copy(onRelease = checked)
                                     )
 
-                                    state.update {
+                                    updateStateFromUser {
                                         it.copy(onRelease = checked)
                                     }
                                 },

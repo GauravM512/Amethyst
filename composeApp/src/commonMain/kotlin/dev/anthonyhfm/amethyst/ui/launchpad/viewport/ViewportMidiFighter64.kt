@@ -66,6 +66,8 @@ import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
 
 import dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData.SavableViewportLaunchpad.MidiFighter64.MidiFighter64Style
 import dev.anthonyhfm.amethyst.ui.launchpad.LaunchpadGraphicsRepository
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.ViewportRepository
 
 class ViewportMidiFighter64(
     override var shape: Shape = RoundedCornerShape(4),
@@ -77,7 +79,20 @@ class ViewportMidiFighter64(
 
     override val layout: LaunchpadLayout = LaunchpadLayout.LAYOUT_8X8
 
-    var style by mutableStateOf(initialStyle)
+    private var styleState by mutableStateOf(initialStyle)
+
+    var style: MidiFighter64Style
+        get() = styleState
+        set(value) {
+            if (styleState == value) {
+                return
+            }
+
+            styleState = value
+            if (ViewportRepository.devices.value.any { it === this }) {
+                WorkspaceRepository.markDirty()
+            }
+        }
 
     override val hasStyleOptions: Boolean = true
 

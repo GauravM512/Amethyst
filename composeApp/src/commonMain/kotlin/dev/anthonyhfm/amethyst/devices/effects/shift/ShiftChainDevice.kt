@@ -25,7 +25,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Dial
 import dev.anthonyhfm.amethyst.ui.components.DialType
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.max
 import kotlin.math.min
@@ -122,7 +121,7 @@ class ShiftChainDevice : LEDChainDevice<ShiftChainDeviceState>() {
                         type = DialType.Steps(List(361) { -180 + it }),
                         value = deviceState.hue.toInt(),
                         onStartValueChange = { beforeState = state.value.copy() },
-                        onValueChange = { value -> state.update { it.copy(hue = value.toFloat()) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(hue = value.toFloat()) } },
                         onResolveTextValue = { text ->
                             text.removeSuffix("°").trim().toIntOrNull()
                                 ?.takeIf { it in -180..180 }
@@ -151,7 +150,7 @@ class ShiftChainDevice : LEDChainDevice<ShiftChainDeviceState>() {
                         text = "${(deviceState.saturationLow * 100).roundToInt()}%",
                         value = deviceState.saturationLow,
                         onStartValueChange = { beforeState = state.value.copy() },
-                        onValueChange = { value -> state.update { it.copy(saturationLow = value.coerceIn(0f, 1f)) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(saturationLow = value.coerceIn(0f, 1f)) } },
                         onResolveTextValue = { text ->
                             text.removeSuffix("%").trim().toIntOrNull()?.takeIf { it in 0..100 }
                                 ?.let { v -> applyResolved { it.copy(saturationLow = v / 100f) } }
@@ -167,7 +166,7 @@ class ShiftChainDevice : LEDChainDevice<ShiftChainDeviceState>() {
                         text = "${(deviceState.saturationMax * 100).roundToInt()}%",
                         value = deviceState.saturationMax,
                         onStartValueChange = { beforeState = state.value.copy() },
-                        onValueChange = { value -> state.update { it.copy(saturationMax = value.coerceIn(0f, 1f)) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(saturationMax = value.coerceIn(0f, 1f)) } },
                         onResolveTextValue = { text ->
                             text.removeSuffix("%").trim().toIntOrNull()?.takeIf { it in 0..100 }
                                 ?.let { v -> applyResolved { it.copy(saturationMax = v / 100f) } }
@@ -195,7 +194,7 @@ class ShiftChainDevice : LEDChainDevice<ShiftChainDeviceState>() {
                         text = "${(deviceState.valueLow * 100).roundToInt()}%",
                         value = deviceState.valueLow,
                         onStartValueChange = { beforeState = state.value.copy() },
-                        onValueChange = { value -> state.update { it.copy(valueLow = value.coerceIn(0f, 1f)) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(valueLow = value.coerceIn(0f, 1f)) } },
                         onResolveTextValue = { text ->
                             text.removeSuffix("%").trim().toIntOrNull()?.takeIf { it in 0..100 }
                                 ?.let { v -> applyResolved { it.copy(valueLow = v / 100f) } }
@@ -211,7 +210,7 @@ class ShiftChainDevice : LEDChainDevice<ShiftChainDeviceState>() {
                         text = "${(deviceState.valueHigh * 100).roundToInt()}%",
                         value = deviceState.valueHigh,
                         onStartValueChange = { beforeState = state.value.copy() },
-                        onValueChange = { value -> state.update { it.copy(valueHigh = value.coerceIn(0f, 1f)) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(valueHigh = value.coerceIn(0f, 1f)) } },
                         onResolveTextValue = { text ->
                             text.removeSuffix("%").trim().toIntOrNull()?.takeIf { it in 0..100 }
                                 ?.let { v -> applyResolved { it.copy(valueHigh = v / 100f) } }

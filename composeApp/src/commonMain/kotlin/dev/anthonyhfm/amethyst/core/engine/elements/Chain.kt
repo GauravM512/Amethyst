@@ -7,6 +7,7 @@ import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.core.network.sync.ChainSyncCoordinator
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.NestedChainDevice
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.SignalIndicatorManager
 
 open class Chain : SignalReceiver() {
@@ -24,6 +25,21 @@ open class Chain : SignalReceiver() {
         devices.value = current
         onDevicesChanged(previous, current)
         topologyChangedListener?.invoke()
+    }
+
+    fun isWorkspaceChain(): Boolean {
+        fun contains(current: Chain): Boolean {
+            if (current === this) {
+                return true
+            }
+
+            return current.devices.value.any { device ->
+                device is NestedChainDevice && device.nestedChains().any(::contains)
+            }
+        }
+
+        return contains(WorkspaceRepository.lightsChain) ||
+            contains(WorkspaceRepository.samplingChain)
     }
 
     override fun signalEnter(n: List<Signal>) {
@@ -81,6 +97,10 @@ open class Chain : SignalReceiver() {
         device.onAddedToChain(parentChain = this)
 
         if (fromUser) {
+            if (isWorkspaceChain()) {
+                WorkspaceRepository.markDirty()
+            }
+
             UndoManager.addAction(
                 UndoableAction.ChainDeviceCreation(
                     parent = this@Chain,
@@ -124,6 +144,10 @@ open class Chain : SignalReceiver() {
         replaceDevices(current)
 
         if (fromUser) {
+            if (isWorkspaceChain()) {
+                WorkspaceRepository.markDirty()
+            }
+
             UndoManager.addAction(UndoableAction.MultiChainDeviceCreation(creations))
 
             if (collaborationSyncEnabled) {
@@ -139,6 +163,10 @@ open class Chain : SignalReceiver() {
         if (index >= 0 && index < devices.value.size) {
             val deviceToRemove = devices.value[index]
             if (fromUser) {
+                if (isWorkspaceChain()) {
+                    WorkspaceRepository.markDirty()
+                }
+
                 UndoManager.addAction(
                     UndoableAction.ChainDeviceRemoval(
                         parent = this,
@@ -162,6 +190,10 @@ open class Chain : SignalReceiver() {
         val deviceToRemove = devices.value.getOrNull(deviceIndex)
         if (deviceToRemove != null) {
             if (fromUser) {
+                if (isWorkspaceChain()) {
+                    WorkspaceRepository.markDirty()
+                }
+
                 UndoManager.addAction(
                     UndoableAction.ChainDeviceRemoval(
                         parent = this,

@@ -39,7 +39,6 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.resolveLaunchpadOrigin
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 
 class FlipChainDevice : LEDChainDevice<FlipChainDeviceState>() {
@@ -71,7 +70,7 @@ class FlipChainDevice : LEDChainDevice<FlipChainDeviceState>() {
                     selectedMode = deviceState.mode,
                     onModeSelected = { mode ->
                         val before = state.value
-                        state.update { it.copy(mode = mode) }
+                        updateStateFromUser { it.copy(mode = mode) }
                         pushStateChange(before, state.value)
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -88,7 +87,7 @@ class FlipChainDevice : LEDChainDevice<FlipChainDeviceState>() {
                         checked = deviceState.isolate,
                         onCheckedChange = { checked ->
                             val before = state.value
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(isolate = checked)
                             }
 
@@ -114,7 +113,7 @@ class FlipChainDevice : LEDChainDevice<FlipChainDeviceState>() {
                         checked = deviceState.bypass,
                         onCheckedChange = { checked ->
                             val before = state.value
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(bypass = checked)
                             }
 

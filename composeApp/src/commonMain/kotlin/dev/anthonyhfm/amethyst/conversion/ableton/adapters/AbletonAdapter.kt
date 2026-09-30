@@ -37,6 +37,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.StereoGain
 import dev.anthonyhfm.amethyst.devices.audio.sample.SampleChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.choke.ChokeChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.devices.DeviceState
@@ -58,14 +59,39 @@ abstract class AbletonAdapter {
         return this
     }
 
-    /**
-     * In Ableton Live, Multi / multisampling devices (e.g. Outbreak Multi, Kaskobi Multi,
-     * MidiRandom in Alt mode) cycle through chains by pitch-shifting outgoing MIDI notes
-     * up by (+step) semitones. Because Ableton's Simpler tracks MIDI pitch, the project
-     * author lowered each Simpler's transpose by (-step) semitones to compensate.
-     * In Amethyst, MultiGroupChainDevice routes directly to chains without shifting note pitch.
-     * Therefore, the (-step) downpitch on Simpler must be counteracted by (+step).
-     */
+    protected fun List<Group>.withMultiPitchCompensation(enabled: Boolean): List<Group> {
+        if (!enabled || size < 2) {
+            return this
+        }
+
+        val referenceTransposes = first().stateChain.devices.flatMap { it.sampleTransposes() }
+        if (referenceTransposes.isEmpty()) {
+            return this
+        }
+
+        return mapIndexed { step, group ->
+            val transposes = group.stateChain.devices.flatMap { it.sampleTransposes() }
+            if (step == 0 || transposes.size != referenceTransposes.size ||
+                transposes.indices.any { transposes[it] + step != referenceTransposes[it] }
+            ) {
+                group
+            } else {
+                group.copy(stateChain = group.stateChain.withPitchCompensation(step.toFloat()))
+            }
+        }
+    }
+
+    private fun DeviceState.sampleTransposes(): List<Float> = when (this) {
+        is SampleChainDeviceState -> listOf(transposeSemitones)
+        is GroupChainDeviceState -> groups.flatMap { group ->
+            group.stateChain.devices.flatMap { it.sampleTransposes() }
+        }
+        is MultiGroupChainDeviceState -> preprocessChain.devices.flatMap { it.sampleTransposes() } +
+            groups.flatMap { group -> group.stateChain.devices.flatMap { it.sampleTransposes() } }
+        is ChokeChainDeviceState -> stateChain.devices.flatMap { it.sampleTransposes() }
+        else -> emptyList()
+    }
+
     protected fun DeviceState.withPitchCompensation(semitones: Float): DeviceState {
         if (semitones == 0f) return this
         return when (this) {

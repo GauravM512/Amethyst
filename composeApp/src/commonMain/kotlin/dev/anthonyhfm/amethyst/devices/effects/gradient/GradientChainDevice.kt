@@ -68,7 +68,6 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -155,7 +154,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
             rawPosition = position
         )
 
-        state.update { old ->
+        updateStateFromUser { old ->
             val steps = old.gradientSteps
             if (steps != null && old.gradientData.size >= steps) {
                 old
@@ -176,7 +175,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
     }
 
     private fun updateGradientPointPosition(selectionUUID: String, position: Float, rawPosition: Float) {
-        state.update { old ->
+        updateStateFromUser { old ->
             val updatedColors = old.gradientData.map { color ->
                 if (color.selectionUUID == selectionUUID) {
                     color.copy(
@@ -194,7 +193,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
 
     private fun updateGradientPointSmoothness(selectionUUID: String, smoothness: GradientSmoothness) {
         val before = state.value
-        state.update { old ->
+        updateStateFromUser { old ->
             val updatedColors = old.gradientData.map { color ->
                 if (color.selectionUUID == selectionUUID) {
                     color.copy(smoothness = smoothness)
@@ -253,10 +252,10 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                 return@LaunchedEffect
             }
             // Nur State aktualisieren ohne Undo während der Interaktion
-            state.update { old ->
+            updateStateFromUser { old ->
                 val list = old.gradientData.toMutableList()
                 val index = list.indexOfFirst { it.selectionUUID == grad.selectionUUID }
-                if (index == -1) return@update old
+                if (index == -1) return@updateStateFromUser old
                 list[index] = list[index].copy(r = newColor.red, g = newColor.green, b = newColor.blue)
                 old.copy(gradientData = list)
             }
@@ -340,7 +339,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                                 beforeTiming = Pair(t, ms)
                             },
                             onSelectTiming = { timing, msValue ->
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(
                                         timing = timing,
                                         durationMs = msValue.toDouble()
@@ -369,7 +368,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                                 beforeGate = v
                             },
                             onValueChange = { value ->
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(gate = value)
                                 }
                             },
@@ -385,7 +384,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                                 gateText?.let { gate ->
                                     if (gate in 0..200) {
                                         val before = state.value
-                                        state.update {
+                                        updateStateFromUser {
                                             it.copy(gate = gate / 200f)
                                         }
                                         pushStateChange(before, state.value)
@@ -413,14 +412,14 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                                 if (parsed != null) {
                                     val finalStepValue = parsed.coerceAtLeast(minSteps).coerceAtMost(16)
                                     val before = state.value
-                                    state.update { old ->
+                                    updateStateFromUser { old ->
                                         val snappedColors = snapColorsNonOverlapping(old.gradientData, finalStepValue)
                                         old.copy(gradientSteps = finalStepValue, gradientData = snappedColors)
                                     }
                                     pushStateChange(before, state.value)
                                 } else if (text.trim().equals("inf", ignoreCase = true)) {
                                     val before = state.value
-                                    state.update { old ->
+                                    updateStateFromUser { old ->
                                         val unsnappedColors = snapColorsNonOverlapping(old.gradientData, null)
                                         old.copy(gradientSteps = null, gradientData = unsnappedColors)
                                     }
@@ -437,7 +436,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                                 )
                             },
                             onValueChange = { stepValue ->
-                                state.update { old ->
+                                updateStateFromUser { old ->
                                     val minSteps = old.gradientData.size.coerceAtLeast(2)
                                     val finalStepValue =
                                         if (stepValue != null) stepValue.coerceAtLeast(minSteps) else null
@@ -448,7 +447,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                             modifier = Modifier
                                 .rightClickable {
                                     val before = state.value
-                                    state.update { old ->
+                                    updateStateFromUser { old ->
                                         val unsnappedColors = snapColorsNonOverlapping(old.gradientData, null)
                                         old.copy(gradientSteps = null, gradientData = unsnappedColors)
                                     }
@@ -468,7 +467,7 @@ class GradientChainDevice : LEDChainDevice<GradientChainDeviceState>(), Chokeabl
                             checked = deviceState.loop,
                             onCheckedChange = { checked ->
                                 val before = state.value
-                                state.update { it.copy(loop = checked) }
+                                updateStateFromUser { it.copy(loop = checked) }
                                 pushStateChange(before, state.value)
                             },
                         )

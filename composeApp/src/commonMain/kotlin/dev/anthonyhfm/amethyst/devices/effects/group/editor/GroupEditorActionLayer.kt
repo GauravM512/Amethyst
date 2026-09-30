@@ -18,6 +18,7 @@ import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -36,6 +37,9 @@ internal class GroupEditorActionLayer<State : DeviceState>(
         if (index !in groups.indices || openedGroupIndexOf(currentState) == index) return
 
         stateFlow.value = buildState(currentState, groups, index)
+        if (device.parentChain?.isWorkspaceChain() == true) {
+            WorkspaceRepository.markDirty()
+        }
     }
 
     fun createGroup(atIndex: Int? = null) {
@@ -420,6 +424,10 @@ internal class GroupEditorActionLayer<State : DeviceState>(
         if (afterState == beforeState) return
 
         stateFlow.value = afterState
+        if (device.parentChain?.isWorkspaceChain() == true) {
+            WorkspaceRepository.markDirty()
+        }
+
         AutomappingManager.clearTargetIfMissing(device)
         device.parentChain?.onDeviceRuntimeStateChanged()
         desiredSelectedGroupIds?.let { groupIds ->

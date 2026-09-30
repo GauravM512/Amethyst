@@ -148,6 +148,39 @@ class MultiAdapterTest {
     }
 
     @Test
+    fun multiAdapterPreservesOriginalPitchWhenSamplesAreNotDownpitched() {
+        val instrumentContainer = InstrumentGroupDevice(
+            id = 2,
+            on = AbletonOn(manual = AbletonManual(true)),
+            chainSelector = InstrumentGroupDevice.ChainSelector(),
+            branches = InstrumentGroupDevice.Branches(
+                branches = listOf(
+                    createInstrumentBranch(id = 0, minKey = 36, maxKey = 36, transpose = 0f),
+                    createInstrumentBranch(id = 1, minKey = 37, maxKey = 37, transpose = 0f),
+                    createInstrumentBranch(id = 2, minKey = 38, maxKey = 38, transpose = 0f),
+                )
+            )
+        )
+
+        val adapter = MultiAdapter(
+            device = createMxDevice(steps = 3),
+            midiContainer = null,
+            instrumentContainer = instrumentContainer,
+            drumContainer = null,
+            offset = IntOffset.Zero,
+            outputOffset = IntOffset.Zero,
+            chainDepth = 0,
+        )
+
+        val multiState = assertIs<MultiGroupChainDeviceState>(adapter.toDeviceStates().first())
+        assertEquals(3, multiState.groups.size)
+        multiState.groups.forEach { group ->
+            val sample = assertIs<SampleChainDeviceState>(group.stateChain.devices.first())
+            assertEquals(0f, sample.transposeSemitones)
+        }
+    }
+
+    @Test
     fun multiAdapterPreservesBaseTransposeOffsetAcrossSteps() {
         val mxDevice = createMxDevice(steps = 3)
         val instrumentContainer = InstrumentGroupDevice(

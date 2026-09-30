@@ -30,7 +30,6 @@ import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
 import dev.anthonyhfm.amethyst.devices.TimelineDurationContext
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 
 class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
     override val state = MutableStateFlow(CopyChainDeviceState())
@@ -109,7 +108,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                                     before = deviceState,
                                     after = deviceState.copy(mode = mode)
                                 )
-                                state.update { it.copy(mode = mode) }
+                                updateStateFromUser { it.copy(mode = mode) }
                             },
                             optionToString = ::copyModeLabel,
                             modifier = Modifier.weight(1f)
@@ -124,7 +123,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                                     before = deviceState,
                                     after = deviceState.copy(isolate = mode)
                                 )
-                                state.update { it.copy(isolate = mode) }
+                                updateStateFromUser { it.copy(isolate = mode) }
                             },
                             optionToString = ::isolationLabel,
                             modifier = Modifier.weight(1f)
@@ -141,7 +140,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                             checked = deviceState.wrap,
                             onCheckedChange = { wrap ->
                                 pushStateChange(before = deviceState, after = deviceState.copy(wrap = wrap))
-                                state.update { it.copy(wrap = wrap) }
+                                updateStateFromUser { it.copy(wrap = wrap) }
                             }
                         )
 
@@ -150,7 +149,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                             checked = deviceState.reverse,
                             onCheckedChange = { reverse ->
                                 pushStateChange(before = deviceState, after = deviceState.copy(reverse = reverse))
-                                state.update { it.copy(reverse = reverse) }
+                                updateStateFromUser { it.copy(reverse = reverse) }
                             }
                         )
 
@@ -159,7 +158,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                             checked = deviceState.infinite,
                             onCheckedChange = { infinite ->
                                 pushStateChange(before = deviceState, after = deviceState.copy(infinite = infinite))
-                                state.update { it.copy(infinite = infinite) }
+                                updateStateFromUser { it.copy(infinite = infinite) }
                             }
                         )
                     }
@@ -170,25 +169,25 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                         timing = deviceState.timing,
                         onTimingChanged = { timing ->
                             val before = state.value
-                            state.update { it.copy(timing = timing) }
+                            updateStateFromUser { it.copy(timing = timing) }
                             pushStateChange(before, state.value)
                         },
                         gate = deviceState.gate,
                         onGateChanged = { gate ->
                             val before = state.value
-                            state.update { it.copy(gate = gate) }
+                            updateStateFromUser { it.copy(gate = gate) }
                             pushStateChange(before, state.value)
                         },
                         pinch = deviceState.pinch,
                         onPinchChanged = { pinch ->
                             val before = state.value
-                            state.update { it.copy(pinch = pinch) }
+                            updateStateFromUser { it.copy(pinch = pinch) }
                             pushStateChange(before, state.value)
                         },
                         bilateral = deviceState.bilateral,
                         onToggleBilateral = {
                             val before = state.value
-                            state.update { it.copy(bilateral = !it.bilateral) }
+                            updateStateFromUser { it.copy(bilateral = !it.bilateral) }
                             pushStateChange(before, state.value)
                         }
                     )
@@ -208,7 +207,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                                     offsets = before.offsets.mapIndexed { i, o -> if (i == index) newOffset else o }
                                 )
                                 pushStateChange(before, after)
-                                state.update { after }
+                                updateStateFromUser { after }
                             },
                             onRemoveOffset = {
                                 val before = state.value
@@ -216,7 +215,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                                     offsets = before.offsets.filterIndexed { i, _ -> i != index }
                                 )
                                 pushStateChange(before, after)
-                                state.update { after }
+                                updateStateFromUser { after }
                             }
                         )
                     }
@@ -226,7 +225,7 @@ class CopyChainDevice : LEDChainDevice<CopyChainDeviceState>(), Chokeable {
                             val before = state.value
                             val after = before.copy(offsets = before.offsets + CopyChainDeviceState.Offset(0, 0))
                             pushStateChange(before, after)
-                            state.update { after }
+                            updateStateFromUser { after }
                         }
                     )
                 }

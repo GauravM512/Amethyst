@@ -6,6 +6,7 @@ import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.timeline.data.AudioSource
 import dev.anthonyhfm.amethyst.timeline.data.StemKind
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.readBytes
@@ -96,6 +97,7 @@ object AudioLibraryRepository {
         _sourceOrder.update { order ->
             if (source.id in order) order else order + source.id
         }
+        WorkspaceRepository.markDirty()
         return source
     }
 
@@ -150,6 +152,7 @@ object AudioLibraryRepository {
             if (parentIndex == -1) withoutChildren + childIds
             else withoutChildren.apply { addAll(parentIndex + 1, childIds) }
         }
+        WorkspaceRepository.markDirty()
     }
 
     /** Adds a complete four-stem result in one observable update. */
@@ -189,6 +192,7 @@ object AudioLibraryRepository {
                 }
             }
         }
+        WorkspaceRepository.markDirty()
     }
 
     private fun removeIds(sourceIds: Set<String>): Removal? {
@@ -203,11 +207,13 @@ object AudioLibraryRepository {
         PreparedAudioSourceCache.clear()
         _sources.value = currentSources - removed.map { it.source.id }.toSet()
         _sourceOrder.value = currentOrder.filterNot(sourceIds::contains)
+        WorkspaceRepository.markDirty()
         return Removal(removed)
     }
 
     /** Moves a source inside the user-defined library order. */
     fun move(sourceId: String, toIndex: Int) {
+        val previousOrder = _sourceOrder.value
         _sourceOrder.update { current ->
             val sourceMap = _sources.value
             val rootIds = current.filter { sourceMap[it]?.stemMetadata == null }.toMutableList()
@@ -225,6 +231,9 @@ object AudioLibraryRepository {
                 }
                 addAll(current.filter { id -> id !in this })
             }
+        }
+        if (_sourceOrder.value != previousOrder) {
+            WorkspaceRepository.markDirty()
         }
     }
 

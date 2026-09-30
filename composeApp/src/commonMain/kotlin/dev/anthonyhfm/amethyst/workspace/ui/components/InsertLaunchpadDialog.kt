@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.Text
@@ -58,6 +59,9 @@ import dev.anthonyhfm.amethyst.ui.theme.selectionBorder
 import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
+import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.workspace.ViewportRepository
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 
@@ -224,9 +228,23 @@ fun InsertLaunchpadDialog() {
                         is ViewportMidiFighter64 -> ViewportMidiFighter64()
                         else -> return@Button
                     }
-                    WorkspaceRepository.closeDevicePicker()
                     coroutineScope.launch {
-                        WorkspaceRepository.addVirtualDevice(device)
+                        val rightEdge = ViewportRepository.devices.value.maxOfOrNull { existingDevice ->
+                            existingDevice.position.value.x + existingDevice.size.width
+                        } ?: 0f
+
+                        device.position.value = Offset(
+                            x = rightEdge,
+                            y = 0f,
+                        )
+
+                        if (WorkspaceRepository.addVirtualDevice(element = device)) {
+                            SelectionManager.select(
+                                element = Selectable.VirtualViewportDevice(element = device)
+                            )
+                        }
+
+                        WorkspaceRepository.closeDevicePicker()
                     }
                 },
                 size = ButtonSize.Small,

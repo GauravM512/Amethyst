@@ -94,7 +94,6 @@ class MultiEffectAdapter(
                 type = TYPE.FORWARD,
                 resetGroupId = resetGroupId,
                 groups = List(steps) { step ->
-                    val pitchCompensation = if (isKeyRangeOrDrum) step.toFloat() else 0f
                     when {
                         instrumentContainer != null -> {
                             Group(
@@ -104,7 +103,6 @@ class MultiEffectAdapter(
                                         instrumentBranches.getOrNull(step)?.let { br ->
                                             addAll(
                                                 resolveChildren(br.deviceChain.deviceChain.devices.devices)
-                                                    .withPitchCompensation(pitchCompensation)
                                             )
                                         }
                                     }
@@ -131,7 +129,6 @@ class MultiEffectAdapter(
                                         drumBranches.getOrNull(step)?.let { br ->
                                             addAll(
                                                 resolveChildren(br.deviceChain.deviceChain.devices.devices)
-                                                    .withPitchCompensation(pitchCompensation)
                                             )
                                         }
                                     }
@@ -140,7 +137,7 @@ class MultiEffectAdapter(
                         }
                         else -> Group("Empty")
                     }
-                }
+                }.withMultiPitchCompensation(isKeyRangeOrDrum)
             )
         ).withMuteState(containerOnState)
     }

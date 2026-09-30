@@ -64,7 +64,6 @@ class RandomDeviceMultisamplingAdapter (
                 MultiGroupChainDeviceState(
                     type = TYPE.FORWARD,
                     groups = List(multiSteps.toInt()) { step ->
-                        val pitchCompensation = if (isKeyRangeOrDrum) step.toFloat() else 0f
                         when {
                             instrumentContainer != null -> {
                                 Group(
@@ -77,7 +76,7 @@ class RandomDeviceMultisamplingAdapter (
                                                         resolveAdapter(child)
                                                             ?.toDeviceStates()
                                                             ?.firstOrNull()
-                                                    }.withPitchCompensation(pitchCompensation)
+                                                    }
                                                 )
                                             }
                                         }
@@ -113,7 +112,7 @@ class RandomDeviceMultisamplingAdapter (
                                                         resolveAdapter(child)
                                                             ?.toDeviceStates()
                                                             ?.firstOrNull()
-                                                    }.withPitchCompensation(pitchCompensation)
+                                                    }
                                                 )
                                             }
                                         }
@@ -122,7 +121,7 @@ class RandomDeviceMultisamplingAdapter (
                             }
                             else -> Group("Empty")
                         }
-                    }
+                    }.withMultiPitchCompensation(isKeyRangeOrDrum)
                 )
             ).withMuteState(containerOnState)
         }

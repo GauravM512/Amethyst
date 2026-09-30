@@ -206,14 +206,20 @@ object HomeRepository {
 
     @OptIn(ExperimentalSerializationApi::class)
     suspend fun saveOpenMobileWorkspace(): Boolean = withContext(Dispatchers.Default) {
+        val savedRevision = WorkspaceRepository.currentChangeRevision()
         val workspace = WorkspaceRepository.saveWorkspace()
         val path = workspace.path
         if (path != null && mobileProjectForPath(path) != null) {
-            return@withContext cacheMobileWorkspace(path, workspace)
+            val saved = cacheMobileWorkspace(path, workspace)
+            if (saved) {
+                WorkspaceRepository.markSaved(savedRevision)
+            }
+            return@withContext saved
         }
         runCatching {
             val savedPath = saveLocalWorkspace(workspace)
             WorkspaceRepository.workspaceMeta = WorkspaceRepository.workspaceMeta?.copy(path = savedPath)
+            WorkspaceRepository.markSaved(savedRevision)
             true
         }.getOrDefault(false)
     }

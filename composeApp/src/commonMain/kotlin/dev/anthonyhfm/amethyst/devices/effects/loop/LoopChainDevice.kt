@@ -42,7 +42,6 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -111,7 +110,7 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                                     repeatText?.let { repeat ->
                                         if (repeat in 1..128) {
                                             val before = state.value
-                                            state.update { it.copy(repeat = repeat) }
+                                            updateStateFromUser { it.copy(repeat = repeat) }
                                             pushStateChange(before, state.value)
                                         }
                                     }
@@ -119,7 +118,7 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                             },
                             onValueChange = { value ->
                                 if (!deviceState.onHold) {
-                                    state.update {
+                                    updateStateFromUser {
                                         it.copy(repeat = value)
                                     }
                                 }
@@ -140,7 +139,7 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                                 checked = deviceState.onHold,
                                 onCheckedChange = { checked ->
                                     val before = state.value
-                                    state.update { it.copy(onHold = checked) }
+                                    updateStateFromUser { it.copy(onHold = checked) }
                                     pushStateChange(before, state.value)
                                 },
                             )
@@ -172,7 +171,7 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                             beforeTiming = Pair(t, ms)
                         },
                         onSelectTiming = { timing, _ ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(
                                     timing = timing,
                                 )
@@ -196,7 +195,7 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                             beforeGate = v
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(gate = value)
                             }
                         },
@@ -212,7 +211,7 @@ class LoopChainDevice : GenericChainDevice<LoopChainDeviceState>(), Chokeable {
                             gateText?.let { gate ->
                                 if (gate in 0..200) {
                                     val before = state.value
-                                    state.update {
+                                    updateStateFromUser {
                                         it.copy(gate = gate / 200f) // Convert to float between 0.0 and 1.0
                                     }
                                     pushStateChange(before, state.value)

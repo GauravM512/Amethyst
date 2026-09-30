@@ -34,7 +34,6 @@ import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
@@ -105,7 +104,7 @@ class TransmitChainDevice : LEDChainDevice<TransmitChainDeviceState>() {
                     onResolveTextValue = { text ->
                         text.trim().toIntOrNull()?.let { channel ->
                             if (channel in channels) {
-                                state.update { it.copy(channel = channel) }
+                                updateStateFromUser { it.copy(channel = channel) }
                                 updateRegistration()
                             }
                         }
@@ -117,7 +116,7 @@ class TransmitChainDevice : LEDChainDevice<TransmitChainDeviceState>() {
                         pushStateChange(before = beforeState, after = state.value)
                     },
                     onValueChange = { channel ->
-                        state.update {
+                        updateStateFromUser {
                             it.copy(channel = channel.coerceIn(1, MAX_CHANNELS))
                         }
                         updateRegistration()
@@ -130,7 +129,7 @@ class TransmitChainDevice : LEDChainDevice<TransmitChainDeviceState>() {
                     selectedMode = deviceState.mode,
                     onModeSelected = { mode ->
                         val before = state.value.copy()
-                        state.update { it.copy(mode = mode) }
+                        updateStateFromUser { it.copy(mode = mode) }
                         updateRegistration()
                         pushStateChange(before, state.value)
                     },

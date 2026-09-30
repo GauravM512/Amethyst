@@ -75,8 +75,25 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.atomicfu.atomic
 
 object WorkspaceRepository {
+    private val changeRevision = atomic(0L)
+    private val savedRevision = atomic(0L)
+    private val loadingWorkspace = atomic(false)
+
+    fun markDirty() {
+        if (!loadingWorkspace.value) {
+            changeRevision.incrementAndGet()
+        }
+    }
+
+    fun currentChangeRevision(): Long = changeRevision.value
+
+    fun markSaved(revision: Long) {
+        savedRevision.value = revision
+    }
+
     sealed interface AudioSourceRemovalResult {
         data object Removed : AudioSourceRemovalResult
         data object NotFound : AudioSourceRemovalResult
@@ -247,6 +264,12 @@ object WorkspaceRepository {
     }
 
     fun changeMidiDeviceConfig(uuid: String, deviceId: String?) {
+        val element = ViewportRepository.devices.value.firstOrNull {
+            it.selectionUUID == uuid || it.launchpadId == uuid
+        }
+        if (element != null && element.savedMidiDeviceId != deviceId) {
+            markDirty()
+        }
         midiManager.changeDeviceConfig(uuid, deviceId)
     }
 
@@ -355,6 +378,9 @@ object WorkspaceRepository {
 
     fun setBpm(bpm: Double, fromRemote: Boolean = false, undoable: Boolean = true) {
         val before = _bpm.value
+        if (before != bpm) {
+            markDirty()
+        }
         if (undoable && !fromRemote && before != bpm) {
             UndoManager.addAction(
                 UndoableAction.WorkspaceBpmChange(
@@ -369,6 +395,9 @@ object WorkspaceRepository {
     }
 
     fun setProjectName(name: String, fromRemote: Boolean = false) {
+        if (_projectName.value != name) {
+            markDirty()
+        }
         isApplyingRemoteProjectNameUpdate = fromRemote
         workspaceMeta = workspaceMeta?.copy(title = name)
         _projectName.update { name }
@@ -377,6 +406,11 @@ object WorkspaceRepository {
 
     fun updateAutoPlaySettings(showButtonPresses: Boolean, showLights: Boolean) {
         workspaceMeta?.let { currentMeta ->
+            if (currentMeta.settings.autoPlayShowButtonPresses != showButtonPresses ||
+                currentMeta.settings.autoPlayShowLights != showLights
+            ) {
+                markDirty()
+            }
             workspaceMeta = currentMeta.copy(
                 settings = currentMeta.settings.copy(
                     autoPlayShowButtonPresses = showButtonPresses,
@@ -403,6 +437,9 @@ object WorkspaceRepository {
         val after = before.toMutableList().apply {
             this[index] = macro
         }
+        if (before != after && (undoable || fromRemote)) {
+            markDirty()
+        }
         if (undoable && !fromRemote && before != after) {
             UndoManager.addAction(
                 UndoableAction.WorkspaceMacrosChange(
@@ -422,6 +459,9 @@ object WorkspaceRepository {
      */
     fun setMacros(macros: List<Macro>, fromRemote: Boolean = false, undoable: Boolean = true) {
         val before = _macros.value
+        if (before != macros && (undoable || fromRemote)) {
+            markDirty()
+        }
         before.forEach { previous ->
             val replacement = macros.firstOrNull { it.id == previous.id }
             if (replacement == null || replacement.value != previous.value) {
@@ -499,6 +539,7 @@ object WorkspaceRepository {
             if (fromRemote) isApplyingRemoteParameterMappingsUpdate = false
             return
         }
+        markDirty()
         if (undoable && !fromRemote) {
             UndoManager.addAction(
                 UndoableAction.WorkspaceParameterMappingsChange(
@@ -554,6 +595,9 @@ object WorkspaceRepository {
         val element = ViewportRepository.devices.value.firstOrNull { it.launchpadId == deviceId || it.selectionUUID == deviceId }
             ?: return false
 
+        if (element.position.value != position) {
+            markDirty()
+        }
         element.position.value = position
         if (!fromRemote) {
             DeviceSyncCoordinator.onDeviceMoved(element)
@@ -571,6 +615,9 @@ object WorkspaceRepository {
         val element = ViewportRepository.devices.value.firstOrNull { it.launchpadId == deviceId || it.selectionUUID == deviceId }
             ?: return false
 
+        if (element.rotationDegrees.floatValue != rotationDegrees) {
+            markDirty()
+        }
         element.rotationDegrees.floatValue = rotationDegrees
         if (!fromRemote) {
             DeviceSyncCoordinator.onDeviceRotationChanged(element)
@@ -632,6 +679,24 @@ object WorkspaceRepository {
         workspaceData: SavableWorkspaceData,
         fromRemote: Boolean = false,
         preparedCacheRoot: String? = null,
+    ) {
+        loadingWorkspace.value = true
+        try {
+            loadWorkspaceContent(
+                workspaceData = workspaceData,
+                fromRemote = fromRemote,
+                preparedCacheRoot = preparedCacheRoot,
+            )
+            savedRevision.value = changeRevision.value
+        } finally {
+            loadingWorkspace.value = false
+        }
+    }
+
+    private fun loadWorkspaceContent(
+        workspaceData: SavableWorkspaceData,
+        fromRemote: Boolean,
+        preparedCacheRoot: String?,
     ) {
         dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.configurePersistentRoot(preparedCacheRoot)
         AutoPlayRepository.stopAutoPlay()
@@ -1069,9 +1134,7 @@ object WorkspaceRepository {
     }
 
     fun hasUnsavedChanges(): Boolean {
-        // Always show the Unsaved Changes dialog when attempting to close
-        // This avoids file system access (PlatformFile) on mobile platforms
-        return true
+        return changeRevision.value != savedRevision.value
     }
 
     fun clean() {
@@ -1112,6 +1175,7 @@ object WorkspaceRepository {
         _showAudioLibrary.value = false
         previousMode = LayoutWorkspaceMode()
         _gridType.update { GridUtils.GridType.Flexible.Medium }
+        savedRevision.value = changeRevision.value
     }
 
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)

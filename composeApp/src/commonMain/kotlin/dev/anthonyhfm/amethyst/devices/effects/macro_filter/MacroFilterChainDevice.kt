@@ -58,7 +58,6 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.protobuf.ProtoNumber
 import kotlinx.serialization.Serializable
@@ -118,7 +117,7 @@ class MacroFilterChainDevice : GenericChainDevice<MacroFilterChainDeviceState>()
                         onResolveTextValue = { text ->
                             text.trim().toIntOrNull()?.let { v ->
                                 if (v in 1..macros.size) {
-                                    state.update { it.copy(macro = v - 1) }
+                                    updateStateFromUser { it.copy(macro = v - 1) }
                                 }
                             }
                         },
@@ -126,7 +125,7 @@ class MacroFilterChainDevice : GenericChainDevice<MacroFilterChainDeviceState>()
                             pushStateChange(state.value.copy(macro = beforeMacro), state.value)
                         },
                         onValueChange = { value ->
-                            state.update { it.copy(macro = value) }
+                            updateStateFromUser { it.copy(macro = value) }
                         },
                         enabled = macros.size > 1
                     )
@@ -172,7 +171,7 @@ class MacroFilterChainDevice : GenericChainDevice<MacroFilterChainDeviceState>()
                                             } else {
                                                 state.value.allowedValues - cellIndex
                                             }
-                                            state.update { it.copy(allowedValues = newAllowed) }
+                                            updateStateFromUser { it.copy(allowedValues = newAllowed) }
                                             change.consume()
                                         }
                                     }
@@ -190,7 +189,7 @@ class MacroFilterChainDevice : GenericChainDevice<MacroFilterChainDeviceState>()
                                                     } else {
                                                         state.value.allowedValues - cellIndex
                                                     }
-                                                    state.update { it.copy(allowedValues = newAllowed) }
+                                                    updateStateFromUser { it.copy(allowedValues = newAllowed) }
                                                     change.consume()
                                                 }
                                             }

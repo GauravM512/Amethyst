@@ -117,14 +117,14 @@ class EqThreeChainDevice : AudioChainDevice<EqThreeChainDeviceState>(), Paramete
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    GainDial("lowGain", "Gain Low", deviceState.lowGainDb) { state.update { s -> s.copy(lowGainDb = it) } }
-                    GainDial("midGain", "Gain Mid", deviceState.midGainDb) { state.update { s -> s.copy(midGainDb = it) } }
-                    GainDial("highGain", "Gain High", deviceState.highGainDb) { state.update { s -> s.copy(highGainDb = it) } }
+                    GainDial("lowGain", "Gain Low", deviceState.lowGainDb) { updateStateFromUser { s -> s.copy(lowGainDb = it) } }
+                    GainDial("midGain", "Gain Mid", deviceState.midGainDb) { updateStateFromUser { s -> s.copy(midGainDb = it) } }
+                    GainDial("highGain", "Gain High", deviceState.highGainDb) { updateStateFromUser { s -> s.copy(highGainDb = it) } }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    FrequencyDial("lowCrossover", "Low / Mid", deviceState.lowCrossoverHz, 60f, 2_000f) { state.update { s -> s.copy(lowCrossoverHz = it) } }
-                    GainDial("output", "Output", deviceState.outputGainDb) { state.update { s -> s.copy(outputGainDb = it) } }
-                    FrequencyDial("highCrossover", "Mid / High", deviceState.highCrossoverHz, 500f, 16_000f) { state.update { s -> s.copy(highCrossoverHz = it) } }
+                    FrequencyDial("lowCrossover", "Low / Mid", deviceState.lowCrossoverHz, 60f, 2_000f) { updateStateFromUser { s -> s.copy(lowCrossoverHz = it) } }
+                    GainDial("output", "Output", deviceState.outputGainDb) { updateStateFromUser { s -> s.copy(outputGainDb = it) } }
+                    FrequencyDial("highCrossover", "Mid / High", deviceState.highCrossoverHz, 500f, 16_000f) { updateStateFromUser { s -> s.copy(highCrossoverHz = it) } }
                 }
             }
         }

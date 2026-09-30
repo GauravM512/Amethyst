@@ -170,7 +170,7 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
                         chokeChannel?.let { channel ->
                             if (chokeChannel in 0..16) {
                                 val oldChannel = state.value.target
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(target = channel)
                                 }
                                 // Update channel registration
@@ -184,7 +184,7 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
                     },
                     onValueChange = { value ->
                         val oldChannel = state.value.target
-                        state.update {
+                        updateStateFromUser {
                             it.copy(target = value)
                         }
                         // Update channel registration
