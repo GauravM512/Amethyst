@@ -14,26 +14,7 @@ import ComposeApp
 
 private class OrientationContainerViewController: UIViewController {
     let childViewController: UIViewController
-    var forcedLandscape: Bool = false {
-        didSet {
-            if oldValue != forcedLandscape {
-                setNeedsUpdateOfSupportedInterfaceOrientations()
-                if #available(iOS 16.0, *) {
-                    if let windowScene = self.view.window?.windowScene {
-                        let orientations: UIInterfaceOrientationMask = forcedLandscape ? .landscape : .all
-                        let preferences = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: orientations)
-                        windowScene.requestGeometryUpdate(preferences) { error in
-                            print("Geometry update failed: \(error)")
-                        }
-                    }
-                } else {
-                    let value = forcedLandscape ? UIInterfaceOrientation.landscapeLeft.rawValue : UIInterfaceOrientation.unknown.rawValue
-                    UIDevice.current.setValue(value, forKey: "orientation")
-                    UIViewController.attemptRotationToDeviceOrientation()
-                }
-            }
-        }
-    }
+    var forcedLandscape: Bool = false
 
     init(child: UIViewController) {
         self.childViewController = child
@@ -54,11 +35,11 @@ private class OrientationContainerViewController: UIViewController {
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        return forcedLandscape ? .landscape : .all
+        return .portrait
     }
 
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
-        return forcedLandscape ? .landscapeLeft : .portrait
+        return .portrait
     }
 }
 

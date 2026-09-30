@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.Manifest
 import android.os.Bundle
 import android.os.Build
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.view.Window
 import androidx.activity.ComponentActivity
@@ -69,6 +70,8 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         initializeSentry()
 

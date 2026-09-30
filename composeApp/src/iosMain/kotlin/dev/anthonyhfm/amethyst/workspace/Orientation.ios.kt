@@ -8,8 +8,9 @@ import platform.UIKit.UIUserInterfaceIdiomPhone
 
 @Composable
 actual fun ForceScreenOrientation(landscape: Boolean) {
-    DisposableEffect(landscape) {
-        IosWorkspaceBridge.onOrientationChanged?.invoke(landscape)
+    DisposableEffect(key1 = Unit) {
+        IosWorkspaceBridge.onOrientationChanged?.invoke(false)
+
         onDispose {
             IosWorkspaceBridge.onOrientationChanged?.invoke(false)
         }

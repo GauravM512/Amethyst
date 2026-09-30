@@ -11,16 +11,14 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 actual fun ForceScreenOrientation(landscape: Boolean) {
     val context = LocalContext.current
-    DisposableEffect(landscape) {
+
+    DisposableEffect(key1 = Unit) {
         val activity = context.findActivity() ?: return@DisposableEffect onDispose {}
-        val originalOrientation = activity.requestedOrientation
-        if (landscape) {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        } else {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
+
+        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
         onDispose {
-            activity.requestedOrientation = originalOrientation
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
     }
 }
