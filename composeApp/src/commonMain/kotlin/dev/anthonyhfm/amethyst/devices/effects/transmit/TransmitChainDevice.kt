@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -69,14 +68,6 @@ class TransmitChainDevice : LEDChainDevice<TransmitChainDeviceState>() {
         val deviceState by state.collectAsState()
         val selections by SelectionManager.selections.collectAsState()
         val isSelected = selections.any { it.selectionUUID == this.selectionUUID }
-
-        DisposableEffect(deviceState.mode, deviceState.channel) {
-            updateRegistration()
-
-            onDispose {
-                unregisterReceiver()
-            }
-        }
 
         ChainDeviceShell(
             title = "Transmit",
