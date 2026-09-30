@@ -267,6 +267,7 @@ fun AudioLibraryPanel(
         when (val result = WorkspaceRepository.removeAudioSource(source.id)) {
             AudioSourceRemovalResult.Removed,
             AudioSourceRemovalResult.NotFound -> Unit
+
             is AudioSourceRemovalResult.InUse -> {
                 blockedRemoval = BlockedAudioRemoval(
                     sourceName = source.fileName,
@@ -279,6 +280,7 @@ fun AudioLibraryPanel(
 
     Column(
         modifier = modifier
+            .padding(start = 8.dp)
             .background(Theme[colors][background])
             .then(if (isFileHovering) Modifier.border(2.dp, Theme[colors][primary]) else Modifier)
             .fileDropTarget(
@@ -294,7 +296,9 @@ fun AudioLibraryPanel(
             ),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -302,8 +306,11 @@ fun AudioLibraryPanel(
                 style = Theme[typography][h4].copy(fontWeight = FontWeight.SemiBold),
                 color = Theme[colors][foreground],
             )
+
             Spacer(Modifier.weight(1f))
+
             val importLabel = stringResource(Res.string.audio_library_import)
+
             WorkspaceToolbarIconButton(
                 onClick = {
                     scope.launch {
@@ -381,7 +388,8 @@ fun AudioLibraryPanel(
                                     useDragAnchor = true,
                                     draggableContent = { AudioLibraryDragPreview(source) },
                                     onDragEnter = { dragged ->
-                                        val currentOrder = AudioLibraryRepository.all().filter { it.stemMetadata == null }
+                                        val currentOrder =
+                                            AudioLibraryRepository.all().filter { it.stemMetadata == null }
                                         val fromIndex = currentOrder.indexOfFirst { it.id == dragged.data.id }
                                         if (fromIndex != -1 && fromIndex != index) {
                                             AudioLibraryRepository.move(dragged.data.id, index)
@@ -460,7 +468,8 @@ fun AudioLibraryPanel(
                                     StemGroupDivider()
                                     AudioLibraryStemGroup {
                                         stemChildren.forEachIndexed { stemIndex, stem ->
-                                            val stemProgress = if (preview.sourceId == stem.id) preview.progress(stem) else 0f
+                                            val stemProgress =
+                                                if (preview.sourceId == stem.id) preview.progress(stem) else 0f
                                             val stemPlaying = preview.sourceId == stem.id && preview.isPlaying
                                             if (stemIndex > 0) StemGroupDivider()
                                             if (dragState == null) {
@@ -599,97 +608,97 @@ private fun AudioLibraryItem(
 ) {
     val cardContent: @Composable () -> Unit = {
         Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(
-                if (inStemGroup) {
-                    Modifier.background(Theme[colors][card])
-                } else {
-                    Modifier
-                        .clip(DefaultShape)
-                        .background(Theme[colors][card])
-                        .border(1.dp, Theme[colors][border], DefaultShape)
-                }
-            )
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-        Row(
-            modifier = exportDragModifier,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                onClick = { AudioLibraryRepository.togglePreview(source.id) },
-                variant = ButtonVariant.Secondary,
-                size = ButtonSize.Icon,
-                shape = CircleShape,
-                modifier = Modifier.size(44.dp),
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
-                    contentDescription = stringResource(
-                        if (isPlaying) Res.string.audio_library_pause else Res.string.audio_library_play
-                    ),
-                    tint = Theme[colors][secondaryForeground],
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                Text(
-                    text = source.stemMetadata?.kind?.localizedDisplayName() ?: source.fileName,
-                    style = Theme[typography][small].copy(fontWeight = FontWeight.SemiBold),
-                    color = Theme[colors][foreground],
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "${formatDuration(source.totalDurationMs)} · ${formatSampleRate(source.sampleRate)} · ${source.channels} ch",
-                    style = Theme[typography][mutedText],
-                    color = Theme[colors][mutedForeground],
-                    maxLines = 1,
-                )
-            }
-
-            if (!isStem && hasStems) {
-                WorkspaceToolbarIconButton(
-                    onClick = onToggleExpanded,
-                    imageVector = if (expanded) Lucide.ChevronDown else Lucide.ChevronRight,
-                    contentDescription = stringResource(
-                        if (expanded) Res.string.stem_collapse else Res.string.stem_expand
-                    ),
-                )
-            } else if (!isStem && extractionJob == null && !hasStems && StemExtractionRepository.isAvailable) {
-                WorkspaceToolbarIconButton(
-                    onClick = onExtract,
-                    imageVector = Lucide.Scissors,
-                    contentDescription = stringResource(Res.string.stem_extract),
-                )
-            }
-
-            if (!isStem) Box(modifier = reorderHandleModifier.size(44.dp), contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Lucide.GripVertical,
-                    contentDescription = stringResource(Res.string.audio_library_reorder),
-                    tint = Theme[colors][mutedForeground],
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-
-        Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .height(58.dp)
-                .clip(DefaultShape)
-                .background(Theme[colors][muted]),
+                .then(
+                    if (inStemGroup) {
+                        Modifier.background(Theme[colors][card])
+                    } else {
+                        Modifier
+                            .clip(DefaultShape)
+                            .background(Theme[colors][card])
+                            .border(1.dp, Theme[colors][border], DefaultShape)
+                    }
+                )
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            AudioLibraryWaveform(source, progress, Modifier.fillMaxSize())
-        }
+            Row(
+                modifier = exportDragModifier,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = { AudioLibraryRepository.togglePreview(source.id) },
+                    variant = ButtonVariant.Secondary,
+                    size = ButtonSize.Icon,
+                    shape = CircleShape,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Lucide.Pause else Lucide.Play,
+                        contentDescription = stringResource(
+                            if (isPlaying) Res.string.audio_library_pause else Res.string.audio_library_play
+                        ),
+                        tint = Theme[colors][secondaryForeground],
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
 
-        if (!isStem && extractionJob != null && extractionJob.stage != StemExtractionStage.COMPLETE) {
-            StemExtractionStatus(extractionJob)
-        }
+                Column(modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                    Text(
+                        text = source.stemMetadata?.kind?.localizedDisplayName() ?: source.fileName,
+                        style = Theme[typography][small].copy(fontWeight = FontWeight.SemiBold),
+                        color = Theme[colors][foreground],
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "${formatDuration(source.totalDurationMs)} · ${formatSampleRate(source.sampleRate)} · ${source.channels} ch",
+                        style = Theme[typography][mutedText],
+                        color = Theme[colors][mutedForeground],
+                        maxLines = 1,
+                    )
+                }
+
+                if (!isStem && hasStems) {
+                    WorkspaceToolbarIconButton(
+                        onClick = onToggleExpanded,
+                        imageVector = if (expanded) Lucide.ChevronDown else Lucide.ChevronRight,
+                        contentDescription = stringResource(
+                            if (expanded) Res.string.stem_collapse else Res.string.stem_expand
+                        ),
+                    )
+                } else if (!isStem && extractionJob == null && !hasStems && StemExtractionRepository.isAvailable) {
+                    WorkspaceToolbarIconButton(
+                        onClick = onExtract,
+                        imageVector = Lucide.Scissors,
+                        contentDescription = stringResource(Res.string.stem_extract),
+                    )
+                }
+
+                if (!isStem) Box(modifier = reorderHandleModifier.size(44.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Lucide.GripVertical,
+                        contentDescription = stringResource(Res.string.audio_library_reorder),
+                        tint = Theme[colors][mutedForeground],
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
+                    .clip(DefaultShape)
+                    .background(Theme[colors][muted]),
+            ) {
+                AudioLibraryWaveform(source, progress, Modifier.fillMaxSize())
+            }
+
+            if (!isStem && extractionJob != null && extractionJob.stage != StemExtractionStage.COMPLETE) {
+                StemExtractionStatus(extractionJob)
+            }
         }
     }
 
@@ -787,11 +796,13 @@ private fun StemExtractionStatus(job: StemExtractionJob) {
                     imageVector = Lucide.X,
                     contentDescription = stringResource(Res.string.stem_cancel),
                 )
+
                 job.stage == StemExtractionStage.FAILED && !job.forceCpu -> Button(
                     onClick = { StemExtractionRepository.retryOnCpu(job.id) },
                     variant = ButtonVariant.Outline,
                     size = ButtonSize.Small,
                 ) { Text(stringResource(Res.string.stem_try_cpu)) }
+
                 else -> Button(
                     onClick = { StemExtractionRepository.dismiss(job.id) },
                     variant = ButtonVariant.Ghost,
