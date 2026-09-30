@@ -137,3 +137,16 @@ data class HubOk(val ok: Boolean)
 
 @Serializable
 data class HubHealth(val ok: Boolean)
+
+@Serializable
+data class HubProjectCollection(
+    val id: String,
+    val title: String,
+    val description: String = "",
+    val position: Int = 0,
+    val projects: List<HubProject> = emptyList(),
+    val itemCount: Int = 0,
+    val created: Long = 0,
+    val updated: Long = 0,
+)
+

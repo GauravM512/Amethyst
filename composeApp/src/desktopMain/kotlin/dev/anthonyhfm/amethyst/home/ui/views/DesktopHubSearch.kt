@@ -49,6 +49,7 @@ internal fun DesktopHubSearch(
     onOpenArtist: (String) -> Unit,
     onOpenProject: (String, String) -> Unit,
     onSignIn: () -> Unit,
+    scrollAreaState: ScrollAreaState? = LocalScrollAreaState.current,
 ) {
     var filters by remember(initialSort) {
         mutableStateOf(DesktopHubFilters(sort = initialSort))
@@ -65,6 +66,58 @@ internal fun DesktopHubSearch(
     val scope = rememberCoroutineScope()
     val trimmed = query.trim()
     val browse = browseAll || filters.active
+
+    suspend fun loadMore() {
+        val currentCursor = cursor ?: return
+        if (loadingMore || moreError) {
+            return
+        }
+
+        val request = generation
+        loadingMore = true
+        moreError = false
+
+        try {
+            val page = repository.browseProjects.execute(
+                cursor = currentCursor,
+                limit = 24,
+                query = trimmed.ifEmpty { null },
+                sort = filters.sort,
+                type = filters.type,
+                compatibility = filters.compatibility,
+                difficulty = filters.difficulty,
+            )
+
+            if (request == generation) {
+                val seen = projects.mapTo(mutableSetOf()) { it.id }
+                projects = projects + page.items.filter { seen.add(it.id) }
+                cursor = page.nextCursor
+            }
+        } catch (_: Exception) {
+            if (request == generation) {
+                moreError = true
+            }
+        } finally {
+            if (request == generation) {
+                loadingMore = false
+            }
+        }
+    }
+
+    LaunchedEffect(scrollAreaState, cursor, loadingMore, moreError, generation, loading) {
+        if (scrollAreaState == null) {
+            return@LaunchedEffect
+        }
+
+        snapshotFlow { scrollAreaState.scrollValue to scrollAreaState.maxScrollValue }
+            .collect { (value, maxValue) ->
+                if (!loading && projects.isNotEmpty() && cursor != null && !loadingMore && !moreError) {
+                    if (maxValue == 0 || (maxValue - value) <= 600) {
+                        loadMore()
+                    }
+                }
+            }
+    }
 
     LaunchedEffect(repository, sessionRevision, trimmed, browse, filters, retry) {
         generation++
@@ -312,54 +365,46 @@ internal fun DesktopHubSearch(
                         }
                     }
 
-                    if (cursor != null) {
-                        Button(
-                            onClick = {
-                                val currentCursor = cursor ?: return@Button
-                                val request = generation
+                    if (loadingMore) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Spinner(
+                                size = 24.dp
+                            )
+                        }
+                    }
 
-                                scope.launch {
-                                    loadingMore = true
-                                    moreError = false
-                                    try {
-                                        val page = repository.browseProjects.execute(
-                                            cursor = currentCursor,
-                                            limit = 24,
-                                            query = trimmed.ifEmpty { null },
-                                            sort = filters.sort,
-                                            type = filters.type,
-                                            compatibility = filters.compatibility,
-                                            difficulty = filters.difficulty,
-                                        )
-
-                                        if (request == generation) {
-                                            val seen = projects.mapTo(mutableSetOf()) { it.id }
-                                            projects = projects + page.items.filter { seen.add(it.id) }
-                                            cursor = page.nextCursor
-                                        }
-                                    } catch (_: Exception) {
-                                        if (request == generation) {
-                                            moreError = true
-                                        }
-                                    } finally {
-                                        if (request == generation) {
-                                            loadingMore = false
-                                        }
-                                    }
-                                }
-                            },
-                            enabled = !loadingMore,
-                            variant = ButtonVariant.Outline
+                    if (moreError) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = if (loadingMore) {
-                                    stringResource(Res.string.home_hub_detail_loading)
-                                } else if (moreError) {
-                                    stringResource(Res.string.home_hub_retry)
-                                } else {
-                                    stringResource(Res.string.home_hub_detail_load_more)
-                                }
+                                text = stringResource(Res.string.home_hub_catalog_error),
+                                style = Theme[typography][small].copy(color = Theme[colors][mutedForeground])
                             )
+
+                            Button(
+                                onClick = {
+                                    moreError = false
+                                    scope.launch {
+                                        loadMore()
+                                    }
+                                },
+                                variant = ButtonVariant.Outline,
+                                size = ButtonSize.Small
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.home_hub_retry)
+                                )
+                            }
                         }
                     }
                 }

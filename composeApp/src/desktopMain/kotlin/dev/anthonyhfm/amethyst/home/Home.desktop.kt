@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
@@ -193,7 +194,16 @@ actual fun Home(
 
                     composable<HomeNavRoute.Arcade> {
                         AppLocaleRefreshBoundary {
-                            ArcadeView()
+                            ArcadeView(
+                                onExploreHub = {
+                                    hubStack.clear()
+                                    hubSection = DesktopHubSection.Home
+                                    navigator.navigate(HomeNavRoute.Browser) {
+                                        launchSingleTop = true
+                                        popUpTo(navigator.graph.findStartDestination().id)
+                                    }
+                                }
+                            )
                         }
                     }
 

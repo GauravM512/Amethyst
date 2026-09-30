@@ -95,9 +95,11 @@ private struct HubArtistDetailView: View {
     @Environment(AppLocalization.self) private var localization
     @State private var artist: ComposeApp.HubArtist?
     @State private var projects: [ComposeApp.HubProject] = []
+    @State private var collections: [ComposeApp.HubProjectCollection] = []
     @State private var nextCursor: String?
     @State private var isLoading = true
     @State private var isLoadingMore = false
+    @State private var loadMoreFailed = false
     @State private var isFollowing = false
     @State private var followersCount = 0
     @State private var followPending = false
@@ -163,6 +165,56 @@ private struct HubArtistDetailView: View {
                                 .padding(.top, 32)
                         }
 
+                        if !collections.isEmpty {
+                            VStack(alignment: .leading, spacing: 24) {
+                                ForEach(collections, id: \.id) { collection in
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                            Text(collection.title)
+                                                .font(.title2.weight(.bold))
+                                                .foregroundStyle(theme.onSurface)
+
+                                            Text(collection.projects.count.formatted())
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(theme.onSurfaceVariant)
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 3)
+                                                .background(theme.surfaceContainerHigh, in: Capsule())
+                                        }
+
+                                        if !collection.description_.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                            Text(collection.description_)
+                                                .font(.subheadline)
+                                                .foregroundStyle(theme.onSurfaceVariant)
+                                        }
+
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            LazyHStack(alignment: .top, spacing: 14) {
+                                                ForEach(collection.projects, id: \.id) { project in
+                                                    Button {
+                                                        onOpen(.project(
+                                                            username: project.artist.username.isEmpty ? username : project.artist.username,
+                                                            slug: project.slug
+                                                        ))
+                                                    } label: {
+                                                        HubCollectionCard(project: project, repository: repository)
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                }
+                                            }
+                                            .scrollTargetLayout()
+                                            .padding(.horizontal, 24)
+                                            .padding(.vertical, 4)
+                                        }
+                                        .scrollTargetBehavior(.viewAligned)
+                                        .padding(.horizontal, -24)
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 34)
+                        }
+
                         VStack(alignment: .leading, spacing: 16) {
                             Text(localization.string("home_hub_detail_projects_title", fallback: "Projects"))
                                 .font(.title2.weight(.bold))
@@ -170,21 +222,31 @@ private struct HubArtistDetailView: View {
                                 Text(localization.string("home_hub_detail_no_projects", fallback: "No published projects yet."))
                                     .foregroundStyle(theme.onSurfaceVariant)
                             } else {
-                                ForEach(projects, id: \.id) { project in
-                                    Button {
-                                        onOpen(.project(username: username, slug: project.slug))
-                                    } label: {
-                                        HubProjectRow(project: project, repository: repository)
+                                LazyVStack(spacing: 0) {
+                                    ForEach(projects, id: \.id) { project in
+                                        Button {
+                                            onOpen(.project(username: username, slug: project.slug))
+                                        } label: {
+                                            HubProjectRow(project: project, repository: repository)
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
                             }
-                            if nextCursor != nil {
-                                Button(isLoadingMore ? localization.string("home_hub_detail_loading", fallback: "Loading…") : localization.string("home_hub_detail_load_more", fallback: "Load more")) {
-                                    Task { await loadProjects() }
+                            if let cursor = nextCursor {
+                                if loadMoreFailed {
+                                    Button(localization.string("home_hub_retry", fallback: "Try Again")) {
+                                        Task { await loadMoreProjects(cursor: cursor) }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                } else {
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                        .id(cursor)
+                                        .onAppear { Task { await loadMoreProjects(cursor: cursor) } }
                                 }
-                                .disabled(isLoadingMore)
-                                .frame(maxWidth: .infinity)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -227,11 +289,15 @@ private struct HubArtistDetailView: View {
     private func load() async {
         isLoading = true
         error = nil
+        loadMoreFailed = false
         do {
             let value: ComposeApp.HubArtist = try await withCheckedThrowingContinuation { continuation in
                 repository.getArtist.execute(username: username) { value, error in
-                    if let value { continuation.resume(returning: value) }
-                    else { continuation.resume(throwing: error ?? HubDetailErrorType.noResponse) }
+                    if let value {
+                        continuation.resume(returning: value)
+                    } else {
+                        continuation.resume(throwing: error ?? HubDetailErrorType.noResponse)
+                    }
                 }
             }
             artist = value
@@ -239,29 +305,58 @@ private struct HubArtistDetailView: View {
             followersCount = Int(clamping: value.followersCount)
             projects = []
             nextCursor = nil
-            await loadProjects()
+            collections = []
+
+            async let fetchedCollections = fetchCollections()
+            async let fetchedProjects = try? fetchProjectsPage(cursor: nil)
+
+            let (cols, page) = await (fetchedCollections, fetchedProjects)
+            collections = cols
+            if let page {
+                projects = page.items
+                nextCursor = page.nextCursor
+            } else {
+                actionError = localization.string("home_hub_detail_projects_error", fallback: "Projects could not be loaded.")
+            }
         } catch {
             self.error = localization.string("home_hub_detail_artist_error", fallback: "The artist could not be loaded.")
         }
         isLoading = false
     }
 
-    private func loadProjects() async {
-        guard !isLoadingMore else { return }
-        isLoadingMore = true
-        defer { isLoadingMore = false }
-        do {
-            let cursor = nextCursor
-            let page: ComposeApp.HubProjectPage = try await withCheckedThrowingContinuation { continuation in
-                repository.getArtistProjects.execute(username: username, cursor: cursor, limit: 24) { value, error in
-                    if let value { continuation.resume(returning: value) }
-                    else { continuation.resume(throwing: error ?? HubDetailErrorType.noResponse) }
+    private func fetchCollections() async -> [ComposeApp.HubProjectCollection] {
+        let result: [ComposeApp.HubProjectCollection]? = await withCheckedContinuation { continuation in
+            repository.getArtistCollections.execute(username: username) { value, error in
+                continuation.resume(returning: value)
+            }
+        }
+        return (result ?? []).filter { !$0.projects.isEmpty }
+    }
+
+    private func fetchProjectsPage(cursor: String?) async throws -> ComposeApp.HubProjectPage {
+        try await withCheckedThrowingContinuation { continuation in
+            repository.getArtistProjects.execute(username: username, cursor: cursor, limit: 24) { value, error in
+                if let value {
+                    continuation.resume(returning: value)
+                } else {
+                    continuation.resume(throwing: error ?? HubDetailErrorType.noResponse)
                 }
             }
-            projects.append(contentsOf: page.items)
+        }
+    }
+
+    private func loadMoreProjects(cursor: String) async {
+        guard !isLoadingMore, nextCursor == cursor else { return }
+        isLoadingMore = true
+        loadMoreFailed = false
+        defer { isLoadingMore = false }
+        do {
+            let page = try await fetchProjectsPage(cursor: cursor)
+            let seenIDs = Set(projects.map(\.id))
+            projects.append(contentsOf: page.items.filter { !seenIDs.contains($0.id) })
             nextCursor = page.nextCursor
         } catch {
-            actionError = localization.string("home_hub_detail_projects_error", fallback: "Projects could not be loaded.")
+            loadMoreFailed = true
         }
     }
 
@@ -723,6 +818,38 @@ private struct HubProjectRow: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+    }
+}
+
+private struct HubCollectionCard: View {
+    let project: ComposeApp.HubProject
+    let repository: HubRepository
+    @Environment(\.amethystTheme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HubDetailImage(
+                url: project.thumbnailUrl.flatMap { URL(string: repository.client.resolveUrl(pathOrUrl: $0)) },
+                symbol: "square.grid.3x3.square"
+            )
+            .frame(width: 120, height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(project.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(theme.onSurface)
+                    .lineLimit(1)
+
+                Text(project.projectType.name.capitalized)
+                    .font(.caption)
+                    .foregroundStyle(theme.onSurfaceVariant)
+                    .lineLimit(1)
+            }
+        }
+        .frame(width: 120, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(project.title), \(project.projectType.name.capitalized)")
     }
 }
 

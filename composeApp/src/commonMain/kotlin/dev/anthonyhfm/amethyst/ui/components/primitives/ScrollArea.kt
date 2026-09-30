@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -99,6 +101,10 @@ fun rememberScrollAreaState(initialValue: Int = 0): ScrollAreaState {
     }
 }
 
+val LocalScrollAreaState = staticCompositionLocalOf<ScrollAreaState?> {
+    null
+}
+
 @Composable
 fun ScrollArea(
     modifier: Modifier = Modifier,
@@ -140,69 +146,78 @@ fun ScrollArea(
         reverseScrolling = false,
     )
 
-    Box(modifier = modifier.hoverable(areaInteractionSource)) {
+    CompositionLocalProvider(
+        LocalScrollAreaState provides state
+    ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .scrollable(
-                    state = state.scrollableState,
-                    orientation = scrollOrientation,
-                    overscrollEffect = null,
-                    reverseDirection = reverseDirection,
-                    flingBehavior = flingBehavior,
-                    bringIntoViewSpec = NoBringIntoViewSpec,
-                )
-                .layout { measurable, constraints ->
-                    val childConstraints = when (orientation) {
-                        ScrollBarOrientation.Vertical -> constraints.copy(maxHeight = Constraints.Infinity)
-                        ScrollBarOrientation.Horizontal -> constraints.copy(maxWidth = Constraints.Infinity)
-                    }
-                    val placeable = measurable.measure(childConstraints)
-                    val viewportSize = when (orientation) {
-                        ScrollBarOrientation.Vertical -> constraints.maxHeight
-                        ScrollBarOrientation.Horizontal -> constraints.maxWidth
-                    }
-                    val contentSize = when (orientation) {
-                        ScrollBarOrientation.Vertical -> placeable.height
-                        ScrollBarOrientation.Horizontal -> placeable.width
-                    }
-                    val newMax = (contentSize - viewportSize).coerceAtLeast(0)
-                    if (state.maxScrollValue != newMax) state.maxScrollValue = newMax
-
-                    layout(
-                        width = when (orientation) {
-                            ScrollBarOrientation.Horizontal -> viewportSize.coerceAtLeast(constraints.minWidth)
-                            ScrollBarOrientation.Vertical -> placeable.width
-                        },
-                        height = when (orientation) {
-                            ScrollBarOrientation.Vertical -> viewportSize.coerceAtLeast(constraints.minHeight)
-                            ScrollBarOrientation.Horizontal -> placeable.height
+            modifier = modifier
+                .hoverable(areaInteractionSource)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scrollable(
+                        state = state.scrollableState,
+                        orientation = scrollOrientation,
+                        overscrollEffect = null,
+                        reverseDirection = reverseDirection,
+                        flingBehavior = flingBehavior,
+                        bringIntoViewSpec = NoBringIntoViewSpec,
+                    )
+                    .layout { measurable, constraints ->
+                        val childConstraints = when (orientation) {
+                            ScrollBarOrientation.Vertical -> constraints.copy(maxHeight = Constraints.Infinity)
+                            ScrollBarOrientation.Horizontal -> constraints.copy(maxWidth = Constraints.Infinity)
                         }
-                    ) {
-                        val offset = state.scrollValue.coerceIn(0, newMax)
-                        when (orientation) {
-                            ScrollBarOrientation.Vertical -> placeable.place(0, -offset)
-                            ScrollBarOrientation.Horizontal -> placeable.place(-offset, 0)
+                        val placeable = measurable.measure(childConstraints)
+                        val viewportSize = when (orientation) {
+                            ScrollBarOrientation.Vertical -> constraints.maxHeight
+                            ScrollBarOrientation.Horizontal -> constraints.maxWidth
                         }
-                    }
-                },
-            content = content,
-        )
+                        val contentSize = when (orientation) {
+                            ScrollBarOrientation.Vertical -> placeable.height
+                            ScrollBarOrientation.Horizontal -> placeable.width
+                        }
+                        val newMax = (contentSize - viewportSize).coerceAtLeast(0)
+                        if (state.maxScrollValue != newMax) {
+                            state.maxScrollValue = newMax
+                        }
 
-        val alignment = when (orientation) {
-            ScrollBarOrientation.Vertical -> Alignment.CenterEnd
-            ScrollBarOrientation.Horizontal -> Alignment.BottomCenter
+                        layout(
+                            width = when (orientation) {
+                                ScrollBarOrientation.Horizontal -> viewportSize.coerceAtLeast(constraints.minWidth)
+                                ScrollBarOrientation.Vertical -> placeable.width
+                            },
+                            height = when (orientation) {
+                                ScrollBarOrientation.Vertical -> viewportSize.coerceAtLeast(constraints.minHeight)
+                                ScrollBarOrientation.Horizontal -> placeable.height
+                            }
+                        ) {
+                            val offset = state.scrollValue.coerceIn(0, newMax)
+                            when (orientation) {
+                                ScrollBarOrientation.Vertical -> placeable.place(0, -offset)
+                                ScrollBarOrientation.Horizontal -> placeable.place(-offset, 0)
+                            }
+                        }
+                    },
+                content = content,
+            )
+
+            val alignment = when (orientation) {
+                ScrollBarOrientation.Vertical -> Alignment.CenterEnd
+                ScrollBarOrientation.Horizontal -> Alignment.BottomCenter
+            }
+
+            ScrollBar(
+                scrollValue = state.scrollValue,
+                maxScrollValue = state.maxScrollValue,
+                onScrollTo = { state.scrollValue = it.coerceIn(0, state.maxScrollValue) },
+                orientation = orientation,
+                visible = visible,
+                thickness = scrollBarThickness,
+                modifier = Modifier.align(alignment),
+            )
         }
-
-        ScrollBar(
-            scrollValue = state.scrollValue,
-            maxScrollValue = state.maxScrollValue,
-            onScrollTo = { state.scrollValue = it.coerceIn(0, state.maxScrollValue) },
-            orientation = orientation,
-            visible = visible,
-            thickness = scrollBarThickness,
-            modifier = Modifier.align(alignment),
-        )
     }
 }
 

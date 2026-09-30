@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -79,16 +80,40 @@ internal fun HubSearchContent(
     onOpenArtist: (String) -> Unit,
     onOpenProject: (String, String) -> Unit,
 ) {
-    var filters by remember(initialSort) { mutableStateOf(HubFilters(sort = initialSort)) }
-    var result by remember { mutableStateOf<HubSearchResult?>(null) }
-    var filteredProjects by remember { mutableStateOf<List<HubProject>>(emptyList()) }
-    var nextCursor by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(false) }
-    var loadingMore by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf(false) }
-    var moreError by remember { mutableStateOf(false) }
-    var retry by remember { mutableStateOf(0) }
-    var requestGeneration by remember { mutableIntStateOf(0) }
+    var filters by remember(initialSort) {
+        mutableStateOf(
+            HubFilters(
+                sort = initialSort
+            )
+        )
+    }
+    var result by remember {
+        mutableStateOf<HubSearchResult?>(null)
+    }
+    var filteredProjects by remember {
+        mutableStateOf<List<HubProject>>(emptyList())
+    }
+    var nextCursor by remember {
+        mutableStateOf<String?>(null)
+    }
+    var loading by remember {
+        mutableStateOf(false)
+    }
+    var loadingMore by remember {
+        mutableStateOf(false)
+    }
+    var error by remember {
+        mutableStateOf(false)
+    }
+    var moreError by remember {
+        mutableStateOf(false)
+    }
+    var retry by remember {
+        mutableStateOf(0)
+    }
+    var requestGeneration by remember {
+        mutableIntStateOf(0)
+    }
     val scope = rememberCoroutineScope()
     val trimmed = query.trim()
     val browse = browseAll || filters.active
@@ -101,19 +126,33 @@ internal fun HubSearchContent(
         error = false
         moreError = false
         loadingMore = false
-        if (trimmed.isEmpty() && !browse) { loading = false; return@LaunchedEffect }
+        if (trimmed.isEmpty() && !browse) {
+            loading = false
+            return@LaunchedEffect
+        }
         loading = true
         try {
             delay(300)
-            val found = if (trimmed.isEmpty()) null else repository.search.execute(trimmed, 30)
-            val page = if (browse) repository.browseProjects.execute(
-                limit = 24,
-                query = trimmed.ifEmpty { null },
-                sort = filters.sort,
-                type = filters.type,
-                compatibility = filters.compatibility,
-                difficulty = filters.difficulty,
-            ) else null
+            val found = if (trimmed.isEmpty()) {
+                null
+            } else {
+                repository.search.execute(
+                    query = trimmed,
+                    limit = 30
+                )
+            }
+            val page = if (browse) {
+                repository.browseProjects.execute(
+                    limit = 24,
+                    query = trimmed.ifEmpty { null },
+                    sort = filters.sort,
+                    type = filters.type,
+                    compatibility = filters.compatibility,
+                    difficulty = filters.difficulty,
+                )
+            } else {
+                null
+            }
             coroutineContext.ensureActive()
             result = found
             filteredProjects = page?.items.orEmpty()
@@ -127,67 +166,232 @@ internal fun HubSearchContent(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        HubFilterBar(filters, onChange = { filters = it })
+    val loadMoreProjects: () -> Unit = {
+        val cursor = nextCursor
+        if (cursor != null && !loadingMore) {
+            val generation = requestGeneration
+            scope.launch {
+                loadingMore = true
+                moreError = false
+                try {
+                    val page = repository.browseProjects.execute(
+                        cursor = cursor,
+                        limit = 24,
+                        query = trimmed.ifEmpty { null },
+                        sort = filters.sort,
+                        type = filters.type,
+                        compatibility = filters.compatibility,
+                        difficulty = filters.difficulty,
+                    )
+                    if (generation != requestGeneration) {
+                        return@launch
+                    }
+                    val seen = filteredProjects.mapTo(mutableSetOf()) { project ->
+                        project.id
+                    }
+                    filteredProjects = filteredProjects + page.items.filter { project ->
+                        seen.add(project.id)
+                    }
+                    nextCursor = page.nextCursor
+                } catch (_: Exception) {
+                    if (generation == requestGeneration) {
+                        moreError = true
+                    }
+                } finally {
+                    if (generation == requestGeneration) {
+                        loadingMore = false
+                    }
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        HubFilterBar(
+            filters = filters,
+            onChange = { updatedFilters ->
+                filters = updatedFilters
+            }
+        )
         when {
-            trimmed.isEmpty() && !browse -> HubSearchMessage(
-                stringResource(Res.string.home_hub_search_prompt_title),
-                stringResource(Res.string.home_hub_search_prompt_description),
-                icon = Icons.Default.Search,
-            )
-            loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            error -> HubSearchMessage(stringResource(Res.string.home_hub_search_error_title), stringResource(Res.string.home_hub_search_error)) {
-                Button(onClick = { retry++ }) { Text(stringResource(Res.string.home_hub_retry)) }
+            trimmed.isEmpty() && !browse -> {
+                HubSearchMessage(
+                    title = stringResource(Res.string.home_hub_search_prompt_title),
+                    description = stringResource(Res.string.home_hub_search_prompt_description),
+                    icon = Icons.Default.Search,
+                )
+            }
+            loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            error -> {
+                HubSearchMessage(
+                    title = stringResource(Res.string.home_hub_search_error_title),
+                    description = stringResource(Res.string.home_hub_search_error),
+                ) {
+                    Button(
+                        onClick = {
+                            retry++
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.home_hub_retry)
+                        )
+                    }
+                }
             }
             else -> {
-                val projects = if (browse) filteredProjects else result?.projects.orEmpty()
+                val projects = if (browse) {
+                    filteredProjects
+                } else {
+                    result?.projects.orEmpty()
+                }
                 val artists = result?.artists.orEmpty()
-                if (projects.isEmpty() && artists.isEmpty()) HubSearchMessage(
-                    stringResource(Res.string.home_hub_catalog_empty),
-                    stringResource(Res.string.home_hub_catalog_empty_description),
-                ) else LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 28.dp),
-                ) {
-                    if (artists.isNotEmpty()) {
-                        item(key = "artists_heading") { HubResultHeading(stringResource(Res.string.home_hub_search_artists), result?.artistCount ?: artists.size.toLong()) }
-                        items(artists, key = { "artist:${it.username}" }) { artist ->
-                            HubArtistResult(artist) { onOpenArtist(artist.username) }
-                        }
-                    }
-                    if (projects.isNotEmpty()) {
-                        item(key = "projects_heading") { HubResultHeading(stringResource(Res.string.home_hub_search_projects), if (browse) projects.size.toLong() else result?.projectCount ?: projects.size.toLong()) }
-                        items(projects, key = { "project:${it.id}" }) { project ->
-                            HubProjectResult(project) { onOpenProject(project.artist.username, project.slug) }
-                        }
-                    }
-                    if (nextCursor != null) item(key = "load_more") {
-                        TextButton(
-                            onClick = {
-                                val cursor = nextCursor ?: return@TextButton
-                                val generation = requestGeneration
-                                scope.launch {
-                                    loadingMore = true
-                                    moreError = false
-                                    try {
-                                        val page = repository.browseProjects.execute(
-                                            cursor = cursor, limit = 24, query = trimmed.ifEmpty { null },
-                                            sort = filters.sort, type = filters.type,
-                                            compatibility = filters.compatibility, difficulty = filters.difficulty,
-                                        )
-                                        if (generation != requestGeneration) return@launch
-                                        val seen = filteredProjects.mapTo(mutableSetOf()) { it.id }
-                                        filteredProjects = filteredProjects + page.items.filter { seen.add(it.id) }
-                                        nextCursor = page.nextCursor
-                                    } catch (_: Exception) { if (generation == requestGeneration) moreError = true }
-                                    finally { if (generation == requestGeneration) loadingMore = false }
+                if (projects.isEmpty() && artists.isEmpty()) {
+                    HubSearchMessage(
+                        title = stringResource(Res.string.home_hub_catalog_empty),
+                        description = stringResource(Res.string.home_hub_catalog_empty_description),
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            bottom = 28.dp
+                        ),
+                    ) {
+                        if (artists.isNotEmpty()) {
+                            item(key = "artists_heading") {
+                                HubResultHeading(
+                                    title = stringResource(Res.string.home_hub_search_artists),
+                                    count = result?.artistCount ?: artists.size.toLong()
+                                )
+                            }
+                            items(
+                                items = artists,
+                                key = { artist ->
+                                    "artist:${artist.username}"
                                 }
-                            },
-                            enabled = !loadingMore,
-                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        ) {
-                            if (loadingMore) CircularProgressIndicator(Modifier.size(20.dp))
-                            else Text(stringResource(if (moreError) Res.string.home_hub_retry else Res.string.home_hub_detail_load_more))
+                            ) { artist ->
+                                HubArtistResult(
+                                    artist = artist,
+                                    onClick = {
+                                        onOpenArtist(artist.username)
+                                    }
+                                )
+                            }
+                        }
+                        if (projects.isNotEmpty()) {
+                            item(key = "projects_heading") {
+                                HubResultHeading(
+                                    title = stringResource(Res.string.home_hub_search_projects),
+                                    count = if (browse) {
+                                        projects.size.toLong()
+                                    } else {
+                                        result?.projectCount ?: projects.size.toLong()
+                                    }
+                                )
+                            }
+                            items(
+                                items = projects,
+                                key = { project ->
+                                    "project:${project.id}"
+                                }
+                            ) { project ->
+                                HubProjectResult(
+                                    project = project,
+                                    onClick = {
+                                        onOpenProject(
+                                            project.artist.username,
+                                            project.slug
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                        if (nextCursor != null) {
+                            item(key = "load_more_sentinel") {
+                                LaunchedEffect(nextCursor) {
+                                    if (!moreError) {
+                                        loadMoreProjects()
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (loadingMore) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else if (moreError) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(Res.string.home_hub_detail_projects_error),
+                                                color = MaterialTheme.colorScheme.error,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+
+                                            TextButton(
+                                                onClick = {
+                                                    loadMoreProjects()
+                                                }
+                                            ) {
+                                                Text(
+                                                    text = stringResource(Res.string.home_hub_retry)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else if (browse && projects.isNotEmpty()) {
+                            item(key = "projects_end_indicator") {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            vertical = 24.dp
+                                        ),
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        8.dp,
+                                        Alignment.CenterHorizontally
+                                    ),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    Text(
+                                        text = "${projects.size} ${stringResource(Res.string.home_hub_detail_projects)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                 }

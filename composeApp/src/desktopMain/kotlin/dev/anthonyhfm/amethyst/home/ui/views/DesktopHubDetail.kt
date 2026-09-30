@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -31,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +48,7 @@ import com.composeunstyled.Icon
 import com.composeunstyled.theme.Theme
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.ArrowRight
 import com.composables.icons.lucide.ArrowUpRight
 import com.composables.icons.lucide.Download
 import com.composables.icons.lucide.Eye
@@ -60,8 +63,10 @@ import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Lucide
 import dev.anthonyhfm.amethyst.hub.data.HubArtist
 import dev.anthonyhfm.amethyst.hub.data.HubProject
+import dev.anthonyhfm.amethyst.hub.data.HubProjectCollection
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
 import dev.anthonyhfm.amethyst.settings.data.HubSettings
+import dev.anthonyhfm.amethyst.ui.components.primitives.Spinner
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.card
 import dev.anthonyhfm.amethyst.ui.theme.colors
@@ -139,8 +144,10 @@ private fun DesktopHubArtistDetail(
     modifier: Modifier,
 ) {
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
     var artist by remember(username) { mutableStateOf<HubArtist?>(null) }
     var projects by remember(username) { mutableStateOf(emptyList<HubProject>()) }
+    var collections by remember(username) { mutableStateOf(emptyList<HubProjectCollection>()) }
     var cursor by remember(username) { mutableStateOf<String?>(null) }
     var loading by remember(username) { mutableStateOf(true) }
     var loadingMore by remember(username) { mutableStateOf(false) }
@@ -148,6 +155,7 @@ private fun DesktopHubArtistDetail(
     var followers by remember(username) { mutableStateOf(0L) }
     var followPending by remember(username) { mutableStateOf(false) }
     var error by remember(username) { mutableStateOf<String?>(null) }
+    var loadMoreError by remember(username) { mutableStateOf<String?>(null) }
     var actionError by remember(username) { mutableStateOf<String?>(null) }
 
     suspend fun loadProjects(next: String?) {
@@ -156,6 +164,7 @@ private fun DesktopHubArtistDetail(
         }
 
         loadingMore = true
+        loadMoreError = null
 
         try {
             val page = repository.getArtistProjects.execute(
@@ -172,7 +181,11 @@ private fun DesktopHubArtistDetail(
             }
             cursor = page.nextCursor
         } catch (_: Exception) {
-            actionError = getString(Res.string.home_hub_detail_projects_error)
+            if (next == null) {
+                actionError = getString(Res.string.home_hub_detail_projects_error)
+            } else {
+                loadMoreError = getString(Res.string.home_hub_detail_projects_error)
+            }
         } finally {
             loadingMore = false
         }
@@ -181,6 +194,7 @@ private fun DesktopHubArtistDetail(
     suspend fun load() {
         loading = true
         error = null
+        loadMoreError = null
 
         try {
             val fetched = repository.getArtist.execute(username)
@@ -189,6 +203,9 @@ private fun DesktopHubArtistDetail(
             followers = fetched.followersCount
             projects = emptyList()
             cursor = null
+            collections = runCatching {
+                repository.getArtistCollections.execute(username)
+            }.getOrDefault(emptyList()).filter { it.projects.isNotEmpty() }
             loadProjects(null)
         } catch (_: Exception) {
             error = getString(Res.string.home_hub_detail_artist_error)
@@ -199,6 +216,17 @@ private fun DesktopHubArtistDetail(
 
     LaunchedEffect(username, repository) {
         load()
+    }
+
+    LaunchedEffect(scrollState, cursor, loadingMore, loadMoreError, loading) {
+        snapshotFlow { scrollState.value to scrollState.maxValue }
+            .collect { (value, maxValue) ->
+                if (!loading && projects.isNotEmpty() && cursor != null && !loadingMore && loadMoreError == null) {
+                    if (maxValue == 0 || (maxValue - value) <= 600) {
+                        loadProjects(cursor)
+                    }
+                }
+            }
     }
 
     BoxWithConstraints(
@@ -212,7 +240,7 @@ private fun DesktopHubArtistDetail(
             modifier = Modifier
                 .fillMaxSize()
                 .clipToBounds()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
         ) {
             Column(
                 modifier = Modifier
@@ -372,6 +400,118 @@ private fun DesktopHubArtistDetail(
                             .background(Theme[colors][border])
                     )
 
+                    if (collections.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(28.dp)
+                        ) {
+                            collections.forEach { collection ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = collection.title,
+                                            style = Theme[typography][h3].copy(color = Theme[colors][foreground])
+                                        )
+
+                                        if (collection.description.isNotBlank()) {
+                                            Text(
+                                                text = collection.description,
+                                                style = Theme[typography][p].copy(color = Theme[colors][mutedForeground])
+                                            )
+                                        }
+                                    }
+
+                                    DesktopHubRow(
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        collection.projects.forEach { project ->
+                                            Column(
+                                                modifier = Modifier
+                                                    .width(320.dp)
+                                                    .clickable {
+                                                        onNavigate(
+                                                            DesktopHubDestination.Project(
+                                                                username = project.artist.username,
+                                                                slug = project.slug
+                                                            )
+                                                        )
+                                                    },
+                                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                DesktopHubArtwork(
+                                                    url = project.thumbnailUrl?.let(repository.client::resolveUrl),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .aspectRatio(16f / 9f)
+                                                        .clip(RoundedCornerShape(20.dp))
+                                                )
+
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                    ) {
+                                                        Text(
+                                                            text = project.artist.displayName.ifBlank { project.artist.username },
+                                                            style = Theme[typography][small].copy(color = Theme[colors][mutedForeground]),
+                                                            maxLines = 1,
+                                                        )
+
+                                                        Text(
+                                                            text = project.title,
+                                                            style = Theme[typography][p].copy(color = Theme[colors][foreground]),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                        )
+                                                    }
+
+                                                    Button(
+                                                        onClick = {
+                                                            onNavigate(
+                                                                DesktopHubDestination.Project(
+                                                                    username = project.artist.username,
+                                                                    slug = project.slug
+                                                                )
+                                                            )
+                                                        },
+                                                        variant = ButtonVariant.Secondary,
+                                                        size = ButtonSize.Icon,
+                                                        shape = CircleShape,
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Lucide.ArrowRight,
+                                                            contentDescription = project.title,
+                                                            modifier = Modifier
+                                                                .size(19.dp),
+                                                            tint = Theme[colors][foreground],
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(Theme[colors][border])
+                        )
+                    }
+
                     Text(
                         text = stringResource(Res.string.home_hub_detail_projects_title),
                         style = Theme[typography][h3].copy(color = Theme[colors][foreground])
@@ -395,20 +535,46 @@ private fun DesktopHubArtistDetail(
                         )
                     }
 
-                    if (cursor != null) {
-                        DesktopHubButton(
-                            label = if (loadingMore) {
-                                stringResource(Res.string.home_hub_detail_loading)
-                            } else {
-                                stringResource(Res.string.home_hub_detail_load_more)
-                            },
-                            enabled = !loadingMore,
-                            onClick = {
-                                scope.launch {
-                                    loadProjects(cursor)
+                    if (loadingMore) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Spinner(
+                                size = 24.dp
+                            )
+                        }
+                    }
+
+                    if (loadMoreError != null) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = loadMoreError!!,
+                                style = Theme[typography][small].copy(color = Theme[colors][mutedForeground])
+                            )
+
+                            DesktopHubButton(
+                                label = stringResource(Res.string.home_hub_retry),
+                                filled = false,
+                                onClick = {
+                                    loadMoreError = null
+                                    val next = cursor
+                                    if (next != null) {
+                                        scope.launch {
+                                            loadProjects(next)
+                                        }
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
 
                     if (actionError != null) {

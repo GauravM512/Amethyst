@@ -54,3 +54,15 @@ class DownloadArtistAvatarUseCase(private val client: HubApiClient) {
     suspend fun execute(username: String): ByteArray =
         client.http.get("${client.baseUrl}/avatars/${username.encodeURLPathPart()}").hubBody()
 }
+
+class GetArtistCollectionsUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
+    suspend fun execute(username: String): List<HubProjectCollection> {
+        return client.optionallyAuthorized { token ->
+            client.http.get("${client.baseUrl}/artists/${username.encodeURLPathPart()}/collections") {
+                applyBearerAuth(token)
+            }
+        }.hubBody()
+    }
+}
+
