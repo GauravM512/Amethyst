@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.mohamedrejeb.compose.dnd.LocalDragAndDropInfo
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
@@ -81,7 +82,7 @@ fun CollapsedChainDevice(
             .width(28.dp)
             .background(Theme[chainColorTokens][chainSurface])
             .border(1.dp, borderColor, DefaultShape)
-            .alpha(if (isDragging) 0.2f else 1f)
+            .alpha(if (isDragging && !LocalDragAndDropInfo.current.isShadow) 0.2f else 1f)
             .then(titleBarModifier)
     ) {
         Box(

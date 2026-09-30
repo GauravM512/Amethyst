@@ -69,6 +69,10 @@ sealed interface UndoableAction {
         val toIndex: Int,
     ) : UndoableAction
 
+    data class MultiMovedChainDevices(
+        val movements: List<MovedChainDevice>,
+    ) : UndoableAction
+
     data class KeyframeCreation(
         val device: KeyframesChainDevice,
         val frameIndex: Int,

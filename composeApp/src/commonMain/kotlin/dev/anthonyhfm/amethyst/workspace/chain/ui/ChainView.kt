@@ -1,9 +1,11 @@
 package dev.anthonyhfm.amethyst.workspace.chain.ui
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -58,51 +60,17 @@ fun ChainView(
 ) {
     val density = LocalDensity.current.density
     val devices by chain.devices
+    val selections by SelectionManager.selections.collectAsState()
     val effectivePrivateTimelineChain = privateTimelineChain || !chain.collaborationSyncEnabled
     val remoteFocuses by CollaborationPresence.remoteFocuses.collectAsState()
     val remoteCursors by CollaborationPresence.remoteCursors.collectAsState()
+    val draggedDevice = dragAndDropState.draggedItem?.data
+    val draggingDeviceIds = draggedDevice
+        ?.let { selectedChainDevicesForDrag(dragged = it, originChain = chain) }
+        ?.mapTo(mutableSetOf()) { it.selectionUUID }
+        ?: emptySet()
     fun addDevice(device: GenericChainDevice<*>, index: Int) {
         onAddDevice?.invoke(device, index) ?: chain.add(device, index)
-    }
-
-    fun handleDrop(
-        device: GenericChainDevice<*>,
-        originalIndex: Int,
-        originalUUID: String,
-        originChain: Chain,
-        insertionIndex: Int,
-    ) {
-        if (parentSelectionUUID != null && originalUUID == parentSelectionUUID) {
-            return
-        }
-
-        DeviceInsertionAnimator.register(device.selectionUUID)
-        val finalIndex = if (originChain === chain) {
-            if (originalIndex < insertionIndex) insertionIndex - 1 else insertionIndex
-        } else insertionIndex
-        val safeIndex = finalIndex.coerceIn(0, chain.devices.value.size)
-
-        if (originChain === chain && onMoveDevice != null) {
-            onMoveDevice.invoke(originalIndex, safeIndex)
-            return
-        }
-
-        if (originChain !== chain && onAddDevice != null) {
-            onAddDevice.invoke(device, safeIndex)
-            return
-        }
-
-        chain.add(device, safeIndex, fromUser = false)
-
-        UndoManager.addAction(
-            UndoableAction.MovedChainDevice(
-                chainBefore = originChain,
-                chainAfter = chain,
-                device = device,
-                fromIndex = originalIndex,
-                toIndex = chain.devices.value.indexOfFirst { it.selectionUUID == device.selectionUUID },
-            )
-        )
     }
 
     Box(modifier = modifier) {
@@ -120,8 +88,16 @@ fun ChainView(
                     samplingOverride = if (effectivePrivateTimelineChain) false else null,
                     isDeviceTypeEnabled = isDeviceTypeEnabled,
                     onAddComponent = { addDevice(it, 0) },
-                    onDropDevice = { device, (originalIndex, originalUUID), originChain ->
-                        handleDrop(device, originalIndex, originalUUID, originChain, 0)
+                    onDropDevice = { draggedDevices, originChain ->
+                        moveChainDevices(
+                            chain = chain,
+                            parentSelectionUUID = parentSelectionUUID,
+                            onAddDevice = onAddDevice,
+                            onMoveDevice = onMoveDevice,
+                            draggedDevices = draggedDevices,
+                            originChain = originChain,
+                            insertionIndex = 0,
+                        )
                     }
                 )
             } else {
@@ -140,18 +116,54 @@ fun ChainView(
                         samplingOverride = if (effectivePrivateTimelineChain) false else null,
                         isDeviceTypeEnabled = isDeviceTypeEnabled,
                         onAddComponent = { addDevice(it, 0) },
-                        onDropDevice = { device, (originalIndex, originalUUID), originChain ->
-                            handleDrop(device, originalIndex, originalUUID, originChain, 0)
+                        onDropDevice = { draggedDevices, originChain ->
+                            moveChainDevices(
+                                chain = chain,
+                                parentSelectionUUID = parentSelectionUUID,
+                                onAddDevice = onAddDevice,
+                                onMoveDevice = onMoveDevice,
+                                draggedDevices = draggedDevices,
+                                originChain = originChain,
+                                insertionIndex = 0,
+                            )
                         }
                     )
 
                     devices.forEachIndexed { index, device ->
+                        val previewDevices = selectedChainDevicesForDrag(
+                            dragged = device,
+                            originChain = chain,
+                            selections = selections,
+                        )
+
                         DraggableItem(
                             state = dragAndDropState,
                             key = device.selectionUUID,
                             data = device,
                             useDragAnchor = true,
                             dragAfterLongPress = dragAfterLongPress,
+                            isPartOfActiveDrag = device.selectionUUID in draggingDeviceIds,
+                            animatePreviewOnStart = previewDevices.size == 1,
+                            draggableContent = if (previewDevices.size > 1) {
+                                {
+                                    Row(
+                                        modifier = Modifier.wrapContentWidth(unbounded = true),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        previewDevices.forEach { previewDevice ->
+                                            key(previewDevice.selectionUUID) {
+                                                ChainDeviceDragPreview(
+                                                    device = previewDevice,
+                                                    dragAndDropState = dragAndDropState,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                null
+                            },
                         ) {
                             var showRightClickMenu by remember { mutableStateOf(false) }
                             var rightClickMenuOffset by remember { mutableStateOf(DpOffset.Zero) }
@@ -191,9 +203,9 @@ fun ChainView(
                                     )
                                     .dragAnchor()
                             ) {
-                                LaunchedEffect(dragAndDropState.draggedItem) {
+                                LaunchedEffect(draggingDeviceIds) {
                                     showRightClickMenu = false
-                                    device.isDragging.value = device.selectionUUID == dragAndDropState.draggedItem?.key
+                                    device.isDragging.value = device.selectionUUID in draggingDeviceIds
                                 }
 
                                 if (showContextMenu) {
@@ -258,13 +270,137 @@ fun ChainView(
                             samplingOverride = if (effectivePrivateTimelineChain) false else null,
                             isDeviceTypeEnabled = isDeviceTypeEnabled,
                             onAddComponent = { addDevice(it, insertionIndex) },
-                            onDropDevice = { device, (originalIndex, originalUUID), originChain ->
-                                handleDrop(device, originalIndex, originalUUID, originChain, insertionIndex)
+                            onDropDevice = { draggedDevices, originChain ->
+                                moveChainDevices(
+                                    chain = chain,
+                                    parentSelectionUUID = parentSelectionUUID,
+                                    onAddDevice = onAddDevice,
+                                    onMoveDevice = onMoveDevice,
+                                    draggedDevices = draggedDevices,
+                                    originChain = originChain,
+                                    insertionIndex = insertionIndex,
+                                )
                             }
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChainDeviceDragPreview(
+    device: GenericChainDevice<*>,
+    dragAndDropState: DragAndDropState<GenericChainDevice<*>>,
+) {
+    val deviceState by device.state.collectAsState()
+    val isCollapsed by device.isCollapsedState
+
+    Box(
+        modifier = Modifier.chainDeviceMuteEffect(deviceState.isMuted)
+    ) {
+        CompositionLocalProvider(LocalChainDevice provides device) {
+            if (isCollapsed) {
+                device.CollapsedContent()
+            } else {
+                when (device) {
+                    is GroupChainDevice -> device.Content(dragAndDropState = dragAndDropState)
+                    is MultiGroupChainDevice -> device.Content(dragAndDropState = dragAndDropState)
+                    is ChokeChainDevice -> device.Content(dragAndDropState = dragAndDropState)
+                    is MaskChainDevice -> device.Content(dragAndDropState = dragAndDropState)
+                    else -> device.Content()
+                }
+            }
+        }
+    }
+}
+
+internal fun moveChainDevices(
+    chain: Chain,
+    parentSelectionUUID: String?,
+    onAddDevice: ((GenericChainDevice<*>, Int) -> Unit)?,
+    onMoveDevice: ((Int, Int) -> Unit)?,
+    draggedDevices: List<GenericChainDevice<*>>,
+    originChain: Chain,
+    insertionIndex: Int,
+) {
+    if (draggedDevices.isEmpty() || draggedDevices.any { it.selectionUUID == parentSelectionUUID }) {
+        return
+    }
+
+    val sourceDevices = originChain.devices.value
+    val draggedIds = draggedDevices.mapTo(mutableSetOf()) { it.selectionUUID }
+    val baseIndex = if (originChain === chain) {
+        insertionIndex - sourceDevices.take(insertionIndex).count { it.selectionUUID in draggedIds }
+    } else {
+        insertionIndex
+    }
+
+    if (originChain === chain) {
+        val remaining = sourceDevices.filterNot { it.selectionUUID in draggedIds }
+        val targetIndex = baseIndex.coerceIn(0, remaining.size)
+        val reordered = remaining.toMutableList().apply { addAll(targetIndex, draggedDevices) }
+        if (reordered == sourceDevices) {
+            return
+        }
+    }
+
+    val movements = mutableListOf<UndoableAction.MovedChainDevice>()
+    draggedDevices.forEachIndexed { offset, device ->
+        val fromIndex = originChain.devices.value.indexOfFirst { it.selectionUUID == device.selectionUUID }
+        if (fromIndex < 0) {
+            return@forEachIndexed
+        }
+
+        DeviceInsertionAnimator.register(device.selectionUUID)
+        val remainingBeforeInsertion = if (originChain === chain) {
+            draggedDevices.drop(offset + 1).count { remaining ->
+                sourceDevices.indexOfFirst { it.selectionUUID == remaining.selectionUUID } < insertionIndex
+            }
+        } else {
+            0
+        }
+        val targetIndex = (baseIndex + offset + remainingBeforeInsertion)
+            .coerceIn(0, if (originChain === chain) chain.devices.value.lastIndex else chain.devices.value.size)
+
+        if (originChain === chain && onMoveDevice != null) {
+            onMoveDevice.invoke(fromIndex, targetIndex)
+            return@forEachIndexed
+        }
+
+        originChain.remove(device.selectionUUID, fromUser = false)
+
+        if (originChain !== chain && onAddDevice != null) {
+            onAddDevice.invoke(device, targetIndex)
+            return@forEachIndexed
+        }
+
+        chain.add(device, targetIndex, fromUser = false)
+        movements += UndoableAction.MovedChainDevice(
+            chainBefore = originChain,
+            chainAfter = chain,
+            device = device,
+            fromIndex = fromIndex,
+            toIndex = targetIndex,
+        )
+    }
+
+    when (movements.size) {
+        0 -> Unit
+        1 -> UndoManager.addAction(movements.single())
+        else -> UndoManager.addAction(UndoableAction.MultiMovedChainDevices(movements))
+    }
+
+    if (originChain !== chain) {
+        SelectionManager.replaceSelections(
+            SelectionManager.selections.value.map { selection ->
+                if (selection is Selectable.ChainDevice && selection.parent === originChain && selection.selectionUUID in draggedIds) {
+                    Selectable.ChainDevice(parent = chain, device = selection.device)
+                } else {
+                    selection
+                }
+            }
+        )
     }
 }

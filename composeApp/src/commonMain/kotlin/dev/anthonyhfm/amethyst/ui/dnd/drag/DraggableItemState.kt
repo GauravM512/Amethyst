@@ -34,6 +34,7 @@ internal class DraggableItemState<T>(
     var size: Size,
 
     var content: @Composable () -> Unit,
+    var animatePreviewOnStart: Boolean = true,
 ) {
     fun copy(): DraggableItemState<T> = DraggableItemState(
             key = key,
@@ -44,6 +45,7 @@ internal class DraggableItemState<T>(
             sizeDropAnimationSpec = sizeDropAnimationSpec,
             positionInRoot = positionInRoot,
             size = size,
-            content = content
+            content = content,
+            animatePreviewOnStart = animatePreviewOnStart,
         )
 }

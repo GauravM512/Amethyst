@@ -50,6 +50,8 @@ import dev.anthonyhfm.amethyst.core.controls.clipboard.ClipboardManager
 import dev.anthonyhfm.amethyst.core.controls.automapping.buildChainDevicesFromTimelineAudioRange
 import dev.anthonyhfm.amethyst.core.controls.automapping.buildChainDeviceFromTimelineAudioEntry
 import dev.anthonyhfm.amethyst.core.controls.automapping.buildChainDeviceFromTimelineMidiEntry
+import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.UUID
@@ -99,7 +101,7 @@ fun ExpandingChainDevicePicker(
     samplingOverride: Boolean? = null,
     isDeviceTypeEnabled: (KClass<out GenericChainDevice<*>>) -> Boolean = { true },
     onAddComponent: (GenericChainDevice<*>) -> Unit,
-    onDropDevice: (device: GenericChainDevice<*>, Pair<Int, String>, originChain: Chain) -> Unit
+    onDropDevice: (devices: List<GenericChainDevice<*>>, originChain: Chain) -> Unit
 ) {
     val isMobile = isMobilePhone()
     val density = LocalDensity.current.density
@@ -178,7 +180,15 @@ fun ExpandingChainDevicePicker(
                 onDragEnter = { state ->
                     if (!allowExternalDrop) return@dropTarget
                     val dragged = state.data
-                    if (!isDroppingIntoSelf(dragged, destinationChain)) {
+                    val originChain = findDragOrigin(
+                        dragged = dragged,
+                        destinationChain = destinationChain,
+                        privateDestination = privateDestination,
+                    )
+                    val draggedDevices = originChain?.let {
+                        selectedChainDevicesForDrag(dragged = dragged, originChain = it)
+                    } ?: listOf(dragged)
+                    if (draggedDevices.none { isDroppingIntoSelf(it, destinationChain) }) {
                         isDropHover = true
                     }
                 },
@@ -188,50 +198,20 @@ fun ExpandingChainDevicePicker(
                 onDrop = { state ->
                     if (!allowExternalDrop) return@dropTarget
                     val dragged = state.data
-                    if (isDroppingIntoSelf(dragged, destinationChain)) {
+                    val originChain = findDragOrigin(
+                        dragged = dragged,
+                        destinationChain = destinationChain,
+                        privateDestination = privateDestination,
+                    )
+                    val draggedDevices = originChain?.let {
+                        selectedChainDevicesForDrag(dragged = dragged, originChain = it)
+                    } ?: listOf(dragged)
+                    if (originChain == null || draggedDevices.any { isDroppingIntoSelf(it, destinationChain) }) {
                         isDropHover = false
                         return@dropTarget
                     }
 
-                    val device = dragged // reuse original instance to keep state
-
-                    if (privateDestination) {
-                        val oc = destinationChain.findDeviceChain(dragged.selectionUUID) ?: run {
-                            isDropHover = false
-                            return@dropTarget
-                        }
-                        val originalIndex = oc.devices.value.indexOfFirst { it.selectionUUID == dragged.selectionUUID }
-                        if (originalIndex == -1) {
-                            isDropHover = false
-                            return@dropTarget
-                        }
-                        destinationChain.remove(dragged.selectionUUID, false)
-                        onDropDevice(device, Pair(originalIndex, dragged.selectionUUID), oc)
-                    } else if (WorkspaceRepository.mode.value is SamplingChainWorkspaceMode) {
-                        val oc = WorkspaceRepository.samplingChain.findDeviceChain(dragged.selectionUUID) ?: run {
-                            isDropHover = false
-                            return@dropTarget
-                        }
-                        val originalIndex = oc.devices.value.indexOfFirst { it.selectionUUID == dragged.selectionUUID }
-                        if (originalIndex == -1) {
-                            isDropHover = false
-                            return@dropTarget
-                        }
-                        WorkspaceRepository.samplingChain.remove(dragged.selectionUUID, false)
-                        onDropDevice(device, Pair(originalIndex, dragged.selectionUUID), oc)
-                    } else {
-                        val oc = WorkspaceRepository.lightsChain.findDeviceChain(dragged.selectionUUID) ?: run {
-                            isDropHover = false
-                            return@dropTarget
-                        }
-                        val originalIndex = oc.devices.value.indexOfFirst { it.selectionUUID == dragged.selectionUUID }
-                        if (originalIndex == -1) {
-                            isDropHover = false
-                            return@dropTarget
-                        }
-                        WorkspaceRepository.lightsChain.remove(dragged.selectionUUID, false)
-                        onDropDevice(device, Pair(originalIndex, dragged.selectionUUID), oc)
-                    }
+                    onDropDevice(draggedDevices, originChain)
 
                     isDropHover = false
                 }
@@ -466,6 +446,41 @@ fun ExpandingChainDevicePicker(
             }
         }
     }
+}
+
+internal fun selectedChainDevicesForDrag(
+    dragged: GenericChainDevice<*>,
+    originChain: Chain,
+    selections: List<Selectable> = SelectionManager.selections.value,
+): List<GenericChainDevice<*>> {
+    val selectedIds = selections
+        .filterIsInstance<Selectable.ChainDevice>()
+        .filter { it.parent === originChain }
+        .mapTo(mutableSetOf()) { it.selectionUUID }
+
+    if (dragged.selectionUUID !in selectedIds) {
+        return listOf(dragged)
+    }
+
+    return originChain.devices.value.filter { it.selectionUUID in selectedIds }
+}
+
+private fun findDragOrigin(
+    dragged: GenericChainDevice<*>,
+    destinationChain: Chain,
+    privateDestination: Boolean,
+): Chain? {
+    if (privateDestination) {
+        return destinationChain.findDeviceChain(dragged.selectionUUID)
+    }
+
+    val root = if (WorkspaceRepository.mode.value is SamplingChainWorkspaceMode) {
+        WorkspaceRepository.samplingChain
+    } else {
+        WorkspaceRepository.lightsChain
+    }
+
+    return root.findDeviceChain(dragged.selectionUUID)
 }
 
 private fun isDroppingIntoSelf(
