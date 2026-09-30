@@ -5,8 +5,12 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.utils.rythmIndexToDuration
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
+import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.switch.MacroControlChainDeviceState
+import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
@@ -32,18 +36,36 @@ class AutoPageAdapter(private val blob: String) : AbletonAdapter() {
                 (data.delayMs.firstOrNull() ?: 0f).toDouble().milliseconds
             }
 
-            if (timing.inWholeMilliseconds > 0L) {
-                add(
-                    DelayChainDeviceState(
-                        timing = Timing.Duration(timing)
-                    )
-                )
-            }
-
             add(
-                MacroControlChainDeviceState(
-                    macro = 0,
-                    value = data.targetPage.first() - 1,
+                GroupChainDeviceState(
+                    groups = listOf(
+                        Group(
+                            name = "Macro Switch",
+                            stateChain = StateChain(
+                                devices = mutableListOf<DeviceState>().apply {
+                                    if (timing.inWholeMilliseconds > 0L) {
+                                        add(
+                                            DelayChainDeviceState(
+                                                timing = Timing.Duration(timing)
+                                            )
+                                        )
+                                    }
+
+                                    add(
+                                        MacroControlChainDeviceState(
+                                            macro = 0,
+                                            value = data.targetPage.first() - 1,
+                                        )
+                                    )
+
+                                    add(ColorChainDeviceState(r = 0f, g = 0f, b = 0f))
+                                }
+                            )
+                        ),
+                        Group(
+                            name = "Passthrough",
+                        )
+                    )
                 )
             )
         }
