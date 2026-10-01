@@ -4,10 +4,14 @@ import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.DrumGroupDevice
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.InstrumentGroupDevice
 import dev.anthonyhfm.amethyst.devices.DeviceState
+import dev.anthonyhfm.amethyst.devices.AudioProcessingBlock
+import dev.anthonyhfm.amethyst.devices.AudioRenderContext
+import dev.anthonyhfm.amethyst.devices.audio.effects.StereoGainChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.effects.StereoGainChainDeviceState
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -44,5 +48,31 @@ class AbletonMixerVolumeTest {
         val states = mutableListOf<DeviceState>()
         states.appendMixerVolume(linearVolume = 1f)
         assertEquals(0, states.size)
+    }
+
+    @Test
+    fun mutedMixerClearsAudioWithoutDisablingSignalProcessing() {
+        val states = mutableListOf<DeviceState>()
+        states.appendMixerVolume(linearVolume = 1f, isOn = false)
+
+        val gain = assertIs<StereoGainChainDeviceState>(states.single())
+        assertTrue(actual = gain.muted)
+        assertFalse(actual = gain.isMuted)
+
+        val device = StereoGainChainDevice().apply {
+            state.value = gain
+        }
+        val block = AudioProcessingBlock(
+            samples = floatArrayOf(1f, -1f, 0.5f, -0.5f),
+            channels = 2,
+            maximumFrames = 2,
+        )
+        block.configure(frameCount = 2, frameOffset = 0L)
+        device.processAudio(
+            block = block,
+            context = AudioRenderContext(sampleRate = 44_100, absoluteFrame = 0L),
+        )
+
+        assertTrue(actual = block.samples.all { it == 0f })
     }
 }

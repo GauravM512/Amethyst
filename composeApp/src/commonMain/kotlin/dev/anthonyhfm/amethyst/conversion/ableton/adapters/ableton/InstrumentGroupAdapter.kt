@@ -211,8 +211,11 @@ class InstrumentGroupAdapter(
                                 }
                             )
                         }.also { devices ->
-                            devices.appendMixerVolume(branch.masterDevice.volume.manual.value)
-                        }.withMuteState(enabled)
+                            devices.appendMixerVolume(
+                                linearVolume = branch.masterDevice.volume.manual.value,
+                                isOn = enabled,
+                            )
+                        }
                     )
                 )
             }

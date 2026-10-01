@@ -207,9 +207,11 @@ class DrumGroupDeviceAdapter(
                         )
                     }
                         .also { devices ->
-                            devices.appendMixerVolume(branch.masterDevice.volume.manual.value)
+                            devices.appendMixerVolume(
+                                linearVolume = branch.masterDevice.volume.manual.value,
+                                isOn = branch.masterDevice.speaker.manual.value,
+                            )
                         }
-                        .withMuteState(branch.masterDevice.speaker.manual.value)
                         .withAbletonDrumChoke(
                             chokeGroup = chokeGroup,
                             chokeScopeId = drumRackChokeScopeId,
