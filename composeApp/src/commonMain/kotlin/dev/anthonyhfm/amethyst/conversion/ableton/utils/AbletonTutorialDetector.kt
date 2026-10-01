@@ -631,14 +631,65 @@ object AbletonTutorialDetector {
             }
         }
 
-        if (rightTracks.any { it?.id == track.id }) return 1
-        if (leftTracks.any { it?.id == track.id }) return 0
+        if (rightTracks.any { it?.id == track.id }) {
+            return 1
+        }
+        if (leftTracks.any { it?.id == track.id }) {
+            return 0
+        }
 
+        fun endpoint(target: String): String? = target.substringAfter(delimiter = "/")
+            .substringBeforeLast(delimiter = "/")
+            .takeIf { it.startsWith(prefix = "Track.") || it.startsWith(prefix = "External.Dev:") }
+
+        fun routedSide(
+            target: String?,
+            left: List<String?>,
+            right: List<String?>,
+        ): Int? {
+            if (target == null) {
+                return null
+            }
+            val matchesLeft = target in left
+            val matchesRight = target in right
+            return when {
+                matchesLeft && !matchesRight -> 0
+                matchesRight && !matchesLeft -> 1
+                else -> null
+            }
+        }
+
+        val leftInputs = leftTracks.map { it?.deviceChain?.midiInputRouting?.target?.value }
+        val rightInputs = rightTracks.map { it?.deviceChain?.midiInputRouting?.target?.value }
         val input = track.deviceChain.midiInputRouting.target.value
-        val rightInputs = rightTracks.mapNotNull { it?.deviceChain?.midiInputRouting?.target?.value }
-            .filter(String::isNotBlank)
-            .toSet()
-        if (input.isNotBlank() && input in rightInputs) return 1
+        routedSide(
+            target = input.takeIf { endpoint(target = it) != null },
+            left = leftInputs,
+            right = rightInputs,
+        )?.let { return it }
+
+        val output = endpoint(target = track.deviceChain.midiOutputRouting.target.value)
+        routedSide(
+            target = output,
+            left = leftInputs.map { it?.let(::endpoint) } + leftTracks.map { it?.id?.let { id -> "Track.$id" } },
+            right = rightInputs.map { it?.let(::endpoint) } + rightTracks.map { it?.id?.let { id -> "Track.$id" } },
+        )?.let { return it }
+
+        val leftOutputs = when (layout) {
+            is AbletonLayout.Dual2Light -> listOf(layout.lightsLeft)
+            is AbletonLayout.Dual4Light -> listOf(layout.lightsLeft, layout.lightsRightToLeft)
+            is AbletonLayout.Single -> emptyList()
+        }
+        val rightOutputs = when (layout) {
+            is AbletonLayout.Dual2Light -> listOf(layout.lightsRight)
+            is AbletonLayout.Dual4Light -> listOf(layout.lightsRight, layout.lightsLeftToRight)
+            is AbletonLayout.Single -> emptyList()
+        }
+        routedSide(
+            target = output,
+            left = leftOutputs.map { it?.deviceChain?.midiOutputRouting?.target?.value?.let(::endpoint) },
+            right = rightOutputs.map { it?.deviceChain?.midiOutputRouting?.target?.value?.let(::endpoint) },
+        )?.let { return it }
 
         return 0
     }

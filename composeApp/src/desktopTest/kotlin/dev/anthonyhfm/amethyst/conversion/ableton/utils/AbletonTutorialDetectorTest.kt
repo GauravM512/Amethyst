@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.utils
 
+import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonLaunchpadLayout
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonXmlDecoder
@@ -8,6 +9,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.AutomationEnvelopes
 import dev.anthonyhfm.amethyst.conversion.ableton.data.DeviceChain
 import dev.anthonyhfm.amethyst.conversion.ableton.data.MidiClip
 import dev.anthonyhfm.amethyst.conversion.ableton.data.MidiTrack
+import dev.anthonyhfm.amethyst.conversion.ableton.data.TrackRouting
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.InstrumentGroupDevice
 import dev.anthonyhfm.amethyst.workspace.data.AutoPlayData
 import kotlin.test.Test
@@ -168,6 +170,156 @@ class AbletonTutorialDetectorTest {
         )
     }
 
+    @Test
+    fun dualTutorialsFollowOutputRoutingAcrossSeparateInputAndOutputTracks() = withConverter(count = 2) {
+        val audioLeft = track(
+            id = 45,
+            name = "AudioL",
+            input = "MidiIn/Track.51/TrackOut",
+        )
+        val audioRight = track(
+            id = 12,
+            name = "AudioR",
+            input = "MidiIn/Track.52/TrackOut",
+        )
+        val lightsLeft = track(
+            id = 61,
+            name = "LightsLL",
+            input = "MidiIn/Track.51/TrackOut",
+            output = "MidiOut/Track.53/TrackIn",
+        )
+        val lightsRight = track(
+            id = 58,
+            name = "LightsRR",
+            input = "MidiIn/Track.52/TrackOut",
+            output = "MidiOut/Track.54/TrackIn",
+        )
+        val leftTutorial = track(
+            id = 50,
+            name = "Tutorial B",
+            input = "MidiIn/None",
+            output = "MidiOut/Track.53/TrackIn",
+        )
+        val rightTutorial = track(
+            id = 49,
+            name = "Tutorial A",
+            input = "MidiIn/None",
+            output = "MidiOut/Track.54/TrackIn",
+        )
+        val layouts = listOf(
+            AbletonLayout.Dual2Light(
+                audioLeft = audioLeft,
+                audioRight = audioRight,
+                lightsLeft = lightsLeft,
+                lightsRight = lightsRight,
+            ),
+            AbletonLayout.Dual4Light(
+                audioLeft = audioLeft,
+                audioRight = audioRight,
+                lightsLeft = lightsLeft,
+                lightsLeftToRight = lightsLeft.copy(
+                    id = 60,
+                    deviceChain = lightsLeft.deviceChain.copy(
+                        midiOutputRouting = lightsRight.deviceChain.midiOutputRouting,
+                    ),
+                ),
+                lightsRightToLeft = lightsRight.copy(
+                    id = 59,
+                    deviceChain = lightsRight.deviceChain.copy(
+                        midiOutputRouting = lightsLeft.deviceChain.midiOutputRouting,
+                    ),
+                ),
+                lightsRight = lightsRight,
+            ),
+        )
+
+        for (layout in layouts) {
+            val actions = AbletonTutorialDetector.getAutoPlayData(
+                layout = layout,
+                tracks = listOf(rightTutorial, leftTutorial),
+            ).actions
+
+            assertEquals(
+                expected = setOf(9 to 1, 19 to 1),
+                actual = pagePresses(actions = actions).map { it.x to it.y }.toSet(),
+            )
+            assertEquals(
+                expected = setOf(0, 1).map { AbletonConverter.launchpadLayout?.target(index = it)?.launchpad?.id }.toSet(),
+                actual = actions.getValue(key = 0.0).map { it.launchpadId }.toSet(),
+            )
+            assertEquals(
+                expected = 2,
+                actual = actions.getValue(key = 0.0).count { it.down && !it.beforeNotes },
+            )
+        }
+    }
+
+    @Test
+    fun dualTutorialsResolveInputTracksAndExternalPortsWithoutChannelSuffixes() = withConverter(count = 2) {
+        val left = track(
+            id = 1,
+            name = "Samples Left",
+            input = "MidiIn/External.Dev:Launchpad Pro 2/-1",
+        )
+        val right = track(
+            id = 2,
+            name = "Samples Right",
+            input = "MidiIn/External.Dev:Launchpad Pro/-1",
+        )
+        val layout = AbletonLayout.Dual2Light(
+            audioLeft = left,
+            audioRight = right,
+            lightsLeft = null,
+            lightsRight = null,
+        )
+        val routings = listOf(
+            "MidiIn/External.Dev:Launchpad Pro/-1" to "MidiOut/None",
+            "MidiIn/None" to "MidiOut/External.Dev:Launchpad Pro/5",
+            "MidiIn/None" to "MidiOut/Track.2/TrackIn",
+        )
+
+        for ((input, output) in routings) {
+            val tutorial = track(id = 3, input = input, output = output)
+            val actions = AbletonTutorialDetector.getAutoPlayData(layout = layout, tracks = listOf(tutorial)).actions
+            assertTrue(actual = actions.isNotEmpty())
+            assertTrue(actual = actions.values.flatten().all { it.x in 10..19 })
+            assertTrue(
+                actual = actions.values.flatten().all {
+                    it.launchpadId == AbletonConverter.launchpadLayout?.target(index = 1)?.launchpad?.id
+                },
+            )
+        }
+    }
+
+    @Test
+    fun monsterArchiveTutorialsKeepTheirRecordedSides() = withConverter(count = 2) {
+        val path = System.getenv("AMETHYST_MONSTER_ALS") ?: return@withConverter
+        val ableton = AbletonXmlDecoder.decodeFile(path = path, xml = AbletonConverter.xml)
+        AbletonConverter.bpm = ableton.liveSet.masterTrack.deviceChain.mixer.tempo.manual.value
+        val tracks = ableton.liveSet.tracks.midiTracks
+        val layout = AbletonLayoutDetector.detectLayout(tracks = tracks)
+        assertTrue(actual = layout is AbletonLayout.Dual4Light)
+        assertEquals(expected = "AudioL", actual = layout.audioLeft?.name)
+        assertEquals(expected = "AudioR", actual = layout.audioRight?.name)
+        val actions = AbletonTutorialDetector.getAutoPlayData(layout = layout, tracks = tracks).actions
+
+        for ((index, name) in listOf("TUTORIAL (LEFT)", "TUTORIAL (RIGHT)").withIndex()) {
+            val tutorial = tracks.single { it.name == name }
+            val expected = AbletonTutorialDetector.getTutorialForTrack(
+                track = tutorial,
+                offset = IntOffset(x = index * 10, y = 0),
+            )
+            assertTrue(actual = expected.isNotEmpty())
+            val launchpadId = AbletonConverter.launchpadLayout?.target(index = index)?.launchpad?.id
+            for ((time, expectedActions) in expected) {
+                assertTrue(
+                    actual = actions[time].orEmpty().containsAll(expectedActions.map { it.copy(launchpadId = launchpadId) }),
+                    message = "$name at $time",
+                )
+            }
+        }
+    }
+
     private fun detect(track: MidiTrack): Map<Double, List<AutoPlayData.Action>> =
         AbletonTutorialDetector.getAutoPlayData(
             layout = AbletonLayout.Single(audioTrack = track, lightsTrack = null),
@@ -195,10 +347,14 @@ class AbletonTutorialDetectorTest {
         name: String = "Tutorial",
         clips: List<MidiClip> = listOf(clip(name = "Page 1", start = 0.0)),
         devices: List<AbletonDevice> = listOf(rack()),
+        input: String = "",
+        output: String = "",
     ): MidiTrack = MidiTrack(
         id = id,
         _name = MidiTrack.Name(effectiveName = MidiTrack.Name.EffectiveName(value = name)),
         deviceChain = DeviceChain(
+            midiInputRouting = TrackRouting(target = TrackRouting.Target(value = input)),
+            midiOutputRouting = TrackRouting(target = TrackRouting.Target(value = output)),
             deviceChain = DeviceChain.DeviceChain(devices = DeviceChain.DeviceChain.Devices(devices = devices)),
             mainSequencer = DeviceChain.MainSequencer(
                 clipTimeable = DeviceChain.MainSequencer.ClipTimeable(

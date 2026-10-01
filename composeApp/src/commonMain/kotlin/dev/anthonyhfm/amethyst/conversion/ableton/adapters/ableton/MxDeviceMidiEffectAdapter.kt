@@ -12,6 +12,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiEx
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GridFilterAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiLauncherAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiLauncherProAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiExtMultiLightsAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiTransformAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.SetNotesAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MultiResetAdapter
@@ -185,6 +186,13 @@ class MxDeviceMidiEffectAdapter(
                 "ffd72babd9b6051d8b3b0a4a5602d5fe",
                 "6996d81ae12c12a7d1d2a45548bcd45e" -> {
                     return GenericMidiExtAdapter(device, offset).toDeviceStates()
+                }
+
+                "4957d3dcbbb5b6fc53ed00f032cc9b24" -> {
+                    return MidiExtMultiLightsAdapter(
+                        device = device,
+                        offset = offset,
+                    ).toDeviceStates()
                 }
 
                 "f2504fe314d81dcc9b57e2466a157033" -> {
