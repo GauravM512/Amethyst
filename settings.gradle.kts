@@ -1,3 +1,5 @@
+import org.gradle.api.artifacts.component.ModuleComponentSelector
+
 rootProject.name = "Amethyst"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -24,8 +26,15 @@ val nucleusPath = providers.gradleProperty("amethyst.nucleus.path").orNull
 if (nucleusPath != null) {
     includeBuild(nucleusPath) {
         dependencySubstitution {
-            substitute(module("dev.nucleusframework:nucleus.decorated-window-tao"))
-                .using(project(":decorated-window-tao"))
+            all {
+                val dependency = requested as? ModuleComponentSelector
+                if (dependency?.group == "dev.nucleusframework" && dependency.module.startsWith("nucleus.")) {
+                    val projectName = dependency.module.removePrefix("nucleus.")
+                    if (file("$nucleusPath/$projectName/build.gradle.kts").isFile) {
+                        useTarget(project(":$projectName"))
+                    }
+                }
+            }
         }
     }
 }

@@ -16,7 +16,6 @@ import dev.anthonyhfm.amethyst.ui.theme.AmethystTheme
 import dev.anthonyhfm.amethyst.workspace.WorkspaceWindow
 import dev.anthonyhfm.amethyst.workspace.utils.WorkspaceProjectOpenHelper
 import dev.anthonyhfm.amethyst.workspace.utils.WorkspaceProjectOpenResult
-import dev.nucleusframework.application.NucleusBackend
 import dev.nucleusframework.application.nucleusApplication
 import dev.nucleusframework.window.NucleusDecoratedWindowTheme
 import io.github.vinceglb.filekit.FileKit
@@ -39,7 +38,7 @@ fun main(args: Array<String>) {
 
     val platform = DesktopPlatform.get()
 
-    nucleusApplication(args = args, backend = NucleusBackend.Tao) {
+    nucleusApplication(args = args) {
         FileKit.init(appId = "Amethyst")
 
         onDeepLink { uri ->

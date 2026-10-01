@@ -30,10 +30,10 @@ import dev.anthonyhfm.amethyst.devices.effects.composition.graph.CompositionNode
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.NodeRegistry
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.automationParameters
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalCompositionNode
+import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalCompositionPlaybackProgress
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalAutomationHandler
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalNodeChangeCallbacks
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.NodeChangeCallbacks
-import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalTimeProgressionHandler
 import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenu
 import dev.anthonyhfm.amethyst.devices.effects.composition.ui.components.AutomatableContextMenuItem
@@ -60,6 +60,7 @@ const val GRAPH_NODE_PORT_TOUCH_WIDTH = 36f
 fun GraphNodeShell(
     node: CompositionNode,
     selected: Boolean,
+    playbackProgress: Float = 0f,
     connectedInput: Boolean = false,
     connectedOutput: Boolean = false,
     modifier: Modifier = Modifier,
@@ -80,7 +81,6 @@ fun GraphNodeShell(
     onStartNodeChange: () -> Unit = {},
     onFinishNodeChange: () -> Unit = {},
     onAutomationAction: (parameterId: String, automated: Boolean, remove: Boolean) -> Unit = { _, _, _ -> },
-    onEditTimeProgression: (String) -> Unit = {},
     onDelete: () -> Unit = {},
 ) {
     val titleBarColor = if (selected) Theme[colors][selectionSurface] else Theme[chainColorTokens][chainSurfaceRaised]
@@ -215,8 +215,8 @@ fun GraphNodeShell(
             if (definition != null) {
                 CompositionLocalProvider(
                     LocalCompositionNode provides node,
+                    LocalCompositionPlaybackProgress provides playbackProgress,
                     LocalAutomationHandler provides onAutomationAction,
-                    LocalTimeProgressionHandler provides onEditTimeProgression,
                     LocalNodeChangeCallbacks provides NodeChangeCallbacks(
                         onStart = onStartNodeChange,
                         onFinish = onFinishNodeChange,

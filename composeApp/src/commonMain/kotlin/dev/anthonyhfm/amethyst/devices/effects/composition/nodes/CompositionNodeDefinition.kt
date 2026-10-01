@@ -10,9 +10,9 @@ import dev.anthonyhfm.amethyst.devices.effects.composition.EvaluationContext
 import dev.anthonyhfm.amethyst.devices.effects.composition.GeometryFrame
 
 val LocalCompositionNode = staticCompositionLocalOf<CompositionNode?> { null }
+val LocalCompositionPlaybackProgress = staticCompositionLocalOf { 0f }
 val LocalAutomationHandler = staticCompositionLocalOf<((parameterId: String, automated: Boolean, remove: Boolean) -> Unit)?> { null }
 val LocalNodeChangeCallbacks = staticCompositionLocalOf<NodeChangeCallbacks> { NodeChangeCallbacks() }
-val LocalTimeProgressionHandler = staticCompositionLocalOf<((String) -> Unit)?> { null }
 
 data class NodeChangeCallbacks(
     val onStart: () -> Unit = {},

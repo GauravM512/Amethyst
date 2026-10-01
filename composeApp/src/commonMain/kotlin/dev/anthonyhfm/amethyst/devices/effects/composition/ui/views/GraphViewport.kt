@@ -104,6 +104,7 @@ fun GraphViewport(
     val automationFocus by editor.automationFocus.collectAsState()
     val automationSelections by SelectionManager.selections.collectAsState()
     var nodeDragBefore by remember { mutableStateOf<dev.anthonyhfm.amethyst.devices.effects.composition.graph.CompositionGraph?>(null) }
+    var timeProgressionEditBefore by remember(device) { mutableStateOf<dev.anthonyhfm.amethyst.devices.effects.composition.graph.CompositionGraph?>(null) }
     var draggedNodeIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var cableDrag by remember { mutableStateOf<CableDrag?>(null) }
     var contextMenuVisible by remember { mutableStateOf(false) }
@@ -397,6 +398,7 @@ fun GraphViewport(
             GraphNodeShell(
                 node = controlNode,
                 selected = node.id in selection.nodeIds,
+                playbackProgress = device.playbackProgress(),
                 connectedInput = connectedInput,
                 connectedOutput = connectedOutput,
                 modifier = Modifier.offset {
@@ -409,9 +411,6 @@ fun GraphViewport(
                     },
                 onSelect = {
                     editor.selectNode(node.id, additive = isAdditiveSelection())
-                    if (node.type == TimeProgressionNode.type) {
-                        editor.editTimeProgression(node.id)
-                    }
                 },
                 onDragStart = {
                     if (node.id !in selection.nodeIds) editor.selectNode(node.id)
@@ -499,8 +498,11 @@ fun GraphViewport(
                 },
                 inputPortHighlighted = node.id == highlightedInputNodeId,
                 outputPortHighlighted = node.id == highlightedOutputNodeId,
-                onEditTimeProgression = editor::editTimeProgression,
-                onStartNodeChange = { },
+                onStartNodeChange = {
+                    if (node.type == TimeProgressionNode.type && timeProgressionEditBefore == null) {
+                        timeProgressionEditBefore = device.state.value.graph
+                    }
+                },
                 onNodeChange = { updated ->
                     val focus = automationFocus?.takeIf { it.nodeId == node.id }
                     val selectedPointId = focus?.let { activeFocus ->
@@ -530,7 +532,7 @@ fun GraphViewport(
                         }
                         return@GraphNodeShell
                     }
-                    device.updateGraph { current ->
+                    device.updateGraph(undoable = node.type != TimeProgressionNode.type || timeProgressionEditBefore == null) { current ->
                         val currentNode = current.nodes.firstOrNull { it.id == updated.id }
                             ?: return@updateGraph current
                         val next = currentNode.copy(state = updated.state)
@@ -538,7 +540,12 @@ fun GraphViewport(
                     }
                 },
                 onFinishNodeChange = {
-                    editor.commitAutomationPreview()
+                    if (node.type == TimeProgressionNode.type) {
+                        timeProgressionEditBefore?.let(device::commitGraphEdit)
+                        timeProgressionEditBefore = null
+                    } else {
+                        editor.commitAutomationPreview()
+                    }
                 },
                 onAutomationAction = { parameterId, automated, remove ->
                     when {
