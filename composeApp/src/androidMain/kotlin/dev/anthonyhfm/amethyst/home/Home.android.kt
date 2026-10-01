@@ -32,6 +32,7 @@ import dev.anthonyhfm.amethyst.home.ui.views.ArcadeView
 import dev.anthonyhfm.amethyst.home.ui.views.BrowserView
 import dev.anthonyhfm.amethyst.home.ui.views.LoadingScreenView
 import dev.anthonyhfm.amethyst.home.ui.views.ProjectsView
+import dev.anthonyhfm.amethyst.home.ui.views.ProjectCreationSheet
 import dev.anthonyhfm.amethyst.home.ui.views.SettingsView
 import dev.anthonyhfm.amethyst.home.ui.views.AuthScreen
 import dev.anthonyhfm.amethyst.home.ui.views.EditProfileScreen
@@ -170,6 +171,35 @@ actual fun Home(
                     if (account.account == null) navigator.popBackStack()
                 }
                 EditProfileScreen(account, onDismiss = { navigator.popBackStack() })
+            }
+
+            dialog<HomeNavRoute.ProjectCreation>(
+                dialogProperties = DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+            ) {
+                ProjectCreationSheet(
+                    onDismiss = { navigator.popBackStack() },
+                    openWorkspace = {
+                        navigator.popBackStack()
+                        onOpenWorkspace()
+                    },
+                )
+            }
+
+            dialog<HomeNavRoute.ProjectEdit>(
+                dialogProperties = DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+            ) {
+                val route = it.toRoute<HomeNavRoute.ProjectEdit>()
+                ProjectCreationSheet(
+                    onDismiss = { navigator.popBackStack() },
+                    openWorkspace = { navigator.popBackStack() },
+                    projectPath = route.projectPath,
+                )
             }
 
             dialog<HomeNavRoute.AbletonImportWizard>(

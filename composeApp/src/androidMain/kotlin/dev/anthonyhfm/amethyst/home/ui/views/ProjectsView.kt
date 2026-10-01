@@ -32,7 +32,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,7 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -114,11 +112,7 @@ fun ProjectsView(
         }
     }
 
-    // Bottom sheet state
-    var showCreateSheet by remember { mutableStateOf(false) }
-    var editProjectPath by remember { mutableStateOf<String?>(null) }
     var projectToDelete by remember { mutableStateOf<RecentWorkspace?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val currentBackStackEntry by produceState<NavBackStackEntry?>(
         initialValue = navigator.currentBackStackEntry,
@@ -135,8 +129,6 @@ fun ProjectsView(
             when (effect) {
                 ProjectsViewContract.Effect.OpenWorkspace -> onOpenWorkspace()
                 ProjectsViewContract.Effect.ProjectDeleted -> recentProjects = HomeRepository.recentWorkspaces()
-                ProjectsViewContract.Effect.ShowCreateSheet -> showCreateSheet = true
-                is ProjectsViewContract.Effect.ShowEditSheet -> editProjectPath = effect.projectPath
             }
         }
     }
@@ -160,37 +152,6 @@ fun ProjectsView(
                 }
             },
         )
-    }
-
-    if (showCreateSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showCreateSheet = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            ProjectCreationSheet(
-                onDismiss = { showCreateSheet = false },
-                openWorkspace = onOpenWorkspace,
-                projectPath = null,
-            )
-        }
-    }
-
-    editProjectPath?.let { path ->
-        ModalBottomSheet(
-            onDismissRequest = { editProjectPath = null },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            ProjectCreationSheet(
-                onDismiss = { editProjectPath = null },
-                openWorkspace = {
-                    editProjectPath = null
-                    recentProjects = HomeRepository.recentWorkspaces()
-                },
-                projectPath = path,
-            )
-        }
     }
 
     Scaffold(

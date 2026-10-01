@@ -149,7 +149,7 @@ class ProjectsViewModel(
             }
 
             is ProjectsViewContract.Event.OnClickNewProject -> {
-                triggerEffect(ProjectsViewContract.Effect.ShowCreateSheet)
+                navigator.navigate(route = HomeNavRoute.ProjectCreation)
             }
 
             is ProjectsViewContract.Event.OpenProjectFromHistory -> {
@@ -174,7 +174,9 @@ class ProjectsViewModel(
             }
 
             is ProjectsViewContract.Event.OnClickEditProject -> {
-                triggerEffect(ProjectsViewContract.Effect.ShowEditSheet(event.project.path))
+                navigator.navigate(
+                    route = HomeNavRoute.ProjectEdit(projectPath = event.project.path)
+                )
             }
 
             is ProjectsViewContract.Event.OnClickDeleteProject -> {
@@ -257,7 +259,5 @@ sealed interface ProjectsViewContract {
     sealed interface Effect {
         data object OpenWorkspace : Effect
         data object ProjectDeleted : Effect
-        data object ShowCreateSheet : Effect
-        data class ShowEditSheet(val projectPath: String) : Effect
     }
 }
