@@ -1,4 +1,5 @@
 import Foundation
+import ComposeApp
 
 enum HubProjectDownloadError: Error {
     case invalidResponse
@@ -6,8 +7,6 @@ enum HubProjectDownloadError: Error {
     case notAProjectFile
 }
 
-/// Downloads a Hub package or a publicly shared Google Drive or MediaFire file to a temporary local file.
-/// The caller passes the file to the existing project importer and removes it afterward.
 struct HubProjectDownloadUseCase {
     enum Source {
         case hub(URL)
@@ -261,5 +260,62 @@ private final class HubDownloadProgressDelegate: NSObject, URLSessionDownloadDel
         } else {
             completion.resume(throwing: HubProjectDownloadError.invalidResponse)
         }
+    }
+}
+
+struct HubProjectImportPlan {
+    let project: ComposeApp.HubProject
+    let repository: HubRepository
+
+    var externalDownloadURL: String? {
+        guard project.overrideDownloadUrl == nil, project.downloadUrl == nil, project.packageName == nil else { return nil }
+        let explicit = project.externalDownloadUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return explicit?.isEmpty == false ? explicit : HubProjectDescription(project.description_).externalDownloadURL
+    }
+
+    var downloadURL: URL? {
+        let value = project.overrideDownloadUrl ?? externalDownloadURL ?? project.downloadUrl
+            ?? (project.packageName == nil ? nil : "/projects/\(project.id)/download")
+        guard let value else { return nil }
+        return URL(string: repository.client.resolveUrl(pathOrUrl: value))
+    }
+
+    var source: HubProjectDownloadUseCase.Source? {
+        if let externalDownloadURL {
+            guard let url = URL(string: externalDownloadURL) else { return nil }
+            if HubProjectDownloadUseCase.supportsGoogleDrive(url) {
+                return .googleDrive(url)
+            }
+            if HubProjectDownloadUseCase.supportsMediaFire(url) {
+                return .mediaFire(url)
+            }
+            return nil
+        }
+        guard let url = downloadURL,
+              let hubURL = URL(string: repository.client.resolveUrl(pathOrUrl: "/")),
+              url.scheme == "https", url.host == hubURL.host, url.port == hubURL.port else { return nil }
+        return .hub(url)
+    }
+
+    var canDownloadAndOpen: Bool {
+        HubSettings.shared.ignoreCompatibility.value?.boolValue == true
+            || project.projectType == .amethyst
+            || project.compatibility == .compatible
+            || project.overrideDownloadUrl != nil
+    }
+
+    var suggestedFilename: String {
+        let fallbackExtension: String
+        switch project.projectType {
+        case .ableton: fallbackExtension = "als"
+        case .apollo: fallbackExtension = "approj"
+        case .unipad: fallbackExtension = "zip"
+        default: fallbackExtension = "ame"
+        }
+        return project.overrideName ?? project.packageName ?? "\(project.title).\(fallbackExtension)"
+    }
+
+    var expectedSize: Int64? {
+        project.overrideSize?.int64Value ?? project.packageSize?.int64Value
     }
 }

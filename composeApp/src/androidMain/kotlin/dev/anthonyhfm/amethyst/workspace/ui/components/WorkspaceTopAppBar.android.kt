@@ -30,6 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.anthonyhfm.amethyst.core.util.isPhone
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -46,6 +50,7 @@ import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.X
 import dev.anthonyhfm.amethyst.core.controls.automapping.AutomappingManager
 import dev.anthonyhfm.amethyst.settings.SettingsDialog
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
@@ -80,10 +85,13 @@ actual fun WorkspaceTopAppBar(
     onBack: () -> Unit,
     mode: WorkspaceMode,
 ) {
+    val simpleMode by GeneralSettings.simpleMode.flow.collectAsState()
+    val simpleModeEnabled = isPhone || simpleMode
     val automappingState by AutomappingManager.state.collectAsState()
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showModePicker by remember { mutableStateOf(false) }
 
+    val unavailableLabel = stringResource(resource = Res.string.workspace_mode_unavailable_in_simple_mode)
     val currentEntry = selectableModes.firstOrNull { modeMatches(mode, it.mode) }
 
     Column {
@@ -134,7 +142,16 @@ actual fun WorkspaceTopAppBar(
                             onDismissRequest = { showModePicker = false },
                         ) {
                             selectableModes.forEach { entry ->
+                                val available = !simpleModeEnabled || entry.mode.availableInSimpleMode
+
                                 DropdownMenuItem(
+                                    modifier = Modifier
+                                        .alpha(alpha = if (available) 1f else 0.38f)
+                                        .semantics {
+                                            if (!available) {
+                                                stateDescription = unavailableLabel
+                                            }
+                                        },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = entry.icon,
@@ -144,7 +161,7 @@ actual fun WorkspaceTopAppBar(
                                     },
                                     text = { Text(entry.label) },
                                     onClick = {
-                                        WorkspaceRepository.switchMode(entry.mode)
+                                        WorkspaceRepository.switchMode(mode = entry.mode)
                                         showModePicker = false
                                     },
                                 )

@@ -190,6 +190,7 @@ object AbletonTutorialDetector {
                     y = target.offset.y + 1 + page % 8,
                     down = true,
                     launchpadId = target.launchpadId,
+                    beforeNotes = true,
                 )
                 result.getOrPut(key = timeMs) { mutableListOf() }.add(element = press)
                 result.getOrPut(key = timeMs + 50.0) { mutableListOf() }.add(element = press.copy(down = false))

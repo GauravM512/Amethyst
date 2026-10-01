@@ -446,6 +446,14 @@ struct ContentView: View {
                         IosWorkspaceBridge.shared.onShowDeviceConfigurator = nil
                         IosWorkspaceBridge.shared.onShowDeviceStyle = nil
                     }
+                    .alert("Amethyst", isPresented: Binding(
+                        get: { viewModel.errorMessage != nil },
+                        set: { if !$0 { viewModel.errorMessage = nil } }
+                    )) {
+                        Button("OK", role: .cancel) { viewModel.errorMessage = nil }
+                    } message: {
+                        Text(viewModel.errorMessage ?? "")
+                    }
                     .sheet(isPresented: $showSettingsSheet) {
                         SettingsTabView(
                             viewModel: settingsViewModel,
@@ -509,6 +517,22 @@ struct ContentView: View {
                 UIApplication.shared.isIdleTimerDisabled = true
             }
         }
+        .alert(
+            localization.string("workspace_exit_dialog_title", fallback: "Unsaved Changes"),
+            isPresented: $viewModel.showsHubWorkspaceChangeAlert
+        ) {
+            Button(localization.string("workspace_exit_dialog_save", fallback: "Save")) {
+                viewModel.saveAndOpenPendingHubProject()
+            }
+            Button(localization.string("workspace_exit_dialog_dont_save", fallback: "Don't Save"), role: .destructive) {
+                viewModel.discardAndOpenPendingHubProject()
+            }
+            Button(localization.string("workspace_exit_dialog_cancel", fallback: "Cancel"), role: .cancel) {
+                viewModel.cancelPendingHubProjects()
+            }
+        } message: {
+            Text(localization.string("workspace_exit_dialog_description", fallback: "Do you want to save your changes before opening another project?"))
+        }
         .onOpenURL { url in
             handleIncomingURL(url)
         }
@@ -516,7 +540,13 @@ struct ContentView: View {
 
     private func handleIncomingURL(_ url: URL) {
         if url.scheme?.caseInsensitiveCompare("amethyst") == .orderedSame {
-            print("Received amethyst deep link: \(url.absoluteString)")
+            guard let link = HubDeepLinks.shared.parse(value: url.absoluteString) else { return }
+            selectedHomeTab = .projects
+            showSettingsSheet = false
+            showDevicePickerSheet = false
+            showDeviceConfigurationSheet = false
+            deviceStyleTarget = nil
+            viewModel.openHubProject(link: link, repository: accountViewModel.repository)
             return
         }
 

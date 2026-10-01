@@ -47,6 +47,11 @@ final class HomeViewModel {
     var isWorkspaceOpen = false
     var showingFilePicker = false
 
+    private var pendingHubProjects: [(HubProjectDeepLink, HubRepository)] = []
+    private var isOpeningHubProject = false
+    var showsHubWorkspaceChangeAlert = false
+    var isSavingHubWorkspace = false
+
     // Ableton wizard: pending import parameters set by openFile() or getZipFormat callback
     var pendingAbletonPath: String? = nil
 
@@ -184,39 +189,142 @@ final class HomeViewModel {
         importLocalFile(url: url, projectID: "hub-\(projectID)", title: title, hubProjectID: projectID, isSecurityScoped: false)
     }
 
-    private func importLocalFile(url: URL, projectID: String, title: String, hubProjectID: String?, isSecurityScoped: Bool) {
-        let ext = url.pathExtension.lowercased()
-        guard ["ame", "approj", "als", "zip"].contains(ext) else {
-            errorMessage = localized("home_error_unsupported_project_format", fallback: "Unsupported project file format: .%1$s")
-                .replacingOccurrences(of: "%1$s", with: ext)
+    func openHubProject(link: HubProjectDeepLink, repository: HubRepository) {
+        if pendingHubProjects.contains(where: { $0.0.projectId == link.projectId }) {
             return
         }
+        pendingHubProjects.append((link, repository))
+        openNextHubProject()
+    }
+
+    func saveAndOpenPendingHubProject() {
+        guard !isSavingHubWorkspace else { return }
+        isSavingHubWorkspace = true
+        HomeRepository.shared.saveOpenMobileWorkspace { saved, _ in
+            Task { @MainActor in
+                self.isSavingHubWorkspace = false
+                if saved?.boolValue == true {
+                    self.openNextHubProject()
+                } else {
+                    self.showsHubWorkspaceChangeAlert = true
+                }
+            }
+        }
+    }
+
+    func discardAndOpenPendingHubProject() {
+        openNextHubProject(discardUnsavedChanges: true)
+    }
+
+    func cancelPendingHubProjects() {
+        pendingHubProjects.removeAll()
+        showsHubWorkspaceChangeAlert = false
+    }
+
+    private func openNextHubProject(discardUnsavedChanges: Bool = false) {
+        guard !isOpeningHubProject, !isLoading, !isSavingHubWorkspace, !pendingHubProjects.isEmpty else { return }
+        if isWorkspaceOpen, WorkspaceRepository.shared.hasUnsavedChanges(), !discardUnsavedChanges {
+            showsHubWorkspaceChangeAlert = true
+            return
+        }
+        let (link, repository) = pendingHubProjects.removeFirst()
+        isOpeningHubProject = true
+        activeSheet = nil
+        errorMessage = nil
+        startLoading(localized("home_hub_detail_downloading", fallback: "Downloading"))
         Task {
             do {
-                let stored = try await Task.detached(priority: .userInitiated) {
-                    let scoped = isSecurityScoped && url.startAccessingSecurityScopedResource()
-                    guard !isSecurityScoped || scoped else {
-                        throw CocoaError(.fileReadNoPermission)
+                let project: ComposeApp.HubProject = try await withCheckedThrowingContinuation { continuation in
+                    link.resolve(repository: repository) { project, error in
+                        if let project {
+                            continuation.resume(returning: project)
+                        } else {
+                            continuation.resume(throwing: error ?? HubProjectDownloadError.invalidResponse)
+                        }
                     }
-                    defer {
-                        if scoped { url.stopAccessingSecurityScopedResource() }
-                        if !isSecurityScoped { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+                }
+                let plan = HubProjectImportPlan(project: project, repository: repository)
+                guard plan.canDownloadAndOpen, let source = plan.source else {
+                    throw HubProjectDownloadError.unavailable
+                }
+                let url = try await HubProjectDownloadUseCase().execute(
+                    source: source,
+                    suggestedFilename: plan.suggestedFilename,
+                    expectedSize: plan.expectedSize,
+                    onProgress: { [weak self] progress in
+                        Task { @MainActor [weak self] in
+                            guard let self else { return }
+                            self.loadingProgress = max(self.loadingProgress, progress)
+                        }
                     }
-                    return try MobileProjectFiles.importOriginal(from: url, projectID: projectID)
-                }.value
-                HomeSwiftBridge.shared.registerMobileProject(
-                    id: projectID,
-                    title: title,
-                    originalPath: stored.url.path,
-                    importedAt: Int64(Date().timeIntervalSince1970 * 1000),
-                    hubProjectId: hubProjectID,
-                    sourceHash: stored.sha256
                 )
-                loadRecents()
-                routeImportedFile(path: stored.url.path, ext: ext)
+                await storeAndRouteLocalFile(
+                    url: url,
+                    projectID: "hub-\(project.id)",
+                    title: project.title,
+                    hubProjectID: project.id,
+                    isSecurityScoped: false,
+                    automaticOpen: true
+                )
             } catch {
-                errorMessage = localized("home_projects_file_read_failed", fallback: "Failed to read the selected file.")
+                handleError(localized(
+                    "home_hub_detail_download_error",
+                    fallback: "The project could not be downloaded. Check that the file is publicly accessible."
+                ))
             }
+            isOpeningHubProject = false
+            openNextHubProject()
+        }
+    }
+
+    private func importLocalFile(url: URL, projectID: String, title: String, hubProjectID: String?, isSecurityScoped: Bool) {
+        Task {
+            await storeAndRouteLocalFile(
+                url: url,
+                projectID: projectID,
+                title: title,
+                hubProjectID: hubProjectID,
+                isSecurityScoped: isSecurityScoped
+            )
+        }
+    }
+
+    private func storeAndRouteLocalFile(url: URL, projectID: String, title: String, hubProjectID: String?, isSecurityScoped: Bool, automaticOpen: Bool = false) async {
+        let ext = url.pathExtension.lowercased()
+        guard ["ame", "approj", "als", "zip"].contains(ext) else {
+            handleError(localized("home_error_unsupported_project_format", fallback: "Unsupported project file format: .%1$s")
+                .replacingOccurrences(of: "%1$s", with: ext))
+            return
+        }
+        do {
+            let stored = try await Task.detached(priority: .userInitiated) {
+                let scoped = isSecurityScoped && url.startAccessingSecurityScopedResource()
+                guard !isSecurityScoped || scoped else {
+                    throw CocoaError(.fileReadNoPermission)
+                }
+                defer {
+                    if scoped { url.stopAccessingSecurityScopedResource() }
+                    if !isSecurityScoped { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+                }
+                return try MobileProjectFiles.importOriginal(from: url, projectID: projectID)
+            }.value
+            HomeSwiftBridge.shared.registerMobileProject(
+                id: projectID,
+                title: title,
+                originalPath: stored.url.path,
+                importedAt: Int64(Date().timeIntervalSince1970 * 1000),
+                hubProjectId: hubProjectID,
+                sourceHash: stored.sha256
+            )
+            loadRecents()
+            isLoading = false
+            if automaticOpen {
+                openIndexedFile(path: stored.url.path)
+            } else {
+                routeImportedFile(path: stored.url.path, ext: ext)
+            }
+        } catch {
+            handleError(localized("home_projects_file_read_failed", fallback: "Failed to read the selected file."))
         }
     }
 
@@ -230,7 +338,7 @@ final class HomeViewModel {
             activeSheet = .abletonWizard(path: storedPath)
 
         case "zip":
-            // Detect format asynchronously, then route
+            startLoading(localized("home_projects_loading_project_msg", fallback: "Loading Project"))
             detectZipAndRoute(storedPath: storedPath)
 
         default:
@@ -290,15 +398,18 @@ final class HomeViewModel {
                 guard let self else { return }
                 switch format {
                 case "ABLETON":
+                    self.isLoading = false
                     self.pendingAbletonPath = storedPath
                     self.activeSheet = .abletonWizard(path: storedPath)
+                    self.openNextHubProject()
                 case "ABLETON_APOLLO", "UNIPAD":
                     self.openIndexedFile(path: storedPath)
                 default:
-                    self.errorMessage = self.localized(
+                    self.isLoading = false
+                    self.handleError(self.localized(
                         "home_error_unsupported_project_format",
                         fallback: "Unsupported project file format: .%1$s"
-                    ).replacingOccurrences(of: ".%1$s", with: "ZIP archive")
+                    ).replacingOccurrences(of: ".%1$s", with: "ZIP archive"))
                 }
             }
         }
@@ -319,10 +430,12 @@ final class HomeViewModel {
     private func handleWorkspaceOpened() {
         isLoading       = false
         isWorkspaceOpen = true
+        openNextHubProject()
     }
 
     private func handleError(_ message: String) {
         isLoading     = false
         errorMessage  = message
+        openNextHubProject()
     }
 }

@@ -85,7 +85,6 @@ import dev.anthonyhfm.amethyst.settings.data.HubSettings
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import org.json.JSONObject
 import java.net.URI
 import java.text.DateFormat
 import java.util.Date
@@ -191,7 +190,7 @@ internal fun HubProjectSheet(
                     else -> {
                         val current = project!!
                         val description = remember(current.description) { HubProjectDescriptionAndroid(current.description) }
-                        val externalUrl = current.externalDownloadUrl?.takeIf(String::isNotBlank) ?: description.externalDownloadUrl
+                        val externalUrl = HubProjectDownloader.externalDownloadUrl(project = current)
                         val internalSource = current.overrideDownloadUrl ?: current.downloadUrl ?: current.packageName?.let { "/projects/${current.id}/download" }
                         val youtubeUrl = remember(current.youtubeUrl) { validYoutubeUrl(current.youtubeUrl) }
                         val canImport = HubProjectDownloader.canImport(account.repository, current, externalUrl) &&
@@ -387,9 +386,6 @@ private class HubProjectDescriptionAndroid(raw: String) {
         ?.removePrefix("glacier-meta:")?.trim() else null
 
     val text: String = if (metadata != null) raw.removeRange(start, end + 3).trim() else raw.trim()
-    val externalDownloadUrl: String? = metadata?.let {
-        runCatching { JSONObject(it).optString("externalDownloadUrl").takeIf(String::isNotBlank) }.getOrNull()
-    }
 }
 
 private fun validYoutubeUrl(raw: String?): String? {

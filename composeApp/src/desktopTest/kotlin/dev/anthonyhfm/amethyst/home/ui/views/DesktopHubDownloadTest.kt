@@ -6,6 +6,7 @@ import dev.anthonyhfm.amethyst.hub.data.HubArtistSummary
 import dev.anthonyhfm.amethyst.hub.data.HubProject
 import dev.anthonyhfm.amethyst.hub.data.HubProjectCompatibility
 import dev.anthonyhfm.amethyst.hub.data.HubProjectStatus
+import dev.anthonyhfm.amethyst.hub.data.HubProjectType
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
 import kotlinx.coroutines.runBlocking
 import java.net.InetSocketAddress
@@ -32,6 +33,69 @@ class DesktopHubDownloadTest {
         try {
             assertFalse(DesktopHubDownload.canImport(project, repository))
             assertNull(DesktopHubDownload.downloadPageUrl(project, repository))
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
+    fun amethystOverrideTakesPriorityOverExternalDownload() {
+        val repository = HubRepository()
+        val project = project(id = "with-override", sha256 = "0".repeat(64)).copy(
+            externalDownloadUrl = "https://example.com/original.als",
+            overrideDownloadUrl = "/projects/with-override/override",
+            overrideName = "converted.ame",
+        )
+
+        try {
+            assertNull(DesktopHubDownload.externalUrl(project = project))
+            assertTrue(DesktopHubDownload.canImport(project = project, repository = repository))
+            assertEquals(
+                expected = repository.client.resolveUrl(pathOrUrl = "/projects/with-override/override"),
+                actual = DesktopHubDownload.downloadPageUrl(project = project, repository = repository),
+            )
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
+    fun nativeDownloadUrlTakesPriorityOverUnsupportedExternalSource() {
+        val repository = HubRepository()
+        val project = project(id = "native-package", sha256 = "0".repeat(64)).copy(
+            packageName = null,
+            externalDownloadUrl = "https://example.com/original.ame",
+        )
+
+        try {
+            assertNull(DesktopHubDownload.externalUrl(project = project))
+            assertTrue(DesktopHubDownload.canImport(project = project, repository = repository))
+            assertEquals(
+                expected = repository.client.resolveUrl(pathOrUrl = "/projects/native-package/download"),
+                actual = DesktopHubDownload.downloadPageUrl(project = project, repository = repository),
+            )
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
+    fun compatibleOriginalPackageTakesPriorityOverExternalMetadata() {
+        val repository = HubRepository()
+        val project = project(id = "compatible-original", sha256 = "0".repeat(64)).copy(
+            projectType = HubProjectType.ableton,
+            packageName = "original.als",
+            downloadUrl = null,
+            description = "<!-- glacier-meta: {\"externalDownloadUrl\":\"https://example.com/original.als\"} -->",
+        )
+
+        try {
+            assertNull(DesktopHubDownload.externalUrl(project = project))
+            assertTrue(DesktopHubDownload.canImport(project = project, repository = repository))
+            assertEquals(
+                expected = repository.client.resolveUrl(pathOrUrl = "/projects/compatible-original/download"),
+                actual = DesktopHubDownload.downloadPageUrl(project = project, repository = repository),
+            )
         } finally {
             repository.close()
         }

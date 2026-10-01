@@ -39,6 +39,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
@@ -318,7 +320,25 @@ object WorkspaceRepository {
         Echo.attachAudioChain(samplingChain)
     }
 
+    private val _simpleModeUnavailable = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val simpleModeUnavailable = _simpleModeUnavailable.asSharedFlow()
+
+    fun isModeAvailable(mode: WorkspaceMode): Boolean {
+        return !GeneralSettings.isSimpleModeEnabled || mode.availableInSimpleMode
+    }
+
+    fun enforceSimpleMode() {
+        if (!isModeAvailable(mode = _mode.value)) {
+            replaceMode(mode = PerformanceWorkspaceMode())
+        }
+    }
+
     fun switchMode(mode: WorkspaceMode, undoable: Boolean = true) {
+        if (!isModeAvailable(mode = mode)) {
+            _simpleModeUnavailable.tryEmit(Unit)
+            return
+        }
+
         val current = _mode.value
         if (current == mode) return
 
@@ -339,10 +359,21 @@ object WorkspaceRepository {
     }
 
     fun switchToPreviousMode() {
-        replaceMode(previousMode)
+        replaceMode(
+            mode = if (isModeAvailable(mode = previousMode)) {
+                previousMode
+            } else {
+                PerformanceWorkspaceMode()
+            },
+        )
     }
 
     private fun replaceMode(mode: WorkspaceMode) {
+        if (!isModeAvailable(mode = mode)) {
+            _simpleModeUnavailable.tryEmit(Unit)
+            return
+        }
+
         val current = _mode.value
         if (current == mode) return
 

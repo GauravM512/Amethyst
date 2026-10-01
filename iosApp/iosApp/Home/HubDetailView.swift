@@ -474,9 +474,11 @@ private struct HubProjectDetailView: View {
                                                 }
                                                 .clipShape(Capsule())
                                             }
+                                            .allowsHitTesting(false)
                                         }
+                                        .contentShape(Capsule())
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(HubDownloadButtonStyle())
                                     .disabled(isDownloading)
                                     .animation(.linear(duration: 0.2), value: downloadProgress)
                                     .accessibilityValue(isDownloading ? "\(Int((downloadProgress * 100).rounded()))%" : "")
@@ -635,17 +637,11 @@ private struct HubProjectDetailView: View {
     private var descriptionContent: HubProjectDescription {
         HubProjectDescription(project?.description_ ?? "")
     }
-    private var externalDownloadURL: String? {
-        let value = project?.externalDownloadUrl?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value?.isEmpty == false ? value : descriptionContent.externalDownloadURL
+    private var importPlan: HubProjectImportPlan? {
+        project.map { HubProjectImportPlan(project: $0, repository: repository) }
     }
-    private var downloadURL: URL? {
-        guard let project else { return nil }
-        let value = externalDownloadURL ?? project.overrideDownloadUrl ?? project.downloadUrl
-            ?? (project.packageName == nil ? nil : "/projects/\(project.id)/download")
-        guard let value else { return nil }
-        return URL(string: repository.client.resolveUrl(pathOrUrl: value))
-    }
+    private var externalDownloadURL: String? { importPlan?.externalDownloadURL }
+    private var downloadURL: URL? { importPlan?.downloadURL }
     private var youtubeURL: URL? {
         guard let value = project?.youtubeUrl?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty else { return nil }
@@ -658,29 +654,8 @@ private struct HubProjectDetailView: View {
               ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "www.youtu.be"].contains(host) else { return nil }
         return url
     }
-    private var importSource: HubProjectDownloadUseCase.Source? {
-        if let externalDownloadURL {
-            guard let url = URL(string: externalDownloadURL) else { return nil }
-            if HubProjectDownloadUseCase.supportsGoogleDrive(url) { return .googleDrive(url) }
-            if HubProjectDownloadUseCase.supportsMediaFire(url) { return .mediaFire(url) }
-            return nil
-        }
-        guard let project else { return nil }
-        let value = project.overrideDownloadUrl ?? project.downloadUrl
-            ?? (project.packageName == nil ? nil : "/projects/\(project.id)/download")
-        guard let value,
-              let url = URL(string: repository.client.resolveUrl(pathOrUrl: value)),
-              let hubHost = URL(string: repository.client.resolveUrl(pathOrUrl: "/"))?.host,
-              url.scheme == "https", url.host == hubHost else { return nil }
-        return .hub(url)
-    }
-    private var canDownloadAndOpen: Bool {
-        guard let project else { return false }
-        return HubSettings.shared.ignoreCompatibility.value?.boolValue == true
-            || project.projectType.name == "amethyst"
-            || project.compatibility.name == "compatible"
-            || project.overrideDownloadUrl != nil
-    }
+    private var importSource: HubProjectDownloadUseCase.Source? { importPlan?.source }
+    private var canDownloadAndOpen: Bool { importPlan?.canDownloadAndOpen == true }
     private var shareURL: URL? { URL(string: "https://projects.launchpadders.com/@\(username)/\(slug)") }
 
     private func formattedPublishedDate(for project: ComposeApp.HubProject) -> String? {
@@ -708,19 +683,12 @@ private struct HubProjectDetailView: View {
         isDownloading = true
         downloadProgress = 0
         defer { isDownloading = false }
-        let fallbackExtension: String
-        switch project.projectType.name {
-        case "ableton": fallbackExtension = "als"
-        case "apollo": fallbackExtension = "approj"
-        case "unipad": fallbackExtension = "zip"
-        default: fallbackExtension = "ame"
-        }
-        let filename = project.overrideName ?? project.packageName ?? "\(project.title).\(fallbackExtension)"
+        let plan = HubProjectImportPlan(project: project, repository: repository)
         do {
             let url = try await HubProjectDownloadUseCase().execute(
                 source: source,
-                suggestedFilename: filename,
-                expectedSize: project.overrideSize?.int64Value ?? project.packageSize?.int64Value,
+                suggestedFilename: plan.suggestedFilename,
+                expectedSize: plan.expectedSize,
                 onProgress: { progress in
                     Task { @MainActor in downloadProgress = max(downloadProgress, progress) }
                 }
@@ -768,6 +736,13 @@ private struct HubProjectDetailView: View {
         } catch {
             actionError = localization.string("home_hub_detail_like_error", fallback: "Like status could not be updated.")
         }
+    }
+}
+
+private struct HubDownloadButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }
 
@@ -868,6 +843,7 @@ private struct HubDetailBackdrop: View {
         }
         .background(theme.surfaceContainer)
         .accessibilityHidden(true)
+        .allowsHitTesting(false)
     }
 }
 
@@ -892,6 +868,7 @@ private struct HubDetailImage: View {
         }
         .clipped()
         .accessibilityHidden(true)
+        .allowsHitTesting(false)
     }
 }
 
@@ -913,7 +890,7 @@ private struct HubDetailError: View {
 
 private enum HubDetailErrorType: Error { case noResponse }
 
-private struct HubProjectDescription {
+struct HubProjectDescription {
     let text: String
     let externalDownloadURL: String?
 

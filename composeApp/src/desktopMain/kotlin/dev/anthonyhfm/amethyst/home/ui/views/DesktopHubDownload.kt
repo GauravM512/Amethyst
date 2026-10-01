@@ -30,11 +30,21 @@ internal object DesktopHubDownload {
     private val mediaFireHosts = setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com")
     private val pendingImports = ConcurrentHashMap<String, MobileProjectRecord>()
 
-    fun externalUrl(project: HubProject): String? = project.externalDownloadUrl?.trim()?.takeIf(::isWebUrl)
-        ?: Regex("<!--\\s*glacier-meta:\\s*(\\{[\\s\\S]*?})\\s*-->")
+    fun externalUrl(project: HubProject): String? {
+        if (
+            project.overrideDownloadUrl != null ||
+            project.downloadUrl != null ||
+            project.packageName != null
+        ) {
+            return null
+        }
+
+        return project.externalDownloadUrl?.trim()?.takeIf(::isWebUrl)
+            ?: Regex("<!--\\s*glacier-meta:\\s*(\\{[\\s\\S]*?})\\s*-->")
             .find(project.description)?.groupValues?.getOrNull(1)
             ?.let { runCatching { Json.parseToJsonElement(it).jsonObject["externalDownloadUrl"]?.jsonPrimitive?.contentOrNull }.getOrNull() }
             ?.trim()?.takeIf(::isWebUrl)
+    }
 
     fun cleanDescription(project: HubProject): String = project.description
         .replace(Regex("<!--\\s*glacier-meta:\\s*\\{[\\s\\S]*?}\\s*-->"), "")

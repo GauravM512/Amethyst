@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -42,6 +43,8 @@ import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
+import dev.anthonyhfm.amethyst.workspace.ui.components.SimpleModeSnackbar
 import dev.anthonyhfm.amethyst.workspace.ui.components.ActivityToastOverlay
 import dev.anthonyhfm.amethyst.workspace.ui.components.AudioLibraryDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.AudioLibraryPanel
@@ -57,6 +60,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun Workspace(onBack: () -> Unit = {}) {
     val mode by WorkspaceRepository.mode.collectAsState()
+    val simpleMode by GeneralSettings.simpleMode.flow.collectAsState()
+
+    LaunchedEffect(key1 = simpleMode) {
+        WorkspaceRepository.enforceSimpleMode()
+    }
     val activityToasts by CollaborationPresence.activityToasts.collectAsState()
     var showExitDialog by remember { mutableStateOf(false) }
     val saveScope = rememberCoroutineScope()
@@ -195,6 +203,13 @@ fun Workspace(onBack: () -> Unit = {}) {
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(24.dp),
+            )
+
+            SimpleModeSnackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(insets = WindowInsets.navigationBars)
+                    .padding(all = 16.dp),
             )
 
             val showPerformanceOverlay by ExperimentalSettings.showPerformanceOverlay.flow.collectAsState()

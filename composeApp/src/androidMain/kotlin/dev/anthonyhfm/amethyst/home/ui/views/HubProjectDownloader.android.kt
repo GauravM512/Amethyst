@@ -25,6 +25,27 @@ internal object HubProjectDownloader {
     private val driveHosts = setOf("drive.google.com", "www.drive.google.com", "drive.usercontent.google.com")
     private val mediaFireHosts = setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com")
 
+    fun externalDownloadUrl(project: HubProject): String? {
+        project.externalDownloadUrl?.takeIf(String::isNotBlank)?.let { return it }
+        val start = project.description.indexOf("<!--")
+        if (start < 0) {
+            return null
+        }
+        val end = project.description.indexOf("-->", startIndex = start + 4)
+        if (end < 0) {
+            return null
+        }
+        val metadata = project.description.substring(startIndex = start + 4, endIndex = end).trim()
+        if (!metadata.startsWith(prefix = "glacier-meta:")) {
+            return null
+        }
+        return runCatching {
+            JSONObject(metadata.removePrefix(prefix = "glacier-meta:").trim())
+                .optString("externalDownloadUrl")
+                .takeIf(String::isNotBlank)
+        }.getOrNull()
+    }
+
     suspend fun download(
         repository: HubRepository,
         project: HubProject,
@@ -113,15 +134,22 @@ internal object HubProjectDownloader {
     }
 
     fun canImport(repository: HubRepository, project: HubProject, externalUrl: String?): Boolean {
+        val path = internalDownloadPath(project = project)
+        if (path != null) {
+            val uri = repository.client.resolveUrl(path).toUri()
+            return uri.scheme == "https" && uri.host == repository.client.resolveUrl("/").toUri().host
+        }
         if (!externalUrl.isNullOrBlank()) {
             val uri = externalUrl.toUri()
             return googleDriveFileId(uri) != null || mediaFireQuickKey(uri) != null
         }
-        val path = project.overrideDownloadUrl ?: project.downloadUrl
-            ?: project.packageName?.let { "/projects/${project.id}/download" } ?: return false
-        val uri = repository.client.resolveUrl(path).toUri()
-        return uri.scheme == "https" && uri.host == repository.client.resolveUrl("/").toUri().host
+        return false
     }
+
+    private fun internalDownloadPath(project: HubProject): String? =
+        project.overrideDownloadUrl?.takeIf(String::isNotBlank)
+            ?: project.downloadUrl?.takeIf(String::isNotBlank)
+            ?: project.packageName?.takeIf(String::isNotBlank)?.let { "/projects/${project.id}/download" }
 
     private fun extensionFor(project: HubProject): String = when (project.projectType.name) {
         "ableton" -> "als"
@@ -143,6 +171,14 @@ internal object HubProjectDownloader {
     }
 
     private fun sourceUrl(repository: HubRepository, project: HubProject, externalUrl: String?): String {
+        val path = internalDownloadPath(project = project)
+        if (path != null) {
+            val url = repository.client.resolveUrl(path)
+            val uri = Uri.parse(url)
+            require(uri.scheme == "https" && uri.host == Uri.parse(repository.client.resolveUrl("/")).host)
+            return url
+        }
+
         val raw = externalUrl?.takeIf(String::isNotBlank)
         if (raw != null) {
             val uri = Uri.parse(raw)
@@ -161,13 +197,7 @@ internal object HubProjectDownloader {
             }
             error("External source is not directly importable")
         }
-        val path = project.overrideDownloadUrl ?: project.downloadUrl
-            ?: project.packageName?.let { "/projects/${project.id}/download" }
-            ?: error("No download available")
-        val url = repository.client.resolveUrl(path)
-        val uri = Uri.parse(url)
-        require(uri.scheme == "https" && uri.host == Uri.parse(repository.client.resolveUrl("/")).host)
-        return url
+        error("No download available")
     }
 
     private fun resolveMediaFire(uri: Uri): String {

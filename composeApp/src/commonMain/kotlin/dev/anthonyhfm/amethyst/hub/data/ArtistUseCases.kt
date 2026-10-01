@@ -38,6 +38,17 @@ class GetPublishedProjectUseCase(private val client: HubApiClient) {
     }
 }
 
+class GetPublishedProjectByIdUseCase(private val client: HubApiClient) {
+    @Throws(Exception::class)
+    suspend fun execute(projectId: String): HubProject {
+        return client.optionallyAuthorized { token ->
+            client.http.get(urlString = "${client.baseUrl}/projects/${projectId.encodeURLPathPart()}") {
+                applyBearerAuth(token = token)
+            }
+        }.hubBody()
+    }
+}
+
 class BrowseArtistsUseCase(private val client: HubApiClient) {
     suspend fun execute(cursor: String? = null, limit: Int = 24): HubArtistPage {
         return client.optionallyAuthorized { token ->
@@ -65,4 +76,3 @@ class GetArtistCollectionsUseCase(private val client: HubApiClient) {
         }.hubBody()
     }
 }
-

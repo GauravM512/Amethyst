@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import dev.anthonyhfm.amethyst.core.util.isPhone
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
@@ -31,9 +32,7 @@ private fun Context.findActivity(): Activity? = when (this) {
 
 @Composable
 actual fun isMobilePhone(): Boolean {
-    val context = LocalContext.current
-    val resources = context.resources
-    return resources.configuration.smallestScreenWidthDp < 600
+    return isPhone
 }
 
 actual fun triggerSettingsShow(onShowCommonDialog: () -> Unit) {

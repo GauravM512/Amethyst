@@ -47,11 +47,15 @@ class AbletonTutorialDetectorTest {
             assertEquals(expected = 9, actual = press.x)
             assertEquals(expected = page + 1, actual = press.y)
             assertTrue(actual = press.down)
+            assertTrue(actual = press.beforeNotes)
             assertEquals(
                 expected = AbletonConverter.launchpadLayout?.target(index = 0)?.launchpad?.id,
                 actual = press.launchpadId,
             )
             assertTrue(actual = press.copy(down = false) in actions.getValue(key = time + 50.0))
+            val notes = actions.getValue(key = time).filter { it.x % 10 in 1..8 && it.y in 1..8 }
+            assertTrue(actual = notes.isNotEmpty())
+            assertTrue(actual = notes.none { it.beforeNotes })
         }
     }
 

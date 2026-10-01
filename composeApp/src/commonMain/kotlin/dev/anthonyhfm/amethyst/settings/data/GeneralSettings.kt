@@ -3,6 +3,8 @@ package dev.anthonyhfm.amethyst.settings.data
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.platform
+import dev.anthonyhfm.amethyst.core.util.isPhone
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
 import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
@@ -22,8 +24,13 @@ object GeneralSettings : SettingsGroup("General", Res.string.settings_general_gr
         key = "simpleMode",
         title = "Simple Mode",
         titleRes = Res.string.settings_general_simple_mode_title,
-        default = false,
+        default = isPhone,
+        visibleQuery = { !isPhone },
+        onUpdate = { WorkspaceRepository.enforceSimpleMode() },
     )
+
+    val isSimpleModeEnabled: Boolean
+        get() = isPhone || simpleMode.value
 
     val performanceFPS: Setting.Select<Int> = select(
         key = "framesPerSecond",

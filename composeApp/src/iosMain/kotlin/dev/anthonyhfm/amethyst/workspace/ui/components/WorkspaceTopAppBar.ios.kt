@@ -6,16 +6,20 @@ import org.jetbrains.compose.resources.stringResource
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
+import dev.anthonyhfm.amethyst.core.util.isPhone
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -55,6 +59,8 @@ actual fun WorkspaceTopAppBar(
     onBack: () -> Unit,
     mode: WorkspaceMode,
 ) {
+    val simpleMode by GeneralSettings.simpleMode.flow.collectAsState()
+    val simpleModeEnabled = isPhone || simpleMode
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     val modePerformanceLabel = stringResource(Res.string.workspace_topappbar_mode_performance_ios)
@@ -64,6 +70,7 @@ actual fun WorkspaceTopAppBar(
     val modeLayoutLabel = stringResource(Res.string.workspace_topappbar_mode_layout_ios)
     val backToHomeLabel = stringResource(Res.string.workspace_topappbar_back_to_home_ios)
     val openSettingsLabel = stringResource(Res.string.workspace_topappbar_open_settings_ios)
+    val unavailableLabel = stringResource(resource = Res.string.workspace_mode_unavailable_in_simple_mode)
     val switchModeLabel = stringResource(Res.string.workspace_topappbar_switch_mode_ios)
 
     val selectableModes = androidx.compose.runtime.remember(
@@ -82,7 +89,7 @@ actual fun WorkspaceTopAppBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp + statusBarHeight + 16.dp),
+                .height(height = 50.dp + statusBarHeight + 16.dp),
         ) {
             UIKitView(
                 factory = {
@@ -99,6 +106,8 @@ actual fun WorkspaceTopAppBar(
                         backToHomeLabel = backToHomeLabel,
                         openSettingsLabel = openSettingsLabel,
                         switchModeLabel = switchModeLabel,
+                        simpleModeEnabled = simpleModeEnabled,
+                        unavailableLabel = unavailableLabel,
                     )
                 },
                 properties = UIKitInteropProperties(
@@ -127,6 +136,8 @@ private fun UIView.rebuildWorkspaceTopAppBar(
     backToHomeLabel: String,
     openSettingsLabel: String,
     switchModeLabel: String,
+    simpleModeEnabled: Boolean,
+    unavailableLabel: String,
 ) {
     subviews.forEach { (it as UIView).removeFromSuperview() }
 
@@ -185,7 +196,13 @@ private fun UIView.rebuildWorkspaceTopAppBar(
 
     stackView.addArrangedSubview(
         if (mode.selectableMode) {
-            modeMenuButton(mode, selectableModes, switchModeLabel)
+            modeMenuButton(
+                mode = mode,
+                selectableModes = selectableModes,
+                switchModeLabel = switchModeLabel,
+                simpleModeEnabled = simpleModeEnabled,
+                unavailableLabel = unavailableLabel,
+            )
         } else {
             modeTitleButton(mode.displayName)
         },
@@ -215,6 +232,8 @@ private fun modeMenuButton(
     mode: WorkspaceMode,
     selectableModes: List<IosModeEntry>,
     switchModeLabel: String,
+    simpleModeEnabled: Boolean,
+    unavailableLabel: String,
 ): UIView {
     val selectedEntry = selectableModes.firstOrNull { modeMatches(mode, it.mode) }
     val menuButton = UIButton.buttonWithType(UIButtonTypeSystem)
@@ -233,19 +252,24 @@ private fun modeMenuButton(
             image = UIImage.systemImageNamed(entry.iconName),
             identifier = null,
             handler = {
-                WorkspaceRepository.switchMode(entry.mode)
+                WorkspaceRepository.switchMode(mode = entry.mode)
             },
         ).apply {
-            state = if (modeMatches(mode, entry.mode)) {
+            if (simpleModeEnabled && !entry.mode.availableInSimpleMode) {
+                attributes = UIMenuElementAttributesDisabled
+                subtitle = unavailableLabel
+            }
+
+            state = if (modeMatches(current = mode, candidate = entry.mode)) {
                 UIMenuElementState.UIMenuElementStateOn
             } else {
                 UIMenuElementState.UIMenuElementStateOff
             }
         }
     }
-    menuButton.setMenu(UIMenu.menuWithTitle(title = "", children = menuActions))
-    menuButton.setShowsMenuAsPrimaryAction(true)
-    menuButton.setChangesSelectionAsPrimaryAction(false)
+    menuButton.setMenu(menu = UIMenu.menuWithTitle(title = "", children = menuActions))
+    menuButton.setShowsMenuAsPrimaryAction(showsMenuAsPrimaryAction = true)
+    menuButton.setChangesSelectionAsPrimaryAction(changesSelectionAsPrimaryAction = false)
     menuButton.setContentHuggingPriority(1000.0f, forAxis = 0)
     menuButton.setContentCompressionResistancePriority(1000.0f, forAxis = 0)
     menuButton.constrainHeight(50.0)

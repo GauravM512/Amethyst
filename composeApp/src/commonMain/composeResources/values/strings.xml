@@ -1008,4 +1008,5 @@
     <string name="workspace_device_settings_description">Choose the MIDI device for this layout element.</string>
     <string name="workspace_device_settings_disconnected">The selected device is disconnected. Reconnect it or select another option.</string>
     <string name="workspace_insert_launchpad_description">Choose a controller layout to add to your workspace.</string>
+    <string name="workspace_mode_unavailable_in_simple_mode">unavailable in simple mode</string>
 </resources>

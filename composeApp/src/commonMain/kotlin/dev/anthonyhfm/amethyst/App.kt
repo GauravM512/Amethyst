@@ -8,8 +8,14 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
-fun App() {
+fun App(externalWorkspaceOpenCount: Int = 0) {
     var inWorkspace by remember { mutableStateOf(false) }
+
+    LaunchedEffect(key1 = externalWorkspaceOpenCount) {
+        if (externalWorkspaceOpenCount > 0) {
+            inWorkspace = true
+        }
+    }
 
     if (inWorkspace) {
         Workspace(

@@ -13,7 +13,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import android.content.Intent
 import android.net.Uri
@@ -23,20 +32,51 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import dev.anthonyhfm.amethyst.core.engine.echo.AndroidAudioLifecycleObserver
 import dev.anthonyhfm.amethyst.core.engine.echo.Echo
 import dev.anthonyhfm.amethyst.core.midi.AndroidMidiAccessProvider
+import dev.anthonyhfm.amethyst.core.util.AndroidDeviceType
 import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
+import dev.anthonyhfm.amethyst.home.account.AndroidHubAccount
+import dev.anthonyhfm.amethyst.home.ui.views.HubProjectDownloader
+import dev.anthonyhfm.amethyst.home.ui.views.LoadingScreenView
+import dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager
+import dev.anthonyhfm.amethyst.hub.data.HubDeepLinks
+import dev.anthonyhfm.amethyst.hub.data.HubProjectDeepLink
+import dev.anthonyhfm.amethyst.hub.data.HubProjectCompatibility
+import dev.anthonyhfm.amethyst.hub.data.HubProjectType
 import dev.anthonyhfm.amethyst.nativeengine.AndroidNativeContext
 import dev.anthonyhfm.amethyst.settings.AppLocaleProvider
 import dev.anthonyhfm.amethyst.settings.data.AudioSettings
+import dev.anthonyhfm.amethyst.settings.data.HubSettings
 import dev.anthonyhfm.amethyst.ui.theme.ComposeAmethystTheme
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.ui.components.ExitWorkspaceDialog
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.init
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import amethyst.composeapp.generated.resources.Res
+import amethyst.composeapp.generated.resources.home_hub_detail_download_error
+import amethyst.composeapp.generated.resources.home_hub_detail_downloading
+import amethyst.composeapp.generated.resources.home_hub_dismiss
+import amethyst.composeapp.generated.resources.home_hub_title
+import amethyst.composeapp.generated.resources.home_projects_failed_open_recent_msg
+import amethyst.composeapp.generated.resources.home_projects_opening_project_msg
+import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
 
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
+    private val deepLinkMutex = Mutex()
+    private var externalWorkspaceOpenCount by mutableIntStateOf(0)
+    private var deepLinkLoading by mutableStateOf(false)
+    private var deepLinkError by mutableStateOf<String?>(null)
+    private var pendingWorkspaceConfirmation by mutableStateOf<CompletableDeferred<Boolean>?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
 
@@ -73,6 +113,8 @@ class MainActivity : ComponentActivity() {
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
+        AndroidDeviceType.initialize(context = applicationContext)
+
         initializeSentry()
 
         check(AndroidNativeContext.initialize(applicationContext)) {
@@ -100,7 +142,8 @@ class MainActivity : ComponentActivity() {
                 darkMode = darkMode,
             ) {
                 AppLocaleProvider {
-                    App()
+                    App(externalWorkspaceOpenCount = externalWorkspaceOpenCount)
+                    DeepLinkDialogs()
                 }
             }
         }
@@ -108,13 +151,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleIntent(intent)
     }
 
     private fun handleIntent(intent: Intent?) {
         val uri = intent?.data ?: return
         val action = intent.action
-        if (action != Intent.ACTION_VIEW && action != Intent.ACTION_EDIT) return
+        if (action != Intent.ACTION_VIEW && action != Intent.ACTION_EDIT) {
+            return
+        }
 
         if (uri.scheme.equals(DEEP_LINK_SCHEME, ignoreCase = true)) {
             handleDeepLink(uri)
@@ -134,7 +180,142 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleDeepLink(uri: Uri) {
-        println("Received amethyst deep link: $uri")
+        val link = HubDeepLinks.parse(value = uri.toString()) ?: return
+        lifecycleScope.launch {
+            deepLinkMutex.withLock {
+                openHubProject(link = link)
+                if (intent?.data == uri) {
+                    intent.data = null
+                }
+            }
+        }
+    }
+
+    private suspend fun openHubProject(link: HubProjectDeepLink) {
+        if (WorkspaceRepository.hasUnsavedChanges()) {
+            val confirmation = CompletableDeferred<Boolean>()
+            pendingWorkspaceConfirmation = confirmation
+            try {
+                if (!confirmation.await()) {
+                    return
+                }
+            } finally {
+                pendingWorkspaceConfirmation = null
+            }
+        }
+
+        var downloadFinished = false
+        deepLinkError = null
+        deepLinkLoading = true
+        try {
+            val downloadingText = getString(resource = Res.string.home_hub_detail_downloading)
+            ProjectLoadingManager.startLoading(initialStatus = downloadingText)
+            ProjectLoadingManager.setIndeterminate(statusText = downloadingText)
+
+            val repository = AndroidHubAccount.get(context = applicationContext).repository
+            val project = link.resolve(repository = repository)
+            require(
+                HubSettings.ignoreCompatibility.value ||
+                    project.projectType == HubProjectType.amethyst ||
+                    project.compatibility == HubProjectCompatibility.compatible ||
+                    project.overrideDownloadUrl != null
+            ) { "Project is not compatible with Amethyst" }
+
+            val externalUrl = HubProjectDownloader.externalDownloadUrl(project = project)
+            require(
+                HubProjectDownloader.canImport(
+                    repository = repository,
+                    project = project,
+                    externalUrl = externalUrl,
+                )
+            ) { "Project source is not directly importable" }
+
+            val file = HubProjectDownloader.download(
+                repository = repository,
+                project = project,
+                externalUrl = externalUrl,
+                onProgress = { progress ->
+                    ProjectLoadingManager.updateProgress(
+                        progress = progress,
+                        statusText = downloadingText,
+                        detailText = project.title,
+                    )
+                },
+            )
+            downloadFinished = true
+            ProjectLoadingManager.startLoading(
+                initialStatus = getString(resource = Res.string.home_projects_opening_project_msg),
+            )
+            val workspace = HomeRepository.loadWorkspaceData(file = file)
+            HomeRepository.openWorkspace(workspace = workspace, rememberRecent = true)
+            externalWorkspaceOpenCount += 1
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            android.util.Log.e("HubDeepLink", "Could not open Hub project ${link.projectId}: $error", error)
+            deepLinkError = getString(
+                resource = if (downloadFinished) {
+                    Res.string.home_projects_failed_open_recent_msg
+                } else {
+                    Res.string.home_hub_detail_download_error
+                },
+            )
+        } finally {
+            ProjectLoadingManager.finishLoading()
+            deepLinkLoading = false
+        }
+    }
+
+    @Composable
+    private fun DeepLinkDialogs() {
+        if (deepLinkLoading) {
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(
+                    dismissOnBackPress = false,
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                ),
+            ) {
+                LoadingScreenView()
+            }
+        }
+
+        pendingWorkspaceConfirmation?.let { confirmation ->
+            ExitWorkspaceDialog(
+                onSaveAndExit = {
+                    lifecycleScope.launch {
+                        if (HomeRepository.saveOpenMobileWorkspace()) {
+                            confirmation.complete(value = true)
+                        }
+                    }
+                },
+                onDiscardAndExit = {
+                    confirmation.complete(value = true)
+                },
+                onCancel = {
+                    confirmation.complete(value = false)
+                },
+            )
+        }
+
+        deepLinkError?.let { error ->
+            AlertDialog(
+                onDismissRequest = { deepLinkError = null },
+                title = {
+                    Text(text = stringResource(resource = Res.string.home_hub_title))
+                },
+                text = {
+                    Text(text = error)
+                },
+                confirmButton = {
+                    TextButton(onClick = { deepLinkError = null }) {
+                        Text(text = stringResource(resource = Res.string.home_hub_dismiss))
+                    }
+                },
+            )
+        }
     }
 
     private fun resolveFileName(uri: Uri): String? {

@@ -10,6 +10,9 @@ import dev.anthonyhfm.amethyst.core.engine.echo.Echo
 import dev.anthonyhfm.amethyst.desktop.DesktopPlatform
 import dev.anthonyhfm.amethyst.desktop.DiscordRPCManager
 import dev.anthonyhfm.amethyst.desktop.utility.rememberTitleBarStyle
+import dev.anthonyhfm.amethyst.home.ui.views.DesktopHubDeepLinkHandler
+import dev.anthonyhfm.amethyst.hub.data.HubDeepLinks
+import dev.anthonyhfm.amethyst.hub.data.HubProjectDeepLink
 import dev.anthonyhfm.amethyst.settings.data.AudioSettings
 import dev.anthonyhfm.amethyst.start.StartWindow
 import dev.anthonyhfm.amethyst.ui.theme.AmethystTheme
@@ -24,6 +27,8 @@ import java.awt.Desktop
 import java.io.File
 import javax.swing.SwingUtilities
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
 
 fun main(args: Array<String>) {
@@ -37,19 +42,21 @@ fun main(args: Array<String>) {
     initializeSentry()
 
     val platform = DesktopPlatform.get()
+    val projectLinks = Channel<HubProjectDeepLink>(capacity = Channel.UNLIMITED)
 
     nucleusApplication(args = args) {
         FileKit.init(appId = "Amethyst")
 
         onDeepLink { uri ->
-            if (uri.scheme.equals("amethyst", ignoreCase = true)) {
-                println("Received amethyst deep link: $uri")
+            HubDeepLinks.parse(value = uri.toString())?.let { link ->
+                projectLinks.trySend(element = link)
             }
         }
 
         var showEditor: Boolean by remember { mutableStateOf(false) }
-        var macQuitRequest by remember { mutableIntStateOf(0) }
+        var externalCloseRequest by remember { mutableIntStateOf(0) }
         var pendingMacQuitResponse by remember { mutableStateOf<java.awt.desktop.QuitResponse?>(null) }
+        var pendingProjectCloseResponse by remember { mutableStateOf<CompletableDeferred<Boolean>?>(null) }
 
         // Tao must own the macOS main thread before optional services start.
         // Audio device setup is synchronous, so keep it off Tao's event loop.
@@ -80,7 +87,7 @@ fun main(args: Array<String>) {
                     SwingUtilities.invokeLater {
                         if (showEditor) {
                             pendingMacQuitResponse = response
-                            macQuitRequest += 1
+                            externalCloseRequest += 1
                         } else {
                             response.performQuit()
                         }
@@ -118,13 +125,21 @@ fun main(args: Array<String>) {
                     )
                 } else {
                     WorkspaceWindow(
-                        externalCloseRequest = macQuitRequest,
+                        externalCloseRequest = externalCloseRequest,
                         onExternalCloseConfirmed = {
                             showEditor = false
+                            externalCloseRequest = 0
+                            val projectResponse = pendingProjectCloseResponse
+                            pendingProjectCloseResponse = null
+                            projectResponse?.complete(value = true)
                             pendingMacQuitResponse?.performQuit()
                             pendingMacQuitResponse = null
                         },
                         onExternalCloseCancelled = {
+                            externalCloseRequest = 0
+                            val projectResponse = pendingProjectCloseResponse
+                            pendingProjectCloseResponse = null
+                            projectResponse?.complete(value = false)
                             pendingMacQuitResponse?.cancelQuit()
                             pendingMacQuitResponse = null
                         },
@@ -133,6 +148,23 @@ fun main(args: Array<String>) {
                         }
                     )
                 }
+
+                DesktopHubDeepLinkHandler(
+                    links = projectLinks,
+                    beforeOpenWorkspace = {
+                        if (showEditor) {
+                            val response = CompletableDeferred<Boolean>()
+                            pendingProjectCloseResponse = response
+                            externalCloseRequest += 1
+                            response.await()
+                        } else {
+                            true
+                        }
+                    },
+                    onOpenWorkspace = {
+                        showEditor = true
+                    },
+                )
             }
         }
     }

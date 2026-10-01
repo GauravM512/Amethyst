@@ -18,11 +18,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import com.composables.icons.lucide.X
 import com.composeunstyled.Icon
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.anthonyhfm.amethyst.core.util.isPhone
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -58,6 +62,7 @@ import dev.anthonyhfm.amethyst.ui.theme.foreground
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.modes.WorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.modes.defaults.PerformanceWorkspaceMode
@@ -70,6 +75,8 @@ import dev.anthonyhfm.amethyst.workspace.modes.defaults.LayoutWorkspaceMode
 fun WorkspaceMode(
     mode: WorkspaceMode,
 ) {
+    val simpleMode by GeneralSettings.simpleMode.flow.collectAsState()
+    val simpleModeEnabled = isPhone || simpleMode
     val selectableModes = listOf(
         WorkspaceModePickerItem(
             key = "performance",
@@ -140,7 +147,8 @@ fun WorkspaceMode(
                 WorkspaceModeTabButton(
                     item = item,
                     selected = selectedMode?.key == item.key,
-                    onClick = { WorkspaceRepository.switchMode(item.mode) },
+                    available = !simpleModeEnabled || item.mode.availableInSimpleMode,
+                    onClick = { WorkspaceRepository.switchMode(mode = item.mode) },
                 )
             }
         }
@@ -151,8 +159,10 @@ fun WorkspaceMode(
 private fun WorkspaceModeTabButton(
     item: WorkspaceModePickerItem,
     selected: Boolean,
+    available: Boolean,
     onClick: () -> Unit,
 ) {
+    val unavailableLabel = stringResource(resource = Res.string.workspace_mode_unavailable_in_simple_mode)
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val textMeasurer = rememberTextMeasurer()
@@ -201,7 +211,13 @@ private fun WorkspaceModeTabButton(
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
         modifier = Modifier
             .clip(SmallShape)
-            .background(backgroundColor),
+            .background(color = backgroundColor)
+            .alpha(alpha = if (available) 1f else 0.38f)
+            .semantics {
+                if (!available) {
+                    stateDescription = unavailableLabel
+                }
+            },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

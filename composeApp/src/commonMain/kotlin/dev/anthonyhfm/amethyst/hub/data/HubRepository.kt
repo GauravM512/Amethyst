@@ -66,6 +66,7 @@ class HubRepository internal constructor(val client: HubApiClient) {
     val getArtistProjects = GetArtistProjectsUseCase(client)
     val getArtistCollections = GetArtistCollectionsUseCase(client)
     val getPublishedProject = GetPublishedProjectUseCase(client)
+    val getPublishedProjectById = GetPublishedProjectByIdUseCase(client)
     val downloadArtistAvatar = DownloadArtistAvatarUseCase(client)
 
     val getOwnedProjects = GetOwnedProjectsUseCase(client)
