@@ -416,8 +416,6 @@ object AbletonTutorialDetector {
     private fun pageAutomationTargetsById(tracks: List<MidiTrack>): Map<Int, PageAutomationTarget> {
         val targets = mutableMapOf<Int, PageAutomationTarget>()
 
-        // Page Switcher's Live API parameter 9/17 is the rack Chain Selector after
-        // 8/16 macros. Bind only the selector of the rack immediately following it.
         for (track in tracks) {
             val explicitTargets = track.deviceChain.devices.zipWithNext().mapNotNull { (candidate, following) ->
                 if (candidate is MxDeviceMidiEffect && isPageSwitcher(candidate)) {
@@ -426,9 +424,6 @@ object AbletonTutorialDetector {
                             track = track,
                             sourceOffset = AbletonPageIndexing.sourceOffset(
                                 selectorMinimum = chainSelectorMinimum(following),
-                                // Page Switcher exposes pages as 1..16 even when the
-                                // receiving rack's generic controller range is 0..127.
-                                hasOneBasedPageController = true,
                             ),
                         )
                     }
@@ -746,6 +741,7 @@ object AbletonTutorialDetector {
                             y = padY,
                             down = true,
                             launchpadId = target.launchpadId,
+                            beforeNotes = true,
                         )
                         val releaseAction = pressAction.copy(down = false)
 

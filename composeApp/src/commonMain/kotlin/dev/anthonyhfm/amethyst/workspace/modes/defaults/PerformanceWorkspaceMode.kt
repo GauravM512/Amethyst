@@ -1,30 +1,21 @@
 package dev.anthonyhfm.amethyst.workspace.modes.defaults
 
-import amethyst.composeapp.generated.resources.Res
-import amethyst.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
-
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
 import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.workspace.modes.WorkspaceMode
-import dev.anthonyhfm.amethyst.workspace.ui.components.AutoPlayButtons
+import dev.anthonyhfm.amethyst.workspace.ui.components.DesktopAutoPlayButtons
 import dev.anthonyhfm.amethyst.workspace.ui.components.MobileAutoPlayButtons
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportConfig
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportPanBoundsPolicy
@@ -46,21 +37,24 @@ class PerformanceWorkspaceMode(
     @Composable
     override fun Content(modifier: Modifier) {
         when (platform) {
-            is Platform.Desktop -> DesktopLayout(modifier)
+            is Platform.Desktop -> DesktopLayout(modifier = modifier)
 
-            else -> MobileLayout(modifier)
+            else -> MobileLayout(modifier = modifier)
         }
     }
 
     @Composable
     private fun DesktopLayout(modifier: Modifier = Modifier) {
-        Box(
+        Column(
             modifier = modifier
                 .padding(horizontal = 12.dp)
                 .padding(bottom = 12.dp)
                 .fillMaxSize()
         ) {
             WorkspaceViewport(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
                 viewportKey = "workspace-performance",
                 config = ViewportConfig(
                     minZoom = 0.5f,
@@ -79,12 +73,7 @@ class PerformanceWorkspaceMode(
                 ),
             )
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-            ) {
-                AutoPlayButtons()
-            }
+            DesktopAutoPlayButtons()
         }
     }
 

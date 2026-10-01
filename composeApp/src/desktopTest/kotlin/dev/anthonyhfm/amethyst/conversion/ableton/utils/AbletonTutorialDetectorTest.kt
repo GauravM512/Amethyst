@@ -11,12 +11,102 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.MidiClip
 import dev.anthonyhfm.amethyst.conversion.ableton.data.MidiTrack
 import dev.anthonyhfm.amethyst.conversion.ableton.data.TrackRouting
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.InstrumentGroupDevice
+import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffect
 import dev.anthonyhfm.amethyst.workspace.data.AutoPlayData
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class AbletonTutorialDetectorTest {
+    @Test
+    fun pageSwitcherAutomationUsesTheReceivingRacksPageBase() = withConverter {
+        for (minimum in listOf(0, 1, 5, 32, 112)) {
+            val tutorial = track(
+                clips = listOf(clip(name = "Tutorial", start = 4.0), clip(name = "Tutorial", start = 8.0)),
+                devices = listOf(
+                    pageSwitcher(),
+                    rack(
+                        pages = (0..15).map { "Page ${it + 1}" to it + minimum },
+                        minimum = minimum,
+                    ),
+                ),
+            ).copy(
+                automationEnvelopes = pageAutomation(
+                    events = listOf(
+                        AutomationEnvelopes.FloatEvent(time = -63072000.0, value = minimum.toFloat()),
+                        AutomationEnvelopes.FloatEvent(time = 8.0, value = minimum.toFloat()),
+                        AutomationEnvelopes.FloatEvent(time = 8.0, value = (minimum + 1).toFloat()),
+                    ) + (2..15).map {
+                        AutomationEnvelopes.FloatEvent(time = 4.0 + it * 4.0, value = (minimum + it).toFloat())
+                    } + AutomationEnvelopes.FloatEvent(time = 100.0, value = minimum.toFloat()),
+                ),
+            )
+            val actions = detect(track = tutorial)
+            val presses = pagePresses(actions = actions)
+
+            assertEquals(
+                expected = (0..15).map { page ->
+                    val x = if (page < 8) {
+                        9
+                    } else {
+                        0
+                    }
+                    x to (1 + page % 8)
+                },
+                actual = presses.map { it.x to it.y },
+            )
+            assertTrue(actual = presses.all { it.beforeNotes })
+            assertEquals(expected = 1, actual = actions.getValue(key = 0.0).count { it.beforeNotes && it.down })
+            assertEquals(expected = 2, actual = actions.getValue(key = 2000.0).single { it.beforeNotes && it.down }.y)
+            assertTrue(actual = actions.getValue(key = 2000.0).any { it.down && !it.beforeNotes })
+        }
+    }
+
+    @Test
+    fun overkillArchiveAutomationKeepsBothControllersAndAllPages() = withConverter(count = 2) {
+        val path = System.getenv("AMETHYST_OVERKILL_ALS") ?: return@withConverter
+        val ableton = AbletonXmlDecoder.decodeFile(path = path, xml = AbletonConverter.xml)
+        AbletonConverter.bpm = ableton.liveSet.masterTrack.deviceChain.mixer.tempo.manual.value
+        val tracks = ableton.liveSet.tracks.midiTracks
+        val layout = AbletonLayoutDetector.detectLayout(tracks = tracks)
+        assertTrue(actual = layout is AbletonLayout.Dual4Light)
+        val actions = AbletonTutorialDetector.getAutoPlayData(layout = layout, tracks = tracks).actions
+
+        for ((index, name) in listOf("LEFT AUDIO", "RIGHT AUDIO").withIndex()) {
+            val audio = tracks.single { it.name == name }
+            val events = audio.automationEnvelopes!!.envelopes!!.envelopes.single().automation!!.events!!.floatEvents
+                .filter { it.time <= 896.0 }
+                .groupBy { it.time }
+                .toSortedMap()
+                .values.map { it.last() }
+            val expected = events.map {
+                AbletonTutorialDetector.beatsToMilliseconds(
+                    beats = (it.time - 4.0).coerceAtLeast(minimumValue = 0.0),
+                    bpm = AbletonConverter.bpm,
+                ) to it.value.toInt()
+            }
+            val actual = actions.toSortedMap().flatMap { (time, batch) ->
+                batch.filter { it.down && it.beforeNotes && it.x / 10 == index }.map {
+                    val page = if (it.x % 10 == 9) {
+                        it.y - 1
+                    } else {
+                        it.y + 7
+                    }
+                    time to page
+                }
+            }
+
+            assertEquals(expected = expected, actual = actual, message = name)
+            assertEquals(expected = (0..15).toSet(), actual = actual.map { it.second }.toSet())
+            val launchpadId = AbletonConverter.launchpadLayout?.target(index = index)?.launchpad?.id
+            assertTrue(
+                actual = pagePresses(actions = actions).filter { it.x / 10 == index }.all {
+                    it.beforeNotes && it.launchpadId == launchpadId
+                },
+            )
+        }
+    }
+
     @Test
     fun kwikFlipClipBoundariesSelectRackPagesBeforeNotes() = withConverter {
         val localProject = System.getenv("AMETHYST_KWIK_FLIP_ALS")
@@ -106,6 +196,23 @@ class AbletonTutorialDetectorTest {
     fun oneBasedRackSelectorUsesConvertedPageIndex() = withConverter {
         val tutorial = track(devices = listOf(rack(pages = listOf("Page 1" to 1, "Page 2" to 2), minimum = 1)))
         assertEquals(expected = listOf(1), actual = pagePresses(actions = detect(track = tutorial)).map { it.y })
+    }
+
+    @Test
+    fun clipNamesUseTheSamePageBaseAsAutomation() = withConverter {
+        for (minimum in listOf(0, 1, 5, 32, 112)) {
+            val tutorial = track(
+                clips = listOf(clip(name = "Page 1", start = 0.0), clip(name = "Page 2", start = 64.0)),
+                devices = listOf(
+                    rack(pages = listOf("Page 1" to minimum, "Page 2" to minimum + 1), minimum = minimum),
+                ),
+            )
+
+            assertEquals(
+                expected = listOf(1, 2),
+                actual = pagePresses(actions = detect(track = tutorial)).map { it.y },
+            )
+        }
     }
 
     @Test
@@ -325,6 +432,36 @@ class AbletonTutorialDetectorTest {
             layout = AbletonLayout.Single(audioTrack = track, lightsTrack = null),
             tracks = listOf(track),
         ).actions
+
+    private fun pageAutomation(events: List<AutomationEnvelopes.FloatEvent>): AutomationEnvelopes =
+        AutomationEnvelopes(
+            envelopes = AutomationEnvelopes.Envelopes(
+                envelopes = listOf(
+                    AutomationEnvelopes.AutomationEnvelope(
+                        envelopeTarget = AutomationEnvelopes.EnvelopeTarget(
+                            pointeeId = AutomationEnvelopes.PointeeId(value = 123),
+                        ),
+                        automation = AutomationEnvelopes.Automation(
+                            events = AutomationEnvelopes.Events(floatEvents = events),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+    private fun pageSwitcher(): MxDeviceMidiEffect = AbletonConverter.xml.decodeFromString(
+        deserializer = MxDeviceMidiEffect.serializer(),
+        string = """
+            <MxDeviceMidiEffect Id="1">
+                <PatchSlot><Value><MxDPatchRef>
+                    <FileRef><RelativePath Value="Presets/Page Switcher.amxd"/><Type Value="2"/></FileRef>
+                </MxDPatchRef></Value></PatchSlot>
+                <BlobSlot><Value><MxDBlob><Blob>00</Blob></MxDBlob></Value></BlobSlot>
+                <ParameterList><ParameterList/></ParameterList>
+                <FileDropList><FileDropList/></FileDropList>
+            </MxDeviceMidiEffect>
+        """.trimIndent(),
+    )
 
     private fun pagePresses(actions: Map<Double, List<AutoPlayData.Action>>): List<AutoPlayData.Action> =
         actions.toSortedMap().values.flatten().filter { it.down && it.x % 10 in setOf(0, 9) && it.y in 1..8 }

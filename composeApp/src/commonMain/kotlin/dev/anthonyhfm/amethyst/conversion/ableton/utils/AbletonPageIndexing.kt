@@ -12,14 +12,16 @@ internal object AbletonPageIndexing {
 
     fun sourceOffset(
         selectorMinimum: Float?,
-        hasOneBasedPageController: Boolean = false,
     ): Int {
-        return if (hasOneBasedPageController || selectorMinimum == 1f) {
-            1
+        return if (selectorMinimum != null && isSelectorValue(value = selectorMinimum)) {
+            selectorMinimum.toInt()
         } else {
             0
         }
     }
+
+    private fun isSelectorValue(value: Float): Boolean =
+        value in 0f..127f && value == value.toInt().toFloat()
 
     fun normalizeSelectorValue(value: Int, sourceOffset: Int): Int =
         value - sourceOffset
@@ -61,8 +63,7 @@ internal object AbletonPageIndexing {
 
         return if (
             controllerMinimum != null && controllerMaximum != null &&
-            (controllerMinimum == 0f || controllerMinimum == 1f) &&
-            controllerMaximum in 1f..16f && controllerMaximum == controllerMaximum.toInt().toFloat()
+            isSelectorValue(value = controllerMinimum) && isSelectorValue(value = controllerMaximum)
         ) {
             (controllerMaximum - controllerMinimum).toInt().takeIf { it in 1..15 }
         } else {
