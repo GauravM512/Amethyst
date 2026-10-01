@@ -43,6 +43,7 @@ import dev.anthonyhfm.amethyst.timeline.migration.LegacyPianoRollPath
 import dev.anthonyhfm.amethyst.timeline.migration.PianoRollCutoverSupport
 import dev.anthonyhfm.amethyst.timeline.ui.pianoroll.PianoRollEditorCanvas
 import dev.anthonyhfm.amethyst.timeline.ui.pianoroll.PianoRollInspectorSidebar
+import dev.anthonyhfm.amethyst.timeline.ui.pianoroll.PianoRollToolbar
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
@@ -86,6 +87,19 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
     var onNoteDelete: ((MidiNote) -> Unit)? = null
     var modeClose: (() -> Unit)? = null
     var onPlaybackToggle: (() -> Unit)? = null
+
+    var standalonePlaybackPositionMs: (() -> Long?)? = null
+    var previewEnabled by mutableStateOf(true)
+    var foldPads by mutableStateOf(false)
+    var followPlayhead by mutableStateOf(true)
+    private val padPreview = PianoRollPadPreview()
+
+    override fun onDeactivate() {
+        padPreview.clear()
+        pressedKeysState.value = emptyMap()
+        multiSelectModifierDown = false
+        modeClose?.invoke()
+    }
 
     val pressedKeysState = MutableStateFlow<Map<Pair<Int, Int>, Boolean>>(emptyMap())
 
@@ -150,7 +164,7 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
             if (TimelineRepository.isPlaying.value) {
                 TimelineRepository.pause()
             } else {
-                TimelineRepository.setPlayheadPosition(entryStartMs)
+                TimelineRepository.setPlayheadPosition(positionMs = entryStartMs + (selectedTimeMs ?: 0L))
                 TimelineRepository.play()
             }
         } else {
@@ -295,7 +309,12 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
         return true
     }
 
-    private fun nudgeSelectedNotes(timeDirection: Int = 0, pitchDirection: Int = 0): Boolean {
+    private fun nudgeSelectedNotes(
+        timeDirection: Int = 0,
+        pitchDirection: Int = 0,
+        resizeDirection: Int = 0,
+        quantize: Boolean = false,
+    ): Boolean {
         val selected = selectedNotes()
         if (selected.isEmpty()) return false
         val notesBefore = selected.map { it.note }
@@ -307,10 +326,36 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
             val requestedDelta = stepClipTimeOnGrid(anchor, gridResolution, timeDirection, beatDurationMs) - anchor
             requestedDelta.takeIf { anchor + it >= 0L } ?: 0L
         }
+        val pitches = if (foldPads) {
+            currentEntry?.notes.orEmpty().map { it.resolvedPadIndex }.distinct().sorted()
+                .ifEmpty { (0..99).toList() }
+        } else {
+            (0..99).toList()
+        }
         val notesAfter = notesBefore.map { note ->
-            val newPitch = (note.resolvedPadIndex + pitchDirection).coerceIn(0, 99)
+            val pitchIndex = pitches.indexOf(note.resolvedPadIndex)
+            val newPitch = pitches.getOrNull((pitchIndex + pitchDirection).coerceIn(0, pitches.lastIndex))
+                ?: note.resolvedPadIndex
             note.copy(
-                startTimeMs = (note.startTimeMs + timeDelta).coerceAtLeast(0L),
+                startTimeMs = if (quantize) {
+                    snapClipTimeToGrid(
+                        clipTimeMs = note.startTimeMs.toDouble(),
+                        resolution = gridResolution,
+                        beatDurationMs = beatDurationMs,
+                    ).coerceAtLeast(0L)
+                } else {
+                    (note.startTimeMs + timeDelta).coerceAtLeast(0L)
+                },
+                durationMs = if (resizeDirection != 0) {
+                    (stepClipTimeOnGrid(
+                        clipTimeMs = note.endTimeMs,
+                        resolution = gridResolution,
+                        direction = resizeDirection,
+                        beatDurationMs = beatDurationMs,
+                    ) - note.startTimeMs).coerceAtLeast(1L)
+                } else {
+                    note.durationMs
+                },
                 device = note.resolvedDeviceIndex,
                 pitch = newPitch,
                 led = note.led.copy(index = newPitch),
@@ -419,7 +464,22 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
         val entry = currentEntry ?: return
         val launchpads = Heaven.devices
         val selections by SelectionManager.selections.collectAsState()
-        val playheadPositionMs by TimelineRepository.playheadPositionMs.collectAsState()
+        val timelinePlayheadMs by TimelineRepository.playheadPositionMs.collectAsState()
+        val timelineIsPlaying by TimelineRepository.isPlaying.collectAsState()
+        var standalonePositionMs by remember { mutableStateOf<Long?>(null) }
+        LaunchedEffect(entry, clipContext) {
+            if (clipContext == null) {
+                while (true) {
+                    withFrameNanos { standalonePositionMs = standalonePlaybackPositionMs?.invoke() }
+                }
+            }
+        }
+        val playheadPositionMs = if (clipContext != null) {
+            timelinePlayheadMs - entryStartMs
+        } else {
+            standalonePositionMs
+        }
+        val isPlaying = if (clipContext != null) timelineIsPlaying else standalonePositionMs != null
         val workspaceBpm by WorkspaceRepository.bpm.collectAsState()
         val recentColors by WorkspaceRepository.recentColors.collectAsState()
         val editorBpm = timingContextProvider?.invoke()?.bpm ?: workspaceBpm
@@ -1173,7 +1233,62 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
 
                         Separator()
 
-                        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+                        PianoRollToolbar(
+                            activeTool = activeTool,
+                            onToolChange = { activeTool = it },
+                            gridResolution = gridResolution,
+                            gridResolutionLocked = gridResolutionLocked,
+                            onToggleGridLock = { gridResolutionLocked = !gridResolutionLocked },
+                            previewEnabled = previewEnabled,
+                            onTogglePreview = {
+                                previewEnabled = !previewEnabled
+                                if (!previewEnabled) {
+                                    padPreview.clear()
+                                }
+                            },
+                            foldPads = foldPads,
+                            onToggleFold = { foldPads = !foldPads },
+                            followPlayhead = followPlayhead,
+                            onToggleFollow = { followPlayhead = !followPlayhead },
+                            isPlaying = isPlaying,
+                            onTogglePlayback = { handleTogglePlayPause() },
+                            onZoomIn = {
+                                applyViewportChange(
+                                    viewport.zoomAtX(
+                                        scaleDelta = 1.25f,
+                                        focusScreenX = viewport.viewportWidth / 2f,
+                                    )
+                                )
+                            },
+                            onZoomOut = {
+                                applyViewportChange(
+                                    viewport.zoomAtX(
+                                        scaleDelta = 0.8f,
+                                        focusScreenX = viewport.viewportWidth / 2f,
+                                    )
+                                )
+                            },
+                            onZoomFit = {
+                                if (viewport.viewportWidth > 0f) {
+                                    val fittedZoom = (viewport.viewportWidth / entry.durationMs.coerceAtLeast(1L)).coerceAtLeast(0.0025f)
+                                    val fittedViewport = viewport.copy(minZoomX = minOf(viewport.minZoomX, fittedZoom))
+                                    applyViewportChange(
+                                        fittedViewport.withConstrainedViewport(
+                                            zoomX = fittedZoom,
+                                            scrollX = 0f,
+                                            contentWidth = fittedZoom * (entry.durationMs + 2000L),
+                                        )
+                                    )
+                                }
+                            },
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp)
+                                .padding(bottom = 12.dp)
+                        ) {
                             PianoRollEditorCanvas(
                                 entry = entry,
                                 launchpads = launchpads,
@@ -1195,7 +1310,10 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
                                 bpm = editorBpm,
                                 pressedKeysState = this@PianoRollWorkspaceMode.pressedKeysState,
                                 selectedTimeMs = this@PianoRollWorkspaceMode.selectedTimeMs,
-                                playheadPositionMs = if (this@PianoRollWorkspaceMode.clipContext != null) playheadPositionMs - entryStartMs else null,
+                                playheadPositionMs = playheadPositionMs,
+                                isPlaying = isPlaying,
+                                followPlayhead = followPlayhead,
+                                foldPads = foldPads,
                                 onSelectedTimeMsChange = { selectedTimeMs = it }
                             )
                         }
@@ -1225,6 +1343,7 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
                 when (event.key) {
                     Key.A -> return selectAllNotes()
                     Key.D -> return duplicateSelectedNotes()
+                    Key.U -> return nudgeSelectedNotes(quantize = true)
                     Key.Z -> {
                         if (event.isShiftPressed) {
                             UndoManager.redo()
@@ -1259,8 +1378,20 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
                         }
                         return true
                     }
-                    Key.DirectionLeft -> return nudgeSelectedNotes(timeDirection = -1) || nudgePlayhead(-1)
-                    Key.DirectionRight -> return nudgeSelectedNotes(timeDirection = 1) || nudgePlayhead(1)
+                    Key.DirectionLeft -> {
+                        return if (event.isShiftPressed) {
+                            nudgeSelectedNotes(resizeDirection = -1)
+                        } else {
+                            nudgeSelectedNotes(timeDirection = -1) || nudgePlayhead(direction = -1)
+                        }
+                    }
+                    Key.DirectionRight -> {
+                        return if (event.isShiftPressed) {
+                            nudgeSelectedNotes(resizeDirection = 1)
+                        } else {
+                            nudgeSelectedNotes(timeDirection = 1) || nudgePlayhead(direction = 1)
+                        }
+                    }
                     Key.DirectionUp -> return nudgeSelectedNotes(pitchDirection = 1)
                     Key.DirectionDown -> return nudgeSelectedNotes(pitchDirection = -1)
                     Key.Escape -> {
@@ -1282,7 +1413,6 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
     }
 
     private fun requestClose() {
-        modeClose?.invoke()
         WorkspaceRepository.switchToPreviousMode()
     }
 
@@ -1303,9 +1433,37 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
     override fun onMidiInput(data: MidiInputData, offset: androidx.compose.ui.geometry.Offset) {
         val entry = currentEntry ?: return
         val isPressed = data.velocity > 0
+        val deviceIndex = Heaven.devices.indexOfFirst { device ->
+            device.position.value.x - device.layout.offsetX == offset.x &&
+                (device.position.value.y == offset.y || device.position.value.y - device.layout.offsetY == offset.y)
+        }
+        val device = Heaven.devices.getOrNull(deviceIndex) ?: return
+        val pitch = data.pitch
+        if (pitch !in 0..99) {
+            return
+        }
+        val key = deviceIndex to pitch
+        val wasPressed = pressedKeysState.value[key] == true
+        if (isPressed && !wasPressed && previewEnabled) {
+            val gradient = workingGradient.takeIf { gradientMode }
+            val durationMs = selectedNotes().firstOrNull()?.note?.durationMs
+                ?: currentCellDurationMs(gridResolution, currentBpm())
+            padPreview.press(
+                key = key,
+                signal = Signal.LED(
+                    origin = this,
+                    x = device.position.value.x.toInt() + pitch % 10 - device.layout.offsetX,
+                    y = device.position.value.y.toInt() + device.layout.rows - 1 - (pitch / 10 - device.layout.offsetY),
+                    color = selectedColor,
+                ),
+                gradient = gradient,
+                durationMs = durationMs,
+            )
+        } else if (!isPressed) {
+            padPreview.release(key = key)
+        }
 
         pressedKeysState.update { current ->
-            val key = Pair(0, data.pitch)
             if (isPressed) {
                 current + (key to true)
             } else {
@@ -1313,16 +1471,14 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
             }
         }
 
-        if (isPressed && activeTool == TimelineEditorTool.DRAW) {
-            val noteHeightPx = 22f
-            val pitch = data.pitch
-            val color = if (gradientMode && workingGradient != null) Color.White else selectedColor
+        if (isPressed && !wasPressed && activeTool == TimelineEditorTool.DRAW) {
+            val color = selectedColor
             val noteDurationMs = currentCellDurationMs(gridResolution, currentBpm())
 
             val startTimeMs = selectedTimeMs ?: 0L
 
             val newNote = MidiNote.withPaint(
-                device = 0,
+                device = deviceIndex,
                 pitch = pitch,
                 color = color,
                 startTimeMs = startTimeMs,

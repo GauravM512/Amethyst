@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import com.composables.icons.lucide.*
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
@@ -26,26 +28,56 @@ fun PianoRollToolbar(
     onToolChange: (TimelineEditorTool) -> Unit,
     gridResolution: GridResolution,
     gridResolutionLocked: Boolean,
-    onGridResolutionChange: (GridResolution) -> Unit,
     onToggleGridLock: () -> Unit,
+    previewEnabled: Boolean,
+    onTogglePreview: () -> Unit,
+    foldPads: Boolean,
+    onToggleFold: () -> Unit,
+    followPlayhead: Boolean,
+    onToggleFollow: () -> Unit,
+    isPlaying: Boolean,
+    onTogglePlayback: () -> Unit,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onZoomFit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    FlowRow(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .heightIn(min = 48.dp)
             .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.spacedBy(space = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(space = 6.dp),
     ) {
-        // Ableton-style draw toggle. Normal selection/editing is always available when off.
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(space = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(space = 4.dp),
         ) {
+            ToolButton(
+                icon = if (isPlaying) Lucide.Pause else Lucide.Play,
+                label = if (isPlaying) "Pause" else "Play",
+                selected = isPlaying,
+                onClick = onTogglePlayback,
+            )
+            ToolButton(
+                icon = Lucide.Eye,
+                label = "Preview",
+                selected = previewEnabled,
+                onClick = onTogglePreview,
+            )
+            ToolButton(
+                icon = Lucide.ListFilter,
+                label = "Fold",
+                selected = foldPads,
+                onClick = onToggleFold,
+            )
+            ToolButton(
+                icon = Lucide.ArrowRight,
+                label = "Follow",
+                selected = followPlayhead,
+                onClick = onToggleFollow,
+            )
             ToolButton(
                 icon = Lucide.Pencil,
                 label = "Draw  B",
@@ -59,12 +91,10 @@ fun PianoRollToolbar(
             )
         }
 
-        // Grid & Zoom Controls
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Grid lock / snap toggle
             Button(
                 onClick = onToggleGridLock,
                 variant = if (gridResolutionLocked) ButtonVariant.Secondary else ButtonVariant.Ghost,
@@ -76,11 +106,11 @@ fun PianoRollToolbar(
                 ) {
                     Icon(
                         imageVector = if (gridResolutionLocked) Lucide.Lock else Lucide.LockKeyholeOpen,
-                        contentDescription = "Snap Lock",
+                        contentDescription = if (gridResolutionLocked) "Fixed grid" else "Adaptive grid",
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        gridResolution.label,
+                        text = gridResolution.label,
                         style = Theme[typography][small]
                     )
                 }
@@ -93,7 +123,6 @@ fun PianoRollToolbar(
                     .background(Theme[colors][border])
             )
 
-            // Zoom buttons
             Button(
                 onClick = onZoomOut,
                 variant = ButtonVariant.Ghost,
@@ -142,6 +171,8 @@ private fun ToolButton(
 ) {
     Button(
         onClick = onClick,
+        modifier = Modifier
+            .semantics { this.selected = selected },
         variant = if (selected) ButtonVariant.Secondary else ButtonVariant.Ghost,
         size = ButtonSize.Small
     ) {
@@ -151,7 +182,7 @@ private fun ToolButton(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = label,
+                contentDescription = null,
                 modifier = Modifier.size(14.dp)
             )
             Text(label, style = Theme[typography][small])

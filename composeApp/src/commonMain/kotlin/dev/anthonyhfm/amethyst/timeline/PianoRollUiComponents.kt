@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerIcon
@@ -113,7 +114,6 @@ internal data class PianoRollGridColors(
 )
 
 internal fun Modifier.pianoRollGridBackground(
-    devicePitchRange: IntRange,
     clipBeats: Float,
     metrics: PianoRollMetrics,
     beatsPerBar: Int,
@@ -125,9 +125,9 @@ internal fun Modifier.pianoRollGridBackground(
     val heightPx = size.height
 
     // Pitch 0 is at the bottom (matches pitchToYPx: y = (last - pitch) * noteHeight)
-    for (pitch in devicePitchRange) {
-        val y = (devicePitchRange.last - pitch) * metrics.noteHeightPx
-        val isWhiteKey = pitch % 12 in listOf(0, 2, 4, 5, 7, 9, 11)
+    for (pitch in metrics.pitches) {
+        val y = metrics.pitchToYPx(pitch = pitch)
+        val isWhiteKey = (pitch / 10) % 2 != 0
         drawRect(
             color = if (isWhiteKey) colors.canvasColor else colors.rowColor,
             topLeft = Offset(0f, y),
@@ -135,8 +135,8 @@ internal fun Modifier.pianoRollGridBackground(
         )
     }
 
-    for (pitch in devicePitchRange) {
-        val y = (devicePitchRange.last - pitch) * metrics.noteHeightPx
+    for (pitch in metrics.pitches) {
+        val y = metrics.pitchToYPx(pitch = pitch)
         drawLine(colors.pitchSeparatorColor, Offset(0f, y), Offset(widthPx, y), 1f)
     }
 
@@ -239,6 +239,7 @@ internal fun NoteBox(
     metrics: PianoRollMetrics,
     viewport: EditorViewportState,
     isSelected: Boolean,
+    isPlaying: Boolean = false,
     activeTool: TimelineEditorTool,
     clipDurationMs: Long = Long.MAX_VALUE,
     onSelect: () -> Unit,
@@ -280,7 +281,11 @@ internal fun NoteBox(
     val currentWidthPx = (baseWidthPx - resizeLeftDelta + resizeRightDelta).coerceAtLeast(6f)
 
     val isOutOfBounds = note.isOutOfBounds(clipDurationMs)
-    val normalBorderColor = Theme[colors][foreground].copy(alpha = if (isSelected) 1f else 0.4f)
+    val normalBorderColor = if (isPlaying) {
+        TimelineTheme.palette.playhead
+    } else {
+        Theme[colors][foreground].copy(alpha = if (isSelected) 1f else 0.4f)
+    }
     val outerBorderColor = if (isOutOfBounds) normalBorderColor.copy(alpha = 0.5f) else normalBorderColor
     val innerBorderColor = Theme[colors][border]
 
@@ -470,38 +475,39 @@ internal fun DraftNoteBox(
 
 @Composable
 internal fun PianoKeysColumn(
-    totalPitches: Int,
+    pitches: List<Int>,
     noteHeight: Dp,
-    deviceIndex: Int,
-    pressedPitches: Set<Int>
+    pressedPitches: Set<Int>,
+    previewColors: Map<Int, Color>,
 ) {
     val palette = TimelineTheme.palette
-    val blackKeyColor = Theme[colors][muted]
-    val whiteKeyColor = Theme[colors][foreground]
-    val pressedKeyColor = Theme[colors][destructive]
+    val blackKeyColor = palette.laneSurface
+    val whiteKeyColor = palette.rulerSurface
+    val pressedKeyColor = palette.selectionCursor
+    val textMeasurer = rememberTextMeasurer()
+    val textColor = palette.rulerText
     val density = LocalDensity.current
 
     Box(
         modifier = Modifier
             .width(100.dp)
-            .height(noteHeight * totalPitches)
+            .height(noteHeight * pitches.size)
             .background(palette.rulerSurface)
     ) {
         val noteHeightPx = with(density) { noteHeight.toPx() }
         Canvas(
             modifier = Modifier
                 .width(120.dp)
-                .height(noteHeight * totalPitches)
+                .height(noteHeight * pitches.size)
         ) {
             val widthPx = size.width
-            for (pitch in 0 until totalPitches) {
-                val y = (totalPitches - 1 - pitch) * noteHeightPx
-                val noteInOctave = pitch % 12
-                val isBlackKey = noteInOctave in listOf(1, 3, 6, 8, 10)
+            pitches.forEachIndexed { index, pitch ->
+                val y = (pitches.lastIndex - index) * noteHeightPx
+                val isBlackKey = (pitch / 10) % 2 == 0
                 val isPressed = pressedPitches.contains(pitch)
 
                 val keyColor = when {
-                    isPressed -> pressedKeyColor
+                    isPressed -> previewColors[pitch] ?: pressedKeyColor
                     isBlackKey -> blackKeyColor
                     else -> whiteKeyColor
                 }
@@ -513,7 +519,28 @@ internal fun PianoKeysColumn(
                     size = Size(widthPx, noteHeightPx)
                 )
 
-                // Draw the separator line at the bottom of the key
+                drawText(
+                    textMeasurer = textMeasurer,
+                    text = "Pad $pitch",
+                    topLeft = Offset(8.dp.toPx(), y + 3.dp.toPx()),
+                    style = TextStyle(
+                        color = if (isPressed) {
+                            if (keyColor.luminance() > 0.4f) Color.Black else Color.White
+                        } else {
+                            textColor
+                        },
+                        fontSize = 11.sp,
+                    ),
+                )
+                if (isPressed) {
+                    drawRect(
+                        color = pressedKeyColor,
+                        topLeft = Offset(0f, y),
+                        size = Size(widthPx, noteHeightPx),
+                        style = Stroke(width = 2.dp.toPx()),
+                    )
+                }
+
                 drawLine(
                     color = palette.canvas,
                     start = Offset(0f, y + noteHeightPx),
