@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
+import dev.anthonyhfm.amethyst.core.network.sync.DeviceSyncCoordinator
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadSurfaceDetectionOverlay
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
@@ -96,6 +97,18 @@ class ViewportMidiFighter64(
 
     override val hasStyleOptions: Boolean = true
 
+    fun selectStyle(style: MidiFighter64Style) {
+        if (this.style == style) {
+            return
+        }
+
+        this.style = style
+        DeviceSyncCoordinator.onDeviceStyleChanged(
+            element = this,
+            styleName = style.name,
+        )
+    }
+
     override fun applyNetworkStyle(key: String) {
         val styleValue = MidiFighter64Style.entries.firstOrNull { it.name == key } ?: return
         style = styleValue
@@ -142,8 +155,7 @@ class ViewportMidiFighter64(
                             .border(2.dp, borderColor, DefaultShape)
                             .background(cardBackground, DefaultShape)
                             .clickable {
-                                style = styleOption
-                                dev.anthonyhfm.amethyst.core.network.sync.DeviceSyncCoordinator.onDeviceStyleChanged(this@ViewportMidiFighter64, styleOption.name)
+                                selectStyle(style = styleOption)
                             }
                             .padding(16.dp),
 

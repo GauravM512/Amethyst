@@ -13,6 +13,7 @@ import dev.anthonyhfm.amethyst.devices.effects.composition.graph.withoutNode
 import dev.anthonyhfm.amethyst.devices.effects.composition.graph.node
 import dev.anthonyhfm.amethyst.devices.effects.composition.graph.withNode
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.NodeRegistry
+import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.TimeProgressionNode
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.CompositionAutomationLane
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.automationParameter
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.CompositionAutomationPoint
@@ -35,12 +36,27 @@ class CompositionGraphEditor(val device: CompositionChainDevice) {
     val selection = _selection.asStateFlow()
     private val _automationFocus = MutableStateFlow<CompositionAutomationFocus?>(null)
     val automationFocus = _automationFocus.asStateFlow()
+    private val _timeProgressionFocus = MutableStateFlow<String?>(null)
+    val timeProgressionFocus = _timeProgressionFocus.asStateFlow()
     /** Graph before the current live automation edit, used to make its many frames one undo step. */
     private var automationPreviewBefore: CompositionGraph? = null
 
     fun closeAutomation() { _automationFocus.value = null }
 
+    fun editTimeProgression(nodeId: String) {
+        if (device.state.value.graph.node(nodeId)?.type != TimeProgressionNode.type) {
+            return
+        }
+        _automationFocus.value = null
+        _timeProgressionFocus.value = nodeId
+    }
+
+    fun closeTimeProgression() {
+        _timeProgressionFocus.value = null
+    }
+
     fun automate(nodeId: String, parameterId: String) {
+        _timeProgressionFocus.value = null
         val beforeGraph = device.state.value.graph
         device.updateGraph { graph ->
             val node = graph.node(nodeId) ?: return@updateGraph graph
@@ -70,6 +86,7 @@ class CompositionGraphEditor(val device: CompositionChainDevice) {
 
     fun editAutomation(nodeId: String, parameterId: String) {
         if (device.state.value.graph.node(nodeId)?.lane(parameterId) != null) {
+            _timeProgressionFocus.value = null
             _automationFocus.value = CompositionAutomationFocus(nodeId, parameterId)
         }
     }
@@ -302,6 +319,7 @@ class CompositionGraphEditor(val device: CompositionChainDevice) {
             connectionIds = _selection.value.connectionIds.intersect(connectionIds),
         )
         _automationFocus.value = _automationFocus.value?.takeIf { it.nodeId in nodeIds }
+        _timeProgressionFocus.value = _timeProgressionFocus.value?.takeIf { it in nodeIds }
     }
 
     private fun pasteSubgraph(clip: ClipboardData.CompositionSubgraph): Boolean {

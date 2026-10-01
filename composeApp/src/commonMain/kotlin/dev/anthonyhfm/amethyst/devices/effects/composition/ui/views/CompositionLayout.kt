@@ -24,6 +24,7 @@ import dev.anthonyhfm.amethyst.devices.effects.composition.ui.components.Composi
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportConfig
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.ViewportPanBoundsPolicy
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.WorkspaceViewport
+import dev.anthonyhfm.amethyst.devices.effects.composition.ui.components.TimeProgressionEditor
 
 @Composable
 fun CompositionLayout(
@@ -34,6 +35,7 @@ fun CompositionLayout(
     val deviceState by device.state.collectAsState()
     val splitRatio = deviceState.splitRatio
     val automationFocus by editor.automationFocus.collectAsState()
+    val timeProgressionFocus by editor.timeProgressionFocus.collectAsState()
     val handleWidthPx = with(LocalDensity.current) { 12.dp.toPx() }
 
     var totalWidthPx by remember { mutableStateOf(0f) }
@@ -86,6 +88,7 @@ fun CompositionLayout(
         Column(modifier = Modifier.weight((1f - splitRatio).coerceIn(0.05f, 0.95f)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(modifier = Modifier.weight(1f)) { GraphViewport(device = device, editor = editor) }
             if (automationFocus != null) CompositionAutomationEditor(device, editor)
+            if (timeProgressionFocus != null) TimeProgressionEditor(device, editor)
         }
     }
 }

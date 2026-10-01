@@ -43,7 +43,6 @@ import dev.anthonyhfm.amethyst.timeline.migration.LegacyPianoRollPath
 import dev.anthonyhfm.amethyst.timeline.migration.PianoRollCutoverSupport
 import dev.anthonyhfm.amethyst.timeline.ui.pianoroll.PianoRollEditorCanvas
 import dev.anthonyhfm.amethyst.timeline.ui.pianoroll.PianoRollInspectorSidebar
-import dev.anthonyhfm.amethyst.timeline.ui.pianoroll.PianoRollToolbar
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
@@ -92,6 +91,13 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
     var previewEnabled by mutableStateOf(true)
     var foldPads by mutableStateOf(false)
     var followPlayhead by mutableStateOf(true)
+    var isPlaying by mutableStateOf(false)
+        private set
+    var canZoom by mutableStateOf(false)
+        private set
+    private var zoomInHandler: (() -> Unit)? = null
+    private var zoomOutHandler: (() -> Unit)? = null
+    private var zoomFitHandler: (() -> Unit)? = null
     private val padPreview = PianoRollPadPreview()
 
     override fun onDeactivate() {
@@ -159,7 +165,7 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
         return timingContextProvider?.invoke()?.bpm ?: WorkspaceRepository.bpm.value
     }
 
-    private fun handleTogglePlayPause() {
+    fun togglePlayback() {
         if (clipContext != null) {
             if (TimelineRepository.isPlaying.value) {
                 TimelineRepository.pause()
@@ -170,6 +176,18 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
         } else {
             onPlaybackToggle?.invoke()
         }
+    }
+
+    fun zoomIn() {
+        zoomInHandler?.invoke()
+    }
+
+    fun zoomOut() {
+        zoomOutHandler?.invoke()
+    }
+
+    fun zoomToFit() {
+        zoomFitHandler?.invoke()
     }
 
     private fun timelineEntrySnapshot(): MidiEntry? {
@@ -575,6 +593,51 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
                 if (targetRes != this@PianoRollWorkspaceMode.gridResolution) {
                     this@PianoRollWorkspaceMode.gridResolution = targetRes
                 }
+            }
+        }
+
+        SideEffect {
+            this@PianoRollWorkspaceMode.isPlaying = isPlaying
+            zoomInHandler = {
+                applyViewportChange(
+                    viewport.zoomAtX(
+                        scaleDelta = 1.25f,
+                        focusScreenX = viewport.viewportWidth / 2f,
+                    )
+                )
+            }
+            zoomOutHandler = {
+                applyViewportChange(
+                    viewport.zoomAtX(
+                        scaleDelta = 0.8f,
+                        focusScreenX = viewport.viewportWidth / 2f,
+                    )
+                )
+            }
+            zoomFitHandler = {
+                if (viewport.viewportWidth > 0f) {
+                    val fittedZoom = (viewport.viewportWidth / entry.durationMs.coerceAtLeast(1L))
+                        .coerceAtLeast(minimumValue = 0.0025f)
+                    val fittedViewport = viewport.copy(minZoomX = minOf(viewport.minZoomX, fittedZoom))
+                    applyViewportChange(
+                        fittedViewport.withConstrainedViewport(
+                            zoomX = fittedZoom,
+                            scrollX = 0f,
+                            contentWidth = fittedZoom * (entry.durationMs + 2000L),
+                        )
+                    )
+                }
+            }
+        }
+
+        DisposableEffect(Unit) {
+            canZoom = true
+            onDispose {
+                canZoom = false
+                this@PianoRollWorkspaceMode.isPlaying = false
+                zoomInHandler = null
+                zoomOutHandler = null
+                zoomFitHandler = null
             }
         }
 
@@ -1233,56 +1296,6 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
 
                         Separator()
 
-                        PianoRollToolbar(
-                            activeTool = activeTool,
-                            onToolChange = { activeTool = it },
-                            gridResolution = gridResolution,
-                            gridResolutionLocked = gridResolutionLocked,
-                            onToggleGridLock = { gridResolutionLocked = !gridResolutionLocked },
-                            previewEnabled = previewEnabled,
-                            onTogglePreview = {
-                                previewEnabled = !previewEnabled
-                                if (!previewEnabled) {
-                                    padPreview.clear()
-                                }
-                            },
-                            foldPads = foldPads,
-                            onToggleFold = { foldPads = !foldPads },
-                            followPlayhead = followPlayhead,
-                            onToggleFollow = { followPlayhead = !followPlayhead },
-                            isPlaying = isPlaying,
-                            onTogglePlayback = { handleTogglePlayPause() },
-                            onZoomIn = {
-                                applyViewportChange(
-                                    viewport.zoomAtX(
-                                        scaleDelta = 1.25f,
-                                        focusScreenX = viewport.viewportWidth / 2f,
-                                    )
-                                )
-                            },
-                            onZoomOut = {
-                                applyViewportChange(
-                                    viewport.zoomAtX(
-                                        scaleDelta = 0.8f,
-                                        focusScreenX = viewport.viewportWidth / 2f,
-                                    )
-                                )
-                            },
-                            onZoomFit = {
-                                if (viewport.viewportWidth > 0f) {
-                                    val fittedZoom = (viewport.viewportWidth / entry.durationMs.coerceAtLeast(1L)).coerceAtLeast(0.0025f)
-                                    val fittedViewport = viewport.copy(minZoomX = minOf(viewport.minZoomX, fittedZoom))
-                                    applyViewportChange(
-                                        fittedViewport.withConstrainedViewport(
-                                            zoomX = fittedZoom,
-                                            scrollX = 0f,
-                                            contentWidth = fittedZoom * (entry.durationMs + 2000L),
-                                        )
-                                    )
-                                }
-                            },
-                        )
-
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -1367,7 +1380,7 @@ class PianoRollWorkspaceMode : WorkspaceMode() {
                         return deleteSelectedNotes()
                     }
                     Key.Spacebar -> {
-                        handleTogglePlayPause()
+                        togglePlayback()
                         return true
                     }
                     Key.B -> {

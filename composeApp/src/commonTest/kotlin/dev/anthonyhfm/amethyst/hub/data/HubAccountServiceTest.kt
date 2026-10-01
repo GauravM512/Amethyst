@@ -8,9 +8,12 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.ktor.http.content.TextContent
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -60,6 +63,85 @@ class HubAccountServiceTest {
         assertTrue(result.isAuthenticated)
         assertTrue(repository.client.isAuthenticated)
         repository.close()
+    }
+
+    @Test
+    fun registrationSendsTheOriginalPasswordForServerValidation() = runTest {
+        val password = "a long private violet constellation 721!"
+        val http = HttpClient(engine = MockEngine { request ->
+            val input = Json.parseToJsonElement((request.body as TextContent).text).jsonObject
+            assertEquals(
+                expected = password,
+                actual = input["password"]?.jsonPrimitive?.content,
+            )
+            if (request.url.encodedPath.endsWith("register")) {
+                respond(content = """{"ok":true}""", headers = jsonHeaders)
+            } else {
+                respond(
+                    content = """{"accessToken":"access","refreshToken":"refresh","expiresIn":300}""",
+                    headers = jsonHeaders,
+                )
+            }
+        }) {
+            install(plugin = ContentNegotiation) {
+                json(json = Json { ignoreUnknownKeys = true })
+            }
+        }
+        val repository = HubRepository(
+            client = HubApiClient(
+                baseUrl = "https://hub.test",
+                bearerToken = null,
+                refreshToken = null,
+                onSessionChanged = null,
+                http = http,
+            )
+        )
+        try {
+            val result = HubAccountService(repository = repository).registerAndLogin(
+                username = "artist",
+                password = password,
+                displayName = "Artist",
+                email = "",
+            )
+            assertTrue(actual = result.isAuthenticated)
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
+    fun passwordChangesSendTheReplacementForServerValidation() = runTest {
+        val replacement = "a new private violet constellation 922!"
+        val http = HttpClient(engine = MockEngine { request ->
+            val input = Json.parseToJsonElement((request.body as TextContent).text).jsonObject
+            assertEquals(
+                expected = replacement,
+                actual = input["newPassword"]?.jsonPrimitive?.content,
+            )
+            respond(content = """{"ok":true}""", headers = jsonHeaders)
+        }) {
+            install(plugin = ContentNegotiation) {
+                json(json = Json { ignoreUnknownKeys = true })
+            }
+        }
+        val repository = HubRepository(
+            client = HubApiClient(
+                baseUrl = "https://hub.test",
+                bearerToken = "access",
+                refreshToken = "refresh",
+                onSessionChanged = null,
+                http = http,
+            )
+        )
+        try {
+            HubAccountService(repository = repository).changePassword(
+                username = "artist",
+                current = "old credential",
+                replacement = replacement,
+            )
+        } finally {
+            repository.close()
+        }
     }
 
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())

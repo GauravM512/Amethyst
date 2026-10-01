@@ -950,4 +950,8 @@
     <string name="home_import_wizard_apollo_selection_description">可选。设置后，灯光链将来自 Apollo 项目。</string>
     <string name="home_projects_file_access_failed">无法访问所选文件。</string>
     <string name="home_projects_file_read_failed">无法读取所选文件。</string>
+    <string name="workspace_device_settings_automatic">自动</string>
+    <string name="workspace_device_settings_description">为此布局元素选择 MIDI 设备。</string>
+    <string name="workspace_device_settings_disconnected">所选设备已断开连接。请重新连接或选择其他选项。</string>
+    <string name="workspace_insert_launchpad_description">选择要添加到工作区的控制器布局。</string>
 </resources>

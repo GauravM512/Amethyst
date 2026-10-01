@@ -999,4 +999,8 @@
     <string name="home_import_wizard_apollo_selection_description">Optional. Falls ausgewählt, wird die Lights-Chain aus dem Apollo-Projekt übernommen.</string>
     <string name="home_projects_file_access_failed">Auf die ausgewählte Datei konnte nicht zugegriffen werden.</string>
     <string name="home_projects_file_read_failed">Die ausgewählte Datei konnte nicht gelesen werden.</string>
+    <string name="workspace_device_settings_automatic">Automatisch</string>
+    <string name="workspace_device_settings_description">Wähle das MIDI-Gerät für dieses Layout-Element.</string>
+    <string name="workspace_device_settings_disconnected">Das ausgewählte Gerät wurde getrennt. Verbinde es erneut oder wähle eine andere Option.</string>
+    <string name="workspace_insert_launchpad_description">Wähle ein Controller-Layout für deinen Workspace.</string>
 </resources>

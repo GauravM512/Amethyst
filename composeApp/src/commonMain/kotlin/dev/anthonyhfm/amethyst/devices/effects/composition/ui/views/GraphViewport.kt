@@ -48,6 +48,7 @@ import dev.anthonyhfm.amethyst.devices.effects.composition.graph.withViewport
 import dev.anthonyhfm.amethyst.devices.effects.composition.graph.withoutConnection
 import dev.anthonyhfm.amethyst.devices.effects.composition.graph.withoutNode
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.NodeRegistry
+import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.TimeProgressionNode
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.lane
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.automatedAt
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.automationParameter
@@ -406,7 +407,12 @@ fun GraphViewport(
                         scaleY = viewport.zoom
                         transformOrigin = TransformOrigin(0f, 0f)
                     },
-                onSelect = { editor.selectNode(node.id, additive = isAdditiveSelection()) },
+                onSelect = {
+                    editor.selectNode(node.id, additive = isAdditiveSelection())
+                    if (node.type == TimeProgressionNode.type) {
+                        editor.editTimeProgression(node.id)
+                    }
+                },
                 onDragStart = {
                     if (node.id !in selection.nodeIds) editor.selectNode(node.id)
                     draggedNodeIds = editor.selection.value.nodeIds
@@ -493,6 +499,7 @@ fun GraphViewport(
                 },
                 inputPortHighlighted = node.id == highlightedInputNodeId,
                 outputPortHighlighted = node.id == highlightedOutputNodeId,
+                onEditTimeProgression = editor::editTimeProgression,
                 onStartNodeChange = { },
                 onNodeChange = { updated ->
                     val focus = automationFocus?.takeIf { it.nodeId == node.id }

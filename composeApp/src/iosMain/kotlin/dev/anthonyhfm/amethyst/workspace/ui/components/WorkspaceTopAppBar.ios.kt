@@ -4,6 +4,10 @@ import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -17,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
+import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.modes.WorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.modes.defaults.PerformanceWorkspaceMode
@@ -73,32 +78,44 @@ actual fun WorkspaceTopAppBar(
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp + statusBarHeight + 16.dp),
-    ) {
-        UIKitView(
-            factory = {
-                UIView().apply {
-                    backgroundColor = UIColor.clearColor
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-            update = { containerView ->
-                containerView.rebuildWorkspaceTopAppBar(
-                    mode = mode,
-                    onBack = onBack,
-                    selectableModes = selectableModes,
-                    backToHomeLabel = backToHomeLabel,
-                    openSettingsLabel = openSettingsLabel,
-                    switchModeLabel = switchModeLabel,
-                )
-            },
-            properties = UIKitInteropProperties(
-                placedAsOverlay = true,
-            ),
-        )
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp + statusBarHeight + 16.dp),
+        ) {
+            UIKitView(
+                factory = {
+                    UIView().apply {
+                        backgroundColor = UIColor.clearColor
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+                update = { containerView ->
+                    containerView.rebuildWorkspaceTopAppBar(
+                        mode = mode,
+                        onBack = onBack,
+                        selectableModes = selectableModes,
+                        backToHomeLabel = backToHomeLabel,
+                        openSettingsLabel = openSettingsLabel,
+                        switchModeLabel = switchModeLabel,
+                    )
+                },
+                properties = UIKitInteropProperties(
+                    placedAsOverlay = true,
+                ),
+            )
+        }
+
+        if (mode is PianoRollWorkspaceMode) {
+            PianoRollWorkspaceControls(
+                mode = mode,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(state = rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
     }
 }
 

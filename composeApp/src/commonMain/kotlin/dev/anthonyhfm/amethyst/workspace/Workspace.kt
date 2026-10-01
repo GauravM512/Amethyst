@@ -45,9 +45,8 @@ import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.workspace.ui.components.ActivityToastOverlay
 import dev.anthonyhfm.amethyst.workspace.ui.components.AudioLibraryDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.AudioLibraryPanel
-import dev.anthonyhfm.amethyst.workspace.ui.components.DeviceSettingsDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.ExitWorkspaceDialog
-import dev.anthonyhfm.amethyst.workspace.ui.components.InsertLaunchpadDialog
+import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceDeviceDialogs
 import dev.anthonyhfm.amethyst.workspace.ui.components.PerformanceOverlay
 import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceTopAppBar
 import dev.anthonyhfm.amethyst.workspace.modes.defaults.LayoutWorkspaceMode
@@ -185,15 +184,10 @@ fun Workspace(onBack: () -> Unit = {}) {
                 )
             }
 
-            if (showDeviceConfigurator != null) {
-                DeviceSettingsDialog(
-                    uuid = showDeviceConfigurator!!
-                )
-            }
-
-            if (showDevicePicker) {
-                InsertLaunchpadDialog()
-            }
+            WorkspaceDeviceDialogs(
+                deviceConfigurationUuid = showDeviceConfigurator,
+                showDevicePicker = showDevicePicker,
+            )
 
             ActivityToastOverlay(
                 toasts = activityToasts,

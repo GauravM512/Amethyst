@@ -20,6 +20,10 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
@@ -35,18 +39,15 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogFooter
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogHeader
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogTitle
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
-import dev.anthonyhfm.amethyst.ui.components.primitives.Dialog
-import dev.anthonyhfm.amethyst.ui.components.primitives.DialogContent
-import dev.anthonyhfm.amethyst.ui.components.primitives.DialogHeader
-import dev.anthonyhfm.amethyst.ui.components.primitives.DialogTitle
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.ui.components.AndroidDeviceStyleSheet
 
 @Composable
 actual fun LaunchpadViewportElementActions(
     element: LaunchpadViewportElement,
     modifier: Modifier,
 ) {
-    val styleDialogState = rememberDialogState()
+    var showStyleSheet by remember(element) { mutableStateOf(false) }
     val deleteDialogState = rememberDialogState()
 
     Row(
@@ -81,7 +82,7 @@ actual fun LaunchpadViewportElementActions(
         if (element.hasStyleOptions) {
             IconButton(
                 onClick = {
-                    styleDialogState.visible = true
+                    showStyleSheet = true
                 },
             ) {
                 Icon(
@@ -106,22 +107,11 @@ actual fun LaunchpadViewportElementActions(
         }
     }
 
-    Dialog(
-        state = styleDialogState,
-    ) {
-        DialogContent {
-            DialogHeader {
-                DialogTitle(
-                    text = stringResource(Res.string.workspace_viewport_launchpad_actions_style),
-                )
-            }
-
-            element.StyleConfigContent(
-                onDismiss = {
-                    styleDialogState.visible = false
-                },
-            )
-        }
+    if (showStyleSheet) {
+        AndroidDeviceStyleSheet(
+            element = element,
+            onDismiss = { showStyleSheet = false },
+        )
     }
 
     AlertDialog(

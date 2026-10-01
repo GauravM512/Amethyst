@@ -308,7 +308,7 @@ private fun AutomationValueLegend(
 }
 
 @Composable
-private fun AutomationCanvas(
+internal fun AutomationCanvas(
     points: List<CompositionAutomationPoint>, playhead: Float, selectedPointId: String?, bipolar: Boolean,
     panelBgColor: Color = Theme[colors][secondary],
     onSelect: (String?) -> Unit, onAdd: (Float, Float) -> Unit, onMove: (String, Float, Float) -> Unit,

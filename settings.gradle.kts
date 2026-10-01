@@ -20,6 +20,7 @@ include(":composeApp")
 include(":nativeEngine")
 
 val nucleusPath = providers.gradleProperty("amethyst.nucleus.path").orNull
+    ?: "../Nucleus".takeIf { file("$it/settings.gradle.kts").isFile }
 if (nucleusPath != null) {
     includeBuild(nucleusPath) {
         dependencySubstitution {

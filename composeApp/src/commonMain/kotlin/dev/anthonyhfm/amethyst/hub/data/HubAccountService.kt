@@ -23,9 +23,21 @@ class HubAccountService(private val repository: HubRepository) {
         email: String,
     ): HubAuthResult {
         val identifier = username.trim().replace("@", "")
-        val prepared = PasswordPrehash.derive(password, identifier)
-        repository.register.execute(HubRegisterInput(identifier, prepared, displayName, email))
-        return repository.login.execute(HubLoginInput(identifier, prepared, remember = true))
+        repository.register.execute(
+            input = HubRegisterInput(
+                username = identifier,
+                password = password,
+                displayName = displayName,
+                email = email,
+            )
+        )
+        return repository.login.execute(
+            input = HubLoginInput(
+                username = identifier,
+                password = password,
+                remember = true,
+            )
+        )
     }
 
     @Throws(Exception::class)
@@ -35,9 +47,14 @@ class HubAccountService(private val repository: HubRepository) {
     @Throws(Exception::class)
     suspend fun changePassword(username: String, current: String, replacement: String): HubOk {
         val preparedCurrent = PasswordPrehash.derive(current, username)
-        val preparedReplacement = PasswordPrehash.derive(replacement, username)
         return withLegacyCredential(current, preparedCurrent) { credential ->
-            repository.changePassword.execute(HubPasswordChangeInput(credential, preparedReplacement, ""))
+            repository.changePassword.execute(
+                input = HubPasswordChangeInput(
+                    password = credential,
+                    newPassword = replacement,
+                    code = "",
+                )
+            )
         }
     }
 

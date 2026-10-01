@@ -587,6 +587,11 @@
     <string name="timeline_playback_pause">Pause</string>
     <string name="timeline_playback_play">Play</string>
     <string name="timeline_playback_stop">Stop Timeline</string>
+    <string name="workspace_topappbar_draw_mode">Draw mode (B)</string>
+    <string name="workspace_topappbar_fold_pads">Fold unused pads</string>
+    <string name="workspace_topappbar_zoom_out">Zoom out</string>
+    <string name="workspace_topappbar_zoom_in">Zoom in</string>
+    <string name="workspace_topappbar_zoom_fit">Fit content</string>
     <string name="timeline_tracklist_action_auto">AUTO</string>
     <string name="timeline_tracklist_action_automation_short">A</string>
     <string name="timeline_tracklist_action_copy_multiple">Copy Tracks</string>
@@ -999,4 +1004,8 @@
     <string name="home_import_wizard_apollo_selection_description">Optional. If set, the lights chain will be taken from the Apollo project instead.</string>
     <string name="home_projects_file_access_failed">Could not access the selected file.</string>
     <string name="home_projects_file_read_failed">Failed to read the selected file.</string>
+    <string name="workspace_device_settings_automatic">Automatic</string>
+    <string name="workspace_device_settings_description">Choose the MIDI device for this layout element.</string>
+    <string name="workspace_device_settings_disconnected">The selected device is disconnected. Reconnect it or select another option.</string>
+    <string name="workspace_insert_launchpad_description">Choose a controller layout to add to your workspace.</string>
 </resources>

@@ -33,6 +33,7 @@ import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalCompositio
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalAutomationHandler
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalNodeChangeCallbacks
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.NodeChangeCallbacks
+import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalTimeProgressionHandler
 import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
 import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenu
 import dev.anthonyhfm.amethyst.devices.effects.composition.ui.components.AutomatableContextMenuItem
@@ -79,6 +80,7 @@ fun GraphNodeShell(
     onStartNodeChange: () -> Unit = {},
     onFinishNodeChange: () -> Unit = {},
     onAutomationAction: (parameterId: String, automated: Boolean, remove: Boolean) -> Unit = { _, _, _ -> },
+    onEditTimeProgression: (String) -> Unit = {},
     onDelete: () -> Unit = {},
 ) {
     val titleBarColor = if (selected) Theme[colors][selectionSurface] else Theme[chainColorTokens][chainSurfaceRaised]
@@ -214,6 +216,7 @@ fun GraphNodeShell(
                 CompositionLocalProvider(
                     LocalCompositionNode provides node,
                     LocalAutomationHandler provides onAutomationAction,
+                    LocalTimeProgressionHandler provides onEditTimeProgression,
                     LocalNodeChangeCallbacks provides NodeChangeCallbacks(
                         onStart = onStartNodeChange,
                         onFinish = onFinishNodeChange,

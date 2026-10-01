@@ -80,7 +80,10 @@ actual fun LaunchpadViewportElementActions(
                 deleteLabel = deleteLabel,
                 deleteTitleLabel = deleteTitleLabel,
                 cancelLabel = cancelLabel,
-                onShowStyle = { styleDialogState.visible = true },
+                onShowStyle = {
+                    IosWorkspaceBridge.onShowDeviceStyle?.invoke(element.selectionUUID)
+                        ?: run { styleDialogState.visible = true }
+                },
                 onShowDelete = {
                     actionView.presentDeleteAlert(element, deleteTitleLabel, cancelLabel, deleteLabel)
                 },

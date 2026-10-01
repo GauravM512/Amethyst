@@ -4,8 +4,6 @@ import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import com.composeunstyled.Icon
 import dev.anthonyhfm.amethyst.ui.components.primitives.Spinner
 import androidx.compose.runtime.LaunchedEffect
@@ -32,20 +29,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.Anchor
-import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.Eraser
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.MousePointer
 import com.composables.icons.lucide.Music
-import com.composables.icons.lucide.Pencil
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.Share2
 import com.composeunstyled.Text
-import com.composeunstyled.UnstyledButton
 import com.composeunstyled.rememberDialogState
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.core.network.CollaborationManager
@@ -57,8 +50,6 @@ import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesWorkspaceMode
 import dev.anthonyhfm.amethyst.settings.SettingsDialog
 import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
 import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
-import dev.anthonyhfm.amethyst.timeline.contract.GridResolution
-import dev.anthonyhfm.amethyst.timeline.contract.TimelineEditorTool
 import dev.anthonyhfm.amethyst.timeline.ui.components.TimelineGridPicker
 import dev.anthonyhfm.amethyst.timeline.ui.components.TimelinePlaybackControls
 import dev.anthonyhfm.amethyst.ui.components.primitives.Button
@@ -70,16 +61,11 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogCancel
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogFooter
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogHeader
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogTitle
-import dev.anthonyhfm.amethyst.ui.components.primitives.DropdownMenu
-import dev.anthonyhfm.amethyst.ui.components.primitives.DropdownMenuContent
-import dev.anthonyhfm.amethyst.ui.components.primitives.DropdownMenuRadioItem
 import dev.anthonyhfm.amethyst.ui.components.primitives.Input
 import dev.anthonyhfm.amethyst.ui.components.primitives.Separator
 import dev.anthonyhfm.amethyst.ui.components.primitives.SeparatorOrientation
 import dev.anthonyhfm.amethyst.ui.components.primitives.SmallShape
 import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
-import dev.anthonyhfm.amethyst.ui.theme.accent
-import dev.anthonyhfm.amethyst.ui.theme.accentForeground
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.ui.theme.foreground
 import dev.anthonyhfm.amethyst.ui.theme.secondary
@@ -128,7 +114,7 @@ actual fun WorkspaceTopAppBar(
         Spacer(Modifier.weight(1f))
 
         if (mode is PianoRollWorkspaceMode) {
-            PianoRollOptions(mode)
+            PianoRollWorkspaceControls(mode = mode)
         }
 
         if (mode is TimelineWorkspaceMode) {
@@ -432,90 +418,5 @@ private fun KeyframesToggleOption(
             checked = checked,
             onCheckedChange = onCheckedChange,
         )
-    }
-}
-
-@Composable
-private fun PianoRollOptions(mode: PianoRollWorkspaceMode) {
-    WorkspaceToolbarSurface {
-        val drawEnabled = mode.activeTool == TimelineEditorTool.DRAW
-        WorkspaceToolbarIconButton(
-            onClick = {
-                mode.activeTool = if (drawEnabled) TimelineEditorTool.NORMAL else TimelineEditorTool.DRAW
-            },
-            imageVector = Lucide.Pencil,
-            contentDescription = "Draw mode (B)",
-            variant = if (drawEnabled) ButtonVariant.Default else ButtonVariant.Ghost,
-        )
-    }
-
-    var gridMenuExpanded by remember { mutableStateOf(false) }
-    val gridLabel = when {
-        !mode.gridResolutionLocked -> stringResource(Res.string.workspace_topappbar_grid_auto)
-        mode.gridResolution == GridResolution.Quarter      -> stringResource(Res.string.workspace_topappbar_grid_quarter)
-        mode.gridResolution == GridResolution.Eighth       -> stringResource(Res.string.workspace_topappbar_grid_eighth)
-        mode.gridResolution == GridResolution.Sixteenth    -> stringResource(Res.string.workspace_topappbar_grid_sixteenth)
-        mode.gridResolution == GridResolution.ThirtySecond -> stringResource(Res.string.workspace_topappbar_grid_thirty_second)
-        else -> mode.gridResolution.label
-    }
-
-    WorkspaceToolbarSurface {
-        DropdownMenu(
-            expanded = gridMenuExpanded,
-            onExpandRequest = { gridMenuExpanded = true },
-            onDismissRequest = { gridMenuExpanded = false },
-        ) {
-            val interactionSource = remember { MutableInteractionSource() }
-            val hovered by interactionSource.collectIsHoveredAsState()
-            val contentColor = if (hovered) Theme[colors][accentForeground] else Theme[colors][foreground]
-
-            UnstyledButton(
-                onClick = { gridMenuExpanded = !gridMenuExpanded },
-                shape = SmallShape,
-                interactionSource = interactionSource,
-                indication = null,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                modifier = Modifier
-                    .clip(SmallShape)
-                    .background(if (hovered) Theme[colors][accent] else Color.Transparent),
-            ) {
-                Text(gridLabel, style = Theme[typography][small].copy(color = contentColor))
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    imageVector = Lucide.ChevronDown,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(10.dp),
-                )
-            }
-
-            DropdownMenuContent(
-                expanded = gridMenuExpanded,
-                onDismissRequest = { gridMenuExpanded = false },
-            ) {
-                DropdownMenuRadioItem(
-                    selected = !mode.gridResolutionLocked,
-                    onClick = { mode.gridResolutionLocked = false; gridMenuExpanded = false },
-                ) { Text(stringResource(Res.string.workspace_topappbar_grid_auto)) }
-
-                listOf(
-                    GridResolution.Quarter      to stringResource(Res.string.workspace_topappbar_grid_quarter),
-                    GridResolution.Eighth       to stringResource(Res.string.workspace_topappbar_grid_eighth),
-                    GridResolution.Sixteenth    to stringResource(Res.string.workspace_topappbar_grid_sixteenth),
-                    GridResolution.ThirtySecond to stringResource(Res.string.workspace_topappbar_grid_thirty_second),
-                    GridResolution.SixtyFourth to GridResolution.SixtyFourth.label,
-                    GridResolution.OneTwentyEighth to GridResolution.OneTwentyEighth.label,
-                ).forEach { (res, label) ->
-                    DropdownMenuRadioItem(
-                        selected = mode.gridResolutionLocked && mode.gridResolution == res,
-                        onClick = {
-                            mode.gridResolution = res
-                            mode.gridResolutionLocked = true
-                            gridMenuExpanded = false
-                        },
-                    ) { Text(label) }
-                }
-            }
-        }
     }
 }

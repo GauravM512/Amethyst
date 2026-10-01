@@ -341,6 +341,10 @@ private struct DeviceConfigurationSheet: View {
 // MARK: - Root content
 
 struct ContentView: View {
+    private struct DeviceStyleTarget: Identifiable {
+        let id: String
+    }
+
     private enum HomeTab: Hashable {
         case projects
         case browser
@@ -362,6 +366,7 @@ struct ContentView: View {
     @State private var showDevicePickerSheet = false
     @State private var showDeviceConfigurationSheet = false
     @State private var configuringDeviceId = ""
+    @State private var deviceStyleTarget: DeviceStyleTarget?
     @State private var showSplashScreen = true
     @State private var selectedHomeTab: HomeTab = .projects
     @State private var hubSearchText = ""
@@ -400,6 +405,9 @@ struct ContentView: View {
                             configuringDeviceId = uuid
                             showDeviceConfigurationSheet = true
                         }
+                        IosWorkspaceBridge.shared.onShowDeviceStyle = { uuid in
+                            deviceStyleTarget = DeviceStyleTarget(id: uuid)
+                        }
                         IosWorkspaceBridge.shared.createLiquidGlassEffect = {
                             if #available(iOS 26.0, *) {
                                 let effect = UIGlassEffect(style: .regular)
@@ -436,6 +444,7 @@ struct ContentView: View {
                         IosWorkspaceBridge.shared.onShowSettings = nil
                         IosWorkspaceBridge.shared.onShowDevicePicker = nil
                         IosWorkspaceBridge.shared.onShowDeviceConfigurator = nil
+                        IosWorkspaceBridge.shared.onShowDeviceStyle = nil
                     }
                     .sheet(isPresented: $showSettingsSheet) {
                         SettingsTabView(
@@ -455,6 +464,14 @@ struct ContentView: View {
                             darkMode: colorScheme == .dark
                         ) {
                             showDeviceConfigurationSheet = false
+                        }
+                    }
+                    .sheet(item: $deviceStyleTarget) { target in
+                        DeviceStyleSheet(
+                            uuid: target.id,
+                            darkMode: colorScheme == .dark
+                        ) {
+                            deviceStyleTarget = nil
                         }
                     }
                 } else {
