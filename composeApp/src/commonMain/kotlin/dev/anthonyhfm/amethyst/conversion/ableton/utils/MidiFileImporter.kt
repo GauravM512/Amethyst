@@ -46,6 +46,7 @@ object MidiFileImporter {
         bpm: Double = 120.0,
         palette: Array<Triple<Int, Int, Int>> = Palettes.novation,
         launchpad: DeviceTarget,
+        preserveEndOfTrackTiming: Boolean = false,
     ): KeyframesChainDeviceContract.KeyframesChainDeviceState {
         var offset = 0
 
@@ -135,6 +136,7 @@ object MidiFileImporter {
         val trackEnd = offset + trackLength
 
         var currentTick = 0L
+        var endOfTrackFound = false
 
         fun cloneFrameAfterTickAdvance() {
             val last = frames.last()
@@ -142,6 +144,7 @@ object MidiFileImporter {
             currentFrame = last.copy(
                 timing = Timing.Duration(100.milliseconds),
                 entries = newEntries,
+                triggersNoteZero = false,
                 _internalUuid = UUID.randomUUID()
             )
             frames.add(currentFrame)
@@ -208,7 +211,10 @@ object MidiFileImporter {
                                 filtered
                             }
 
-                        frames[frames.lastIndex] = frames.last().copy(entries = updatedEntries)
+                        frames[frames.lastIndex] = frames.last().copy(
+                            entries = updatedEntries,
+                            triggersNoteZero = currentFrame.triggersNoteZero || (noteOn && pitch == 0)
+                        )
                         currentFrame = frames.last()
                     }
                 }
@@ -233,6 +239,7 @@ object MidiFileImporter {
                             val length = readVarLen().toInt()
                             when (metaType) {
                                 0x2F -> {
+                                    endOfTrackFound = true
                                     if (length > 0 && requireBytes(length)) offset += length
                                     offset = trackEnd
                                 }
@@ -315,7 +322,13 @@ object MidiFileImporter {
                     )
                 } else {
                     frames[i] = frames[i].copy(
-                        timing = Timing.Duration(1.milliseconds),
+                        timing = Timing.Duration(
+                            duration = if (preserveEndOfTrackTiming && endOfTrackFound) {
+                                0.milliseconds
+                            } else {
+                                1.milliseconds
+                            }
+                        ),
                         _internalUuid = UUID.randomUUID()
                     )
                 }
@@ -324,17 +337,28 @@ object MidiFileImporter {
             if (frames.isNotEmpty()) {
                 val last = frames.last()
                 val penultimate = if (frames.size >= 2) frames[frames.size - 2] else null
-                if (penultimate != null && last.entries == penultimate.entries) {
+                if (penultimate != null && last.entries == penultimate.entries && !last.triggersNoteZero) {
                     frames.removeLast()
                 } else {
-                    // Falls behalten: Dauer minimal setzen
                     frames[frames.lastIndex] = last.copy(
-                        timing = Timing.Duration(50.milliseconds),
+                        timing = Timing.Duration(
+                            duration = if (preserveEndOfTrackTiming && endOfTrackFound) {
+                                0.milliseconds
+                            } else {
+                                50.milliseconds
+                            }
+                        ),
                         _internalUuid = UUID.randomUUID()
                     )
                 }
             }
 
+        }
+
+        if (preserveEndOfTrackTiming && endOfTrackFound && frameTicks.size == 1) {
+            frames[0] = frames[0].copy(
+                timing = Timing.Duration(duration = 0.milliseconds)
+            )
         }
 
         var renderedAnimation: List<Pair<Int, List<Signal>>> = emptyList()

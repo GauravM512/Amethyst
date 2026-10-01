@@ -194,13 +194,15 @@ class MxDeviceMidiEffectAdapter(
                     ).toDeviceStates()
                 }
 
-                "2ef098a53fe4e9a4b035588561080343" -> {
-                    return MidiLauncherAdapter(device, offset).toDeviceStates()
+                "2ef098a53fe4e9a4b035588561080343",
+                "f135067227057b08f8d2d2ae66a22f8d" -> {
+                    return MidiLauncherAdapter(device = device, hash = hash, offset = offset).toDeviceStates()
                 }
 
                 "2d5d5420fea42678807d1569ce08b182",
+                "a114e5d1a7710271501649668c14f1ab",
                 "34bcbf910a9985951a0dd6ead9f8fc4c" -> {
-                    return MidiLauncherProAdapter(device, offset).toDeviceStates()
+                    return MidiLauncherProAdapter(device = device, hash = hash, offset = offset).toDeviceStates()
                 }
 
                 "aa743dda3d25332ecf3ae084eb7cbd30",

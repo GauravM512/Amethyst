@@ -9,12 +9,104 @@ import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
 import dev.anthonyhfm.amethyst.devices.TimelineDurationContext
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ChokeChainDeviceTest {
+    @Test
+    fun startSendsOnPressAndLegacyStillSendsOnRelease() {
+        val receiver = ChokeChainDevice().apply {
+            state.value = state.value.copy(target = 31)
+        }
+        val probe = ChokeProbeDevice()
+        receiver.state.value.chain.add(device = probe, fromUser = false)
+        val sender = ChokeChainDevice().apply {
+            state.value = state.value.copy(
+                target = 31,
+                mode = ChokeChainDeviceState.ChokeMode.Start,
+            )
+        }
+        val press = Signal.Midi(origin = null, x = 1, y = 1, velocity = 127)
+
+        try {
+            sender.signalEnter(n = listOf(press))
+            assertEquals(1, probe.chokeCount)
+            sender.signalEnter(n = listOf(press.copy(velocity = 0)))
+            assertEquals(1, probe.chokeCount)
+            sender.state.value = sender.state.value.copy(mode = ChokeChainDeviceState.ChokeMode.Legacy)
+            sender.signalEnter(n = listOf(press.copy(velocity = 0)))
+            assertEquals(2, probe.chokeCount)
+        } finally {
+            sender.onRemovedFromChain()
+            receiver.onRemovedFromChain()
+        }
+    }
+
+    @Test
+    fun receiveDoesNotSendAndNoteZeroSendsOnlyForOutputNoteOnZero() {
+        val receiver = ChokeChainDevice().apply {
+            state.value = state.value.copy(target = 30)
+        }
+        val probe = ChokeProbeDevice()
+        receiver.state.value.chain.add(device = probe, fromUser = false)
+        val sender = ChokeChainDevice().apply {
+            state.value = state.value.copy(
+                target = 30,
+                mode = ChokeChainDeviceState.ChokeMode.Receive,
+            )
+        }
+        val press = Signal.Midi(origin = null, x = 1, y = 1, velocity = 127)
+
+        try {
+            sender.signalEnter(n = listOf(press))
+            assertEquals(0, probe.chokeCount)
+            sender.state.value = sender.state.value.copy(mode = ChokeChainDeviceState.ChokeMode.NoteZero)
+            sender.state.value.chain.signalExit?.invoke(listOf(press))
+            assertEquals(0, probe.chokeCount)
+            val zero = press.copy(extras = mapOf(AbletonNoteSpace.PITCH to 0, "ableton.targetX" to 0, "ableton.targetY" to 0))
+            sender.state.value.chain.signalExit?.invoke(listOf(zero.copy(velocity = 0)))
+            assertEquals(0, probe.chokeCount)
+            sender.state.value.chain.signalExit?.invoke(listOf(zero))
+            assertEquals(1, probe.chokeCount)
+        } finally {
+            sender.onRemovedFromChain()
+            receiver.onRemovedFromChain()
+        }
+    }
+
+    @Test
+    fun endBindsRestoredKeyframesCompletionWithoutSendingOnInputOrSilence() {
+        val receiver = ChokeChainDevice().apply {
+            state.value = state.value.copy(target = 29)
+        }
+        val probe = ChokeProbeDevice()
+        receiver.state.value.chain.add(device = probe, fromUser = false)
+        val keyframes = KeyframesChainDevice()
+        val sender = ChokeChainDevice().apply {
+            state.value = state.value.copy(
+                target = 29,
+                mode = ChokeChainDeviceState.ChokeMode.End,
+            )
+            state.value.chain.add(device = keyframes, fromUser = false)
+            onStateRestored()
+        }
+
+        try {
+            sender.signalEnter(n = listOf(Signal.Midi(origin = null, x = 1, y = 1, velocity = 127)))
+            sender.state.value.chain.signalExit?.invoke(emptyList())
+            assertEquals(0, probe.chokeCount)
+            keyframes.onPlaybackEnd?.invoke()
+            assertEquals(1, probe.chokeCount)
+        } finally {
+            sender.onRemovedFromChain()
+            receiver.onRemovedFromChain()
+        }
+    }
+
     @Test
     fun repeatedTriggerChokesItsOwnPreviousOutputAndEffect() {
         val output = mutableListOf<Signal.LED>()

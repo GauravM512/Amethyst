@@ -45,6 +45,9 @@ import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 import dev.anthonyhfm.amethyst.devices.NestedChainDevice
 import dev.anthonyhfm.amethyst.devices.DeviceCapability
 import dev.anthonyhfm.amethyst.devices.TimelineDurationContext
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.keyframes.KEYFRAMES_NOTE_ZERO_HANDLED
 import dev.anthonyhfm.amethyst.devices.timelineDuration
 import dev.anthonyhfm.amethyst.workspace.chain.ui.ChainView
 import kotlinx.atomicfu.locks.SynchronizedObject
@@ -75,12 +78,14 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
 
     override fun onAddedToChain(parentChain: Chain) {
         super.onAddedToChain(parentChain)
+        bindPlaybackCallbacks()
         synchronized(registryLock) {
             chokeDevices.add(this)
         }
     }
 
     override fun onRemovedFromChain() {
+        performChoke()
         synchronized(registryLock) {
             chokeDevices.remove(this)
         }
@@ -90,6 +95,7 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
     override fun onStateRestored() {
         super.onStateRestored()
         state.value.chain.signalExit = { emitSignals(it) }
+        bindPlaybackCallbacks()
         parentChain?.onDeviceRuntimeStateChanged()
     }
 
@@ -107,6 +113,7 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
                     emitSignals(it)
                 }
                 this.state.update { state.copy(chain = unpackedChain) }
+                bindPlaybackCallbacks()
             }
 
         private val registryLock = SynchronizedObject()
@@ -137,6 +144,14 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
     }
 
     private fun emitSignals(signals: List<Signal>) {
+        if (state.value.mode == ChokeChainDeviceState.ChokeMode.NoteZero &&
+            signals.any {
+                it.isOn() && it.extras[KEYFRAMES_NOTE_ZERO_HANDLED] != 1 && AbletonNoteSpace.note(it)?.pitch == 0
+            }
+        ) {
+            chokeChannel(state.value.target, this)
+        }
+
         synchronized(outputLock) {
             signals.forEach { signal ->
                 if (signal is Signal.LED) {
@@ -180,13 +195,13 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
                 Dial(
                     title = "Target",
                     value = deviceState.target,
-                    type = DialType.Steps(IntArray(16) { it + 1 }.toList()),
+                    type = DialType.Steps(IntArray(32) { it + 1 }.toList()),
                     text = "${deviceState.target}",
                     onResolveTextValue = {
                         val chokeChannel = it.trim().toIntOrNull()
 
                         chokeChannel?.let { channel ->
-                            if (chokeChannel in 0..16) {
+                            if (chokeChannel in 0..32) {
                                 updateStateFromUser {
                                     it.copy(target = channel)
                                 }
@@ -239,14 +254,54 @@ class ChokeChainDevice : GenericChainDevice<ChokeChainDeviceState>(), NestedChai
     }
 
     override fun signalEnter(n: List<Signal>) {
+        bindPlaybackCallbacks()
         if (!n.isSilentReplay()) {
-            if (n.any { it.isOn() }) {
+            val hasPress = n.any { it.isOn() }
+            if (hasPress) {
                 performChoke()
             }
-            chokeChannel(state.value.target, this)
+            if (state.value.mode == ChokeChainDeviceState.ChokeMode.Legacy ||
+                state.value.mode == ChokeChainDeviceState.ChokeMode.Start && hasPress
+            ) {
+                chokeChannel(state.value.target, this)
+            }
         }
 
         state.value.chain.signalEnter(n)
+    }
+
+    private fun bindPlaybackCallbacks() {
+        playbackDevices().forEach { device ->
+            device.onPlaybackNoteZero = {
+                if (state.value.mode == ChokeChainDeviceState.ChokeMode.NoteZero && device in playbackDevices()) {
+                    chokeChannel(state.value.target, this)
+                }
+            }
+            device.onPlaybackEnd = {
+                if (state.value.mode == ChokeChainDeviceState.ChokeMode.End && device in playbackDevices()) {
+                    chokeChannel(state.value.target, this)
+                }
+            }
+        }
+    }
+
+    private fun playbackDevices(): List<KeyframesChainDevice> = buildList {
+        val visited = mutableSetOf<Chain>()
+
+        fun visit(chain: Chain) {
+            if (!visited.add(chain)) {
+                return
+            }
+            chain.devices.value.forEach { device ->
+                if (device is KeyframesChainDevice) {
+                    add(device)
+                } else if (device is NestedChainDevice && device !is ChokeChainDevice) {
+                    device.nestedChains().forEach(::visit)
+                }
+            }
+        }
+
+        visit(chain = state.value.chain)
     }
 
     override fun nestedChains() = listOf(state.value.chain)
@@ -343,5 +398,11 @@ data class ChokeChainDeviceState(
     val target: Int = 0,
     @Transient
     val chain: Chain = Chain(),
-    var stateChain: StateChain = StateChain()
-) : DeviceState()
+    var stateChain: StateChain = StateChain(),
+    val mode: ChokeMode = ChokeMode.Legacy,
+) : DeviceState() {
+    @Serializable
+    enum class ChokeMode {
+        Legacy, Start, NoteZero, End, Receive
+    }
+}

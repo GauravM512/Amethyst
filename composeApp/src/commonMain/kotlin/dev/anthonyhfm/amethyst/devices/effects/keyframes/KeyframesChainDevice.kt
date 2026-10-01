@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.MidiFileImporter
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
+import dev.anthonyhfm.amethyst.core.midi.data.XY_TO_DRUM_RACK
+import dev.anthonyhfm.amethyst.core.engine.elements.isOn
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.core.engine.heaven.isLit
@@ -74,13 +76,36 @@ private fun keyframeLoopTargetTimeNanos(
     eventTimeMs: Double,
 ): Long = epochNanos + ((iteration * totalDurationMs + eventTimeMs) * 1_000_000.0).roundToLong()
 
+internal const val KEYFRAMES_NOTE_ZERO_HANDLED = "keyframes.noteZeroHandled"
+internal const val KEYFRAMES_NOTE_ZERO_TRIGGER = "keyframes.noteZeroTrigger"
+
 class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokeable, dev.anthonyhfm.amethyst.devices.TimelineTriggerable {
+    var onPlaybackEnd: (() -> Unit)? = null
+    var onPlaybackNoteZero: (() -> Unit)? = null
+
+    internal fun rootPosition(): Pair<Int, Int>? {
+        val snapshot = state.value
+        val root = snapshot.rootKey ?: return null
+        val launchpadId = snapshot.rootKeyLaunchpadId
+        val device = if (launchpadId != null) {
+            Heaven.devices.firstOrNull { it.launchpadId == launchpadId }
+                ?: Heaven.devices.singleOrNull()
+        } else {
+            null
+        }
+
+        return Pair(
+            first = root % 10 + (device?.position?.value?.x?.toInt() ?: 0),
+            second = root / 10 + (device?.position?.value?.y?.toInt() ?: 0),
+        )
+    }
+
     private fun timelineTrigger(color: Color): Signal.LED {
-        val root = state.value.rootKey
+        val root = rootPosition()
         return Signal.LED(
             origin = this,
-            x = root?.rem(10) ?: 0,
-            y = root?.div(10) ?: 0,
+            x = root?.first ?: 0,
+            y = root?.second ?: 0,
             color = color,
         )
     }
@@ -638,7 +663,7 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
 
             is Event.OnChangeRootKey -> {
                 val before = state.value
-                state.update { it.copy(rootKey = event.rootKey) }
+                state.update { it.copy(rootKey = event.rootKey, rootKeyLaunchpadId = null) }
                 pushStateChange(before, state.value)
             }
 
@@ -844,6 +869,20 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
 
                 val signals = buildList {
                     addAll(frame.entries.filter { !(previousFrame?.entries?.contains(it) ?: false) }.mapNotNull { it.toSignal() })
+                    if (frame.triggersNoteZero) {
+                        add(
+                            Signal.LED(
+                                origin = this@KeyframesChainDevice,
+                                x = -1,
+                                y = -1,
+                                color = Color.White,
+                                extras = mapOf(
+                                    AbletonNoteSpace.PITCH to 0,
+                                    KEYFRAMES_NOTE_ZERO_TRIGGER to 1,
+                                ),
+                            )
+                        )
+                    }
 
                     if (previousFrame != null) {
                         if (state.value.infinity && index == frames.lastIndex) return@buildList
@@ -988,16 +1027,19 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
 
         for (r in 0 until repeats) {
             val offset = r * totalDuration
-            animation.forEach { (time, signals) ->
+            animation.forEachIndexed { eventIndex, (time, signals) ->
                 Heaven.schedule(offset + time.toDouble(), owner = this, identifier = identifier) {
                     val s = state.value
-                    val transformed = transformSignals(signals, triggerSignal)
+                    val transformed = transformSignals(playbackSignals(signals = signals), triggerSignal)
                     val outgoing = if (s.useOwnershipTracking && s.ownershipId.isNotEmpty()) {
                         filterOwnershipSignals(transformed, s.ownershipId)
                     } else {
                         transformed
                     }
                     if (outgoing.isNotEmpty()) signalExit?.invoke(outgoing)
+                    if (r == repeats - 1 && eventIndex == animation.lastIndex) {
+                        onPlaybackEnd?.invoke()
+                    }
                 }
             }
         }
@@ -1028,7 +1070,7 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
                     identifier = identifier,
                 ) {
                     val s = state.value
-                    val transformed = transformSignals(signals, triggerSignal)
+                    val transformed = transformSignals(playbackSignals(signals = signals), triggerSignal)
                     val outgoing = if (s.useOwnershipTracking && s.ownershipId.isNotEmpty()) {
                         filterOwnershipSignals(transformed, s.ownershipId)
                     } else {
@@ -1046,6 +1088,26 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
         }
 
         playOnce()
+    }
+
+    private fun playbackSignals(signals: List<Signal>): List<Signal> {
+        val callback = onPlaybackNoteZero
+        if (signals.any { it.isOn() && it.extras[AbletonNoteSpace.PITCH] == 0 }) {
+            callback?.invoke()
+        }
+
+        return signals.filterNot { it.extras[KEYFRAMES_NOTE_ZERO_TRIGGER] == 1 }.map { signal ->
+            if (callback != null && signal.isOn() && signal.extras[AbletonNoteSpace.PITCH] == 0) {
+                val extras = signal.extras + (KEYFRAMES_NOTE_ZERO_HANDLED to 1)
+                when (signal) {
+                    is Signal.LED -> signal.copy(extras = extras)
+                    is Signal.Midi -> signal.copy(extras = extras)
+                    is Signal.AudioSignal -> signal
+                }
+            } else {
+                signal
+            }
+        }
     }
 
     private fun resolveBounds(signal: Signal.LED, isolate: Boolean): Pair<androidx.compose.ui.unit.IntOffset, androidx.compose.ui.unit.IntSize> {
@@ -1066,7 +1128,7 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
 
     private fun transformSignals(signals: List<Signal>, triggerSignal: Signal.LED): List<Signal> {
         val state = state.value
-        val rootKey = state.rootKey
+        val rootKey = rootPosition()
 
         if (rootKey == null) {
             return signals.map { signal ->
@@ -1078,8 +1140,8 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
             }
         }
         
-        val dx = triggerSignal.x - (rootKey % 10)
-        val dy = triggerSignal.y - (rootKey / 10)
+        val dx = triggerSignal.x - rootKey.first
+        val dy = triggerSignal.y - rootKey.second
         
         if (dx == 0 && dy == 0 && !state.isolate && !state.wrap) {
             return signals.map { signal ->
@@ -1110,12 +1172,17 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
                 }
                 
                 if (newX in minX..maxX && newY in minY..maxY) {
-                    signal.copy(
+                    val translated = signal.copy(
                         x = newX,
                         y = newY,
                         origin = signal.origin,
                         macroValues = triggerSignal.macroValues,
                     )
+                    if (state.rootKeyLaunchpadId != null) {
+                        trackedPitch(signal = translated)
+                    } else {
+                        translated
+                    }
                 } else {
                     signal.copy(
                         color = Color.Black,
@@ -1125,6 +1192,21 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
                 }
             } else signal
         }
+    }
+
+    private fun trackedPitch(signal: Signal.LED): Signal.LED {
+        val note = AbletonNoteSpace.note(signal = signal) ?: return signal
+        val localIndex = signal.x - note.targetX + (9 - (signal.y - note.targetY)) * 10
+        val pitch = XY_TO_DRUM_RACK.getOrNull(localIndex)
+        if (pitch == null || AbletonNoteSpace.padIndex(pitch = pitch) != localIndex) {
+            return signal.copy(color = Color.Black)
+        }
+
+        return AbletonNoteSpace.withPitch(
+            signal = signal,
+            note = note,
+            pitch = pitch,
+        ) as? Signal.LED ?: signal
     }
 
     private fun filterOwnershipSignals(
