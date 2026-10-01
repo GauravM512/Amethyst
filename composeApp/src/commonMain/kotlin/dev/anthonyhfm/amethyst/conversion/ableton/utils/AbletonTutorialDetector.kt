@@ -87,6 +87,7 @@ object AbletonTutorialDetector {
         if (rawActions.isEmpty()) {
             val fallbackTracks = detectTutorialInLayoutTracks(layout)
             if (fallbackTracks.isNotEmpty()) {
+                tutorialTracks = fallbackTracks
                 tutorialStartBeats = findTutorialStartBeats(fallbackTracks)
                 tutorialEndBeats = findTutorialEndBeats(fallbackTracks)
                 rawActions = buildActions(
@@ -110,6 +111,17 @@ object AbletonTutorialDetector {
                 combined[timeMs] = existing + actionList
             }
             rawActions = combined
+        } else if (rawActions.values.none { actions -> actions.any(predicate = ::isPageButtonPress) }) {
+            val clipNameActions = detectClipNamePageActions(
+                layout = layout,
+                tutorialTracks = tutorialTracks,
+                tutorialStartBeats = tutorialStartBeats,
+            )
+            val combined = rawActions.toMutableMap()
+            for ((timeMs, actions) in clipNameActions) {
+                combined[timeMs] = actions + combined[timeMs].orEmpty()
+            }
+            rawActions = combined
         }
 
         val deduped = rawActions.mapValues { (_, list) -> list.distinct() }
@@ -119,6 +131,72 @@ object AbletonTutorialDetector {
         }
 
         return AutoPlayData(deduped)
+    }
+
+    private fun isPageButtonPress(action: AutoPlayData.Action): Boolean =
+        action.down && (action.x % 10 == 0 || action.x % 10 == 9) && action.y in 1..8
+
+    private fun detectClipNamePageActions(
+        layout: AbletonLayout,
+        tutorialTracks: List<MidiTrack>,
+        tutorialStartBeats: Double,
+    ): Map<Double, List<AutoPlayData.Action>> {
+        val bpm = AbletonConverter.bpm
+        if (bpm <= 0.0) {
+            return emptyMap()
+        }
+
+        val layoutTracks = when (layout) {
+            is AbletonLayout.Single -> listOfNotNull(layout.audioTrack, layout.lightsTrack)
+            is AbletonLayout.Dual2Light -> listOfNotNull(
+                layout.audioLeft, layout.lightsLeft, layout.audioRight, layout.lightsRight,
+            )
+            is AbletonLayout.Dual4Light -> listOfNotNull(
+                layout.audioLeft, layout.lightsLeft, layout.audioRight, layout.lightsRight,
+            )
+        }
+        val result = mutableMapOf<Double, MutableList<AutoPlayData.Action>>()
+
+        for (track in tutorialTracks) {
+            val sourceIndex = sourceLaunchpadIndex(layout = layout, track = track)
+            val pageTracks = layoutTracks.filter {
+                sourceLaunchpadIndex(layout = layout, track = it) == sourceIndex
+            }
+            val pages = AbletonTutorialPageNames.fromTracks(tracks = pageTracks)
+            val clips = findTutorialClips(track = track)
+            val pageNumbers = clips.mapNotNull { AbletonTutorialPageNames.pageNumber(name = it.clipName.value) }
+            val target = autoPlayTarget(layout = layout, track = track)
+            var lastPage: Int? = null
+
+            for (clip in clips) {
+                val pageNumber = AbletonTutorialPageNames.pageNumber(name = clip.clipName.value) ?: continue
+                val page = pages.resolve(number = pageNumber, hasPageZero = 0 in pageNumbers) ?: continue
+                if (page == lastPage) {
+                    continue
+                }
+                lastPage = page
+
+                val timeMs = beatsToMilliseconds(
+                    beats = clip.currentStart.value - tutorialStartBeats,
+                    bpm = bpm,
+                ).coerceAtLeast(minimumValue = 0.0)
+                val pageButtonX = if (page < 8) {
+                    9
+                } else {
+                    0
+                }
+                val press = AutoPlayData.Action(
+                    x = target.offset.x + pageButtonX,
+                    y = target.offset.y + 1 + page % 8,
+                    down = true,
+                    launchpadId = target.launchpadId,
+                )
+                result.getOrPut(key = timeMs) { mutableListOf() }.add(element = press)
+                result.getOrPut(key = timeMs + 50.0) { mutableListOf() }.add(element = press.copy(down = false))
+            }
+        }
+
+        return result
     }
 
     fun detectPossibleTutorialTracks(
