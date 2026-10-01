@@ -17,10 +17,16 @@ internal object AbletonMacroMapping {
 
         val macroIndex = keyMidi.noteOrController?.value ?: return manualValue
         val macroValue = parentMacroValues?.getOrNull(macroIndex) ?: return manualValue
-        val minimum = controllerRange?.min?.value?.toFloat() ?: 0f
-        val maximum = controllerRange?.max?.value?.toFloat() ?: 127f
+        if (!macroValue.isFinite()) {
+            return manualValue
+        }
 
-        return minimum + macroValue.coerceIn(0f, 127f) / 127f * (maximum - minimum)
+        val minimum = controllerRange?.min?.value?.toDouble() ?: 0.0
+        val maximum = controllerRange?.max?.value?.toDouble() ?: 127.0
+
+        return (
+            minimum + macroValue.coerceIn(0f, 127f).toDouble() / 127.0 * (maximum - minimum)
+        ).toFloat()
     }
 
     fun effectiveInt(

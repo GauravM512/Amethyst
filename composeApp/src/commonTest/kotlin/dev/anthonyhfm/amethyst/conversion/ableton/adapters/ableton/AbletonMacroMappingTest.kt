@@ -16,6 +16,89 @@ import kotlin.test.assertEquals
 
 class AbletonMacroMappingTest {
     @Test
+    fun fractionalEndpointsRoundOnlyAfterMappingToIntegerSetting() {
+        val controllerRange = AbletonConverter.xml.decodeFromString(
+            deserializer = AbletonMidiControllerRange.serializer(),
+            string = """
+                <MidiControllerRange>
+                    <Min Value="0"/>
+                    <Max Value="57.109726"/>
+                </MidiControllerRange>
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            expected = 28.554863f,
+            actual = AbletonMacroMapping.effectiveValue(
+                manualValue = 0f,
+                keyMidi = mappedTo(index = 0),
+                controllerRange = controllerRange,
+                parentMacroValues = listOf(63.5f),
+            ),
+        )
+        assertEquals(
+            expected = 29,
+            actual = AbletonMacroMapping.effectiveInt(
+                manualValue = 0,
+                keyMidi = mappedTo(index = 0),
+                controllerRange = controllerRange,
+                parentMacroValues = listOf(63.5f),
+            ),
+        )
+    }
+
+    @Test
+    fun reversedFractionalRangeAndOutOfRangeMacrosMapCorrectly() {
+        val controllerRange = AbletonMidiControllerRange(
+            min = AbletonMidiControllerRange.Endpoint(value = 57.109726f),
+            max = AbletonMidiControllerRange.Endpoint(value = -10.5f),
+        )
+
+        for ((macroValue, expected) in listOf(-1f to 57.109726f, 128f to -10.5f)) {
+            assertEquals(
+                expected = expected,
+                actual = AbletonMacroMapping.effectiveValue(
+                    manualValue = 0f,
+                    keyMidi = mappedTo(index = 0),
+                    controllerRange = controllerRange,
+                    parentMacroValues = listOf(macroValue),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun nonFiniteMacroValuesUseSavedValue() {
+        for (macroValue in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)) {
+            assertEquals(
+                expected = 8,
+                actual = AbletonMacroMapping.effectiveInt(
+                    manualValue = 8,
+                    keyMidi = mappedTo(index = 0),
+                    controllerRange = range(minimum = 0, maximum = 127),
+                    parentMacroValues = listOf(macroValue),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun finiteExtremeEndpointsDoNotOverflowDuringInterpolation() {
+        assertEquals(
+            expected = 0f,
+            actual = AbletonMacroMapping.effectiveValue(
+                manualValue = 1f,
+                keyMidi = mappedTo(index = 0),
+                controllerRange = AbletonMidiControllerRange(
+                    min = AbletonMidiControllerRange.Endpoint(value = -Float.MAX_VALUE),
+                    max = AbletonMidiControllerRange.Endpoint(value = Float.MAX_VALUE),
+                ),
+                parentMacroValues = listOf(63.5f),
+            ),
+        )
+    }
+
+    @Test
     fun mappedPitchUsesEnclosingRackMacro() {
         val source = AbletonConverter.xml.decodeFromString(
             deserializer = MidiPitcher.serializer(),
@@ -154,7 +237,7 @@ class AbletonMacroMappingTest {
     )
 
     private fun range(minimum: Int, maximum: Int): AbletonMidiControllerRange = AbletonMidiControllerRange(
-        min = AbletonMidiControllerRange.Endpoint(minimum),
-        max = AbletonMidiControllerRange.Endpoint(maximum),
+        min = AbletonMidiControllerRange.Endpoint(value = minimum.toFloat()),
+        max = AbletonMidiControllerRange.Endpoint(value = maximum.toFloat()),
     )
 }

@@ -25,8 +25,8 @@ object AbletonTutorialDetector {
     private data class PageAutomationTarget(
         val track: MidiTrack,
         val sourceOffset: Int = 0,
-        val sourceMinimum: Int? = null,
-        val sourceMaximum: Int? = null,
+        val sourceMinimum: Float? = null,
+        val sourceMaximum: Float? = null,
         val targetMaximum: Int? = null,
     ) {
         fun normalize(value: Double): Int = if (targetMaximum != null) {
@@ -494,7 +494,7 @@ object AbletonTutorialDetector {
         else -> null
     }
 
-    private fun chainSelectorMinimum(device: AbletonDevice): Int? = when (device) {
+    private fun chainSelectorMinimum(device: AbletonDevice): Float? = when (device) {
         is InstrumentGroupDevice -> device.chainSelector.midiControllerRange?.min?.value
         is MidiEffectGroupDevice -> device.chainSelector.midiControllerRange?.min?.value
         is DrumGroupDevice -> device.chainSelector.midiControllerRange?.min?.value

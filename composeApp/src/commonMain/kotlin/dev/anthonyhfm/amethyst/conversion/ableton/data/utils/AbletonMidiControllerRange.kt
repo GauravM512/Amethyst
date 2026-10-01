@@ -19,6 +19,12 @@ data class AbletonMidiControllerRange(
     @Serializable
     data class Endpoint(
         @SerialName("Value")
-        val value: Int,
-    )
+        val value: Float,
+    ) {
+        init {
+            require(value = value.isFinite()) {
+                "Ableton MIDI controller range endpoint must be finite: $value"
+            }
+        }
+    }
 }

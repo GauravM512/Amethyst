@@ -11,21 +11,28 @@ internal object AbletonPageIndexing {
     }
 
     fun sourceOffset(
-        selectorMinimum: Int?,
+        selectorMinimum: Float?,
         hasOneBasedPageController: Boolean = false,
-    ): Int = if (hasOneBasedPageController || selectorMinimum == 1) 1 else 0
+    ): Int {
+        return if (hasOneBasedPageController || selectorMinimum == 1f) {
+            1
+        } else {
+            0
+        }
+    }
 
     fun normalizeSelectorValue(value: Int, sourceOffset: Int): Int =
         value - sourceOffset
 
     fun normalizeMacroValue(
         value: Double,
-        sourceMinimum: Int?,
-        sourceMaximum: Int?,
+        sourceMinimum: Float?,
+        sourceMaximum: Float?,
         targetMaximum: Int?,
     ): Int {
         if (
             sourceMinimum == null || sourceMaximum == null || targetMaximum == null ||
+            !sourceMinimum.isFinite() || !sourceMaximum.isFinite() ||
             sourceMaximum <= sourceMinimum || targetMaximum !in 1..15
         ) {
             return value.roundToInt()
@@ -33,28 +40,31 @@ internal object AbletonPageIndexing {
 
         return (
             (value - sourceMinimum) * targetMaximum.toDouble() /
-                (sourceMaximum - sourceMinimum).toDouble()
+                (sourceMaximum.toDouble() - sourceMinimum.toDouble())
             ).roundToInt()
     }
 
     fun pageTargetMaximum(
         keyMinimum: Int?,
         keyMaximum: Int?,
-        controllerMinimum: Int?,
-        controllerMaximum: Int?,
+        controllerMinimum: Float?,
+        controllerMaximum: Float?,
     ): Int? {
         val keyRangeSize = if (keyMinimum != null && keyMaximum != null) {
             (keyMaximum - keyMinimum).takeIf { it in 1..15 }
         } else {
             null
         }
-        if (keyRangeSize != null) return keyRangeSize
+        if (keyRangeSize != null) {
+            return keyRangeSize
+        }
 
         return if (
             controllerMinimum != null && controllerMaximum != null &&
-            controllerMinimum in 0..1 && controllerMaximum in 1..16
+            (controllerMinimum == 0f || controllerMinimum == 1f) &&
+            controllerMaximum in 1f..16f && controllerMaximum == controllerMaximum.toInt().toFloat()
         ) {
-            (controllerMaximum - controllerMinimum).takeIf { it in 1..15 }
+            (controllerMaximum - controllerMinimum).toInt().takeIf { it in 1..15 }
         } else {
             null
         }
