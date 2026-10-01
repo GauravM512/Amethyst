@@ -347,7 +347,7 @@ private struct HubSearchArtwork: View {
     @Environment(\.amethystTheme) private var theme
 
     var body: some View {
-        AsyncImage(url: url) { phase in
+        HubCachedAsyncImage(url: url) { phase in
             if let image = phase.image {
                 image.resizable().scaledToFill()
             } else {

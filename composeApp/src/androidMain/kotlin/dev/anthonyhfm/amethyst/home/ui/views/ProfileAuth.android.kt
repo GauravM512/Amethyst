@@ -1,7 +1,5 @@
 package dev.anthonyhfm.amethyst.home.ui.views
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -38,13 +36,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -52,31 +48,37 @@ import androidx.compose.ui.unit.dp
 import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
 import dev.anthonyhfm.amethyst.home.account.AndroidHubAccount
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import dev.anthonyhfm.amethyst.hub.data.rememberHubImage
 import org.jetbrains.compose.resources.stringResource
-import java.net.URL
 
 @Composable
 internal fun ProfileAvatar(path: String?, size: Int) {
-    val resolved = remember(path) { path?.takeIf { it.isNotBlank() }?.let {
-        when {
-            it.startsWith("https://") -> it
-            it.startsWith("/") -> "https://api.anthonyhfm.dev$it"
-            else -> "https://api.anthonyhfm.dev/$it"
-        }
-    } }
-    val bitmap by produceState<Bitmap?>(null, resolved) {
-        value = if (resolved == null) null else withContext(Dispatchers.IO) {
-            runCatching { URL(resolved).openStream().use { BitmapFactory.decodeStream(it) } }.getOrNull()
-        }
-    }
+    val bitmap = rememberHubImage(path = path)
+
     Box(
-        modifier = Modifier.size(size.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+        modifier = Modifier
+            .size(size = size.dp)
+            .clip(shape = CircleShape)
+            .background(color = MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {
-        if (bitmap != null) Image(bitmap!!.asImageBitmap(), contentDescription = stringResource(Res.string.profile_picture), modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        else androidx.compose.material3.Icon(Icons.Default.AccountCircle, contentDescription = stringResource(Res.string.profile_picture), modifier = Modifier.size((size * .65f).dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = stringResource(Res.string.profile_picture),
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = stringResource(Res.string.profile_picture),
+                modifier = Modifier
+                    .size(size = (size * .65f).dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
     }
 }
 

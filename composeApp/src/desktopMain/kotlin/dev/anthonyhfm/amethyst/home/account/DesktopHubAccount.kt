@@ -11,6 +11,7 @@ import dev.anthonyhfm.amethyst.hub.data.HubArtistProfileInput
 import dev.anthonyhfm.amethyst.hub.data.HubAuthResult
 import dev.anthonyhfm.amethyst.hub.data.HubAvatarInput
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
+import dev.anthonyhfm.amethyst.hub.data.invalidateHubAvatar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -152,14 +153,14 @@ class DesktopHubAccount private constructor() {
                 Base64.getEncoder().encodeToString(bytes)
             }
 
-            acceptAccount(
-                repository.setAccountAvatar.execute(
-                    HubAvatarInput(
-                        data = data,
-                        mimeType = mimeType,
-                    )
+            val updated = repository.setAccountAvatar.execute(
+                input = HubAvatarInput(
+                    data = data,
+                    mimeType = mimeType,
                 )
             )
+            invalidateHubAvatar(previous = account?.avatarUrl, updated = updated.avatarUrl)
+            acceptAccount(value = updated)
 
             message = "Avatar updated."
         }
@@ -167,7 +168,9 @@ class DesktopHubAccount private constructor() {
 
     fun removeAvatar() {
         runAction {
-            acceptAccount(repository.removeAccountAvatar.execute())
+            val updated = repository.removeAccountAvatar.execute()
+            invalidateHubAvatar(previous = account?.avatarUrl, updated = updated.avatarUrl)
+            acceptAccount(value = updated)
 
             message = "Avatar removed."
         }

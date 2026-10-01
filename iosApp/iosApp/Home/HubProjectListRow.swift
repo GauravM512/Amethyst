@@ -9,7 +9,7 @@ struct HubProjectListRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            AsyncImage(url: imageURL) { phase in
+            HubCachedAsyncImage(url: imageURL) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFill()
                 } else {

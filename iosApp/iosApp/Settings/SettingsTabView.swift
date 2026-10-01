@@ -206,7 +206,7 @@ private struct AvatarView: View {
                 .fill(theme.primary.opacity(0.22))
 
             if let avatarURL, let url = URL(string: avatarURL) {
-                AsyncImage(url: url) { phase in
+                HubCachedAsyncImage(url: url) { phase in
                     if let image = phase.image {
                         image.resizable().scaledToFill()
                     } else {

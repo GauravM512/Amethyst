@@ -233,6 +233,7 @@ final class AccountViewModel {
                 guard let self else { return }
                 self.isBusy = false
                 if let account {
+                    await self.invalidateAvatar(updated: account)
                     self.setAccount(account)
                 } else if let error {
                     self.errorMessage = error.localizedDescription
@@ -248,8 +249,20 @@ final class AccountViewModel {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isBusy = false
-                if let account { self.setAccount(account) }
+                if let account {
+                    await self.invalidateAvatar(updated: account)
+                    self.setAccount(account)
+                }
                 completion(error)
+            }
+        }
+    }
+
+    private func invalidateAvatar(updated: HubAccount) async {
+        let paths = Set([account?.avatarUrl, updated.avatarUrl].compactMap { $0 })
+        for path in paths where !path.isEmpty {
+            if let url = URL(string: repository.client.resolveUrl(pathOrUrl: path)) {
+                await HubImageCache.shared.invalidate(url)
             }
         }
     }

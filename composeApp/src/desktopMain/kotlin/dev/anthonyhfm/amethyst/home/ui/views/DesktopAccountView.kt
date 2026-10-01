@@ -14,9 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -25,17 +23,13 @@ import androidx.compose.ui.unit.dp
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.home.account.DesktopHubAccount
-import dev.anthonyhfm.amethyst.hub.data.HubApiClient
+import dev.anthonyhfm.amethyst.hub.data.rememberHubImage
 import dev.anthonyhfm.amethyst.ui.components.primitives.*
 import dev.anthonyhfm.amethyst.ui.modifier.editorEventListener
 import dev.anthonyhfm.amethyst.ui.theme.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.jetbrains.skia.Image as SkiaImage
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
-import java.net.URI
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -799,29 +793,7 @@ fun DesktopHubAvatar(
     size: Dp,
     modifier: Modifier = Modifier,
 ) {
-    var bitmap by remember(avatarUrl) { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(avatarUrl) {
-        bitmap = if (avatarUrl.isNullOrBlank()) {
-            null
-        } else {
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    val resolved = if (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://")) {
-                        avatarUrl
-                    } else {
-                        HubApiClient.DEFAULT_BASE_URL.trimEnd('/') + "/" + avatarUrl.trimStart('/')
-                    }
-
-                    SkiaImage.makeFromEncoded(
-                        URI.create(resolved).toURL().openStream().use {
-                            it.readBytes()
-                        }
-                    ).toComposeImageBitmap()
-                }.getOrNull()
-            }
-        }
-    }
+    val bitmap = rememberHubImage(path = avatarUrl)
 
     Box(
         modifier = modifier
@@ -832,7 +804,7 @@ fun DesktopHubAvatar(
     ) {
         if (bitmap != null) {
             Image(
-                bitmap = bitmap!!,
+                bitmap = bitmap,
                 contentDescription = "@$username avatar",
                 modifier = Modifier
                     .fillMaxSize(),

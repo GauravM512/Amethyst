@@ -127,7 +127,7 @@ private struct HubArtworkView: View {
     var body: some View {
         Group {
             if let value = artwork.imageURL, let url = URL(string: value) {
-                AsyncImage(url: url) { phase in
+                HubCachedAsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
                         image

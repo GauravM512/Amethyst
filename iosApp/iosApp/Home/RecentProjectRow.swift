@@ -110,7 +110,7 @@ struct RecentProjectRow: View {
     @ViewBuilder
     private var artwork: some View {
         if let hubProject, let url = imageURL(hubProject.thumbnailUrl) {
-            AsyncImage(url: url) { phase in
+            HubCachedAsyncImage(url: url) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFill()
                 } else {
@@ -138,7 +138,7 @@ struct RecentProjectRow: View {
     }
 
     private func avatar(for project: ComposeApp.HubProject) -> some View {
-        AsyncImage(url: imageURL(project.artist.avatarUrl)) { phase in
+        HubCachedAsyncImage(url: imageURL(project.artist.avatarUrl)) { phase in
             if let image = phase.image {
                 image.resizable().scaledToFill()
             } else {

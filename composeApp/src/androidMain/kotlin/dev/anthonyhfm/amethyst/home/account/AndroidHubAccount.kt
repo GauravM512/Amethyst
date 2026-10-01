@@ -14,6 +14,7 @@ import dev.anthonyhfm.amethyst.hub.data.HubAvatarInput
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
 import dev.anthonyhfm.amethyst.hub.data.HubSessionStore
 import dev.anthonyhfm.amethyst.hub.data.HubSessionTokens
+import dev.anthonyhfm.amethyst.hub.data.invalidateHubAvatar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -101,12 +102,20 @@ class AndroidHubAccount private constructor(context: Context) {
     fun updateAvatar(bytes: ByteArray, mimeType: String) {
         runAction {
             val encoded = withContext(Dispatchers.Default) { Base64.encodeToString(bytes, Base64.NO_WRAP) }
-            acceptAccount(repository.setAccountAvatar.execute(HubAvatarInput(encoded, mimeType)))
+            val updated = repository.setAccountAvatar.execute(
+                input = HubAvatarInput(data = encoded, mimeType = mimeType)
+            )
+            invalidateHubAvatar(previous = account?.avatarUrl, updated = updated.avatarUrl)
+            acceptAccount(value = updated)
         }
     }
 
     fun removeAvatar() {
-        runAction { acceptAccount(repository.removeAccountAvatar.execute()) }
+        runAction {
+            val updated = repository.removeAccountAvatar.execute()
+            invalidateHubAvatar(previous = account?.avatarUrl, updated = updated.avatarUrl)
+            acceptAccount(value = updated)
+        }
     }
 
     fun changePassword(current: String, replacement: String, onSuccess: () -> Unit) {

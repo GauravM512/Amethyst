@@ -14,8 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,12 +30,8 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
 import dev.anthonyhfm.amethyst.ui.theme.*
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
-import org.jetbrains.skia.Image as SkiaImage
-import java.net.URL
 
 @Composable
 internal fun DesktopHubFeed(
@@ -678,38 +672,7 @@ internal fun DesktopHubArtwork(
     modifier: Modifier,
     fallback: String = "♪",
 ) {
-    var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(url) {
-        image = null
-        if (!url.isNullOrBlank()) {
-            image = try {
-                withContext(Dispatchers.IO) {
-                    val resolved = when {
-                        url.startsWith("http://") || url.startsWith("https://") -> {
-                            url
-                        }
-
-                        url.startsWith("/api/") -> {
-                            HubApiClient.DEFAULT_BASE_URL + url.removePrefix("/api")
-                        }
-
-                        else -> {
-                            HubApiClient.DEFAULT_BASE_URL + "/" + url.trimStart('/')
-                        }
-                    }
-
-                    SkiaImage.makeFromEncoded(
-                        URL(resolved).openStream().use {
-                            it.readBytes()
-                        }
-                    ).toComposeImageBitmap()
-                }
-            } catch (_: Exception) {
-                null
-            }
-        }
-    }
+    val image = rememberHubImage(path = url)
 
     Box(
         modifier = modifier
@@ -719,7 +682,7 @@ internal fun DesktopHubArtwork(
     ) {
         if (image != null) {
             Image(
-                bitmap = image!!,
+                bitmap = image,
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize(),
