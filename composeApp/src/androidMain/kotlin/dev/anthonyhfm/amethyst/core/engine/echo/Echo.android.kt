@@ -108,9 +108,12 @@ actual object Echo {
         val directBuffer = NativePcmOutput.allocateBuffer(periodFrames, OUTPUT_CHANNELS)
         val floatBuffer = directBuffer.asFloatBuffer()
         val renderBuffer = FloatArray(periodFrames * OUTPUT_CHANNELS)
+        val bufferingPolicy = AdaptiveAudioBufferingPolicy(
+            periodFrames = periodFrames,
+            ringCapacityFrames = info.ringCapacityFrames.toInt(),
+        )
 
-        // Keep two complete periods ready before hardware playback starts.
-        repeat(AudioOutputBufferingPolicy.TARGET_QUEUED_PERIODS) {
+        repeat(bufferingPolicy.targetQueuedFrames / periodFrames) {
             renderAndWritePeriod(
                 playback = nextPlayback,
                 output = nextOutput,
@@ -149,6 +152,7 @@ actual object Echo {
                     renderBuffer = renderBuffer,
                     periodFrames = periodFrames,
                     sampleRate = configuration.sampleRate,
+                    bufferingPolicy = bufferingPolicy,
                 )
             },
             "echo-kotlin-audio-render",
@@ -158,7 +162,10 @@ actual object Echo {
             start()
         }
         initialized = true
-        startHealthMonitor(nextOutput)
+        startHealthMonitor(
+            monitoredOutput = nextOutput,
+            bufferingPolicy = bufferingPolicy,
+        )
         return true
     }
 
@@ -396,12 +403,11 @@ actual object Echo {
         renderBuffer: FloatArray,
         periodFrames: Int,
         sampleRate: Int,
+        bufferingPolicy: AdaptiveAudioBufferingPolicy,
     ) {
         val periodNanos = periodFrames * NANOS_PER_SECOND / sampleRate.coerceAtLeast(1)
-        val targetQueuedFrames =
-            AudioOutputBufferingPolicy.targetQueuedFrames(periodFrames)
         while (renderRunning.get()) {
-            if (output.queuedFrames() >= targetQueuedFrames) {
+            if (output.queuedFrames() >= bufferingPolicy.targetQueuedFrames) {
                 LockSupport.parkNanos((periodNanos / 4L).coerceAtLeast(MINIMUM_PARK_NANOS))
                 continue
             }
@@ -416,7 +422,10 @@ actual object Echo {
         }
     }
 
-    private fun startHealthMonitor(monitoredOutput: NativePcmOutput) {
+    private fun startHealthMonitor(
+        monitoredOutput: NativePcmOutput,
+        bufferingPolicy: AdaptiveAudioBufferingPolicy,
+    ) {
         stopHealthMonitor()
         healthMonitorRunning.set(true)
         healthMonitorThread = Thread(
@@ -431,6 +440,7 @@ actual object Echo {
                             counterDelta(telemetry.streamErrors, lastStreamErrors)
                         lastUnderruns = telemetry.underruns
                         lastStreamErrors = telemetry.streamErrors
+                        bufferingPolicy.recordUnderruns(underrunCount = underrunDelta)
                         if (underrunDelta > 0L || streamErrorDelta > 0L) {
                             totalUnderruns += underrunDelta
                             totalStreamErrors += streamErrorDelta
