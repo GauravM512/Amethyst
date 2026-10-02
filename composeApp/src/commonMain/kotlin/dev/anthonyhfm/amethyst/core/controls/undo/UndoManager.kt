@@ -7,6 +7,7 @@ import dev.anthonyhfm.amethyst.devices.effects.group.editor.restoreGroupSelectio
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.core.network.sync.ChainSyncCoordinator
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.timeline.TimelineRepository
 import dev.anthonyhfm.amethyst.timeline.data.MidiTimelineTrack
 import dev.anthonyhfm.amethyst.timeline.data.MidiEntry
@@ -28,6 +29,31 @@ object UndoManager {
     private val _state = MutableStateFlow(State())
     val state = _state.asStateFlow()
 
+    private fun reparentMovedSelections(
+        movements: List<UndoableAction.MovedChainDevice>,
+        isUndo: Boolean,
+    ) {
+        val movementsById = movements.associateBy { it.device.selectionUUID }
+        val current = SelectionManager.selections.value
+        val updated = current.map { selection ->
+            val movement = movementsById[selection.selectionUUID]
+            if (selection !is Selectable.ChainDevice || movement == null) {
+                selection
+            } else {
+                val from = if (isUndo) movement.chainAfter else movement.chainBefore
+                val to = if (isUndo) movement.chainBefore else movement.chainAfter
+                if (selection.parent === from && from !== to) {
+                    Selectable.ChainDevice(parent = to, device = selection.device)
+                } else {
+                    selection
+                }
+            }
+        }
+        if (updated != current) {
+            SelectionManager.replaceSelections(updated)
+        }
+    }
+
     private fun publishState() {
         _state.value = State(
             canUndo = undoStack.isNotEmpty(),
@@ -45,6 +71,7 @@ object UndoManager {
             ) {
                 undoStack[undoStack.lastIndex] = previous.copy(afterTrack = action.afterTrack)
                 redoStack.clear()
+                WorkspaceRepository.markDirty()
                 publishState()
                 return
             }
@@ -52,6 +79,10 @@ object UndoManager {
 
         undoStack.add(action)
         redoStack.clear()
+        if (action !is UndoableAction.WorkspaceModeChange) {
+            WorkspaceRepository.markDirty()
+        }
+
         if (action is UndoableAction.MovedChainDevice) {
             ChainSyncCoordinator.onDeviceMoved(
                 chainBefore = action.chainBefore,
@@ -60,6 +91,17 @@ object UndoManager {
                 fromIndex = action.fromIndex,
                 toIndex = action.toIndex
             )
+        }
+        if (action is UndoableAction.MultiMovedChainDevices) {
+            action.movements.forEach { movement ->
+                ChainSyncCoordinator.onDeviceMoved(
+                    chainBefore = movement.chainBefore,
+                    chainAfter = movement.chainAfter,
+                    device = movement.device,
+                    fromIndex = movement.fromIndex,
+                    toIndex = movement.toIndex
+                )
+            }
         }
         publishState()
     }
@@ -173,6 +215,16 @@ object UndoManager {
                         action.chainBefore.add(action.device, fromUser = false)
                     }
 
+                    reparentMovedSelections(listOf(action), isUndo = true)
+                    redoStack.add(action)
+                }
+
+                is UndoableAction.MultiMovedChainDevices -> {
+                    action.movements.asReversed().forEach { movement ->
+                        movement.chainAfter.remove(movement.device.selectionUUID, fromUser = false)
+                        movement.chainBefore.add(movement.device, movement.fromIndex, fromUser = false)
+                    }
+                    reparentMovedSelections(action.movements, isUndo = true)
                     redoStack.add(action)
                 }
 
@@ -471,6 +523,12 @@ object UndoManager {
                     redoStack.add(action)
                 }
 
+                is UndoableAction.PianoRollNoteStep -> {
+                    action.applyNotes(action.notesBefore)
+                    SelectionManager.clear()
+                    redoStack.add(action)
+                }
+
                 is UndoableAction.PianoRollNoteMultiCreation -> {
                     // Undo: Delete all created notes
                     action.notes.forEach { note ->
@@ -677,6 +735,10 @@ object UndoManager {
                 }
             }
 
+            if (action !is UndoableAction.WorkspaceModeChange) {
+                WorkspaceRepository.markDirty()
+            }
+
             publishState()
             ChainSyncCoordinator.onUndoAction(action, isUndo = true)
         }
@@ -781,6 +843,16 @@ object UndoManager {
                 is UndoableAction.MovedChainDevice -> {
                     action.chainBefore.remove(action.device.selectionUUID, fromUser = false)
                     action.chainAfter.add(action.device, action.toIndex, fromUser = false)
+                    reparentMovedSelections(listOf(action), isUndo = false)
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.MultiMovedChainDevices -> {
+                    action.movements.forEach { movement ->
+                        movement.chainBefore.remove(movement.device.selectionUUID, fromUser = false)
+                        movement.chainAfter.add(movement.device, movement.toIndex, fromUser = false)
+                    }
+                    reparentMovedSelections(action.movements, isUndo = false)
                     undoStack.add(action)
                 }
 
@@ -1075,6 +1147,12 @@ object UndoManager {
                     undoStack.add(action)
                 }
 
+                is UndoableAction.PianoRollNoteStep -> {
+                    action.applyNotes(action.notesAfter)
+                    SelectionManager.clear()
+                    undoStack.add(action)
+                }
+
                 is UndoableAction.PianoRollNoteMultiCreation -> {
                     // Redo: Re-add all created notes
                     action.notes.forEach { note ->
@@ -1287,6 +1365,10 @@ object UndoManager {
                     TimelineRepository.replaceTrack(action.trackIndex, action.afterTrack)
                     undoStack.add(action)
                 }
+            }
+
+            if (action !is UndoableAction.WorkspaceModeChange) {
+                WorkspaceRepository.markDirty()
             }
 
             publishState()

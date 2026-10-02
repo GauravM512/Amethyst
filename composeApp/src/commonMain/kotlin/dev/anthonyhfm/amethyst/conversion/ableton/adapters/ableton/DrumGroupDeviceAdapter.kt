@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.KASKOBI_MULTI_HASHES
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MIDIEXT_MULTI_SAMPLE_HASH
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MULTI_HASHES
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MultiEffectAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.MultiAdapter
@@ -111,7 +112,7 @@ class DrumGroupDeviceAdapter(
                             val potentialMultiDeviceHash = potentialMultiDevice.let {
                                 val path = patchSlot?.value?.patchRef?.fileRef?.resolvePath() ?: return@let null
 
-                                val hash: String = if (AbletonConverter.isZip) {
+                                val hash: String = MxDeviceMidiEffectAdapter.fileHashMap[path] ?: if (AbletonConverter.isZip) {
                                     AbletonConverter.readZipEntry(path)?.toFileHash() ?: ""
                                 } else {
                                     val file = PlatformFile(path)
@@ -139,6 +140,19 @@ class DrumGroupDeviceAdapter(
 
                             if (potentialMultiDevice != null && multiHashMatches && anyContainerPresent) {
                                 println("Found multi and container, using MultiAdapter")
+
+                                if (potentialMultiDeviceHash == MIDIEXT_MULTI_SAMPLE_HASH) {
+                                    addAll(
+                                        branchElements.take(n = branchElements.indexOf(potentialMultiDevice)).flatMap { child ->
+                                            resolveAdapter(
+                                                device = child,
+                                                offset = offset,
+                                                outputOffset = outputOffset,
+                                                chainDepth = chainDepth + 1,
+                                            )?.toDeviceStates().orEmpty()
+                                        }
+                                    )
+                                }
 
                                 addAll(
                                     try {
@@ -206,7 +220,12 @@ class DrumGroupDeviceAdapter(
                             }
                         )
                     }
-                        .withMuteState(branch.masterDevice.speaker.manual.value)
+                        .also { devices ->
+                            devices.appendMixerVolume(
+                                linearVolume = branch.masterDevice.volume.manual.value,
+                                isOn = branch.masterDevice.speaker.manual.value,
+                            )
+                        }
                         .withAbletonDrumChoke(
                             chokeGroup = chokeGroup,
                             chokeScopeId = drumRackChokeScopeId,

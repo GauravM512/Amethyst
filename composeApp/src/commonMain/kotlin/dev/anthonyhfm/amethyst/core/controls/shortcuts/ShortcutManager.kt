@@ -324,6 +324,7 @@ object ShortcutManager {
     private suspend fun persistWorkspace(rawPath: String) {
         val path = if (rawPath.endsWith(".ame")) rawPath else "$rawPath.ame"
 
+        val savedRevision = WorkspaceRepository.currentChangeRevision()
         WorkspaceRepository.workspaceMeta = WorkspaceRepository.workspaceMeta?.copy(path = path)
             ?: WorkspaceRepository.workspaceMeta
         val workspace = WorkspaceRepository.saveWorkspace()
@@ -341,5 +342,6 @@ object ShortcutManager {
             title = WorkspaceRepository.workspaceMeta?.title ?: "Untitled",
             path = path,
         )
+        WorkspaceRepository.markSaved(savedRevision)
     }
 }

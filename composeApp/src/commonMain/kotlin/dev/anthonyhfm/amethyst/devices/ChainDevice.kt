@@ -149,6 +149,9 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
             current.isMuted = muted
             state.update { current }
             parentChain?.onDeviceRuntimeStateChanged()
+            if (parentChain?.isWorkspaceChain() == true) {
+                WorkspaceRepository.markDirty()
+            }
         }
     }
 
@@ -178,6 +181,10 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
     private val dialAutomationRuntimes = mutableMapOf<String, dev.anthonyhfm.amethyst.core.controls.automation.DialAutomationRuntime>()
 
     fun setDialAutomation(parameterId: String, lane: dev.anthonyhfm.amethyst.core.controls.automation.DialAutomationLane?) {
+        if (dialAutomations.value[parameterId] == lane) {
+            return
+        }
+
         val current = dialAutomations.value.toMutableMap()
         if (lane == null) {
             current.remove(parameterId)
@@ -192,6 +199,9 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
             }
         }
         dialAutomations.value = current
+        if (parentChain?.isWorkspaceChain() == true) {
+            WorkspaceRepository.markDirty()
+        }
     }
 
     fun getDialAutomation(parameterId: String): dev.anthonyhfm.amethyst.core.controls.automation.DialAutomationLane? {
@@ -288,6 +298,10 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
 
     protected fun pushStateChange(before: State, after: State) {
         if (before != after) {
+            if (parentChain?.isWorkspaceChain() == true) {
+                WorkspaceRepository.markDirty()
+            }
+
             UndoManager.addAction(
                 UndoableAction.ChangeDeviceState(
                     device = this,
@@ -299,6 +313,14 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
             if (collaborationSyncEnabled) {
                 ChainSyncCoordinator.onDeviceStateChanged(this, after)
             }
+        }
+    }
+
+    protected fun updateStateFromUser(transform: (State) -> State) {
+        val before = state.value
+        state.update(transform)
+        if (before != state.value && parentChain?.isWorkspaceChain() == true) {
+            WorkspaceRepository.markDirty()
         }
     }
 }

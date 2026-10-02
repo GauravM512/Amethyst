@@ -30,6 +30,7 @@ import dev.anthonyhfm.amethyst.devices.effects.composition.graph.CompositionNode
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.NodeRegistry
 import dev.anthonyhfm.amethyst.devices.effects.composition.automation.automationParameters
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalCompositionNode
+import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalCompositionPlaybackProgress
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalAutomationHandler
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.LocalNodeChangeCallbacks
 import dev.anthonyhfm.amethyst.devices.effects.composition.nodes.NodeChangeCallbacks
@@ -59,6 +60,7 @@ const val GRAPH_NODE_PORT_TOUCH_WIDTH = 36f
 fun GraphNodeShell(
     node: CompositionNode,
     selected: Boolean,
+    playbackProgress: Float = 0f,
     connectedInput: Boolean = false,
     connectedOutput: Boolean = false,
     modifier: Modifier = Modifier,
@@ -213,6 +215,7 @@ fun GraphNodeShell(
             if (definition != null) {
                 CompositionLocalProvider(
                     LocalCompositionNode provides node,
+                    LocalCompositionPlaybackProgress provides playbackProgress,
                     LocalAutomationHandler provides onAutomationAction,
                     LocalNodeChangeCallbacks provides NodeChangeCallbacks(
                         onStart = onStartNodeChange,

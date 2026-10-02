@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -15,12 +16,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
-import dev.nucleusframework.window.tao.TaoDragAndDropPayload
 import io.github.vinceglb.filekit.PlatformFile
-import java.awt.datatransfer.DataFlavor
-import java.io.File
-import java.net.URI
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -30,7 +26,8 @@ actual fun Modifier.fileDropTarget(
 ): Modifier {
     var isDragOver by remember { mutableStateOf(false) }
     var targetBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
-    val density = LocalDensity.current.density
+    val currentOnHover by rememberUpdatedState(newValue = onHover)
+    val currentOnDrop by rememberUpdatedState(newValue = onDrop)
 
     fun toLocalOffset(event: DragAndDropEvent): Offset? {
         val point = when (val ne = event.nativeEvent) {
@@ -39,17 +36,16 @@ actual fun Modifier.fileDropTarget(
             else -> null
         } ?: return null
 
-        // In Tao on macOS (convertPointToBacking), native drag coordinates are in physical pixels.
-        // Compose layout boundsInRoot are in density-independent pixels (DP).
-        // Convert to DP before subtracting target bounds:
-        val logicalX = if (density > 0f) point.x.toFloat() / density else point.x.toFloat()
-        val logicalY = if (density > 0f) point.y.toFloat() / density else point.y.toFloat()
-
-        return Offset(
-            x = logicalX - targetBoundsInRoot.left,
-            y = logicalY - targetBoundsInRoot.top
+        return fileDropLocalOffset(
+            positionInRoot = Offset(x = point.x.toFloat(), y = point.y.toFloat()),
+            targetBoundsInRoot = targetBoundsInRoot
         )
     }
+
+    fun isInsideTarget(offset: Offset?): Boolean =
+        offset != null &&
+            offset.x >= 0f && offset.x < targetBoundsInRoot.width &&
+            offset.y >= 0f && offset.y < targetBoundsInRoot.height
 
     return this
         .onGloballyPositioned { coordinates ->
@@ -57,69 +53,60 @@ actual fun Modifier.fileDropTarget(
         }
         .dragAndDropTarget(
             shouldStartDragAndDrop = { event ->
-                val taoPayload = event.nativeEvent as? TaoDragAndDropPayload
-                if (taoPayload != null) return@dragAndDropTarget true
-
                 try {
                     val transferable = event.awtTransferable
-                    transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor) ||
-                    transferable.isDataFlavorSupported(DataFlavor.stringFlavor)
+                    supportsFileDrop(transferable = transferable)
                 } catch (_: Exception) {
-                    true
+                    false
                 }
             },
-            target = remember(density) {
+            target = remember {
                 object : DragAndDropTarget {
                     override fun onStarted(event: DragAndDropEvent) {
                         isDragOver = false
                     }
 
                     override fun onEntered(event: DragAndDropEvent) {
-                        val local = toLocalOffset(event)
-                        val isInside = local != null &&
-                            local.x >= 0f && local.x <= targetBoundsInRoot.width &&
-                            local.y >= 0f && local.y <= targetBoundsInRoot.height
-
-                        if (isInside) {
-                            isDragOver = true
-                            val files = getEventFiles(event)
-                            onHover(true, local, files)
-                        }
+                        onMoved(event = event)
                     }
 
                     override fun onMoved(event: DragAndDropEvent) {
-                        val local = toLocalOffset(event)
-                        val isInside = local != null &&
-                            local.x >= 0f && local.x <= targetBoundsInRoot.width &&
-                            local.y >= 0f && local.y <= targetBoundsInRoot.height
-
-                        if (isInside) {
+                        val local = toLocalOffset(event = event)
+                        if (isInsideTarget(offset = local)) {
                             isDragOver = true
-                            val files = getEventFiles(event)
-                            onHover(true, local, files)
+                            val files = getEventFiles(event = event)
+                            currentOnHover(true, local, files)
                         } else if (isDragOver) {
                             isDragOver = false
-                            onHover(false, null, emptyList())
+                            currentOnHover(false, null, emptyList())
                         }
                     }
 
                     override fun onExited(event: DragAndDropEvent) {
-                        isDragOver = false
-                        onHover(false, null, emptyList())
+                        clearHover()
                     }
 
                     override fun onEnded(event: DragAndDropEvent) {
+                        clearHover()
+                    }
+
+                    private fun clearHover() {
                         isDragOver = false
-                        onHover(false, null, emptyList())
+                        currentOnHover(false, null, emptyList())
                     }
 
                     override fun onDrop(event: DragAndDropEvent): Boolean {
-                        isDragOver = false
-                        val local = toLocalOffset(event)
-                        val files = getEventFiles(event)
-                        onHover(false, null, emptyList())
-                        onDrop(local, files)
-                        return files.isNotEmpty()
+                        val local = toLocalOffset(event = event)
+                        clearHover()
+                        if (!isInsideTarget(offset = local)) {
+                            return false
+                        }
+                        val files = getEventFiles(event = event)
+                        if (files.isEmpty()) {
+                            return false
+                        }
+                        currentOnDrop(local, files)
+                        return true
                     }
                 }
             }
@@ -128,53 +115,11 @@ actual fun Modifier.fileDropTarget(
 
 @OptIn(ExperimentalComposeUiApi::class)
 private fun getEventFiles(event: DragAndDropEvent): List<PlatformFile> {
-    // 1. Tao backend payload
-    try {
-        val payload = when (val ne = event.nativeEvent) {
-            is TaoDragAndDropPayload -> ne
-            else -> {
-                val method = ne?.javaClass?.methods?.firstOrNull { it.name == "getPayload" }
-                method?.invoke(ne) as? TaoDragAndDropPayload
-            }
+    return try {
+        readDroppedFiles(transferable = event.awtTransferable).map { file ->
+            PlatformFile(file = file)
         }
-        if (payload != null && payload.files.isNotEmpty()) {
-            return payload.files.map { PlatformFile(it) }
-        }
-    } catch (_: Throwable) { }
-
-    // 2. AWT transferable fallback
-    val files = mutableListOf<PlatformFile>()
-    try {
-        val transferable = event.awtTransferable
-
-        when {
-            transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor) -> {
-                @Suppress("UNCHECKED_CAST")
-                val fileList = transferable.getTransferData(DataFlavor.javaFileListFlavor) as List<File>
-                files.addAll(fileList.map { file ->
-                    PlatformFile(file.path)
-                })
-            }
-            transferable.isDataFlavorSupported(DataFlavor.stringFlavor) -> {
-                val stringData = transferable.getTransferData(DataFlavor.stringFlavor) as String
-                stringData.lines().forEach { line ->
-                    val trimmed = line.trim()
-                    if (trimmed.isNotEmpty()) {
-                        try {
-                            val file = if (trimmed.startsWith("file://")) {
-                                File(URI(trimmed))
-                            } else {
-                                File(trimmed)
-                            }
-                            if (file.exists()) {
-                                files.add(PlatformFile(file.path))
-                            }
-                        } catch (_: Exception) { }
-                    }
-                }
-            }
-        }
-    } catch (_: Exception) { }
-
-    return files
+    } catch (_: Exception) {
+        emptyList()
+    }
 }

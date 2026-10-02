@@ -1,7 +1,6 @@
 package dev.anthonyhfm.amethyst.devices.ableton
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -17,15 +16,14 @@ import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.isSilentReplay
+import dev.anthonyhfm.amethyst.core.engine.elements.isOn
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
-import dev.anthonyhfm.amethyst.core.midi.data.XY_TO_DRUM_RACK
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.ui.components.primitives.ChainDeviceShell
-import dev.anthonyhfm.amethyst.ui.components.toMsValue
+import dev.anthonyhfm.amethyst.ui.components.toExactMsValue
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
 import dev.anthonyhfm.amethyst.devices.TimelineDurationContext
 import dev.anthonyhfm.amethyst.ui.theme.colors
@@ -34,16 +32,22 @@ import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.Serializable
+import kotlin.math.roundToLong
 
 class AbletonArpeggiatorChainDevice : GenericChainDevice<AbletonArpeggiatorChainDeviceState>() {
     override val state = MutableStateFlow(AbletonArpeggiatorChainDeviceState())
+    private val activeOutputs = mutableSetOf<Signal>()
+    private val heldInputs = mutableSetOf<AbletonNoteSpace.Note>()
+    private val patternInputs = mutableMapOf<AbletonNoteSpace.Note, Signal>()
 
     override fun timelineDuration(context: TimelineDurationContext): TimelineDuration {
         val current = state.value
-        if (current.steps <= 0) return TimelineDuration.None
-        val rateMs = current.rate.toMsValue(context.bpm.toDouble())
-        val duration = (current.steps - 1L) * rateMs + (rateMs * (current.gate / 100f)).toLong()
-        return TimelineDuration.Finite(duration.coerceAtLeast(0L))
+        val rateMs = current.rate.toExactMsValue(context.bpm)
+        val totalNotes = (current.steps.coerceAtLeast(0) + 1L) *
+            (current.repeats ?: 1).coerceAtLeast(1)
+        val duration = (totalNotes - 1L) * rateMs +
+            rateMs * (current.gate / 100f)
+        return TimelineDuration.Finite(duration.roundToLong().coerceAtLeast(0L))
     }
 
     @Composable
@@ -55,19 +59,17 @@ class AbletonArpeggiatorChainDevice : GenericChainDevice<AbletonArpeggiatorChain
             title = "Arpeggiator",
             isSelected = isSelected,
             isDragging = isDragging.value,
-            modifier = Modifier.width(200.dp),
+            modifier = Modifier.width(160.dp),
             titleBarModifier = LocalTitleBarModifier.current
         ) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.padding(all = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "This device's origin is the Ableton Converter. It is not interactable and only used for simulating Abletons Arpeggiator.",
+                    text = "${state.value.steps + 1} steps · ${state.value.distance} st",
                     color = Theme[colors][primaryForeground],
                     textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .padding(horizontal = 6.dp)
                 )
             }
         }
@@ -78,75 +80,111 @@ class AbletonArpeggiatorChainDevice : GenericChainDevice<AbletonArpeggiatorChain
             signalExit?.invoke(n)
             return
         }
+
+        var shouldFlush = false
         n.forEach { signal ->
-            when (signal) {
-                is Signal.AudioSignal -> signalExit?.invoke(listOf(signal))
-                is Signal.LED, is Signal.Midi -> Heaven.devices.forEach deviceLoop@ { device ->
-                    val pos = device.position.value
-                    val (x, y) = when (signal) {
-                        is Signal.LED -> signal.x to signal.y
-                        is Signal.Midi -> signal.x to signal.y
-                        is Signal.AudioSignal -> error("Audio signals are handled before coordinate conversion")
-                    }
+            if (signal is Signal.AudioSignal) {
+                signalExit?.invoke(listOf(signal))
+                return@forEach
+            }
 
-                    if (pos.x > x || pos.x + device.layout.cols < x || pos.y > y || pos.y + device.layout.cols < y) {
-                        return@deviceLoop
-                    }
+            val note = AbletonNoteSpace.note(signal) ?: return@forEach
+            val current = state.value
 
-                    val signalX = x - pos.x
-                    val signalY = y - pos.y
+            if (signal.isOn()) {
+                if (current.hold && heldInputs.isEmpty()) {
+                    patternInputs.clear()
+                }
 
-                    val local = (signalX + ((9 - (signalY)) * 10)).toInt()
+                heldInputs.add(note)
+                patternInputs[note] = signal
+                shouldFlush = true
+            } else {
+                heldInputs.remove(note)
 
-                    repeat(state.value.steps) { index ->
-                        Heaven.schedule(
-                            delayInMs = state.value.rate.toMsValue(WorkspaceRepository.bpm.value).toDouble() * index,
-                            owner = this,
-                        ) {
-                            val drIndex: Int = (XY_TO_DRUM_RACK.getOrNull(local) ?: return@schedule) + index
-                            val newPad = DRUM_RACK_TO_XY.getOrNull(drIndex) ?: return@schedule
-                            val newX = newPad % 10 + pos.x.toInt()
-                            val newY = 9 - newPad / 10 + pos.y.toInt()
-
-                            signalExit?.invoke(
-                                listOf(
-                                    when (signal) {
-                                        is Signal.LED -> signal.copy(
-                                            x = newX,
-                                            y = newY,
-                                            color = state.value.color?.let {
-                                                Color(
-                                                    red = it.first,
-                                                    green = it.second,
-                                                    blue = it.second,
-                                                )
-                                            } ?: signal.color
-                                        )
-                                        is Signal.Midi -> signal.copy(x = newX, y = newY)
-                                        is Signal.AudioSignal -> error("Audio signals are handled before coordinate conversion")
-                                    }
-                                )
-                            )
-
-                            Heaven.schedule(
-                                delayInMs = (state.value.rate.toMsValue(WorkspaceRepository.bpm.value).toDouble() * (state.value.gate / 100f)),
-                                owner = this,
-                            ) {
-                                signalExit?.invoke(
-                                    listOf(
-                                        when (signal) {
-                                            is Signal.LED -> signal.copy(x = newX, y = newY, color = Color.Black)
-                                            is Signal.Midi -> signal.copy(x = newX, y = newY, velocity = 0)
-                                            is Signal.AudioSignal -> error("Audio signals are handled before coordinate conversion")
-                                        }
-                                    )
-                                )
-                            }
-                        }
-                    }
+                if (!current.hold) {
+                    patternInputs.remove(note)
+                    shouldFlush = true
                 }
             }
         }
+
+        if (shouldFlush) {
+            flushPattern()
+        }
+    }
+
+    private fun flushPattern() {
+        Heaven.cancelJobsForOwner(owner = this)
+        activeOutputs.toList().forEach { active ->
+            signalExit?.invoke(listOf(offSignal(active)))
+        }
+        activeOutputs.clear()
+
+        val current = state.value
+        val notes = patternInputs.entries.sortedWith(
+            compareBy<Map.Entry<AbletonNoteSpace.Note, Signal>> { it.key.pitch }
+                .thenBy { it.key.targetX }
+                .thenBy { it.key.targetY }
+        ).let { sorted ->
+            if (current.mode == 1) sorted.reversed() else sorted
+        }
+        val rateMs = current.rate.toExactMsValue(WorkspaceRepository.bpm.value)
+        val gateMs = rateMs * (current.gate / 100f)
+        val cycleLength = current.steps.coerceAtLeast(0) + 1
+        val repeats = (current.repeats ?: 1).coerceAtLeast(1)
+        var index = 0
+
+        repeat(repeats) {
+            repeat(cycleLength) { step ->
+                notes.forEach { (note, signal) ->
+                    val output = AbletonNoteSpace.withPitch(
+                        signal = signal,
+                        note = note,
+                        pitch = note.pitch + step * current.distance,
+                    )
+
+                    if (output != null) {
+                        Heaven.schedule(
+                            delayInMs = rateMs * index,
+                            owner = this,
+                        ) {
+                            val on = when (output) {
+                                is Signal.LED -> output.copy(
+                                    color = current.color?.let { color ->
+                                        Color(
+                                            red = color.first,
+                                            green = color.second,
+                                            blue = color.third,
+                                        )
+                                    } ?: output.color,
+                                )
+                                is Signal.Midi -> output
+                                is Signal.AudioSignal -> output
+                            }
+                            activeOutputs.add(on)
+                            signalExit?.invoke(listOf(on))
+
+                            Heaven.schedule(
+                                delayInMs = gateMs,
+                                owner = this,
+                            ) {
+                                activeOutputs.remove(on)
+                                signalExit?.invoke(listOf(offSignal(on)))
+                            }
+                        }
+                    }
+
+                    index++
+                }
+            }
+        }
+    }
+
+    private fun offSignal(signal: Signal): Signal = when (signal) {
+        is Signal.LED -> signal.copy(color = Color.Black)
+        is Signal.Midi -> signal.copy(velocity = 0)
+        is Signal.AudioSignal -> signal
     }
 
     companion object : ChainDeviceFactory<AbletonArpeggiatorChainDeviceState> {
@@ -159,9 +197,11 @@ class AbletonArpeggiatorChainDevice : GenericChainDevice<AbletonArpeggiatorChain
 @Serializable
 data class AbletonArpeggiatorChainDeviceState(
     val rate: Timing = Timing.Rythm(Timing.Rythm.RythmTiming._1_8),
+    val mode: Int = 0,
     val distance: Int = 12,
     val steps: Int = 0,
     val repeats: Int? = null,
+    val hold: Boolean = false,
     val color: Triple<Float, Float, Float>? = null,
-    val gate: Float = 50f // ableton handles this differently
+    val gate: Float = 50f
 ) : DeviceState()

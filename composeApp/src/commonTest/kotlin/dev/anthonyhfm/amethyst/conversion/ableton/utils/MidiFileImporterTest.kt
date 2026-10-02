@@ -60,14 +60,19 @@ class MidiFileImporterTest {
     }
 
     @Test
-    fun outOfRangeNotesDoNotCreateLightsAndVelocitiesClampToPalette() {
+    fun nonPadNotesPreservePitchAndVelocitiesClampToPalette() {
         val result = MidiFileImporter.loadData(
             midi(0, 0x90, 127, 1, 0, 0x90, 36, 127, 0, 0xff, 0x2f, 0),
             palette = palette,
             launchpad = target,
         )
-        assertEquals(1, result.frames.single().entries.size)
-        assertEquals(1f, result.frames.single().entries.single().r)
+        val entries = result.frames.single().entries
+        assertEquals(expected = 2, actual = entries.size)
+        val pad = entries.single { it.abletonPitch == 36 }
+        val nonPad = entries.single { it.abletonPitch == 127 }
+        assertEquals(expected = 1f, actual = pad.r)
+        assertTrue(actual = nonPad.localX!! < 0)
+        assertEquals(expected = -1, actual = nonPad.localY)
     }
 
     @Test

@@ -12,6 +12,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GenericMidiEx
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.GridFilterAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiLauncherAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiLauncherProAdapter
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiExtMultiLightsAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MidiTransformAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.SetNotesAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MultiResetAdapter
@@ -135,6 +136,7 @@ class MxDeviceMidiEffectAdapter(
                 "220a5d8ae9bd63f21c8292c03774ef90",
                 "32b6bec96552a6e40f6743787a20b9df",
                 "1848f6da9155cc90ecd5e22d4b43c217",
+                "8e44fe875327f2b1bae5ff645c6b289b",
                 "feecaed62c2637a73325446a1ed1e25e" -> {
                     return PageSwitcherAdapter(offset).toDeviceStates()
                 }
@@ -181,18 +183,35 @@ class MxDeviceMidiEffectAdapter(
                 "5aa613617ae0b0e24cbe715dbe3960e2",
                 "f004d757e3910cc81b317a55e4dd6263",
                 "d53dcb292a173ab7853183f3cab7620c",
-                "f2504fe314d81dcc9b57e2466a157033",
-                "ffd72babd9b6051d8b3b0a4a5602d5fe" -> {
+                "ffd72babd9b6051d8b3b0a4a5602d5fe",
+                "6996d81ae12c12a7d1d2a45548bcd45e" -> {
                     return GenericMidiExtAdapter(device, offset).toDeviceStates()
                 }
 
-                "2ef098a53fe4e9a4b035588561080343" -> {
-                    return MidiLauncherAdapter(device, offset).toDeviceStates()
+                "4957d3dcbbb5b6fc53ed00f032cc9b24" -> {
+                    return MidiExtMultiLightsAdapter(
+                        device = device,
+                        offset = offset,
+                    ).toDeviceStates()
+                }
+
+                "f2504fe314d81dcc9b57e2466a157033" -> {
+                    return GenericMidiExtAdapter(
+                        device = device,
+                        offset = offset,
+                        midiFire = true,
+                    ).toDeviceStates()
+                }
+
+                "2ef098a53fe4e9a4b035588561080343",
+                "f135067227057b08f8d2d2ae66a22f8d" -> {
+                    return MidiLauncherAdapter(device = device, hash = hash, offset = offset).toDeviceStates()
                 }
 
                 "2d5d5420fea42678807d1569ce08b182",
+                "a114e5d1a7710271501649668c14f1ab",
                 "34bcbf910a9985951a0dd6ead9f8fc4c" -> {
-                    return MidiLauncherProAdapter(device, offset).toDeviceStates()
+                    return MidiLauncherProAdapter(device = device, hash = hash, offset = offset).toDeviceStates()
                 }
 
                 "aa743dda3d25332ecf3ae084eb7cbd30",
@@ -201,7 +220,7 @@ class MxDeviceMidiEffectAdapter(
                 }
 
                 "93b3690b7e7036ab0ba662e589d7ef37" -> {
-                    return CycleLightsAdapter(device).toDeviceStates()
+                    return CycleLightsAdapter(device, offset).toDeviceStates()
                 }
 
                 "b3ff29c822cdd8573e901042f68900b3" -> {
@@ -216,7 +235,8 @@ class MxDeviceMidiEffectAdapter(
                     return MultiResetAdapter(device).toDeviceStates()
                 }
 
-                "3d3de9b05506f279ad6cfe14d26e0084" -> {
+                "3d3de9b05506f279ad6cfe14d26e0084",
+                "7361d4c4b12bea802d369a0bb5ba7c68" -> {
                     return WormholeAdapter(blob).toDeviceStates()
                 }
 
@@ -235,7 +255,11 @@ class MxDeviceMidiEffectAdapter(
                     val fileName = maxFile.nameWithoutExtension.lowercase()
 
                     if (fileName.contains("midifire") || fileName.contains("genericmidi")) {
-                        return GenericMidiExtAdapter(device, offset).toDeviceStates()
+                        return GenericMidiExtAdapter(
+                            device = device,
+                            offset = offset,
+                            midiFire = fileName.contains("midifire"),
+                        ).toDeviceStates()
                     }
 
                     if (fileName.contains("resonator")) {

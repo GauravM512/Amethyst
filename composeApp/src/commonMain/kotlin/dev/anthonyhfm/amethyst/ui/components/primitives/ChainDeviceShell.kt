@@ -27,6 +27,7 @@ import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import androidx.compose.runtime.CompositionLocalProvider
+import com.mohamedrejeb.compose.dnd.LocalDragAndDropInfo
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.LocalChainDevice
 
@@ -66,7 +67,7 @@ fun ChainDeviceShell(
             .fillMaxHeight()
             .background(Theme[chainColorTokens][chainSurface])
             .border(1.dp, borderColor, DefaultShape)
-            .alpha(if (isDragging) 0.2f else 1f)
+            .alpha(if (isDragging && !LocalDragAndDropInfo.current.isShadow) 0.2f else 1f)
     ) {
         Box(
             modifier = Modifier

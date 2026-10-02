@@ -265,20 +265,20 @@ class DuckerChainDevice : AudioChainDevice<DuckerChainDeviceState>(), ParameterO
                         onValueChange = { label ->
                             val before = state.value
                             val id = options.firstOrNull { it.second == label }?.first
-                            state.update { it.copy(sidechainSourceId = id) }
+                            updateStateFromUser { it.copy(sidechainSourceId = id) }
                             pushStateChange(before, state.value)
                         },
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     EffectDial("attack", "Attack", PARAMETERS[0].normalize(deviceState.attackMs), "${deviceState.attackMs.roundToInt()} ms", startGesture, finishGesture) {
-                        state.update { s -> s.copy(attackMs = PARAMETERS[0].denormalize(it)) }
+                        updateStateFromUser { s -> s.copy(attackMs = PARAMETERS[0].denormalize(it)) }
                     }
                     EffectDial("release", "Release", PARAMETERS[1].normalize(deviceState.releaseMs), "${deviceState.releaseMs.roundToInt()} ms", startGesture, finishGesture) {
-                        state.update { s -> s.copy(releaseMs = PARAMETERS[1].denormalize(it)) }
+                        updateStateFromUser { s -> s.copy(releaseMs = PARAMETERS[1].denormalize(it)) }
                     }
                     EffectDial("strength", "Strength", deviceState.strength, "${(deviceState.strength * 100).roundToInt()}%", startGesture, finishGesture) {
-                        state.update { s -> s.copy(strength = it) }
+                        updateStateFromUser { s -> s.copy(strength = it) }
                     }
                 }
                 if (deviceState.sidechainSourceId != null && options.none { it.first == deviceState.sidechainSourceId }) {

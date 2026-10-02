@@ -2,6 +2,7 @@ package dev.anthonyhfm.amethyst.core.data.settings
 
 import com.russhwolf.settings.Settings
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
+import dev.anthonyhfm.amethyst.home.data.MobileProjectRecord
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
@@ -16,6 +17,14 @@ object GlobalSettings {
         }
         set(value) {
             settings.putString("recentWorkspaces", Json.encodeToString(value.distinctBy { it.path }))
+        }
+
+    var mobileProjects: List<MobileProjectRecord>
+        get() = runCatching {
+            Json.decodeFromString<List<MobileProjectRecord>>(settings.getString("mobileProjects", "[]"))
+        }.getOrDefault(emptyList())
+        set(value) {
+            settings.putString("mobileProjects", Json.encodeToString(value.distinctBy { it.id }))
         }
 
     // Persisted recent colors using a serializable RGB data class

@@ -151,6 +151,15 @@ private class AndroidProjectArchiveReader(
         return zipFile.getInputStream(entry).use { it.readBytes() }
     }
 
+    override fun extractEntryToFile(path: String, destinationPath: String): Boolean = runCatching {
+        val entry = entriesByPath[path] ?: return@runCatching false
+        if (entry.isDirectory) return@runCatching false
+        zipFile.getInputStream(entry).use { input ->
+            File(destinationPath).outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+        }
+        true
+    }.getOrDefault(false)
+
     override fun close() {
         if (closed) return
         closed = true

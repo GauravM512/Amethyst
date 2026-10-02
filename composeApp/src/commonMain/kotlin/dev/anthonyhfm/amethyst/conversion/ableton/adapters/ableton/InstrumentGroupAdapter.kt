@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.KASKOBI_MULTI_HASHES
+import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MIDIEXT_MULTI_SAMPLE_HASH
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.ableton.utils.MultiPluginHashes.MULTI_HASHES
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi.MultiEffectAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.outbreak.MultiAdapter
@@ -14,7 +15,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDeviceMidiEffec
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.AbletonPageIndexing
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.getFileHash
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.toFileHash
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitchRangeChainDeviceState
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
@@ -96,18 +97,9 @@ class InstrumentGroupAdapter(
 
                             if (maxKey - minKey != 127 || minKey == maxKey) {
                                 add(
-                                    AbletonConverter.coordinateFilter(
-                                        launchpad = AbletonConverter.launchpadTarget(offset),
-                                        localCoordinates = IntArray(maxKey + 1 - minKey) {
-                                            minKey + it
-                                        }.map {
-                                            val xy = DRUM_RACK_TO_XY[it]
-
-                                            val x: Int = xy % 10
-                                            val y: Int = xy / 10
-
-                                            Pair(x, 9 - y)
-                                        },
+                                    AbletonPitchRangeChainDeviceState(
+                                        minimum = minKey,
+                                        maximum = maxKey,
                                     )
                                 )
                             }
@@ -125,7 +117,7 @@ class InstrumentGroupAdapter(
                                 val potentialMultiDeviceHash = potentialMultiDevice.let {
                                     val path = patchSlot?.value?.patchRef?.fileRef?.resolvePath() ?: return@let null
 
-                                    val hash: String = if (AbletonConverter.isZip) {
+                                    val hash: String = MxDeviceMidiEffectAdapter.fileHashMap[path] ?: if (AbletonConverter.isZip) {
                                         AbletonConverter.readZipEntry(path)?.toFileHash() ?: ""
                                     } else {
                                         val file = PlatformFile(path)
@@ -154,6 +146,19 @@ class InstrumentGroupAdapter(
 
                                 if (potentialMultiDevice != null && multiHashMatches && anyContainerPresent) {
                                     println("Found multi and container, using MultiAdapter")
+
+                                    if (potentialMultiDeviceHash == MIDIEXT_MULTI_SAMPLE_HASH) {
+                                        addAll(
+                                            branchElements.take(n = branchElements.indexOf(potentialMultiDevice)).flatMap { child ->
+                                                resolveAdapter(
+                                                    device = child,
+                                                    offset = offset,
+                                                    outputOffset = outputOffset,
+                                                    chainDepth = chainDepth + 1,
+                                                )?.toDeviceStates().orEmpty()
+                                            }
+                                        )
+                                    }
 
                                     addAll(
                                         try {
@@ -219,7 +224,12 @@ class InstrumentGroupAdapter(
                                     )?.toDeviceStates() ?: emptyList()
                                 }
                             )
-                        }.withMuteState(enabled)
+                        }.also { devices ->
+                            devices.appendMixerVolume(
+                                linearVolume = branch.masterDevice.volume.manual.value,
+                                isOn = enabled,
+                            )
+                        }
                     )
                 )
             }

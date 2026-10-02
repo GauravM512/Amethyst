@@ -263,7 +263,7 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                             onDragExit = { isAudioDropHover = false },
                             onDrop = { dragged ->
                                 resetAudio()
-                                state.value = sampleChainStateFromAudioSource(dragged.data)
+                                updateStateFromUser { sampleChainStateFromAudioSource(dragged.data) }
                                 onStateRestored()
                                 isAudioDropHover = false
                             },
@@ -283,6 +283,11 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                 SampleEmptyState(
                     state = state,
                     onLoaded = ::primeAudioSnapshot,
+                    onStateChanged = {
+                        if (parentChain?.isWorkspaceChain() == true) {
+                            WorkspaceRepository.markDirty()
+                        }
+                    },
                 )
             }
         }
@@ -306,7 +311,8 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
         }
         val playheadPosition = samplePlayheadProgress(
             renderedFrame = livePlayheadFrame,
-            renderedSampleRate = audioConfiguration.value?.sampleRate ?: deviceState.sampleRate,
+            renderedSampleRate = renderCache.value?.snapshot?.source?.sampleRate
+                ?: audioConfiguration.value?.sampleRate ?: deviceState.sampleRate,
             sourceFrameCount = totalFrames.toLong(),
             sourceSampleRate = deviceState.sampleRate,
         )
@@ -332,6 +338,8 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
             ) {
                 SimplerWaveformEditor(
                     rawData = resolvedRawData,
+                    onInteractionStart = { beforeState = state.value },
+                    onInteractionCancel = { updateStateFromUser { beforeState } },
                     sampleRate = deviceState.sampleRate,
                     channels = deviceState.channels,
                     bitDepth = deviceState.bitDepth,
@@ -344,7 +352,7 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                     onStartPositionChange = { newStart ->
                         val targetStart = newStart.coerceIn(0f, deviceState.endPosition - 0.001f)
                         val newActiveDurMs = (deviceState.totalDurationMs * (deviceState.endPosition - targetStart)).coerceAtLeast(1f)
-                        state.update {
+                        updateStateFromUser {
                             val loopEnd = it.loopEndPosition?.coerceIn(
                                 targetStart + 0.001f,
                                 it.endPosition,
@@ -367,7 +375,7 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                     onEndPositionChange = { newEnd ->
                         val targetEnd = newEnd.coerceIn(deviceState.startPosition + 0.001f, 1f)
                         val newActiveDurMs = (deviceState.totalDurationMs * (targetEnd - deviceState.startPosition)).coerceAtLeast(1f)
-                        state.update {
+                        updateStateFromUser {
                             val loopStart = it.loopStartPosition?.coerceIn(
                                 it.startPosition,
                                 targetEnd - 0.001f,
@@ -396,10 +404,10 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                         beforeState = state.value
                     },
                     onFadeInChange = { newFadeIn ->
-                        state.update { it.copy(fadeInMs = newFadeIn.coerceIn(0f, activeDurationMs)) }
+                        updateStateFromUser { it.copy(fadeInMs = newFadeIn.coerceIn(0f, activeDurationMs)) }
                     },
                     onFadeOutChange = { newFadeOut ->
-                        state.update { it.copy(fadeOutMs = newFadeOut.coerceIn(0f, activeDurationMs)) }
+                        updateStateFromUser { it.copy(fadeOutMs = newFadeOut.coerceIn(0f, activeDurationMs)) }
                     },
                     onFadeInFinishChange = {
                         pushStateChange(before = beforeState, after = state.value)
@@ -414,7 +422,7 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                     loopEndPosition = deviceState.loopEndPosition
                         ?.takeIf { deviceState.playbackMode == SamplePlaybackMode.GateLoop },
                     onLoopStartPositionChange = { value ->
-                        state.update {
+                        updateStateFromUser {
                             it.copy(
                                 loopStartPosition = value.coerceIn(
                                     it.startPosition,
@@ -424,7 +432,7 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                         }
                     },
                     onLoopEndPositionChange = { value ->
-                        state.update {
+                        updateStateFromUser {
                             it.copy(
                                 loopEndPosition = value.coerceIn(
                                     (it.loopStartPosition ?: it.startPosition) + 0.001f,

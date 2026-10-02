@@ -5,10 +5,11 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.*
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonManual
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonOn
 import dev.anthonyhfm.amethyst.core.util.Timing
+import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonArpeggiatorChainDeviceState
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonChordChainDeviceState
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitcherChainDeviceState
-import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
-import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonVelocityChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.hold.HoldChainDeviceState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,14 +20,18 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class MidiDeviceConversionTest {
     @Test
-    fun pitcherAndVelocityBecomePitchAndPaletteColor() {
+    fun pitcherAndVelocityKeepNativeMidiParameters() {
         val pitch = MidiPitcher(1, pitch = MidiPitcher.Pitch(AbletonManual(-12)))
         val pitcher = assertIs<AbletonPitcherChainDeviceState>(AbletonAdapter.resolveAdapter(pitch)!!.toDeviceStates().single())
         assertEquals(-12, pitcher.pitch)
 
         val velocity = MidiVelocity(2, maxOut = MidiVelocity.MaxOut(AbletonManual(1)))
-        val color = assertIs<ColorChainDeviceState>(AbletonAdapter.resolveAdapter(velocity)!!.toDeviceStates().single())
-        assertEquals(AbletonConverter.palette[1].first / 63f, color.r)
+        val converted = assertIs<AbletonVelocityChainDeviceState>(AbletonAdapter.resolveAdapter(velocity)!!.toDeviceStates().single())
+        assertEquals(expected = 1, actual = converted.outLow)
+        assertEquals(expected = 1, actual = converted.outHigh)
+        val expectedPalette = AbletonConverter.palette.takeUnless { it.contentEquals(Palettes.novation) }
+            ?.map { (red, green, blue) -> (red shl 12) or (green shl 6) or blue }
+        assertEquals(expected = expectedPalette, actual = converted.palette)
     }
 
     @Test
@@ -34,11 +39,8 @@ class MidiDeviceConversionTest {
         val shifts = (1..6).map { MidiChord.Shift(AbletonManual(it * 2)) }
         val chord = MidiChord(1, shift1 = shifts[0], shift2 = shifts[1], shift3 = shifts[2],
             shift4 = shifts[3], shift5 = shifts[4], shift6 = shifts[5])
-        val group = assertIs<GroupChainDeviceState>(AbletonAdapter.resolveAdapter(chord)!!.toDeviceStates().single())
-        assertEquals(6, group.groups.size)
-        assertEquals((1..6).map { it * 2 }, group.groups.map {
-            assertIs<AbletonPitcherChainDeviceState>(it.stateChain.devices.single()).pitch
-        })
+        val converted = assertIs<AbletonChordChainDeviceState>(AbletonAdapter.resolveAdapter(chord)!!.toDeviceStates().single())
+        assertEquals(expected = listOf(0) + (1..6).map { it * 2 }, actual = converted.shifts)
     }
 
     @Test

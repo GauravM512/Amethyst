@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.isSilentReplay
 import dev.anthonyhfm.amethyst.core.util.Timing
@@ -36,7 +37,6 @@ import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
@@ -54,6 +54,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
 
     private val activeJobOwners = mutableSetOf<Any>()
     private val isDown = mutableSetOf<Any>()
+    private val releaseInputs = mutableMapOf<Any, Signal>()
 
     @Composable
     override fun Content() {
@@ -96,7 +97,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                 beforeHold = Pair(t, ms)
                             },
                             onSelectTiming = { timing, msValue ->
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(
                                         timing = timing,
                                         delayMs = msValue
@@ -125,7 +126,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                 beforeGate = it
                             },
                             onValueChange = { value ->
-                                state.update {
+                                updateStateFromUser {
                                     it.copy(gate = value)
                                 }
                             },
@@ -134,7 +135,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
 
                                 gateText?.let { gate ->
                                     if (gate in 0..200) {
-                                        state.update {
+                                        updateStateFromUser {
                                             it.copy(gate = gate / 200f) // Convert to float between 0.0 and 1.0
                                         }
                                     }
@@ -166,7 +167,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                         before = deviceState,
                                         after = deviceState.copy(mode = mode)
                                     )
-                                    state.update { it.copy(mode = mode) }
+                                    updateStateFromUser { it.copy(mode = mode) }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )
@@ -185,7 +186,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                                         after = deviceState.copy(onRelease = checked)
                                     )
 
-                                    state.update {
+                                    updateStateFromUser {
                                         it.copy(onRelease = checked)
                                     }
                                 },
@@ -264,7 +265,10 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                 else -> null
             }
 
-            val signalOwner: Any = if (signalX != null && signalY != null) {
+            val note = AbletonNoteSpace.note(signal)
+            val signalOwner: Any = if (note != null) {
+                Pair(this, note)
+            } else if (signalX != null && signalY != null) {
                 Pair(this, "${signalX},${signalY}")
             } else {
                 Pair(this, signal.hashCode()) // fallback for signals without coordinates
@@ -296,6 +300,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
             if (down) {
                 isDown.add(signalOwner)
                 if (state.value.onRelease) {
+                    releaseInputs[signalOwner] = signal
                     return@forEach
                 }
 
@@ -308,6 +313,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                 updateSchedule()
             } else {
                 isDown.remove(signalOwner)
+                val releaseInput = releaseInputs.remove(signalOwner)
                 if (!state.value.onRelease) {
                     if (state.value.mode == HoldMode.Minimum) {
                         // In minimum mode, if the key is released, we might need to release the signal
@@ -330,12 +336,12 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
                     return@forEach
                 }
 
+                if (releaseInput == null) {
+                    return@forEach
+                }
+
                 Heaven.schedule(0.0, owner = this) {
-                    if (signal is Signal.LED) {
-                        signalExit?.invoke(listOf(signal.copy(color = Color.White)))
-                    } else if (signal is Signal.Midi) {
-                        signalExit?.invoke(listOf(signal.copy(velocity = 127)))
-                    }
+                    signalExit?.invoke(listOf(releaseInput))
                 }
 
                 if (state.value.mode == HoldMode.Infinite) {
@@ -348,8 +354,7 @@ class HoldChainDevice : GenericChainDevice<HoldChainDeviceState>(), Chokeable {
     }
 
     override fun onChoke() {
-        // Cancel all scheduled Heaven tasks owned by this device
-        // The hold device uses Pair(this, "${signalX},${signalY}") as owner
+        releaseInputs.clear()
         Heaven.cancelJobs { job ->
             job.owner is Pair<*, *> && job.owner.first == this
         }

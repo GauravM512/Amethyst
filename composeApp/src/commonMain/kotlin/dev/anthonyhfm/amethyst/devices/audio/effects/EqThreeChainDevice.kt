@@ -146,34 +146,34 @@ class EqThreeChainDevice : AudioChainDevice<EqThreeChainDeviceState>(), Paramete
             ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        GainDial("lowGain", "Gain Low", deviceState.lowGainDb, startGesture, finishGesture) { state.update { s -> s.copy(lowGainDb = it) } }
+                        GainDial("lowGain", "Gain Low", deviceState.lowGainDb, startGesture, finishGesture) { updateStateFromUser { s -> s.copy(lowGainDb = it) } }
                         BandKillControl(stringResource(Res.string.device_eq_three_low_kill), deviceState.lowKilled) { killed ->
                             val before = state.value
-                            state.update { it.copy(lowKilled = killed) }
+                            updateStateFromUser { it.copy(lowKilled = killed) }
                             pushStateChange(before, state.value)
                         }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        GainDial("midGain", "Gain Mid", deviceState.midGainDb, startGesture, finishGesture) { state.update { s -> s.copy(midGainDb = it) } }
+                        GainDial("midGain", "Gain Mid", deviceState.midGainDb, startGesture, finishGesture) { updateStateFromUser { s -> s.copy(midGainDb = it) } }
                         BandKillControl(stringResource(Res.string.device_eq_three_mid_kill), deviceState.midKilled) { killed ->
                             val before = state.value
-                            state.update { it.copy(midKilled = killed) }
+                            updateStateFromUser { it.copy(midKilled = killed) }
                             pushStateChange(before, state.value)
                         }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        GainDial("highGain", "Gain High", deviceState.highGainDb, startGesture, finishGesture) { state.update { s -> s.copy(highGainDb = it) } }
+                        GainDial("highGain", "Gain High", deviceState.highGainDb, startGesture, finishGesture) { updateStateFromUser { s -> s.copy(highGainDb = it) } }
                         BandKillControl(stringResource(Res.string.device_eq_three_high_kill), deviceState.highKilled) { killed ->
                             val before = state.value
-                            state.update { it.copy(highKilled = killed) }
+                            updateStateFromUser { it.copy(highKilled = killed) }
                             pushStateChange(before, state.value)
                         }
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    FrequencyDial("lowCrossover", "Low / Mid", deviceState.lowCrossoverHz, 60f, 2_000f, startGesture, finishGesture) { state.update { s -> s.copy(lowCrossoverHz = it) } }
-                    GainDial("output", "Output", deviceState.outputGainDb, startGesture, finishGesture) { state.update { s -> s.copy(outputGainDb = it) } }
-                    FrequencyDial("highCrossover", "Mid / High", deviceState.highCrossoverHz, 500f, 16_000f, startGesture, finishGesture) { state.update { s -> s.copy(highCrossoverHz = it) } }
+                    FrequencyDial("lowCrossover", "Low / Mid", deviceState.lowCrossoverHz, 60f, 2_000f, startGesture, finishGesture) { updateStateFromUser { s -> s.copy(lowCrossoverHz = it) } }
+                    GainDial("output", "Output", deviceState.outputGainDb, startGesture, finishGesture) { updateStateFromUser { s -> s.copy(outputGainDb = it) } }
+                    FrequencyDial("highCrossover", "Mid / High", deviceState.highCrossoverHz, 500f, 16_000f, startGesture, finishGesture) { updateStateFromUser { s -> s.copy(highCrossoverHz = it) } }
                 }
             }
         }

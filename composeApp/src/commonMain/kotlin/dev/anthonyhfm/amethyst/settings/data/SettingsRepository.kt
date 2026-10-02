@@ -16,6 +16,7 @@ object SettingsRepository {
     init {
         allSettingsGroups.add(GeneralSettings)
         allSettingsGroups.add(AudioSettings)
+        allSettingsGroups.add(HubSettings)
 
         if (platform is Platform.Desktop) {
             allSettingsGroups.add(DiscordSettings)

@@ -58,6 +58,8 @@ fun <T> DraggableItem(
     sizeDropAnimationSpec: AnimationSpec<Size> = SpringSpec(),
     draggableContent: (@Composable () -> Unit)? = null,
     useDragAnchor: Boolean = false,
+    isPartOfActiveDrag: Boolean = false,
+    animatePreviewOnStart: Boolean = true,
     content: @Composable DraggableItemScope.() -> Unit,
 ) {
     val draggableItemState = remember(key) {
@@ -71,6 +73,7 @@ fun <T> DraggableItem(
             dropAnimationSpec = dropAnimationSpec,
             sizeDropAnimationSpec = sizeDropAnimationSpec,
             content = draggableContent ?: {},
+            animatePreviewOnStart = animatePreviewOnStart,
         )
     }
 
@@ -103,6 +106,8 @@ fun <T> DraggableItem(
         dropStrategy = dropStrategy,
         dropAnimationSpec = dropAnimationSpec,
         sizeDropAnimationSpec = sizeDropAnimationSpec,
+        isPartOfActiveDrag = isPartOfActiveDrag,
+        animatePreviewOnStart = animatePreviewOnStart,
         draggableContent = draggableContent ?: {
             with(draggableItemScopeShadowImpl) {
                 content()

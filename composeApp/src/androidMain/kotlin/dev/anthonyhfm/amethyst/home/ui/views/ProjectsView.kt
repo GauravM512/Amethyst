@@ -22,9 +22,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,26 +32,27 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,7 +65,15 @@ import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Pencil
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Trash2
+import com.composables.icons.lucide.Globe
+import com.composables.icons.lucide.UserRound
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MoreHoriz
+import dev.anthonyhfm.amethyst.home.account.AndroidHubAccount
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
+import dev.anthonyhfm.amethyst.home.data.AndroidLocalProjectDeletion
+import dev.anthonyhfm.amethyst.home.nav.HomeNavRoute
+import dev.anthonyhfm.amethyst.hub.data.HubProject
 import dev.anthonyhfm.amethyst.home.ui.views.ProjectsViewContract.Event
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 
@@ -83,11 +92,27 @@ fun ProjectsView(
     }
 
     var recentProjects by remember { mutableStateOf(HomeRepository.recentWorkspaces()) }
+    val context = LocalContext.current
+    val account = remember(context) { AndroidHubAccount.get(context) }
+    val hubProjects = remember { mutableStateMapOf<String, HubProject>() }
+    val localAuthors = remember { mutableStateMapOf<String, String>() }
 
-    // Bottom sheet state
-    var showCreateSheet by remember { mutableStateOf(false) }
-    var editProjectPath by remember { mutableStateOf<String?>(null) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    LaunchedEffect(recentProjects) {
+        recentProjects.forEach { recent ->
+            val record = HomeRepository.mobileProjectForPath(recent.path)
+            if (record?.hubProjectId != null && record.hubProjectId !in hubProjects) {
+                runCatching {
+                    account.repository.browseProjects.execute(limit = 50, query = recent.title)
+                        .items.firstOrNull { it.id == record.hubProjectId }
+                }.getOrNull()?.let { hubProjects[record.hubProjectId] = it }
+            } else if (record?.hubProjectId == null && recent.path.endsWith(".ame", ignoreCase = true) && recent.path !in localAuthors) {
+                HomeRepository.loadProjectDetails(recent.path)?.author?.trim()?.takeIf { it.isNotEmpty() }
+                    ?.let { localAuthors[recent.path] = it }
+            }
+        }
+    }
+
+    var projectToDelete by remember { mutableStateOf<RecentWorkspace?>(null) }
 
     val currentBackStackEntry by produceState<NavBackStackEntry?>(
         initialValue = navigator.currentBackStackEntry,
@@ -103,49 +128,33 @@ fun ProjectsView(
         viewModel.effect.collect { effect ->
             when (effect) {
                 ProjectsViewContract.Effect.OpenWorkspace -> onOpenWorkspace()
-                ProjectsViewContract.Effect.ShowCreateSheet -> showCreateSheet = true
-                is ProjectsViewContract.Effect.ShowEditSheet -> editProjectPath = effect.projectPath
+                ProjectsViewContract.Effect.ProjectDeleted -> recentProjects = HomeRepository.recentWorkspaces()
             }
         }
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = rememberTopAppBarState(),
-    )
-
-    if (showCreateSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showCreateSheet = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            ProjectCreationSheet(
-                onDismiss = { showCreateSheet = false },
-                openWorkspace = onOpenWorkspace,
-                projectPath = null,
-            )
-        }
-    }
-
-    editProjectPath?.let { path ->
-        ModalBottomSheet(
-            onDismissRequest = { editProjectPath = null },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            ProjectCreationSheet(
-                onDismiss = { editProjectPath = null },
-                openWorkspace = {
-                    editProjectPath = null
-                    recentProjects = HomeRepository.recentWorkspaces()
-                },
-                projectPath = path,
-            )
-        }
+    projectToDelete?.let { project ->
+        AlertDialog(
+            onDismissRequest = { projectToDelete = null },
+            title = { Text(stringResource(Res.string.home_projects_delete_local)) },
+            text = { Text(stringResource(Res.string.home_projects_delete_local_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    projectToDelete = null
+                    viewModel.onEvent(Event.OnClickDeleteProject(project.path))
+                }) {
+                    Text(stringResource(Res.string.home_projects_delete_local), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { projectToDelete = null }) {
+                    Text(stringResource(Res.string.common_cancel))
+                }
+            },
+        )
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0),
         topBar = {
@@ -167,11 +176,10 @@ fun ProjectsView(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground,
                     actionIconContentColor = MaterialTheme.colorScheme.onBackground,
                 ),
-                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = {
@@ -191,6 +199,8 @@ fun ProjectsView(
                 onNewProject = { viewModel.onEvent(Event.OnClickNewProject) },
             )
         } else {
+            val localProjects = recentProjects.filter { HomeRepository.mobileProjectForPath(it.path)?.hubProjectId == null }
+            val downloadedProjects = recentProjects.filter { HomeRepository.mobileProjectForPath(it.path)?.hubProjectId != null }
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -198,15 +208,52 @@ fun ProjectsView(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(recentProjects, key = { it.path }) { project ->
+                if (localProjects.isNotEmpty()) item(key = "local_heading") {
+                    Text(
+                        stringResource(Res.string.home_projects_local_section),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    )
+                }
+                items(localProjects, key = { it.path }) { project ->
                     RecentProjectItem(
                         project = project,
+                        showDivider = project.path != localProjects.last().path,
+                        hubProject = null,
+                        isHubDownload = false,
+                        author = localAuthors[project.path],
                         onOpen = { viewModel.onEvent(Event.OpenProjectFromHistory(project)) },
-                        onEdit = { viewModel.onEvent(Event.OnClickEditProject(project)) },
-                        onDelete = {
-                            viewModel.onEvent(Event.OnClickDeleteProject(project.path))
-                            recentProjects = HomeRepository.recentWorkspaces()
-                        },
+                        onViewHub = null,
+                        onViewArtist = null,
+                        onEdit = if (HomeRepository.mobileProjectForPath(project.path) == null && project.path.endsWith(".ame", ignoreCase = true))
+                            ({ viewModel.onEvent(Event.OnClickEditProject(project)) }) else null,
+                        onDelete = if (AndroidLocalProjectDeletion.targetFor(project.path) != null)
+                            ({ projectToDelete = project }) else null,
+                    )
+                }
+                if (downloadedProjects.isNotEmpty()) item(key = "downloaded_heading") {
+                    Text(
+                        stringResource(Res.string.home_projects_downloaded_section),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                    )
+                }
+                items(downloadedProjects, key = { it.path }) { project ->
+                    val hub = HomeRepository.mobileProjectForPath(project.path)?.hubProjectId?.let(hubProjects::get)
+                    RecentProjectItem(
+                        project = project,
+                        showDivider = project.path != downloadedProjects.last().path,
+                        hubProject = hub,
+                        isHubDownload = true,
+                        author = null,
+                        onOpen = { viewModel.onEvent(Event.OpenProjectFromHistory(project)) },
+                        onViewHub = hub?.let { { navigator.navigate(HomeNavRoute.HubDetail(it.artist.username, it.slug)) } },
+                        onViewArtist = hub?.let { { navigator.navigate(HomeNavRoute.HubDetail(it.artist.username, null)) } },
+                        onEdit = null,
+                        onDelete = if (AndroidLocalProjectDeletion.targetFor(project.path) != null)
+                            ({ projectToDelete = project }) else null,
                     )
                 }
             }
@@ -293,53 +340,76 @@ private fun EmptyProjectsState(
 @Composable
 private fun RecentProjectItem(
     project: RecentWorkspace,
+    showDivider: Boolean,
+    hubProject: HubProject?,
+    isHubDownload: Boolean,
+    author: String?,
     onOpen: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
+    onViewHub: (() -> Unit)?,
+    onViewArtist: (() -> Unit)?,
+    onEdit: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
 ) {
     var menuExpanded by remember(project.path) { mutableStateOf(false) }
-    val folderLabel = remember(project.path) { displayFolderPath(project.path) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-    ) {
+    Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .clickable(onClick = onOpen)
+                .padding(horizontal = 16.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (hubProject?.thumbnailUrl != null) {
+                HubArtwork(hubProject.thumbnailUrl, Modifier.size(58.dp), MaterialTheme.shapes.medium)
+            } else {
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.size(58.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = project.title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = folderLabel,
-                    style = MaterialTheme.typography.bodySmall,
+                if (hubProject != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        HubArtwork(hubProject.artist.avatarUrl, Modifier.size(18.dp), CircleShape, Icons.Default.Person)
+                        Text(hubProject.artist.displayName.ifBlank { "@${hubProject.artist.username}" }, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                } else Text(
+                    text = author ?: when {
+                        isHubDownload -> stringResource(Res.string.home_projects_recent_downloaded)
+                        project.path.endsWith(".ame", ignoreCase = true) -> stringResource(Res.string.home_project_unknown_author)
+                        project.path.endsWith(".als", ignoreCase = true) -> stringResource(Res.string.home_hub_catalog_ableton)
+                        project.path.endsWith(".approj", ignoreCase = true) -> stringResource(Res.string.home_hub_catalog_apollo)
+                        else -> stringResource(Res.string.home_projects_recent_local)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.MiddleEllipsis,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
+                        imageVector = Icons.Default.MoreHoriz,
                         contentDescription = stringResource(Res.string.home_projects_item_options_desc),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -357,7 +427,17 @@ private fun RecentProjectItem(
                             onOpen()
                         },
                     )
-                    DropdownMenuItem(
+                    if (onViewHub != null) DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.home_projects_view_hub)) },
+                        leadingIcon = { Icon(Lucide.Globe, contentDescription = null) },
+                        onClick = { menuExpanded = false; onViewHub() },
+                    )
+                    if (onViewArtist != null) DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.home_projects_view_artist)) },
+                        leadingIcon = { Icon(Lucide.UserRound, contentDescription = null) },
+                        onClick = { menuExpanded = false; onViewArtist() },
+                    )
+                    if (onEdit != null) DropdownMenuItem(
                         text = { Text(stringResource(Res.string.home_projects_item_menu_edit)) },
                         leadingIcon = { Icon(Lucide.Pencil, contentDescription = null) },
                         onClick = {
@@ -365,29 +445,32 @@ private fun RecentProjectItem(
                             onEdit()
                         },
                     )
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = stringResource(Res.string.home_projects_item_menu_remove),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Lucide.Trash2,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onDelete()
-                        },
-                    )
+                    if (onDelete != null) {
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = stringResource(Res.string.home_projects_delete_local),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Lucide.Trash2,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            },
+                        )
+                    }
                 }
             }
         }
+        if (showDivider) HorizontalDivider(modifier = Modifier.padding(start = 86.dp), color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 

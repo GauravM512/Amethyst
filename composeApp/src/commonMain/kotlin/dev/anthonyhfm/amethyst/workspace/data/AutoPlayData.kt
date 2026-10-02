@@ -12,5 +12,6 @@ data class AutoPlayData(
         val y: Int,
         val down: Boolean,
         val launchpadId: String? = null,
+        val beforeNotes: Boolean = false,
     )
 }

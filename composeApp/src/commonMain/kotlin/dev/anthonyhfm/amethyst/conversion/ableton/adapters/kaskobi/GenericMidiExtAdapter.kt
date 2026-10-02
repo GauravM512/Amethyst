@@ -19,10 +19,15 @@ import kotlinx.coroutines.runBlocking
 class GenericMidiExtAdapter(
     private val device: MxDevice,
     private val offset: IntOffset,
+    private val midiFire: Boolean = false,
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val keyframes = importKeyframes() ?: return emptyList()
-        val settings = readSettings(device)
+        val settings = if (midiFire) {
+            MidiExtensionSettings()
+        } else {
+            readSettings(device)
+        }
 
         if (settings.mode == MidiExtensionMode.Mask) {
             val color = keyframes.copy(
@@ -46,6 +51,7 @@ class GenericMidiExtAdapter(
 
         val palette = AbletonConverter.palette
         val filePath: String = fileRef.resolvePath()
+
 
         val data = if (AbletonConverter.isZip) {
             AbletonConverter.readZipEntry(filePath) ?: return null

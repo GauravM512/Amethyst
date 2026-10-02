@@ -30,13 +30,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.engine.heaven.RawLEDUpdate
+import dev.anthonyhfm.amethyst.core.network.sync.DeviceSyncCoordinator
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadSurfaceDetectionOverlay
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadButton
 import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import kotlin.math.floor
-import dev.anthonyhfm.amethyst.ui.launchpad.applyLaunchpadGamma
+import dev.anthonyhfm.amethyst.ui.launchpad.applyMicroLightGrade
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,6 +67,8 @@ import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
 
 import dev.anthonyhfm.amethyst.workspace.data.SavableWorkspaceData.SavableViewportLaunchpad.MidiFighter64.MidiFighter64Style
 import dev.anthonyhfm.amethyst.ui.launchpad.LaunchpadGraphicsRepository
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.ViewportRepository
 
 class ViewportMidiFighter64(
     override var shape: Shape = RoundedCornerShape(4),
@@ -77,9 +80,34 @@ class ViewportMidiFighter64(
 
     override val layout: LaunchpadLayout = LaunchpadLayout.LAYOUT_8X8
 
-    var style by mutableStateOf(initialStyle)
+    private var styleState by mutableStateOf(initialStyle)
+
+    var style: MidiFighter64Style
+        get() = styleState
+        set(value) {
+            if (styleState == value) {
+                return
+            }
+
+            styleState = value
+            if (ViewportRepository.devices.value.any { it === this }) {
+                WorkspaceRepository.markDirty()
+            }
+        }
 
     override val hasStyleOptions: Boolean = true
+
+    fun selectStyle(style: MidiFighter64Style) {
+        if (this.style == style) {
+            return
+        }
+
+        this.style = style
+        DeviceSyncCoordinator.onDeviceStyleChanged(
+            element = this,
+            styleName = style.name,
+        )
+    }
 
     override fun applyNetworkStyle(key: String) {
         val styleValue = MidiFighter64Style.entries.firstOrNull { it.name == key } ?: return
@@ -127,8 +155,7 @@ class ViewportMidiFighter64(
                             .border(2.dp, borderColor, DefaultShape)
                             .background(cardBackground, DefaultShape)
                             .clickable {
-                                style = styleOption
-                                dev.anthonyhfm.amethyst.core.network.sync.DeviceSyncCoordinator.onDeviceStyleChanged(this@ViewportMidiFighter64, styleOption.name)
+                                selectStyle(style = styleOption)
                             }
                             .padding(16.dp),
 
@@ -195,7 +222,7 @@ class ViewportMidiFighter64(
                             for (y in 1..8) {
                                 if (previewGrid[x + (y * 10)].color != Color.Black) {
                                     drawRect(
-                                        color = previewGrid[x + (y * 10)].color.applyLaunchpadGamma(),
+                                        color = previewGrid[x + (y * 10)].color.applyMicroLightGrade(),
                                         topLeft = Offset(
                                             x = padding + ((x - 1) * ((size.width - (padding * 2)) / 8)),
                                             y = padding + ((8 - y) * ((size.height - (padding * 2)) / 8))

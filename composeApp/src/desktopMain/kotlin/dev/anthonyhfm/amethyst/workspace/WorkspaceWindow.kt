@@ -5,6 +5,7 @@ import org.jetbrains.compose.resources.stringResource
 import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.amethyst_linux
 import amethyst.composeapp.generated.resources.amethyst_windows
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +55,9 @@ import dev.nucleusframework.window.WindowAppearanceMode
 fun WorkspaceWindow(
     onClose: () -> Unit = { },
     onQuit: () -> Unit = onClose,
+    externalCloseRequest: Int = 0,
+    onExternalCloseConfirmed: () -> Unit = onClose,
+    onExternalCloseCancelled: () -> Unit = { },
 ) {
     var showSaveDialog by remember { mutableStateOf(false) }
     var pendingCloseAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -84,6 +88,15 @@ fun WorkspaceWindow(
             showSaveDialog = true
         } else {
             closeWorkspace(afterClose)
+        }
+    }
+
+    LaunchedEffect(key1 = externalCloseRequest) {
+        if (externalCloseRequest > 0) {
+            requestWorkspaceClose(
+                afterClose = onExternalCloseConfirmed,
+                afterCancel = onExternalCloseCancelled
+            )
         }
     }
 

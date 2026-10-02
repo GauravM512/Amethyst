@@ -25,7 +25,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Dial
 import dev.anthonyhfm.amethyst.ui.components.DialType
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
@@ -101,7 +100,7 @@ class LayerFilterChainDevice : LEDChainDevice<LayerFilterChainDeviceState>() {
 
                             layerText?.let { layer ->
                                 if (layer in -100..100) {
-                                    state.update {
+                                    updateStateFromUser {
                                         it.copy(layer = layer)
                                     }
                                 }
@@ -117,7 +116,7 @@ class LayerFilterChainDevice : LEDChainDevice<LayerFilterChainDeviceState>() {
                             )
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(layer = value)
                             }
                         },
@@ -137,7 +136,7 @@ class LayerFilterChainDevice : LEDChainDevice<LayerFilterChainDeviceState>() {
                             val rangeText = it.trim().toIntOrNull()
                             rangeText?.let { range ->
                                 if (range in 0..200) {
-                                    state.update { it.copy(range = range) }
+                                    updateStateFromUser { it.copy(range = range) }
                                 }
                             }
                         },
@@ -151,7 +150,7 @@ class LayerFilterChainDevice : LEDChainDevice<LayerFilterChainDeviceState>() {
                             )
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(range = value)
                             }
                         },

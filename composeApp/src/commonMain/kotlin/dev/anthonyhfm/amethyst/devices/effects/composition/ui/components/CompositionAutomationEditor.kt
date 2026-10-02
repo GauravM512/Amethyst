@@ -308,7 +308,7 @@ private fun AutomationValueLegend(
 }
 
 @Composable
-private fun AutomationCanvas(
+internal fun AutomationCanvas(
     points: List<CompositionAutomationPoint>, playhead: Float, selectedPointId: String?, bipolar: Boolean,
     panelBgColor: Color = Theme[colors][secondary],
     onSelect: (String?) -> Unit, onAdd: (Float, Float) -> Unit, onMove: (String, Float, Float) -> Unit,
@@ -321,6 +321,7 @@ private fun AutomationCanvas(
     val currentOnAdd = rememberUpdatedState(onAdd)
     val currentOnMove = rememberUpdatedState(onMove)
     val currentOnMoveHandle = rememberUpdatedState(onMoveHandle)
+    val currentOnDragFinished = rememberUpdatedState(onDragFinished)
     val surfaceColor = panelBgColor
     val mutedColor = Theme[colors][mutedForeground]
     val curveAccentColor = Theme[colors][chart2]
@@ -415,8 +416,15 @@ private fun AutomationCanvas(
                             null -> Unit
                         }
                     },
-                    onDragEnd = { draggedTarget = null; onDragFinished() },
-                    onDragCancel = { draggedTarget = null; onDragFinished() })
+                    onDragEnd = {
+                        draggedTarget = null
+                        currentOnDragFinished.value()
+                    },
+                    onDragCancel = {
+                        draggedTarget = null
+                        currentOnDragFinished.value()
+                    },
+                )
             },
     ) {
         val zeroY = size.height / 2f

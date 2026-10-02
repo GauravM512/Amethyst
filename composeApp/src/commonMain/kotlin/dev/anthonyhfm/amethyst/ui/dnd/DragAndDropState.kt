@@ -165,13 +165,8 @@ class DragAndDropState<T>(
     ) = coroutineScope {
         val draggableItemState = draggableItemMap[key] ?: return@coroutineScope
 
-        launch {
-            dragPositionAnimatable.snapTo(Offset.Zero)
-        }
-
-        launch {
-            dragSizeAnimatable.snapTo(draggableItemState.size)
-        }
+        dragPositionAnimatable.snapTo(Offset.Zero)
+        dragSizeAnimatable.snapTo(draggableItemState.size)
 
         dragPosition.value = draggableItemState.positionInRoot
         currentPointerPositionInRoot = offset

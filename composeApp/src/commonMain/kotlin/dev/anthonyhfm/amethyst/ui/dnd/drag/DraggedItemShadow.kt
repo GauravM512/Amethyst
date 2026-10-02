@@ -17,6 +17,7 @@ package com.mohamedrejeb.compose.dnd.drag
 
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -47,25 +48,31 @@ internal fun <T> DraggedItemShadow(
     // Erscheinungs-/Drop Transition (Scale, Alpha, Elevation) bleibt erhalten
     var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(state.draggedItem) { appeared = state.draggedItem != null }
+    val instantAppearance = state.currentDraggableItem?.animatePreviewOnStart == false && !state.finishingDrop
     val scale by animateFloatAsState(
         targetValue = when {
             state.finishingDrop -> 0.6f
+            instantAppearance -> 1f
             appeared -> 1.05f
             else -> 0.95f
         },
-        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = 0.7f), label = "dragScale"
+        animationSpec = if (instantAppearance) snap() else spring(stiffness = Spring.StiffnessLow, dampingRatio = 0.7f),
+        label = "dragScale"
     )
     val alpha by animateFloatAsState(
         targetValue = when {
             state.finishingDrop -> 0f
+            instantAppearance -> 1f
             appeared -> 1f
             else -> 0f
         },
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow), label = "dragAlpha"
+        animationSpec = if (instantAppearance) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "dragAlpha"
     )
     val elevation by animateFloatAsState(
-        targetValue = if (appeared && !state.finishingDrop) 18f else 0f,
-        animationSpec = spring(stiffness = Spring.StiffnessLow), label = "dragElevation"
+        targetValue = if ((appeared || instantAppearance) && !state.finishingDrop) 18f else 0f,
+        animationSpec = if (instantAppearance) snap() else spring(stiffness = Spring.StiffnessLow),
+        label = "dragElevation"
     )
 
     Box(
@@ -76,9 +83,9 @@ internal fun <T> DraggedItemShadow(
                 // Sofortige, direkte Folge des Cursors
                 translationX = rawX
                 translationY = rawY
-                scaleX = scale
-                scaleY = scale
-                this.alpha = alpha
+                scaleX = if (instantAppearance) 1f else scale
+                scaleY = if (instantAppearance) 1f else scale
+                this.alpha = if (instantAppearance) 1f else alpha
             }
     ) {
         CompositionLocalProvider(LocalDragAndDropInfo provides DragAndDropInfoImpl(isShadow = true)) {
@@ -86,7 +93,7 @@ internal fun <T> DraggedItemShadow(
                 modifier = Modifier.graphicsLayer {
                     // The drag source can provide a smaller preview than its original bounds.
                     // Keeping elevation here makes the shadow follow the measured preview.
-                    shadowElevation = elevation
+                    shadowElevation = if (instantAppearance) 18f else elevation
                 }
             ) {
                 // Overlay leichte Tönung hinter Content für „Card“ Effekt

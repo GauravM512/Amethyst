@@ -49,21 +49,22 @@ fun WorkspaceChainEditor(
                 }
             ),
     ) {
-        ScrollArea(
-            modifier = Modifier
-                .clip(DefaultShape)
-                .height(280.dp)
-                .fillMaxWidth()
-                .padding(bottom = 10.dp),
-            orientation = ScrollBarOrientation.Horizontal,
-            state = scrollState,
+        DragAndDropContainer(
+            state = dragAndDropState,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier.padding(top = 12.dp, end = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            ScrollArea(
+                modifier = Modifier
+                    .clip(DefaultShape)
+                    .height(280.dp)
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                orientation = ScrollBarOrientation.Horizontal,
+                state = scrollState,
             ) {
-                DragAndDropContainer(
-                    state = dragAndDropState,
+                Row(
+                    modifier = Modifier.padding(top = 12.dp, end = 12.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ChainView(
                         chain = chain,
@@ -76,4 +77,3 @@ fun WorkspaceChainEditor(
         }
     }
 }
-

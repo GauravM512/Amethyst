@@ -9,6 +9,7 @@ import dev.anthonyhfm.amethyst.devices.effects.pianoroll.PianoRollChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDevice
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlinx.coroutines.flow.update
 
 internal object AutomappingChainMutation {
@@ -68,6 +69,10 @@ internal object AutomappingChainMutation {
             }
         }
         
+        if (parentDevice.parentChain?.isWorkspaceChain() == true) {
+            WorkspaceRepository.markDirty()
+        }
+
         return true
     }
 }

@@ -64,7 +64,7 @@ import dev.anthonyhfm.amethyst.timeline.ui.components.MidiClip
 import dev.anthonyhfm.amethyst.timeline.ui.components.ChainEffectClip
 import dev.anthonyhfm.amethyst.timeline.ui.components.SelectionCursor
 import dev.anthonyhfm.amethyst.timeline.ui.components.timelineGridOverlay
-import dev.anthonyhfm.amethyst.timeline.utils.computeSnappedTimeFromContentX
+import dev.anthonyhfm.amethyst.timeline.utils.computeVisibleTimelineRangePx
 import dev.anthonyhfm.amethyst.timeline.utils.findHeaderEntryHit
 import dev.anthonyhfm.amethyst.timeline.utils.isPointInsideAnyEntry
 import dev.anthonyhfm.amethyst.timeline.utils.trackIndexOf
@@ -157,16 +157,17 @@ fun TimelineLane(
     LaunchedEffect(isFileHovering, hoverFiles) {
         if (isFileHovering) {
             val candidatePath = hoverFiles.firstOrNull { it.extension.lowercase() in Echo.getSupportedFormats() }?.path
-                ?: Echo.getActiveDragFile()
 
             if (candidatePath != null && candidatePath != lastProbedPath) {
                 lastProbedPath = candidatePath
+                probedDurationMs = null
+                probedFileName = null
                 val ext = candidatePath.substringAfterLast('.').lowercase()
                 if (ext in Echo.getSupportedFormats()) {
                     val meta = Echo.probeAudioFile(candidatePath)
                     if (meta != null && meta.durationMs > 0) {
                         probedDurationMs = meta.durationMs
-                        probedFileName = candidatePath.substringAfterLast('/').substringBeforeLast('.')
+                        probedFileName = candidatePath.replace('\\', '/').substringAfterLast('/').substringBeforeLast('.')
                     }
                 }
             }
@@ -199,6 +200,8 @@ fun TimelineLane(
     } else {
         Modifier
             .pointerInput(track, zoomLevel, bpm, gridType) {
+                var previousPressTimeMs: Long? = null
+                var previousPressPosition: Offset? = null
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
@@ -206,25 +209,41 @@ fun TimelineLane(
                             val change = event.changes.firstOrNull() ?: continue
                             val pos = change.position
                             val headerHit = findHeaderEntryHit(
-                                track,
-                                currentViewport.value.screenToContentX(pos.x),
-                                pos.y,
-                                currentViewport.value.zoomX,
-                                headerHeightPx
+                                track = track,
+                                x = pos.x.toDouble() + currentViewport.value.scrollX.toDouble(),
+                                y = pos.y,
+                                zoom = currentViewport.value.zoomX,
+                                headerHeightPx = headerHeightPx
                             )
                             if (headerHit != null) {
                                 onSelectEntry(headerHit)
                                 change.consume()
                                 continue
                             }
-                            val snappedMs = computeSnappedTimeFromContentX(
-                                currentViewport.value.screenToContentX(pos.x),
-                                currentViewport.value.zoomX,
-                                bpm,
-                                gridType,
+                            val snappedMs = computeSnappedTimeFromViewport(
+                                screenX = pos.x,
+                                viewport = currentViewport.value,
+                                bpm = bpm,
+                                gridType = gridType,
                                 snapEnabled = currentSnapEnabled.value,
                             )
-                            onSelectTime(snappedMs)
+                            val previousTime = previousPressTimeMs
+                            val previousPosition = previousPressPosition
+                            val doubleClickedEmptySpace = track is MidiTimelineTrack &&
+                                !isPointInsideAnyEntry(track = track, timeMs = snappedMs) &&
+                                previousTime != null &&
+                                change.uptimeMillis - previousTime <= viewConfiguration.doubleTapTimeoutMillis &&
+                                previousPosition != null &&
+                                (pos - previousPosition).getDistance() <= viewConfiguration.touchSlop * 2f
+                            if (doubleClickedEmptySpace) {
+                                previousPressTimeMs = null
+                                previousPressPosition = null
+                                onDoubleClickLane(snappedMs)
+                            } else {
+                                previousPressTimeMs = change.uptimeMillis
+                                previousPressPosition = pos
+                                onSelectTime(snappedMs)
+                            }
                             change.consume()
                         }
                     }
@@ -234,11 +253,11 @@ fun TimelineLane(
                 detectDragGestures(
                     onDragStart = { offset ->
                         val headerHit = findHeaderEntryHit(
-                            track,
-                            currentViewport.value.screenToContentX(offset.x),
-                            offset.y,
-                            currentViewport.value.zoomX,
-                            headerHeightPx
+                            track = track,
+                            x = offset.x.toDouble() + currentViewport.value.scrollX.toDouble(),
+                            y = offset.y,
+                            zoom = currentViewport.value.zoomX,
+                            headerHeightPx = headerHeightPx
                         )
                         if (headerHit != null) {
                             onSelectEntry(headerHit)
@@ -247,11 +266,11 @@ fun TimelineLane(
                             rangeEndMs = null
                             return@detectDragGestures
                         }
-                        val startMs = computeSnappedTimeFromContentX(
-                            currentViewport.value.screenToContentX(offset.x),
-                            currentViewport.value.zoomX,
-                            bpm,
-                            gridType,
+                        val startMs = computeSnappedTimeFromViewport(
+                            screenX = offset.x,
+                            viewport = currentViewport.value,
+                            bpm = bpm,
+                            gridType = gridType,
                             snapEnabled = currentSnapEnabled.value,
                         )
                         if (!isPointInsideAnyEntry(track, startMs)) {
@@ -266,11 +285,11 @@ fun TimelineLane(
                     },
                     onDrag = { change, _ ->
                         if (rangeActive && rangeStartMs != null) {
-                            val currentMs = computeSnappedTimeFromContentX(
-                                currentViewport.value.screenToContentX(change.position.x),
-                                currentViewport.value.zoomX,
-                                bpm,
-                                gridType,
+                            val currentMs = computeSnappedTimeFromViewport(
+                                screenX = change.position.x,
+                                viewport = currentViewport.value,
+                                bpm = bpm,
+                                gridType = gridType,
                                 snapEnabled = currentSnapEnabled.value,
                             )
                             if (currentMs != rangeEndMs) rangeEndMs = currentMs
@@ -584,14 +603,16 @@ fun TimelineLane(
             selectedRange != null -> selectedRange.endMs
             else -> null
         }
-        if (overlayStart != null && overlayEnd != null && overlayEnd > overlayStart) {
-            // Use screen-space X so the overlay follows scroll correctly.
-            val screenStartPx = viewport.timeMsToScreenX(overlayStart.toDouble())
-            val widthPx = viewport.timeMsToContentX(overlayEnd.toDouble()) - viewport.timeMsToContentX(overlayStart.toDouble())
+        val rangeWindow = if (overlayStart != null && overlayEnd != null) {
+            computeVisibleTimelineRangePx(startMs = overlayStart, endMs = overlayEnd, viewport = viewport)
+        } else {
+            null
+        }
+        if (rangeWindow != null) {
             Box(
                 modifier = Modifier
-                    .offset { IntOffset(screenStartPx.roundToInt(), 0) }
-                    .width(with(LocalDensity.current) { widthPx.toDp() })
+                    .offset { IntOffset(x = rangeWindow.visibleLeftPx, y = 0) }
+                    .width(with(LocalDensity.current) { rangeWindow.visibleWidthPx.toDp() })
                     .height(timelineDimensions.laneHeight)
                     .background(timelinePalette.selectionFill)
                     .border(1.dp, timelinePalette.selectionStroke, RoundedCornerShape(timelineDimensions.selectionCornerRadius))

@@ -34,9 +34,16 @@ data class LiveSetData(
     val tracks: Tracks,
 
     @XmlElement
-    @SerialName("MasterTrack")
-    val masterTrack: MasterTrack,
-)
+    @XmlSerialName("MasterTrack")
+    private val legacyMasterTrack: MasterTrack? = null,
+
+    @XmlElement
+    @XmlSerialName("MainTrack")
+    private val currentMainTrack: MasterTrack? = null,
+) {
+    val masterTrack: MasterTrack
+        get() = legacyMasterTrack ?: currentMainTrack ?: error("Ableton set has no master track")
+}
 
 @Serializable
 data class Tracks(

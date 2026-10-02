@@ -19,7 +19,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Dial
 import dev.anthonyhfm.amethyst.ui.components.DialType
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
@@ -74,11 +73,11 @@ class OpacityChainDevice : LEDChainDevice<OpacityChainDeviceState>() {
                 modifier = Modifier
                     .align(Alignment.Center),
                 onStartValueChange = { beforeState = state.value.copy() },
-                onValueChange = { v -> state.update { it.copy(opacity = v.coerceIn(0f, 1f)) } },
+                onValueChange = { v -> updateStateFromUser { it.copy(opacity = v.coerceIn(0f, 1f)) } },
                 onFinishValueChange = { pushStateChange(beforeState, state.value) },
                 onResolveTextValue = {
                     it.removeSuffix("%").trim().toIntOrNull()?.coerceIn(0, 100)?.let { v ->
-                        state.update { s -> s.copy(opacity = v / 100f) }
+                        updateStateFromUser { s -> s.copy(opacity = v / 100f) }
                     }
                 },
             )

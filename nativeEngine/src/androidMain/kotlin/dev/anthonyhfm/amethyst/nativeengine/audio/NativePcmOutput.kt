@@ -1,7 +1,5 @@
 package dev.anthonyhfm.amethyst.nativeengine.audio
 
-import com.sun.jna.Library
-import com.sun.jna.Native
 import dev.anthonyhfm.amethyst.nativeengine.PcmOutputDeviceInfo
 import dev.anthonyhfm.amethyst.nativeengine.PcmOutputDevice
 import dev.anthonyhfm.amethyst.nativeengine.PcmOutputService
@@ -13,8 +11,8 @@ import java.nio.ByteOrder
  * Android-facing PCM output with a direct-buffer producer path.
  *
  * Android's Kotlin target compiles to the JVM, so the generated UniFFI bindings
- * use JNA here exactly like the desktop JVM target does. Lifecycle and telemetry
- * use UniFFI/JNA. Audio samples never become a Kotlin `List`: [writeInterleaved]
+ * use UniFFI/JNA for lifecycle and telemetry. Audio samples use JNI directly
+ * without allocating buffer views: [writeInterleaved]
  * passes direct native-endian Float32 memory to the preallocated native ring.
  *
  * Exactly one render thread may call [writeInterleaved]. That render thread must
@@ -62,11 +60,11 @@ class NativePcmOutput : AutoCloseable {
             return 0
         }
 
-        val view = buffer.slice().order(ByteOrder.nativeOrder())
-        val writtenSamples = PcmOutputDirectBridge.amethyst_pcm_output_write_direct(
-            ringHandle.toLong(),
-            view,
-            sampleCount,
+        val writtenSamples = PcmOutputDirectBridge.writeInterleaved(
+            handle = ringHandle.toLong(),
+            samples = buffer,
+            byteOffset = buffer.position(),
+            sampleCount = sampleCount,
         )
         check(writtenSamples % channels == 0) {
             "Native PCM ring returned a partial frame"
@@ -84,7 +82,7 @@ class NativePcmOutput : AutoCloseable {
     /** Allocation-free queue depth for the single producer's pacing loop. */
     fun queuedFrames(): Long {
         check(ringHandle != 0UL) { "PCM output is not initialized" }
-        return PcmOutputDirectBridge.amethyst_pcm_output_queued_frames(ringHandle.toLong())
+        return PcmOutputDirectBridge.queuedFrames(handle = ringHandle.toLong())
     }
 
     fun outputDevices(): List<PcmOutputDevice> = service.outputDevices()
@@ -120,26 +118,23 @@ class NativePcmOutput : AutoCloseable {
     }
 }
 
-private object PcmOutputDirectBridge : Library {
+private object PcmOutputDirectBridge {
     init {
         try {
             System.loadLibrary("c++_shared")
         } catch (_: UnsatisfiedLinkError) {
         }
-        Native.register(
-            PcmOutputDirectBridge::class.java,
-            System.getProperty("uniffi.component.amethyst_native_engine.libraryOverride")
-                ?: "amethyst_native_engine",
-        )
+        System.loadLibrary("amethyst_native_engine")
     }
 
     @JvmStatic
-    external fun amethyst_pcm_output_write_direct(
+    external fun writeInterleaved(
         handle: Long,
         samples: ByteBuffer,
+        byteOffset: Int,
         sampleCount: Int,
     ): Int
 
     @JvmStatic
-    external fun amethyst_pcm_output_queued_frames(handle: Long): Long
+    external fun queuedFrames(handle: Long): Long
 }

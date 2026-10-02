@@ -166,7 +166,24 @@ fun TimelineRuler(
             lastLabelRight = labelLeft + labelWidth
         }
 
-        if (showBars) {
+        if (beatMs * zoomLevel > viewportWidthPx) {
+            var labelTimeMs = firstGridTimeMs
+            while (labelTimeMs <= endTimeMsExclusive + intervalMs) {
+                val x = viewport.timeMsToScreenX(timeMs = labelTimeMs.toDouble())
+                if (x >= -10f && x <= viewportWidthPx + 10f) {
+                    drawLabel(
+                        label = "$labelTimeMs ms",
+                        x = x,
+                        style = TextStyle(
+                            color = timelinePalette.rulerText,
+                            fontSize = 10.sp,
+                        ),
+                        backgroundAlpha = 0.56f,
+                    )
+                }
+                labelTimeMs += intervalMs
+            }
+        } else if (showBars) {
             val firstBar = ((startTimeMsInclusive / barMs)).coerceAtLeast(0L)
             val lastBar = ((endTimeMsExclusive / barMs) + 1).coerceAtLeast(firstBar)
 

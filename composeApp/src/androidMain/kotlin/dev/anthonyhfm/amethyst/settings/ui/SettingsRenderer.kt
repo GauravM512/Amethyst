@@ -23,6 +23,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,11 +51,13 @@ fun SettingsRenderer(isFirstIndex: Boolean, isLastIndex: Boolean, setting: Setti
             .heightIn(min = 56.dp)
             .background(MaterialTheme.colorScheme.primaryContainer),
     ) {
-        when (setting) {
-            is Setting.Select<*> -> SelectSettingContent(setting)
-            is Setting.Slider -> SliderSettingContent(setting)
-            is Setting.TextField -> { }
-            is Setting.Toggle -> ToggleSettingContent(setting)
+        key(setting) {
+            when (setting) {
+                is Setting.Select<*> -> SelectSettingContent(setting)
+                is Setting.Slider -> SliderSettingContent(setting)
+                is Setting.TextField -> { }
+                is Setting.Toggle -> ToggleSettingContent(setting)
+            }
         }
     }
 }

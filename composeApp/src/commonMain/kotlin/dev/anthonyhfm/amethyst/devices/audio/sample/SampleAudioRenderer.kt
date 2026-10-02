@@ -3,6 +3,7 @@ package dev.anthonyhfm.amethyst.devices.audio.sample
 import dev.anthonyhfm.amethyst.core.engine.audio.source.ByteArrayPcmAudioSource
 import dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache
 import dev.anthonyhfm.amethyst.core.engine.audio.source.PolyphaseSincResampler
+import dev.anthonyhfm.amethyst.core.engine.audio.source.useNativeRateForLongSample
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.AudioTriggerBatch
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.PadTriggerKey
 import dev.anthonyhfm.amethyst.devices.AudioConfiguration
@@ -76,6 +77,9 @@ internal class SampleRenderSnapshot private constructor(
                         it.bitDepth == state.bitDepth
                 }
             if (librarySource != null) {
+                if (useNativeRateForLongSample(original.frameCount, original.sampleRate)) {
+                    return original
+                }
                 return PreparedAudioSourceCache.getOrPrepare(
                     source = original,
                     outputRate = outputSampleRate,
@@ -283,6 +287,7 @@ internal class SampleVoiceRenderer {
     private var snapshot: SampleRenderSnapshot? = null
     private var key: PadTriggerKey? = null
     private var sourcePosition = 0.0
+    private var sourceFramesPerOutputFrame = 1.0
     private val sourceFrameBuffer = FloatArray(2)
     private var transitionFramesRemaining = 0
     private var transitionFramesTotal = 0
@@ -306,7 +311,8 @@ internal class SampleVoiceRenderer {
     }
 
     fun trigger(snapshot: SampleRenderSnapshot, key: PadTriggerKey, sequence: Long) {
-        check(snapshot.source.sampleRate == configuration.sampleRate)
+        sourceFramesPerOutputFrame =
+            snapshot.source.sampleRate.toDouble() / configuration.sampleRate
         if (isActive) {
             transitionLeft = lastLeft
             transitionRight = lastRight
@@ -373,8 +379,10 @@ internal class SampleVoiceRenderer {
                 active,
                 relativeFrame,
                 modulation?.volumeGain?.get(modulationFrame) ?: active.volumeGain,
-                modulation?.fadeInFrames?.get(modulationFrame) ?: active.fadeInFrames,
-                modulation?.fadeOutFrames?.get(modulationFrame) ?: active.fadeOutFrames,
+                modulation?.fadeInFrames?.get(modulationFrame)
+                    ?: (active.fadeInFrames / sourceFramesPerOutputFrame).toInt(),
+                modulation?.fadeOutFrames?.get(modulationFrame)
+                    ?: (active.fadeOutFrames / sourceFramesPerOutputFrame).toInt(),
             )
             if (releaseFramesRemaining > 0) {
                 gain *= releaseFramesRemaining.toFloat() / releaseFramesTotal.toFloat()
@@ -402,7 +410,7 @@ internal class SampleVoiceRenderer {
                     break
                 }
             }
-            sourcePosition += active.pitchRatio
+            sourcePosition += active.pitchRatio * sourceFramesPerOutputFrame
             if (active.playbackMode == SamplePlaybackMode.OneShot && sourcePosition >= active.endFrame) {
                 stopImmediately()
             }
@@ -414,6 +422,7 @@ internal class SampleVoiceRenderer {
         snapshot = null
         key = null
         sourcePosition = 0.0
+        sourceFramesPerOutputFrame = 1.0
         transitionFramesRemaining = 0
         transitionFramesTotal = 0
         transitionLeft = 0f
@@ -458,15 +467,17 @@ internal class SampleVoiceRenderer {
         fadeOutFrames: Int,
     ): Float {
         var gain = volumeGain
-        if (fadeInFrames > 0 && relativeFrame < fadeInFrames) {
-            gain *= relativeFrame.toFloat() / fadeInFrames.toFloat()
+        val relativeOutputFrame = relativeFrame.toDouble() / sourceFramesPerOutputFrame
+        val activeOutputFrames = snapshot.activeFrames.toDouble() / sourceFramesPerOutputFrame
+        if (fadeInFrames > 0 && relativeOutputFrame < fadeInFrames) {
+            gain *= (relativeOutputFrame / fadeInFrames).toFloat()
         }
-        val fadeOutStart = snapshot.activeFrames - fadeOutFrames
-        if (fadeOutFrames > 0 && relativeFrame >= fadeOutStart) {
-            gain *= (snapshot.activeFrames - relativeFrame).toFloat() / fadeOutFrames.toFloat()
+        val fadeOutStart = activeOutputFrames - fadeOutFrames
+        if (fadeOutFrames > 0 && relativeOutputFrame >= fadeOutStart) {
+            gain *= ((activeOutputFrames - relativeOutputFrame) / fadeOutFrames).toFloat()
         }
         snapshot.volumeAutomationLane?.let { automation ->
-            val timeMs = (relativeFrame.toDouble() * 1_000.0 / snapshot.source.sampleRate).toLong()
+            val timeMs = (relativeOutputFrame * 1_000.0 / configuration.sampleRate).toLong()
             gain *= automation.valueAt(timeMs, TimelineTrackAutomationTarget.VOLUME.defaultValue)
         }
         return gain

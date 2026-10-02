@@ -252,7 +252,7 @@ class CompositionChainDevice : LEDChainDevice<CompositionChainDeviceState>(), Ch
         val clamped = ratio.coerceIn(MIN_SPLIT_RATIO, MAX_SPLIT_RATIO)
         val before = state.value
         if (before.splitRatio == clamped) return
-        state.value = before.copy(splitRatio = clamped)
+        updateStateFromUser { it.copy(splitRatio = clamped) }
     }
 
     private fun startEditorPlayback(

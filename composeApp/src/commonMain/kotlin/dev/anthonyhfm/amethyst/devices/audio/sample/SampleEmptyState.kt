@@ -39,6 +39,7 @@ import kotlinx.coroutines.withContext
 fun SampleEmptyState(
     state: MutableStateFlow<SampleChainDeviceState>,
     onLoaded: () -> Unit = {},
+    onStateChanged: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -80,6 +81,7 @@ fun SampleEmptyState(
                                             sourceEndFrameExclusive = source.totalSamples,
                                         )
                                     }
+                                    onStateChanged()
                                     // Snapshot creation can include high-quality sample-rate
                                     // conversion. Keep that work off the UI thread.
                                     withContext(Dispatchers.Default) {

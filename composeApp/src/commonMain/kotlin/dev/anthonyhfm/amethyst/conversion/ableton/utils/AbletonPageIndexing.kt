@@ -11,21 +11,30 @@ internal object AbletonPageIndexing {
     }
 
     fun sourceOffset(
-        selectorMinimum: Int?,
-        hasOneBasedPageController: Boolean = false,
-    ): Int = if (hasOneBasedPageController || selectorMinimum == 1) 1 else 0
+        selectorMinimum: Float?,
+    ): Int {
+        return if (selectorMinimum != null && isSelectorValue(value = selectorMinimum)) {
+            selectorMinimum.toInt()
+        } else {
+            0
+        }
+    }
+
+    private fun isSelectorValue(value: Float): Boolean =
+        value in 0f..127f && value == value.toInt().toFloat()
 
     fun normalizeSelectorValue(value: Int, sourceOffset: Int): Int =
         value - sourceOffset
 
     fun normalizeMacroValue(
         value: Double,
-        sourceMinimum: Int?,
-        sourceMaximum: Int?,
+        sourceMinimum: Float?,
+        sourceMaximum: Float?,
         targetMaximum: Int?,
     ): Int {
         if (
             sourceMinimum == null || sourceMaximum == null || targetMaximum == null ||
+            !sourceMinimum.isFinite() || !sourceMaximum.isFinite() ||
             sourceMaximum <= sourceMinimum || targetMaximum !in 1..15
         ) {
             return value.roundToInt()
@@ -33,28 +42,30 @@ internal object AbletonPageIndexing {
 
         return (
             (value - sourceMinimum) * targetMaximum.toDouble() /
-                (sourceMaximum - sourceMinimum).toDouble()
+                (sourceMaximum.toDouble() - sourceMinimum.toDouble())
             ).roundToInt()
     }
 
     fun pageTargetMaximum(
         keyMinimum: Int?,
         keyMaximum: Int?,
-        controllerMinimum: Int?,
-        controllerMaximum: Int?,
+        controllerMinimum: Float?,
+        controllerMaximum: Float?,
     ): Int? {
         val keyRangeSize = if (keyMinimum != null && keyMaximum != null) {
             (keyMaximum - keyMinimum).takeIf { it in 1..15 }
         } else {
             null
         }
-        if (keyRangeSize != null) return keyRangeSize
+        if (keyRangeSize != null) {
+            return keyRangeSize
+        }
 
         return if (
             controllerMinimum != null && controllerMaximum != null &&
-            controllerMinimum in 0..1 && controllerMaximum in 1..16
+            isSelectorValue(value = controllerMinimum) && isSelectorValue(value = controllerMaximum)
         ) {
-            (controllerMaximum - controllerMinimum).takeIf { it in 1..15 }
+            (controllerMaximum - controllerMinimum).toInt().takeIf { it in 1..15 }
         } else {
             null
         }

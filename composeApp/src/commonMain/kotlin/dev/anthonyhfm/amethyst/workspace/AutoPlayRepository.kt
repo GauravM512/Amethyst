@@ -4,12 +4,18 @@ import androidx.compose.ui.graphics.Color
 import dev.anthonyhfm.amethyst.core.engine.audio.command.AudioStopTicket
 import dev.anthonyhfm.amethyst.core.engine.echo.Echo
 import dev.anthonyhfm.amethyst.core.engine.elements.AudioChain
+import dev.anthonyhfm.amethyst.core.engine.elements.Chain
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.SIGNAL_EXTRA_SILENT_REPLAY
 import dev.anthonyhfm.amethyst.core.engine.elements.currentSignalMacroValues
 import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.devices.Chokeable
+import dev.anthonyhfm.amethyst.devices.NestedChainDevice
+import dev.anthonyhfm.amethyst.devices.TimelineDuration
+import dev.anthonyhfm.amethyst.devices.TimelineDurationContext
 import dev.anthonyhfm.amethyst.devices.devicesDepthFirst
+import dev.anthonyhfm.amethyst.devices.effects.delay.DelayChainDevice
+import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDevice
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,6 +45,51 @@ internal const val AUTO_PLAY_AUDIO_LOOKAHEAD_MS = 12.0
 private const val AUTO_PLAY_RESET_POLL_MS = 1.0
 private const val AUTO_PLAY_AUDIO_PUMP_MAX_SLEEP_NANOS = 1_000_000_000L
 private const val AUTO_PLAY_AUDIO_PUMP_ID = "autoplay-audio-pump"
+
+internal fun autoPlayActionBatches(actions: List<AutoPlayData.Action>): List<List<AutoPlayData.Action>> {
+    if (actions.none { it.beforeNotes }) {
+        return listOf(actions)
+    }
+
+    val releases = actions.filter { !it.beforeNotes && !it.down }
+    val pageSwitches = actions.filter { it.beforeNotes }
+    val presses = actions.filter { !it.beforeNotes && it.down }
+    return listOf(releases, pageSwitches, presses).filter { it.isNotEmpty() }
+}
+
+internal fun autoPlayDelayTailMs(
+    chains: List<Chain>,
+    bpm: Double,
+): Long {
+    val context = TimelineDurationContext(bpm = bpm)
+    return chains.maxOfOrNull { chain -> chain.autoPlayDelayTailMs(context) } ?: 0L
+}
+
+private fun Chain.autoPlayDelayTailMs(context: TimelineDurationContext): Long {
+    fun add(first: Long, second: Long): Long =
+        if (Long.MAX_VALUE - first < second) Long.MAX_VALUE else first + second
+
+    return devices.value
+        .asSequence()
+        .filterNot { device -> device.isMuted }
+        .fold(0L) { total, device ->
+            val duration = when (device) {
+                is DelayChainDevice ->
+                    (device.timelineDuration(context) as? TimelineDuration.Finite)?.milliseconds ?: 0L
+                is MultiGroupChainDevice -> {
+                    val nested = device.nestedChains()
+                    val preprocess = nested.lastOrNull()?.autoPlayDelayTailMs(context) ?: 0L
+                    val branch = nested.dropLast(1)
+                        .maxOfOrNull { chain -> chain.autoPlayDelayTailMs(context) } ?: 0L
+                    add(preprocess, branch)
+                }
+                is NestedChainDevice -> device.nestedChains()
+                    .maxOfOrNull { chain -> chain.autoPlayDelayTailMs(context) } ?: 0L
+                else -> 0L
+            }
+            add(total, duration)
+        }
+}
 
 private data class AutoPlayAudioTimeline(
     val playbackStartNanos: Long,
@@ -189,9 +240,11 @@ object AutoPlayRepository {
             }
             .sortedBy { it.key }
             .forEach { (_, actions) ->
-                WorkspaceRepository.samplingChain.signalEnter(
-                    midiSignals(actions, silentReplay = true),
-                )
+                for (batch in autoPlayActionBatches(actions = actions)) {
+                    WorkspaceRepository.samplingChain.signalEnter(
+                        midiSignals(actions = batch, silentReplay = true),
+                    )
+                }
             }
         actionsAppliedThroughOffset = true
     }
@@ -319,52 +372,61 @@ object AutoPlayRepository {
 
             // Visual feedback remains on the original AutoPlay wall-clock deadline.
             Heaven.scheduleAt(deadlineNanos, this) {
-                val macroSnapshot = currentSignalMacroValues()
-                if (audioTimeline == null) {
-                    // Sampling MIDI also contains page and macro controls required by
-                    // a lights-only run. Preserve legacy wall-deadline routing when no
-                    // audio callback is available, without prefetching sample commands.
-                    samplingChain.signalEnter(midiSignals(actions, macroValues = macroSnapshot))
-                }
-                if (settings?.autoPlayShowLights == true) {
-                    WorkspaceRepository.lightsChain.signalEnter(
-                        actions.map {
-                            Signal.LED(
-                                origin = originFor(it),
-                                x = it.x,
-                                y = it.y,
-                                color = if (it.down) Color.White else Color.Black,
-                                macroValues = macroSnapshot,
-                            )
-                        }
-                    )
-                }
+                for (batch in autoPlayActionBatches(actions = actions)) {
+                    val macroSnapshot = currentSignalMacroValues()
+                    if (audioTimeline == null) {
+                        // Sampling MIDI also contains page and macro controls required by
+                        // a lights-only run. Preserve legacy wall-deadline routing when no
+                        // audio callback is available, without prefetching sample commands.
+                        samplingChain.signalEnter(midiSignals(actions = batch, macroValues = macroSnapshot))
+                    }
+                    if (settings?.autoPlayShowLights == true) {
+                        WorkspaceRepository.lightsChain.signalEnter(
+                            batch.map {
+                                Signal.LED(
+                                    origin = originFor(it),
+                                    x = it.x,
+                                    y = it.y,
+                                    color = if (it.down) Color.White else Color.Black,
+                                    macroValues = macroSnapshot,
+                                )
+                            }
+                        )
+                    }
 
-                if (settings?.autoPlayShowButtonPresses == true) {
-                    Heaven.midiEnter(
-                        actions.map {
-                            Signal.LED(
-                                origin = originFor(it),
-                                x = it.x,
-                                y = it.y,
-                                color = if (it.down) Color.White else Color.Black,
-                                layer = 100,
-                                // Screen blending keeps the compositing loop running so
-                                // any light-effect on layer 0 remains visible beneath
-                                // the button-press flash. Normal (the default) would
-                                // break the loop at layer 100, hiding the animation.
-                                blendingMode = Signal.LED.BlendingMode.Screen,
-                            )
-                        }
-                    )
+                    if (settings?.autoPlayShowButtonPresses == true) {
+                        Heaven.midiEnter(
+                            batch.map {
+                                Signal.LED(
+                                    origin = originFor(it),
+                                    x = it.x,
+                                    y = it.y,
+                                    color = if (it.down) Color.White else Color.Black,
+                                    layer = 100,
+                                    // Screen blending keeps the compositing loop running so
+                                    // any light-effect on layer 0 remains visible beneath
+                                    // the button-press flash. Normal (the default) would
+                                    // break the loop at layer 100, hiding the animation.
+                                    blendingMode = Signal.LED.BlendingMode.Screen,
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
 
         // Schedule this after all actions so equal deadlines retain action-before-stop ordering.
         val remainingDuration = (totalDuration - playbackOffset).coerceAtLeast(0.0)
+        val delayTail = autoPlayDelayTailMs(
+            chains = listOf(
+                WorkspaceRepository.samplingChain,
+                WorkspaceRepository.lightsChain,
+            ),
+            bpm = WorkspaceRepository.bpm.value,
+        )
         Heaven.scheduleAt(
-            targetTimeNanos = playbackStartNanos + millisecondsToNanos(remainingDuration + 50.0),
+            targetTimeNanos = playbackStartNanos + millisecondsToNanos(remainingDuration + delayTail + 50.0),
             owner = this,
         ) {
             stopAutoPlay()
@@ -396,7 +458,12 @@ object AutoPlayRepository {
         while (index < step.readyUntilExclusive) {
             if (playbackGeneration.value != runGeneration) return
             val action = audioActions[index]
-            samplingChain.signalEnterAtFrame(midiSignals(action.actions), action.targetFrame)
+            for (batch in autoPlayActionBatches(actions = action.actions)) {
+                samplingChain.signalEnterAtFrame(
+                    n = midiSignals(actions = batch),
+                    targetFrame = action.targetFrame,
+                )
+            }
             index++
         }
         val delayNanos = step.nextDelayNanos ?: return
@@ -510,32 +577,34 @@ object AutoPlayRepository {
         val downActions = actions.filter { it.down }
         if (downActions.isEmpty()) return
 
-        val macroSnapshot = currentSignalMacroValues()
-        WorkspaceRepository.samplingChain.signalEnter(
-            downActions.map {
-                Signal.Midi(
-                    origin = originFor(it),
-                    x = it.x,
-                    y = it.y,
-                    velocity = 127,
-                    macroValues = macroSnapshot,
-                )
-            }
-        )
-        
-        val settings = WorkspaceRepository.workspaceMeta?.settings
-        if (settings?.autoPlayShowLights == true) {
-            WorkspaceRepository.lightsChain.signalEnter(
-                downActions.map {
-                    Signal.LED(
+        for (batch in autoPlayActionBatches(actions = downActions)) {
+            val macroSnapshot = currentSignalMacroValues()
+            WorkspaceRepository.samplingChain.signalEnter(
+                batch.map {
+                    Signal.Midi(
                         origin = originFor(it),
                         x = it.x,
                         y = it.y,
-                        color = Color.White,
+                        velocity = 127,
                         macroValues = macroSnapshot,
                     )
                 }
             )
+
+            val settings = WorkspaceRepository.workspaceMeta?.settings
+            if (settings?.autoPlayShowLights == true) {
+                WorkspaceRepository.lightsChain.signalEnter(
+                    batch.map {
+                        Signal.LED(
+                            origin = originFor(it),
+                            x = it.x,
+                            y = it.y,
+                            color = Color.White,
+                            macroValues = macroSnapshot,
+                        )
+                    }
+                )
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import dev.anthonyhfm.amethyst.core.engine.echo.Echo
 import dev.anthonyhfm.amethyst.core.util.mainDispatcherOrDefault
 import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
+import dev.anthonyhfm.amethyst.core.util.AmethystProtoBuf
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.timeline.automation.TimelineAutomationEvaluator
 import dev.anthonyhfm.amethyst.timeline.data.AudioEntry
@@ -27,9 +28,29 @@ import kotlinx.coroutines.launch
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlin.concurrent.Volatile
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.PolymorphicSerializer
+import kotlinx.serialization.builtins.ListSerializer
 
 
 object TimelineRepository {
+    private var persistedTracksSnapshot: ByteArray? = null
+    private var isLoadingTracks = false
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun recordPersistedTracks(updatedTracks: List<TimelineTrack<*>>) {
+        val snapshot = AmethystProtoBuf.encodeToByteArray(
+            serializer = ListSerializer(PolymorphicSerializer(TimelineTrack::class)),
+            value = updatedTracks,
+        )
+        val changed = persistedTracksSnapshot?.contentEquals(snapshot) != true &&
+            (persistedTracksSnapshot != null || updatedTracks.isNotEmpty())
+        persistedTracksSnapshot = snapshot
+        if (changed && !isLoadingTracks) {
+            WorkspaceRepository.markDirty()
+        }
+    }
+
     private data class TrackAudioEntry(
         val trackIndex: Int,
         val track: AudioTimelineTrack,
@@ -283,6 +304,7 @@ object TimelineRepository {
         updatedTracks.forEach { track ->
             track.normalizeAutomationState()
         }
+        recordPersistedTracks(updatedTracks)
         _tracks.value = updatedTracks
         rebuildSortedEntries()
         if (_isPlaying.value) {
@@ -507,6 +529,7 @@ object TimelineRepository {
             chainEffectEntries[updated.startTimeMs] = updated
         }
         val updatedTracks = tracks.value.toMutableList().apply { this[tracked.trackIndex] = updatedTrack }
+        recordPersistedTracks(updatedTracks)
         _tracks.value = updatedTracks
         runtime.updateEntryMetadata(updated)
         rebuildSortedEntries()
@@ -537,8 +560,13 @@ object TimelineRepository {
     fun loadTracks(loadedTracks: List<TimelineTrack<*>>) {
         stop()
         SelectionManager.clear()
-        updateTracksSnapshot(loadedTracks)
-        refreshChainEffectDurations()
+        isLoadingTracks = true
+        try {
+            updateTracksSnapshot(loadedTracks)
+            refreshChainEffectDurations()
+        } finally {
+            isLoadingTracks = false
+        }
     }
 
     fun reorderTracks(fromIndex: Int, toIndex: Int) {
@@ -922,6 +950,7 @@ object TimelineRepository {
                 }
             )
         }
+        recordPersistedTracks(updatedTracks)
         _tracks.value = updatedTracks
         rebuildSortedEntries()
     }

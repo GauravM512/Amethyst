@@ -63,6 +63,12 @@ jobs:
             artifact-ext: rpm
             artifact-name: amethyst-linux-fedora-rpm
 
+          - os: ubuntu-latest
+            name: Linux AppImage
+            task: packageReleaseAppImage
+            artifact-dir: AppImage
+            artifact-ext: AppImage
+            artifact-name: amethyst-linux-appimage
 
     steps:
       - name: Checkout

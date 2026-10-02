@@ -91,22 +91,23 @@ fun MobileWorkspaceChainEditor(
 
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        ScrollArea(
-            modifier = Modifier
-                .height(280.dp)
-                .fillMaxWidth()
-                .background(Theme[chainColorTokens][chainCanvas])
-                .padding(bottom = 16.dp),
-            orientation = ScrollBarOrientation.Horizontal,
-            state = scrollState,
-            scrollBarThickness = 16.dp,
+        DragAndDropContainer(
+            state = dragAndDropState,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Row(
-                modifier = Modifier.padding(top = 12.dp, end = 12.dp, bottom = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            ScrollArea(
+                modifier = Modifier
+                    .height(280.dp)
+                    .fillMaxWidth()
+                    .background(Theme[chainColorTokens][chainCanvas])
+                    .padding(bottom = 16.dp),
+                orientation = ScrollBarOrientation.Horizontal,
+                state = scrollState,
+                scrollBarThickness = 16.dp,
             ) {
-                DragAndDropContainer(
-                    state = dragAndDropState,
+                Row(
+                    modifier = Modifier.padding(top = 12.dp, end = 12.dp, bottom = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ChainView(
                         chain = chain,

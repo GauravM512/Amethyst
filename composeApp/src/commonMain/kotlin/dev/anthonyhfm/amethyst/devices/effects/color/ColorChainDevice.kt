@@ -48,7 +48,7 @@ class ColorChainDevice : LEDChainDevice<ColorChainDeviceState>() {
             val c = colorPickerState.color
             val current = state.value
             if (!colorsRoughlyEqual(c, current)) {
-                state.value = current.copy(r = c.red, g = c.green, b = c.blue)
+                updateStateFromUser { it.copy(r = c.red, g = c.green, b = c.blue) }
             }
         }
 

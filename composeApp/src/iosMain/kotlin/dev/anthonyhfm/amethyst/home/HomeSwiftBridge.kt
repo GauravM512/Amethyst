@@ -9,6 +9,7 @@ import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
 import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.determineFormat
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
+import dev.anthonyhfm.amethyst.home.data.MobileProjectRecord
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.utils.toByteArray
@@ -72,6 +73,18 @@ object HomeSwiftBridge {
 
     fun recentWorkspaces(): List<RecentWorkspace> = HomeRepository.recentWorkspaces()
 
+    fun hasConvertedMobileProject(path: String): Boolean =
+        HomeRepository.hasConvertedMobileProject(path)
+
+    fun mobileProjectForPath(path: String): MobileProjectRecord? =
+        HomeRepository.mobileProjectForPath(path)
+
+    fun registerMobileProject(id: String, title: String, originalPath: String, importedAt: Long, hubProjectId: String?, sourceHash: String) {
+        HomeRepository.registerMobileProject(
+            MobileProjectRecord(id, title, originalPath, importedAt, hubProjectId, sourceHash = sourceHash)
+        )
+    }
+
     fun removeRecentWorkspace(path: String) = HomeRepository.removeRecentWorkspace(path)
 
     fun localAuthor(): String = HomeRepository.localAuthor()
@@ -83,8 +96,10 @@ object HomeSwiftBridge {
     fun getZipFormat(path: String, onResult: (String) -> Unit) {
         scope.launch {
             val format = withContext(Dispatchers.IO) {
-                val file = resolveFile(path)
-                Zip.determineFormat(file).name
+                runCatching {
+                    val file = resolveFile(path)
+                    Zip.determineFormat(file).name
+                }.getOrDefault("UNKNOWN")
             }
             onResult(format)
         }
@@ -128,7 +143,9 @@ object HomeSwiftBridge {
         scope.launch {
             runCatching { HomeRepository.openRecentWorkspace(project) }
                 .onSuccess { onSuccess() }
-                .onFailure { onError(it.message ?: getString(Res.string.home_swift_bridge_unknown_error)) }
+                .onFailure {
+                    onError(it.message ?: it.toString())
+                }
         }
     }
 

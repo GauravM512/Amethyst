@@ -28,6 +28,7 @@ import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadProMk3
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportLaunchpadX
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMidiFighter64
 import dev.anthonyhfm.amethyst.ui.launchpad.viewport.ViewportMystrix
+import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollAreaState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import dev.anthonyhfm.amethyst.workspace.data.Macro
 import dev.anthonyhfm.amethyst.workspace.data.ParameterMapping
@@ -39,6 +40,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
@@ -76,8 +79,33 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.atomicfu.atomic
 
 object WorkspaceRepository {
+    private val changeRevision = atomic(0L)
+    private val savedRevision = atomic(0L)
+    private val loadingWorkspace = atomic(false)
+
+    val lightsChainScrollState = ScrollAreaState()
+    val samplingChainScrollState = ScrollAreaState()
+
+    private fun resetChainScrollStates() {
+        lightsChainScrollState.scrollValue = 0
+        samplingChainScrollState.scrollValue = 0
+    }
+
+    fun markDirty() {
+        if (!loadingWorkspace.value) {
+            changeRevision.incrementAndGet()
+        }
+    }
+
+    fun currentChangeRevision(): Long = changeRevision.value
+
+    fun markSaved(revision: Long) {
+        savedRevision.value = revision
+    }
+
     sealed interface AudioSourceRemovalResult {
         data object Removed : AudioSourceRemovalResult
         data object NotFound : AudioSourceRemovalResult
@@ -166,6 +194,7 @@ object WorkspaceRepository {
 
     private val _gridType = MutableStateFlow<GridUtils.GridType>(GridUtils.GridType.Flexible.Medium)
     val gridType: StateFlow<GridUtils.GridType> = _gridType.asStateFlow()
+    private var lastEnabledGridType: GridUtils.GridType = GridUtils.GridType.Flexible.Medium
 
     private val _showDeviceConfigurator = MutableStateFlow<String?>(null)
     val showDeviceConfigurator: StateFlow<String?> = _showDeviceConfigurator.asStateFlow()
@@ -248,6 +277,12 @@ object WorkspaceRepository {
     }
 
     fun changeMidiDeviceConfig(uuid: String, deviceId: String?) {
+        val element = ViewportRepository.devices.value.firstOrNull {
+            it.selectionUUID == uuid || it.launchpadId == uuid
+        }
+        if (element != null && element.savedMidiDeviceId != deviceId) {
+            markDirty()
+        }
         midiManager.changeDeviceConfig(uuid, deviceId)
     }
 
@@ -287,7 +322,25 @@ object WorkspaceRepository {
         Echo.attachAudioChain(samplingChain)
     }
 
+    private val _simpleModeUnavailable = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val simpleModeUnavailable = _simpleModeUnavailable.asSharedFlow()
+
+    fun isModeAvailable(mode: WorkspaceMode): Boolean {
+        return !GeneralSettings.isSimpleModeEnabled || mode.availableInSimpleMode
+    }
+
+    fun enforceSimpleMode() {
+        if (!isModeAvailable(mode = _mode.value)) {
+            replaceMode(mode = PerformanceWorkspaceMode())
+        }
+    }
+
     fun switchMode(mode: WorkspaceMode, undoable: Boolean = true) {
+        if (!isModeAvailable(mode = mode)) {
+            _simpleModeUnavailable.tryEmit(Unit)
+            return
+        }
+
         val current = _mode.value
         if (current == mode) return
 
@@ -308,10 +361,21 @@ object WorkspaceRepository {
     }
 
     fun switchToPreviousMode() {
-        replaceMode(previousMode)
+        replaceMode(
+            mode = if (isModeAvailable(mode = previousMode)) {
+                previousMode
+            } else {
+                PerformanceWorkspaceMode()
+            },
+        )
     }
 
     private fun replaceMode(mode: WorkspaceMode) {
+        if (!isModeAvailable(mode = mode)) {
+            _simpleModeUnavailable.tryEmit(Unit)
+            return
+        }
+
         val current = _mode.value
         if (current == mode) return
 
@@ -356,6 +420,9 @@ object WorkspaceRepository {
 
     fun setBpm(bpm: Double, fromRemote: Boolean = false, undoable: Boolean = true) {
         val before = _bpm.value
+        if (before != bpm) {
+            markDirty()
+        }
         if (undoable && !fromRemote && before != bpm) {
             UndoManager.addAction(
                 UndoableAction.WorkspaceBpmChange(
@@ -370,6 +437,9 @@ object WorkspaceRepository {
     }
 
     fun setProjectName(name: String, fromRemote: Boolean = false) {
+        if (_projectName.value != name) {
+            markDirty()
+        }
         isApplyingRemoteProjectNameUpdate = fromRemote
         workspaceMeta = workspaceMeta?.copy(title = name)
         _projectName.update { name }
@@ -378,6 +448,11 @@ object WorkspaceRepository {
 
     fun updateAutoPlaySettings(showButtonPresses: Boolean, showLights: Boolean) {
         workspaceMeta?.let { currentMeta ->
+            if (currentMeta.settings.autoPlayShowButtonPresses != showButtonPresses ||
+                currentMeta.settings.autoPlayShowLights != showLights
+            ) {
+                markDirty()
+            }
             workspaceMeta = currentMeta.copy(
                 settings = currentMeta.settings.copy(
                     autoPlayShowButtonPresses = showButtonPresses,
@@ -387,7 +462,20 @@ object WorkspaceRepository {
         }
     }
 
+    fun toggleGridSnapping() {
+        setGridType(
+            type = if (_gridType.value == GridUtils.GridType.NoGrid) {
+                lastEnabledGridType
+            } else {
+                GridUtils.GridType.NoGrid
+            }
+        )
+    }
+
     fun setGridType(type: GridUtils.GridType, fromRemote: Boolean = false) {
+        if (type != GridUtils.GridType.NoGrid) {
+            lastEnabledGridType = type
+        }
         isApplyingRemoteGridTypeUpdate = fromRemote
         _gridType.update { type }
         if (!fromRemote) isApplyingRemoteGridTypeUpdate = false
@@ -403,6 +491,9 @@ object WorkspaceRepository {
         samplingChain.clearAutomation(LiveAutomationTarget.Macro(before[index].id))
         val after = before.toMutableList().apply {
             this[index] = macro
+        }
+        if (before != after && (undoable || fromRemote)) {
+            markDirty()
         }
         if (undoable && !fromRemote && before != after) {
             UndoManager.addAction(
@@ -423,6 +514,9 @@ object WorkspaceRepository {
      */
     fun setMacros(macros: List<Macro>, fromRemote: Boolean = false, undoable: Boolean = true) {
         val before = _macros.value
+        if (before != macros && (undoable || fromRemote)) {
+            markDirty()
+        }
         before.forEach { previous ->
             val replacement = macros.firstOrNull { it.id == previous.id }
             if (replacement == null || replacement.value != previous.value) {
@@ -500,6 +594,7 @@ object WorkspaceRepository {
             if (fromRemote) isApplyingRemoteParameterMappingsUpdate = false
             return
         }
+        markDirty()
         if (undoable && !fromRemote) {
             UndoManager.addAction(
                 UndoableAction.WorkspaceParameterMappingsChange(
@@ -555,6 +650,9 @@ object WorkspaceRepository {
         val element = ViewportRepository.devices.value.firstOrNull { it.launchpadId == deviceId || it.selectionUUID == deviceId }
             ?: return false
 
+        if (element.position.value != position) {
+            markDirty()
+        }
         element.position.value = position
         if (!fromRemote) {
             DeviceSyncCoordinator.onDeviceMoved(element)
@@ -572,6 +670,9 @@ object WorkspaceRepository {
         val element = ViewportRepository.devices.value.firstOrNull { it.launchpadId == deviceId || it.selectionUUID == deviceId }
             ?: return false
 
+        if (element.rotationDegrees.floatValue != rotationDegrees) {
+            markDirty()
+        }
         element.rotationDegrees.floatValue = rotationDegrees
         if (!fromRemote) {
             DeviceSyncCoordinator.onDeviceRotationChanged(element)
@@ -676,7 +777,31 @@ object WorkspaceRepository {
         }
     }
 
-    fun loadWorkspace(workspaceData: SavableWorkspaceData, fromRemote: Boolean = false) {
+    fun loadWorkspace(
+        workspaceData: SavableWorkspaceData,
+        fromRemote: Boolean = false,
+        preparedCacheRoot: String? = null,
+    ) {
+        loadingWorkspace.value = true
+        try {
+            loadWorkspaceContent(
+                workspaceData = workspaceData,
+                fromRemote = fromRemote,
+                preparedCacheRoot = preparedCacheRoot,
+            )
+            savedRevision.value = changeRevision.value
+        } finally {
+            loadingWorkspace.value = false
+        }
+    }
+
+    private fun loadWorkspaceContent(
+        workspaceData: SavableWorkspaceData,
+        fromRemote: Boolean,
+        preparedCacheRoot: String?,
+    ) {
+        resetChainScrollStates()
+        dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.configurePersistentRoot(preparedCacheRoot)
         AutoPlayRepository.stopAutoPlay()
         TimelineRepository.stop()
         clearEverything(restartContinuousLights = false)
@@ -702,9 +827,23 @@ object WorkspaceRepository {
 
         // Audio is a dependency of timeline entries and sample devices. Publish the
         // complete library before either consumer is restored.
-        AudioLibraryRepository.load(workspaceData.audioSources)
-        lightsChain = workspaceData.lights.unpack()
-        samplingChain = workspaceData.sampling.unpackAudio()
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.audioLibrary") {
+            AudioLibraryRepository.load(workspaceData.audioSources)
+        }
+        fun reportDeviceProgress(value: Float, detail: String) {
+            val current = dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.loadingProgress.value ?: return
+            dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.reporter.update(
+                value, current.statusText, detailText = detail,
+            )
+        }
+        reportDeviceProgress(0.96f, "Light chains")
+        lightsChain = dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.lightChains") {
+            workspaceData.lights.unpack()
+        }
+        reportDeviceProgress(0.97f, "Audio chains")
+        samplingChain = dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.audioChains") {
+            workspaceData.sampling.unpackAudio()
+        }
 
         lightsChain.signalExit = {
             Heaven.midiEnter(it.filterIsInstance<Signal.LED>())
@@ -743,14 +882,27 @@ object WorkspaceRepository {
             undoable = false,
         )
 
-        TimelineRepository.loadTracks(workspaceData.timelineData)
-        migrateAudioEntries()
-        canonicalizeSampleSources(samplingChain)
+        reportDeviceProgress(0.98f, "Restoring project data")
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.timeline") {
+            TimelineRepository.loadTracks(workspaceData.timelineData)
+            migrateAudioEntries()
+            canonicalizeSampleSources(samplingChain)
+        }
 
         _bpm.update {
             workspaceData.settings.bpm
         }
-        Echo.attachAudioChain(samplingChain)
+        Echo.setPreferredSampleRate(
+            workspaceData.audioSources
+                .filter { it.sampleRate in 8_000..192_000 }
+                .groupBy { it.sampleRate }
+                .maxByOrNull { (_, sources) -> sources.sumOf { it.totalSamples } }
+                ?.key
+        )
+        reportDeviceProgress(0.985f, "Preparing audio")
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.audioPrepare") {
+            Echo.attachAudioChain(samplingChain)
+        }
 
         ViewportRepository.devices.value.forEach { device ->
             midiManager.detachElement(device)
@@ -784,7 +936,10 @@ object WorkspaceRepository {
             updateWorkspaceBounds()
         }
 
-        renderAnimationsInChain(lightsChain)
+        reportDeviceProgress(0.99f, "Animations")
+        dev.anthonyhfm.amethyst.core.loading.ProjectLoadMetrics.measure("workspace.animations") {
+            renderAnimationsInChain(lightsChain)
+        }
 
         _projectName.update {
             workspaceData.title
@@ -1082,12 +1237,11 @@ object WorkspaceRepository {
     }
 
     fun hasUnsavedChanges(): Boolean {
-        // Always show the Unsaved Changes dialog when attempting to close
-        // This avoids file system access (PlatformFile) on mobile platforms
-        return true
+        return changeRevision.value != savedRevision.value
     }
 
     fun clean() {
+        resetChainScrollStates()
         AutoPlayRepository.stopAutoPlay()
         TimelineRepository.stop()
         TimelineRepository.loadTracks(emptyList())
@@ -1125,6 +1279,7 @@ object WorkspaceRepository {
         _showAudioLibrary.value = false
         previousMode = LayoutWorkspaceMode()
         _gridType.update { GridUtils.GridType.Flexible.Medium }
+        savedRevision.value = changeRevision.value
     }
 
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)

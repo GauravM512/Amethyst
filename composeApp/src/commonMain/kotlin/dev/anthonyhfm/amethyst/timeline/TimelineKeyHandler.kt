@@ -26,6 +26,7 @@ object TimelineKeyHandler {
     internal var closeChainEffectPanel: (() -> Boolean)? = null
     internal var deleteChainEffectClip: ((Int, String) -> Unit)? = null
     internal var duplicateChainEffectClip: ((Int, String) -> Unit)? = null
+    internal var insertMidiClip: (() -> Boolean)? = null
     internal var nudgeTimelineTime: ((Int) -> Boolean)? = null
     /** Multiplies the horizontal zoom by the given factor; wired by the lane view. */
     internal var zoomTimeline: ((Float) -> Boolean)? = null
@@ -94,6 +95,8 @@ object TimelineKeyHandler {
             keyEvent.key == Key.Escape && keyEvent.hasNoShortcutModifier() ->
                 closeChainEffectPanel?.invoke() == true
             keyEvent.key == Key.Spacebar && keyEvent.hasNoShortcutModifier() -> handleTogglePlayPause()
+            keyEvent.hasPrimaryShortcutModifier() && keyEvent.isShiftPressed && keyEvent.key == Key.M ->
+                insertMidiClip?.invoke() == true
             keyEvent.hasPrimaryShortcutModifier() && keyEvent.key == Key.R -> renameSelection()
             keyEvent.key == Key.A && keyEvent.isAltPressed -> handleAutomappingTrigger()
             keyEvent.key == Key.A && keyEvent.hasNoShortcutModifier() -> handleToggleAutomation()
@@ -113,6 +116,10 @@ object TimelineKeyHandler {
             // Grid resolution (Ableton): Cmd/Ctrl+1 narrows, Cmd/Ctrl+2 widens.
             keyEvent.hasPrimaryShortcutModifier() && keyEvent.key == Key.One -> handleGridStep(narrower = true)
             keyEvent.hasPrimaryShortcutModifier() && keyEvent.key == Key.Two -> handleGridStep(narrower = false)
+            keyEvent.hasPrimaryShortcutModifier() && keyEvent.key == Key.Four -> {
+                WorkspaceRepository.toggleGridSnapping()
+                true
+            }
 
             // Horizontal zoom: Cmd/Ctrl (or Alt) + Plus / Minus, keypad included.
             keyEvent.hasZoomModifier() && keyEvent.isZoomInKey() ->

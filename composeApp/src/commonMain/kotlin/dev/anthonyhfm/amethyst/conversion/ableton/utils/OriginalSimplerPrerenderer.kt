@@ -10,23 +10,14 @@ import dev.anthonyhfm.amethyst.core.util.UUID
 import dev.anthonyhfm.amethyst.core.util.randomUUID
 import dev.anthonyhfm.amethyst.devices.audio.sample.SampleChainDeviceState
 import dev.anthonyhfm.amethyst.timeline.data.AudioSource
-import io.github.vinceglb.filekit.PlatformFile
-import io.github.vinceglb.filekit.exists
-import io.github.vinceglb.filekit.isRegularFile
-import io.github.vinceglb.filekit.readBytes
 import amethyst.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
-import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 class OriginalSimplerPrerenderer {
-    private companion object {
-        const val MAX_PARALLEL_AUDIO_DECODES = 1
-    }
-
     private data class FullAudio(
         val rawData: ByteArray,
         val sampleRate: Int,
@@ -53,83 +44,68 @@ class OriginalSimplerPrerenderer {
             return Result(emptyMap(), emptyList())
         }
 
-        val gate = Semaphore(MAX_PARALLEL_AUDIO_DECODES)
-
         return runBlocking {
             val groupedByPath = simplers.groupBy { it.filePath }
             val total = groupedByPath.size
-            var completedCount = 0
-            val countMutex = Mutex()
+            val states = mutableMapOf<OriginalSimplerAdapter.OriginalSimplerData, SampleChainDeviceState>()
+            val sources = mutableListOf<AudioSource>()
 
             val startingMsg = runCatching { getString(Res.string.home_loading_starting_audio_rendering, total.toString()) }.getOrDefault("Starting audio rendering ($total samples)...")
             reporter?.update(0f, startingMsg, detailText = null)
 
-            coroutineScope {
-                val perPathJobs = groupedByPath.map { (path, pathSimplers) ->
-                    async(Dispatchers.Default) {
-                        gate.withPermit {
-                            val full = decodeFull(path)
-                                ?: return@async Triple(path, null, emptyMap<OriginalSimplerAdapter.OriginalSimplerData, SampleChainDeviceState>())
-                            val source = AudioSource(
-                                id = UUID.randomUUID(),
-                                fileName = path.substringAfterLast('/').substringAfterLast('\\'),
-                                rawData = full.rawData,
-                                sampleRate = full.sampleRate,
-                                channels = full.channels,
-                                bitDepth = full.bitDepth,
-                            )
-                            val states = pathSimplers.associateWith { simpler ->
-                                referenceRegion(
-                                    filePath = path,
-                                    source = source,
-                                    sampleStart = simpler.sampleStart,
-                                    sampleEnd = simpler.sampleEnd,
-                                )
-                            }
-
-                            val count = countMutex.withLock {
-                                completedCount++
-                                completedCount
-                            }
-
-                            // Throttle progress updates (e.g. max ~50 UI updates total across decoding) to avoid flooding UI recompositions
-                            val updateStep = (total / 50).coerceAtLeast(1)
-                            if (count == total || count == 1 || count % updateStep == 0) {
-                                val fileName = path.substringAfterLast("/").substringAfterLast("\\")
-                                val statusTextMsg = runCatching {
-                                    getString(Res.string.home_loading_rendering_sample, count.toString(), total.toString())
-                                }.getOrDefault("Rendering audio sample $count of $total")
-
-                                reporter?.update(
-                                    progress = count.toFloat() / total,
-                                    statusText = statusTextMsg,
-                                    detailText = fileName
-                                )
-                            }
-
-                            Triple(path, source, states)
-                        }
+            groupedByPath.entries.forEachIndexed { index, (path, pathSimplers) ->
+                val full = decodeFull(path)
+                if (full != null) {
+                    val source = AudioSource(
+                        id = UUID.randomUUID(),
+                        fileName = path.substringAfterLast('/').substringAfterLast('\\'),
+                        rawData = full.rawData,
+                        sampleRate = full.sampleRate,
+                        channels = full.channels,
+                        bitDepth = full.bitDepth,
+                    )
+                    sources += source
+                    pathSimplers.forEach { simpler ->
+                        states[simpler] = referenceRegion(
+                            filePath = path,
+                            source = source,
+                            sampleStart = simpler.sampleStart,
+                            sampleEnd = simpler.sampleEnd,
+                        )
                     }
                 }
-
-                val decoded = perPathJobs.awaitAll()
-                Result(
-                    states = decoded.flatMap { it.third.entries }.associate { it.toPair() },
-                    sources = decoded.mapNotNull { it.second },
-                )
+                val count = index + 1
+                val updateStep = (total / 50).coerceAtLeast(1)
+                if (count == total || count == 1 || count % updateStep == 0) {
+                    val fileName = path.substringAfterLast("/").substringAfterLast("\\")
+                    val statusTextMsg = runCatching {
+                        getString(Res.string.home_loading_rendering_sample, count.toString(), total.toString())
+                    }.getOrDefault("Rendering audio sample $count of $total")
+                    reporter?.update(count.toFloat() / total, statusTextMsg, fileName)
+                }
             }
+            Result(states, sources)
         }
     }
 
     private suspend fun decodeFull(filePath: String): FullAudio? = withContext(Dispatchers.IO) {
-        val audioFileBytes = readAudioFileBytes(filePath) ?: return@withContext null
-
-        val audioSignal = Echo.decodeAudioData(
-            audioData = audioFileBytes,
-            fileName = filePath,
-            sampleStart = null,
-            sampleEnd = null
-        )
+        val audioSignal = if (AbletonConverter.isZip) {
+            val temporary = dev.anthonyhfm.amethyst.core.util.ConversionTempFiles.newPath(
+                filePath.substringAfterLast('.', "wav")
+            )
+            try {
+                if (AbletonConverter.extractZipEntryToFile(filePath, temporary)) {
+                    Echo.decodeAudioFile(temporary)
+                } else {
+                    val bytes = readAudioFileBytes(filePath) ?: return@withContext null
+                    Echo.decodeAudioData(bytes, filePath)
+                }
+            } finally {
+                dev.anthonyhfm.amethyst.core.util.ConversionTempFiles.remove(temporary)
+            }
+        } else {
+            Echo.decodeAudioFile(filePath)
+        }
 
         if (audioSignal == null) {
             println("OriginalSimplerPrerenderer: error while decoding $filePath")
@@ -144,24 +120,10 @@ class OriginalSimplerPrerenderer {
         )
     }
 
-    private suspend fun readAudioFileBytes(filePath: String): ByteArray? {
-        return if (AbletonConverter.isZip) {
-            val fileBytes = AbletonConverter.readZipEntry(filePath)
-            if (fileBytes == null) {
-                println("OriginalSimplerPrerenderer: file not found in zip: $filePath")
-                null
-            } else {
-                fileBytes
-            }
-        } else {
-            val audioFile = PlatformFile(filePath)
-            if (!audioFile.exists() || !audioFile.isRegularFile()) {
-                println("OriginalSimplerPrerenderer: file not found: $filePath")
-                null
-            } else {
-                audioFile.readBytes()
-            }
-        }
+    private fun readAudioFileBytes(filePath: String): ByteArray? {
+        val bytes = AbletonConverter.readZipEntry(filePath)
+        if (bytes == null) println("OriginalSimplerPrerenderer: file not found in archive: $filePath")
+        return bytes
     }
 
     private fun referenceRegion(

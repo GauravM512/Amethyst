@@ -61,10 +61,10 @@ expect object Echo {
     suspend fun decodeAudioData(audioData: ByteArray, fileName: String, sampleStart: Long? = null, sampleEnd: Long? = null): Signal.AudioSignal?
     fun isFormatSupported(fileName: String): Boolean
     fun getSupportedFormats(): List<String>
-    fun getActiveDragFile(): String?
 
     /** Opens the platform output using the configured low-latency buffer size. */
     fun initialize(): Boolean
+    fun setPreferredSampleRate(sampleRate: Int?)
     fun setPreferredBufferFrames(frames: Int)
     fun outputDevices(): List<AudioOutputDevice>
     fun setPreferredOutputDevice(id: String?)

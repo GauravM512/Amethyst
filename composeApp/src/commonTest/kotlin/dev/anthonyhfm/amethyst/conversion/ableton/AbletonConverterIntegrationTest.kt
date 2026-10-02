@@ -18,7 +18,7 @@ class AbletonConverterIntegrationTest {
         revision = "1",
         liveSet = LiveSetData(
             tracks = Tracks(midiTracks = emptyList()),
-            masterTrack = MasterTrack(
+            legacyMasterTrack = MasterTrack(
                 deviceChain = MasterTrack.DeviceChain(
                     mixer = MasterTrack.Mixer(MasterTrack.Mixer.Tempo(AbletonManual(tempo))),
                 ),

@@ -7,6 +7,7 @@ import dev.anthonyhfm.amethyst.core.controls.undo.UndoableAction
 import dev.anthonyhfm.amethyst.core.network.sync.ChainSyncCoordinator
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.NestedChainDevice
+import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.SignalIndicatorManager
 
 open class Chain : SignalReceiver() {
@@ -26,6 +27,21 @@ open class Chain : SignalReceiver() {
         topologyChangedListener?.invoke()
     }
 
+    fun isWorkspaceChain(): Boolean {
+        fun contains(current: Chain): Boolean {
+            if (current === this) {
+                return true
+            }
+
+            return current.devices.value.any { device ->
+                device is NestedChainDevice && device.nestedChains().any(::contains)
+            }
+        }
+
+        return contains(WorkspaceRepository.lightsChain) ||
+            contains(WorkspaceRepository.samplingChain)
+    }
+
     override fun signalEnter(n: List<Signal>) {
         SignalIndicatorManager.trigger(this@Chain, 0)
 
@@ -43,20 +59,15 @@ open class Chain : SignalReceiver() {
             return
         }
 
-        for (i in devList.indices) {
+        var nextUnmutedIndex = -1
+        for (i in devList.indices.reversed()) {
             val current = devList[i]
-            var nextUnmutedIndex = -1
-            for (j in (i + 1) until devList.size) {
-                if (!devList[j].state.value.isMuted) {
-                    nextUnmutedIndex = j
-                    break
-                }
-            }
 
             if (nextUnmutedIndex != -1) {
-                val nextDevice = devList[nextUnmutedIndex]
+                val routedIndex = nextUnmutedIndex
+                val nextDevice = devList[routedIndex]
                 current.signalExit = { signals ->
-                    SignalIndicatorManager.trigger(this@Chain, nextUnmutedIndex)
+                    SignalIndicatorManager.trigger(this@Chain, routedIndex)
                     nextDevice.signalEnter(signals)
                 }
             } else {
@@ -65,7 +76,16 @@ open class Chain : SignalReceiver() {
                     signalExit?.invoke(signals)
                 }
             }
+            if (!current.state.value.isMuted) nextUnmutedIndex = i
         }
+    }
+
+    /** Restore a persisted chain without publishing and rerouting every prefix. */
+    internal fun restoreDevices(restored: List<GenericChainDevice<*>>) {
+        restored.forEach { it.collaborationSyncEnabled = collaborationSyncEnabled }
+        replaceDevices(restored)
+        restored.forEach { it.onAddedToChain(parentChain = this) }
+        reroute()
     }
 
     fun add(device: GenericChainDevice<*>, atIndex: Int? = null, fromUser: Boolean = true) {
@@ -77,6 +97,10 @@ open class Chain : SignalReceiver() {
         device.onAddedToChain(parentChain = this)
 
         if (fromUser) {
+            if (isWorkspaceChain()) {
+                WorkspaceRepository.markDirty()
+            }
+
             UndoManager.addAction(
                 UndoableAction.ChainDeviceCreation(
                     parent = this@Chain,
@@ -120,6 +144,10 @@ open class Chain : SignalReceiver() {
         replaceDevices(current)
 
         if (fromUser) {
+            if (isWorkspaceChain()) {
+                WorkspaceRepository.markDirty()
+            }
+
             UndoManager.addAction(UndoableAction.MultiChainDeviceCreation(creations))
 
             if (collaborationSyncEnabled) {
@@ -135,6 +163,10 @@ open class Chain : SignalReceiver() {
         if (index >= 0 && index < devices.value.size) {
             val deviceToRemove = devices.value[index]
             if (fromUser) {
+                if (isWorkspaceChain()) {
+                    WorkspaceRepository.markDirty()
+                }
+
                 UndoManager.addAction(
                     UndoableAction.ChainDeviceRemoval(
                         parent = this,
@@ -158,6 +190,10 @@ open class Chain : SignalReceiver() {
         val deviceToRemove = devices.value.getOrNull(deviceIndex)
         if (deviceToRemove != null) {
             if (fromUser) {
+                if (isWorkspaceChain()) {
+                    WorkspaceRepository.markDirty()
+                }
+
                 UndoManager.addAction(
                     UndoableAction.ChainDeviceRemoval(
                         parent = this,

@@ -31,4 +31,12 @@ class EditorViewportStateTest {
         assertSame(viewport, viewport.rescaleHorizontalPixels(0f))
         assertSame(viewport, viewport.rescaleHorizontalPixels(Float.NaN))
     }
+
+    @Test
+    fun highZoomAndLongScrollPreserveSmallScreenOffsets() {
+        val viewport = EditorViewportState(scrollX = 1_000_000_000f, zoomX = 100f)
+        assertEquals(100f, viewport.timeMsToScreenX(timeMs = 10_000_001.0))
+        assertEquals(12.5f, viewport.timeMsToScreenX(timeMs = 10_000_000.125))
+        assertEquals(10_000_000.125, viewport.screenToTimeMs(screenX = 12.5f))
+    }
 }

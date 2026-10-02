@@ -36,7 +36,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +54,11 @@ import dev.anthonyhfm.amethyst.core.network.lan.DiscoveredSession
 import dev.anthonyhfm.amethyst.core.network.user.LocalUserRepository
 import dev.anthonyhfm.amethyst.home.HomeCommandSurface
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
+import dev.anthonyhfm.amethyst.home.data.DesktopDownloadedProjectDeletion
+import dev.anthonyhfm.amethyst.home.data.DownloadedProjectDetails
+import dev.anthonyhfm.amethyst.home.data.downloadedDetails
+import dev.anthonyhfm.amethyst.home.account.DesktopHubAccount
+import dev.anthonyhfm.amethyst.hub.data.HubProjectDeepLink
 import dev.anthonyhfm.amethyst.home.ui.views.RecentViewContract.Event
 import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
@@ -93,11 +100,17 @@ import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.getString
 
 @Composable
 fun RecentView(
     navigator: NavHostController,
-    onOpenWorkspace: () -> Unit = { }
+    onOpenWorkspace: () -> Unit = { },
+    onNavigateHub: (DesktopHubDestination) -> Unit = { },
 ) {
     val toastState = rememberToastState()
     val viewModel = viewModel {
@@ -108,6 +121,14 @@ fun RecentView(
     }
 
     var recentProjects: List<RecentWorkspace> by remember { mutableStateOf(loadRecentProjects()) }
+    val localProjects = recentProjects.filter { HomeRepository.mobileProjectForPath(it.path)?.hubProjectId == null }
+    val downloadedProjects = recentProjects.filter { HomeRepository.mobileProjectForPath(it.path)?.hubProjectId != null }
+    val downloadedDetails = remember { mutableStateMapOf<String, DownloadedProjectDetails>() }
+    val repository = remember { DesktopHubAccount.get().repository }
+    val deletion = remember { DesktopDownloadedProjectDeletion() }
+    val scope = rememberCoroutineScope()
+    var projectToRemove by remember { mutableStateOf<RecentWorkspace?>(null) }
+    var removingProject by remember { mutableStateOf(false) }
     var joiningSession by remember { mutableStateOf<DiscoveredSession?>(null) }
     val state by viewModel.state.collectAsState()
     val localUser by LocalUserRepository.localUser.collectAsState()
@@ -115,6 +136,33 @@ fun RecentView(
     val currentBackStackEntry by navigator.currentBackStackEntryFlow.collectAsState(initial = navigator.currentBackStackEntry)
     LaunchedEffect(currentBackStackEntry) {
         recentProjects = loadRecentProjects()
+    }
+
+    LaunchedEffect(key1 = downloadedProjects) {
+        downloadedProjects.forEach { project ->
+            val record = HomeRepository.mobileProjectForPath(path = project.path) ?: return@forEach
+            val projectId = record.hubProjectId ?: return@forEach
+            val cached = record.hubDetails
+
+            if (cached != null) {
+                downloadedDetails[project.path] = cached
+            } else if (project.path !in downloadedDetails) {
+                try {
+                    val details = HubProjectDeepLink(projectId = projectId)
+                        .resolve(repository = repository)
+                        .downloadedDetails()
+                    val current = HomeRepository.mobileProjectForPath(path = project.path)
+
+                    if (current?.hubProjectId == projectId) {
+                        HomeRepository.registerMobileProject(record = current.copy(hubDetails = details))
+                        downloadedDetails[project.path] = details
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                }
+            }
+        }
     }
     
     LaunchedEffect(Unit) {
@@ -154,7 +202,7 @@ fun RecentView(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(end = 12.dp),
+                            .padding(end = 12.dp, bottom = 16.dp),
                     ) {
                         RecentViewHeader()
 
@@ -177,21 +225,38 @@ fun RecentView(
                             if (recentProjects.isEmpty()) {
                                 EmptyRecentProjectsCard()
                             } else {
-                                TypographyMuted(stringResource(Res.string.home_recent_collaboration_recent_opened))
-
-                                recentProjects.forEachIndexed { index, project ->
+                                if (localProjects.isNotEmpty()) {
+                                    RecentProjectsSectionTitle(stringResource(Res.string.home_projects_local_section))
+                                }
+                                localProjects.forEach { project ->
                                     RecentProjectCard(
                                         project = project,
-                                        onOpen = {
-                                            viewModel.onEvent(Event.OpenProjectFromHistory(project))
-                                        },
-                                        onEdit = {
-                                            viewModel.onEvent(Event.OnClickEditProject(project))
-                                        },
+                                        onOpen = { viewModel.onEvent(Event.OpenProjectFromHistory(project)) },
+                                        onEdit = { viewModel.onEvent(Event.OnClickEditProject(project)) },
                                         onDelete = {
                                             HomeRepository.removeRecentWorkspace(project.path)
                                             recentProjects = loadRecentProjects()
                                         },
+                                    )
+                                }
+                                if (downloadedProjects.isNotEmpty()) {
+                                    if (localProjects.isNotEmpty()) {
+                                        Spacer(
+                                            modifier = Modifier
+                                                .height(height = 8.dp),
+                                        )
+                                    }
+
+                                    RecentProjectsSectionTitle(
+                                        title = stringResource(resource = Res.string.home_projects_downloaded_section),
+                                    )
+
+                                    DownloadedProjectsGrid(
+                                        projects = downloadedProjects,
+                                        details = downloadedDetails,
+                                        onOpen = { viewModel.onEvent(event = Event.OpenProjectFromHistory(project = it)) },
+                                        onNavigate = onNavigateHub,
+                                        onRemove = { projectToRemove = it },
                                     )
                                 }
                             }
@@ -202,6 +267,47 @@ fun RecentView(
                 RecentActions(
                     onOpenProject = { viewModel.onEvent(Event.OnClickOpenProject) },
                     onCreateProject = { viewModel.onEvent(Event.OnClickNewProject) },
+                )
+            }
+
+            projectToRemove?.let { project ->
+                RemoveDownloadedProjectDialog(
+                    project = project,
+                    busy = removingProject,
+                    onDismiss = { projectToRemove = null },
+                    onConfirm = {
+                        removingProject = true
+                        scope.launch {
+                            try {
+                                val record = HomeRepository.mobileProjectForPath(path = project.path)
+                                val deleted = withContext(context = Dispatchers.IO) {
+                                    deletion.delete(path = project.path)
+                                }
+
+                                if (deleted) {
+                                    record?.convertedPath?.let { path ->
+                                        HomeRepository.removeRecentWorkspace(path = path)
+                                    }
+                                    HomeRepository.removeRecentWorkspace(path = project.path)
+                                    downloadedDetails.remove(key = project.path)
+                                    recentProjects = loadRecentProjects()
+                                }
+
+                                toastState.show(
+                                    title = getString(
+                                        resource = if (deleted) {
+                                            Res.string.home_projects_removed_downloaded
+                                        } else {
+                                            Res.string.home_projects_remove_downloaded_error
+                                        },
+                                    ),
+                                )
+                            } finally {
+                                removingProject = false
+                                projectToRemove = null
+                            }
+                        }
+                    },
                 )
             }
 
@@ -222,6 +328,70 @@ fun RecentView(
             }
         }
     }
+}
+
+@Composable
+private fun RemoveDownloadedProjectDialog(
+    project: RecentWorkspace,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val dialogState = rememberDialogState(initiallyVisible = true)
+
+    AlertDialog(
+        state = dialogState,
+        onDismiss = {
+            if (!busy) {
+                onDismiss()
+            }
+        },
+        modifier = Modifier
+            .widthIn(max = 460.dp),
+    ) {
+        AlertDialogHeader {
+            AlertDialogTitle(text = stringResource(resource = Res.string.home_projects_remove_downloaded))
+            AlertDialogDescription(text = project.title)
+        }
+
+        AlertDialogDescription(text = stringResource(resource = Res.string.home_projects_remove_downloaded_confirm))
+
+        AlertDialogFooter {
+            Button(
+                onClick = onDismiss,
+                variant = ButtonVariant.Outline,
+                enabled = !busy,
+            ) {
+                Text(text = stringResource(resource = Res.string.common_cancel))
+            }
+
+            Button(
+                onClick = onConfirm,
+                variant = ButtonVariant.Destructive,
+                enabled = !busy,
+            ) {
+                Text(
+                    text = stringResource(
+                        resource = if (busy) {
+                            Res.string.home_projects_removing_downloaded
+                        } else {
+                            Res.string.home_projects_remove_downloaded
+                        },
+                    ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentProjectsSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = Theme[typography][p],
+        fontWeight = FontWeight.SemiBold,
+        color = Theme[colors][foreground],
+    )
 }
 
 @Composable

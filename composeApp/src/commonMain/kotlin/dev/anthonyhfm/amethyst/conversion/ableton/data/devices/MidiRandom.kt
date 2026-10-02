@@ -17,6 +17,8 @@ data class MidiRandom(
 
     val chance: Chance,
     val choices: Choices,
+    val scale: Scale = Scale(AbletonManual(1.0)),
+    val sign: Sign = Sign(AbletonManual(0)),
     val alternate: Alternate
 ) : AbletonDevice {
     @Serializable
@@ -27,6 +29,16 @@ data class MidiRandom(
     @Serializable
     data class Choices(
         val manual: AbletonManual<Double>
+    )
+
+    @Serializable
+    data class Scale(
+        val manual: AbletonManual<Double>
+    )
+
+    @Serializable
+    data class Sign(
+        val manual: AbletonManual<Int>
     )
 
     @Serializable

@@ -12,13 +12,20 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class MidiNoteLengthAdapter(
     private val device: MidiNoteLength,
+    private val rackMacroValues: List<Float>? = null,
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val isNoteOff = device.mode.manual.value
         val gate = device.gate.manual.value
         val isSync = device.syncState.manual.value
         val timeLength = device.timeLength.manual.value
-        val syncedLength: Duration = device.syncedLength.manual.value.let {
+        val syncedIndex = AbletonMacroMapping.effectiveInt(
+            manualValue = device.syncedLength.manual.value,
+            keyMidi = device.syncedLength.keyMidi,
+            controllerRange = device.syncedLength.midiControllerRange,
+            parentMacroValues = rackMacroValues,
+        )
+        val syncedLength: Duration = syncedIndex.let {
             val stringTiming = indexToSyncTiming(it ?: 4)
 
             return@let rythmIndexToDuration(stringTiming, AbletonConverter.bpm, 1)
@@ -52,7 +59,8 @@ class MidiNoteLengthAdapter(
             5 -> "1/16"
             6 -> "1/12"
             7 -> "1/8"
-            8 -> "1/4"
+            8 -> "1/6"
+            9 -> "1/4"
             else -> "1/8" // Default to 1/8 if unknown
         }
     }

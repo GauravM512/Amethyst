@@ -1,4 +1,6 @@
 mod ring;
+#[cfg(target_os = "android")]
+mod android_bridge;
 #[cfg(target_os = "windows")]
 mod wasapi_exclusive;
 
@@ -11,7 +13,7 @@ use ring::SpscFloatRing;
 
 const DEFAULT_PERIOD_FRAMES: u32 = 128;
 #[cfg(target_os = "android")]
-const RING_PERIODS: usize = 2;
+const RING_PERIODS: usize = 8;
 #[cfg(not(target_os = "android"))]
 const RING_PERIODS: usize = 4;
 
@@ -522,19 +524,16 @@ fn build_cpal_stream(
         cpal::SupportedBufferSize::Range { min, max } => {
             (preferred_period_frames.clamp(*min, *max), true)
         }
-        // AAudio discovers its native burst size only after opening the stream.
-        // Supplying the requested callback size is nevertheless required for
-        // CPAL's realtime backend to keep the hardware capacity small.
-        cpal::SupportedBufferSize::Unknown => {
-            (preferred_period_frames, cfg!(target_os = "android"))
-        }
+        cpal::SupportedBufferSize::Unknown => (preferred_period_frames, false),
     };
     const ENGINE_CHANNELS: usize = 2;
+    #[cfg(target_os = "android")]
+    let period_frames = period_frames.max(sample_rate.div_ceil(100));
     let ring_capacity_frames = period_frames as usize * RING_PERIODS;
     let ring = Arc::new(SpscFloatRing::new(ring_capacity_frames, ENGINE_CHANNELS));
     let callback_telemetry = Arc::new(CallbackTelemetry::new());
     let mut stream_config: cpal::StreamConfig = supported_config.clone().into();
-    if fixed_period {
+    if fixed_period && !cfg!(target_os = "android") {
         stream_config.buffer_size = cpal::BufferSize::Fixed(period_frames);
     }
 
@@ -561,6 +560,18 @@ fn build_cpal_stream(
         hardware_channels,
     )
     .map_err(|error| format!("Cannot build output stream: {error}"))?;
+
+    #[cfg(target_os = "android")]
+    let period_frames = {
+        let callback_frames = stream
+            .buffer_size()
+            .map_err(|error| format!("Cannot get Android callback size: {error}"))?;
+        let period_frames = preferred_period_frames.max(callback_frames);
+        if period_frames as usize > ring_capacity_frames / 2 {
+            return Err("Android callback exceeds PCM ring capacity".to_owned());
+        }
+        period_frames
+    };
 
     let info = PcmOutputDeviceInfo {
         device_id,

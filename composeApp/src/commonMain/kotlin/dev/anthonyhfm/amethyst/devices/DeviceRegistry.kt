@@ -1,7 +1,11 @@
 package dev.anthonyhfm.amethyst.devices
 
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonArpeggiatorChainDevice
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonVelocityChainDevice
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonChordChainDevice
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitcherChainDevice
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitchRangeChainDevice
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonRandomChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.sample.SampleChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.effects.EqThreeChainDevice
 import dev.anthonyhfm.amethyst.devices.audio.effects.EqEightChainDevice
@@ -96,7 +100,11 @@ object DeviceRegistry {
         register(TransmitChainDevice)
 
         register(AbletonArpeggiatorChainDevice)
+        register(AbletonChordChainDevice)
         register(AbletonPitcherChainDevice)
+        register(AbletonPitchRangeChainDevice)
+        register(AbletonRandomChainDevice)
+        register(AbletonVelocityChainDevice)
     }
 
     fun register(factory: ChainDeviceFactory<*>) {

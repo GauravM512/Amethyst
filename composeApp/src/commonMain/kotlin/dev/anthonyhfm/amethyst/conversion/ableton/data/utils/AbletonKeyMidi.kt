@@ -9,6 +9,14 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 @SerialName("KeyMidi")
 data class AbletonKeyMidi(
     @XmlElement
+    @XmlSerialName("Channel")
+    val channel: AbletonManual<Int>? = null,
+
+    @XmlElement
+    @XmlSerialName("NoteOrController")
+    val noteOrController: AbletonManual<Int>? = null,
+
+    @XmlElement
     @XmlSerialName("LowerRangeNote")
     val lowerRangeNote: AbletonManual<Int>? = null,
 

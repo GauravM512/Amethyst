@@ -213,7 +213,7 @@ class AudioDelayChainDevice : AudioChainDevice<AudioDelayChainDeviceState>(), Pa
                             title = "Time",
                             timing = deviceState.resolvedTiming(),
                             onSelectTiming = { timing, milliseconds ->
-                                state.update { current -> current.withTiming(timing, milliseconds) }
+                                updateStateFromUser { current -> current.withTiming(timing, milliseconds) }
                             },
                             onStartValueChange = { _, _ -> startGesture() },
                             onFinishValueChange = { _, _ -> finishGesture() },
@@ -225,15 +225,15 @@ class AudioDelayChainDevice : AudioChainDevice<AudioDelayChainDeviceState>(), Pa
                             rightClickTogglesMode = false,
                         )
                         EffectDial("feedback", "Feedback", deviceState.feedback, "${(deviceState.feedback * 100).roundToInt()}%", startGesture, finishGesture) {
-                            state.update { s -> s.copy(feedback = it) }
+                            updateStateFromUser { s -> s.copy(feedback = it) }
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         EffectDial("filter", "Filter", PARAMETERS[3].normalize(deviceState.filterHz), "${deviceState.filterHz.roundToInt()} Hz", startGesture, finishGesture) {
-                            state.update { s -> s.copy(filterHz = PARAMETERS[3].denormalize(it)) }
+                            updateStateFromUser { s -> s.copy(filterHz = PARAMETERS[3].denormalize(it)) }
                         }
                         EffectDial("dryWet", "Dry / Wet", deviceState.dryWet, "${(deviceState.dryWet * 100).roundToInt()}%", startGesture, finishGesture) {
-                            state.update { s -> s.copy(dryWet = it) }
+                            updateStateFromUser { s -> s.copy(dryWet = it) }
                         }
                     }
                 }

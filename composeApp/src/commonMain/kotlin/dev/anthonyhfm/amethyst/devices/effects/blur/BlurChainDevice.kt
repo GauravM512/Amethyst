@@ -37,7 +37,6 @@ import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.abs
 import kotlin.math.exp
@@ -128,10 +127,10 @@ class BlurChainDevice : LEDChainDevice<BlurChainDeviceState>() {
                         text = "${deviceState.radius}",
                         onResolveTextValue = {
                             it.trim().toIntOrNull()?.coerceIn(1, 8)?.let { v ->
-                                state.update { s -> s.copy(radius = v) }
+                                updateStateFromUser { s -> s.copy(radius = v) }
                             }
                         },
-                        onValueChange = { v -> state.update { it.copy(radius = v) } },
+                        onValueChange = { v -> updateStateFromUser { it.copy(radius = v) } },
                     )
 
                     Box(modifier = Modifier.fillMaxHeight(0.5f)) {
@@ -145,10 +144,10 @@ class BlurChainDevice : LEDChainDevice<BlurChainDeviceState>() {
                         value = deviceState.amount,
                         defaultValue = 1f,
                         text = "${(deviceState.amount * 100).roundToInt()}%",
-                        onValueChange = { v -> state.update { it.copy(amount = v.coerceIn(0f, 1f)) } },
+                        onValueChange = { v -> updateStateFromUser { it.copy(amount = v.coerceIn(0f, 1f)) } },
                         onResolveTextValue = {
                             it.removeSuffix("%").trim().toIntOrNull()?.coerceIn(0, 100)?.let { v ->
-                                state.update { s -> s.copy(amount = v / 100f) }
+                                updateStateFromUser { s -> s.copy(amount = v / 100f) }
                             }
                         },
                     )
@@ -169,7 +168,7 @@ class BlurChainDevice : LEDChainDevice<BlurChainDeviceState>() {
                                 selected = shape == deviceState.shape,
                                 onClick = {
                                     val before = state.value.copy()
-                                    state.update { it.copy(shape = shape) }
+                                    updateStateFromUser { it.copy(shape = shape) }
                                     pushStateChange(before, state.value)
                                 }
                             )
@@ -187,7 +186,7 @@ class BlurChainDevice : LEDChainDevice<BlurChainDeviceState>() {
                                 selected = curve == deviceState.curve,
                                 onClick = {
                                     val before = state.value.copy()
-                                    state.update { it.copy(curve = curve) }
+                                    updateStateFromUser { it.copy(curve = curve) }
                                     pushStateChange(before, state.value)
                                 }
                             )
@@ -206,7 +205,7 @@ class BlurChainDevice : LEDChainDevice<BlurChainDeviceState>() {
                             selected = edge == deviceState.edgeHandling,
                             onClick = {
                                 val before = state.value.copy()
-                                state.update { it.copy(edgeHandling = edge) }
+                                updateStateFromUser { it.copy(edgeHandling = edge) }
                                 pushStateChange(before, state.value)
                             }
                         )

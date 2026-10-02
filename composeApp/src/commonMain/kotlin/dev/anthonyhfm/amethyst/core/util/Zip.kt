@@ -27,6 +27,9 @@ interface ProjectArchiveReader {
 
     fun readEntry(path: String): ByteArray?
 
+    /** Stream a large entry to an app-owned file. False permits legacy readers to fall back. */
+    fun extractEntryToFile(path: String, destinationPath: String): Boolean = false
+
     fun close()
 }
 

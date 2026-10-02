@@ -58,10 +58,6 @@ impl EchoEngine {
         Arc::new(Self)
     }
 
-    pub fn get_active_drag_file(&self) -> Option<String> {
-        get_active_drag_file_native()
-    }
-
     pub fn probe_file(&self, path: String) -> EchoProbeResult {
         match probe_file_internal(&path) {
             Ok(metadata) => EchoProbeResult {
@@ -334,10 +330,6 @@ fn probe_file_internal(path: &str) -> Result<EchoAudioMetadata, String> {
         total_samples: total_frames,
         bit_depth,
     })
-}
-
-pub fn get_active_drag_file_native() -> Option<String> {
-    crate::drag_drop::get_active_drag_file()
 }
 
 #[cfg(test)]

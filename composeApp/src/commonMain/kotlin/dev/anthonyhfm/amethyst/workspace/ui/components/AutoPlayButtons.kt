@@ -4,21 +4,17 @@ import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.composeunstyled.Icon
@@ -40,11 +36,10 @@ import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.Square
 import com.composeunstyled.Text
 import com.composeunstyled.theme.Theme
+import dev.anthonyhfm.amethyst.ui.components.primitives.Button
+import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
-import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
-import dev.anthonyhfm.amethyst.ui.components.primitives.Separator
-import dev.anthonyhfm.amethyst.ui.components.primitives.SeparatorOrientation
-import dev.anthonyhfm.amethyst.ui.theme.border
+import dev.anthonyhfm.amethyst.ui.components.primitives.Tooltip
 import dev.anthonyhfm.amethyst.ui.theme.card
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.ui.theme.foreground
@@ -59,14 +54,14 @@ import dev.anthonyhfm.amethyst.workspace.AutoPlayState
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
 @Composable
-fun AutoPlayButtons() {
+fun DesktopAutoPlayButtons(
+    modifier: Modifier = Modifier,
+) {
     val autoPlayState by AutoPlayRepository.state.collectAsState()
     val progress by AutoPlayRepository.progress.collectAsState()
     val totalDuration = AutoPlayRepository.totalDuration
-    var showSettingsDialog by remember { mutableStateOf(false) }
-
     val hasAutoPlayData = WorkspaceRepository.workspaceMeta?.autoPlay?.actions?.isNotEmpty() == true
-    val showProgress = hasAutoPlayData
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     if (showSettingsDialog) {
         AutoPlaySettingsDialog(
@@ -74,66 +69,17 @@ fun AutoPlayButtons() {
         )
     }
 
-    Column(
-        modifier = Modifier
-            .padding(bottom = 12.dp)
-            .widthIn(min = 280.dp, max = 320.dp)
-            .background(Theme[colors][card], DefaultShape)
-            .border(1.dp, Theme[colors][border], DefaultShape),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        AnimatedVisibility(
-            visible = showProgress,
-            enter = expandVertically(),
-            exit = shrinkVertically(),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .padding(top = 10.dp, bottom = 8.dp),
-            ) {
-                AutoPlayTimeline(
-                    progress = progress,
-                    totalDuration = totalDuration,
-                    enabled = hasAutoPlayData,
-                    onSeek = AutoPlayRepository::seekTo,
-                )
-            }
-        }
-
-        AnimatedVisibility(visible = showProgress) {
-            Separator(orientation = SeparatorOrientation.Horizontal)
-        }
-
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            WorkspaceToolbarIconButton(
-                onClick = {
-                    when (autoPlayState) {
-                        AutoPlayState.STOPPED -> AutoPlayRepository.startAutoPlay()
-                        AutoPlayState.PLAYING -> AutoPlayRepository.pauseAutoPlay()
-                        AutoPlayState.PAUSED -> AutoPlayRepository.resumeAutoPlay()
-                        AutoPlayState.LEARNING -> {
-                            AutoPlayRepository.startAutoPlay()
-                        }
-                    }
-                },
-                imageVector = if (autoPlayState == AutoPlayState.PLAYING) Lucide.Pause else Lucide.Play,
-                contentDescription = when (autoPlayState) {
-                    AutoPlayState.STOPPED -> stringResource(Res.string.workspace_autoplay_start)
-                    AutoPlayState.PLAYING -> stringResource(Res.string.workspace_autoplay_pause)
-                    AutoPlayState.PAUSED -> stringResource(Res.string.workspace_autoplay_resume)
-                    AutoPlayState.LEARNING -> stringResource(Res.string.workspace_autoplay_switch_to_normal)
-                },
-                variant = if (autoPlayState == AutoPlayState.PLAYING) ButtonVariant.Default else ButtonVariant.Ghost,
-            )
-
             WorkspaceToolbarIconButton(
                 onClick = {
                     if (autoPlayState == AutoPlayState.LEARNING) {
@@ -143,8 +89,52 @@ fun AutoPlayButtons() {
                     }
                 },
                 imageVector = Lucide.BookOpenText,
-                contentDescription = if (autoPlayState == AutoPlayState.PLAYING) stringResource(Res.string.workspace_autoplay_switch_to_learning) else stringResource(Res.string.workspace_autoplay_learning_mode),
-                variant = if (autoPlayState == AutoPlayState.LEARNING) ButtonVariant.Default else ButtonVariant.Ghost,
+                contentDescription = stringResource(Res.string.workspace_autoplay_learning_mode),
+                variant = if (autoPlayState == AutoPlayState.LEARNING) {
+                    ButtonVariant.Default
+                } else {
+                    ButtonVariant.Ghost
+                },
+                modifier = Modifier
+                    .height(28.dp),
+            )
+
+            val playDescription = when (autoPlayState) {
+                AutoPlayState.STOPPED -> stringResource(Res.string.workspace_autoplay_start)
+                AutoPlayState.PLAYING -> stringResource(Res.string.workspace_autoplay_pause)
+                AutoPlayState.PAUSED -> stringResource(Res.string.workspace_autoplay_resume)
+                AutoPlayState.LEARNING -> stringResource(Res.string.workspace_autoplay_switch_to_normal)
+            }
+
+            Tooltip(
+                text = playDescription,
+                anchor = {
+                    Button(
+                        onClick = {
+                            when (autoPlayState) {
+                                AutoPlayState.STOPPED, AutoPlayState.LEARNING -> AutoPlayRepository.startAutoPlay()
+                                AutoPlayState.PLAYING -> AutoPlayRepository.pauseAutoPlay()
+                                AutoPlayState.PAUSED -> AutoPlayRepository.resumeAutoPlay()
+                            }
+                        },
+                        modifier = Modifier
+                            .size(28.dp),
+                        size = ButtonSize.Icon,
+                        shape = CircleShape,
+                    ) {
+                        Icon(
+                            imageVector = if (autoPlayState == AutoPlayState.PLAYING) {
+                                Lucide.Pause
+                            } else {
+                                Lucide.Play
+                            },
+                            contentDescription = playDescription,
+                            tint = Theme[colors][primaryForeground],
+                            modifier = Modifier
+                                .size(16.dp),
+                        )
+                    }
+                },
             )
 
             WorkspaceToolbarIconButton(
@@ -152,16 +142,30 @@ fun AutoPlayButtons() {
                 imageVector = Lucide.Square,
                 contentDescription = stringResource(Res.string.workspace_autoplay_stop),
                 enabled = autoPlayState != AutoPlayState.STOPPED,
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            WorkspaceToolbarIconButton(
-                onClick = { showSettingsDialog = true },
-                imageVector = Lucide.Settings,
-                contentDescription = stringResource(Res.string.workspace_autoplay_settings),
+                modifier = Modifier
+                    .height(28.dp),
             )
         }
+
+        Box(
+            modifier = Modifier
+                .weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            AutoPlayTimeline(
+                progress = if (hasAutoPlayData) progress else 0f,
+                totalDuration = if (hasAutoPlayData) totalDuration else 0.0,
+                enabled = hasAutoPlayData,
+                inlineTimes = true,
+                onSeek = AutoPlayRepository::seekTo,
+            )
+        }
+
+        WorkspaceToolbarIconButton(
+            onClick = { showSettingsDialog = true },
+            imageVector = Lucide.Settings,
+            contentDescription = stringResource(Res.string.workspace_autoplay_settings),
+        )
     }
 }
 
@@ -185,10 +189,10 @@ fun MobileAutoPlayButtons() {
         modifier = Modifier
             .fillMaxWidth()
             .background(Theme[colors][card], RoundedCornerShape(24.dp))
-            .padding(16.dp),
+            .padding(16.dp)
+            .navigationBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // Header Row: Track Info, Status Badge & Settings Button
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

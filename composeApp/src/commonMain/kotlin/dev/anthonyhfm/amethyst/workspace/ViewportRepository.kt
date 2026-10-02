@@ -17,13 +17,27 @@ object ViewportRepository {
     }
 
     fun addDevice(device: LaunchpadViewportElement) {
+        if (_devices.value.any { it.launchpadId == device.launchpadId }) {
+            return
+        }
+
         _devices.update { it + device }
         Heaven.devices = _devices.value
+        WorkspaceRepository.markDirty()
     }
 
     fun removeDevice(uuid: String) {
-        _devices.update { it.filter { device -> device.selectionUUID != uuid && device.launchpadId != uuid } }
+        val remainingDevices = _devices.value.filter { device ->
+            device.selectionUUID != uuid && device.launchpadId != uuid
+        }
+
+        if (remainingDevices.size == _devices.value.size) {
+            return
+        }
+
+        _devices.value = remainingDevices
         Heaven.devices = _devices.value
+        WorkspaceRepository.markDirty()
     }
 
     fun clear() {

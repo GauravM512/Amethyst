@@ -98,6 +98,7 @@ object WorkspaceSaveHelper {
             runCatching {
                 // Give Compose a chance to display the modal before the workspace snapshot is built.
                 yield()
+                val savedRevision = WorkspaceRepository.currentChangeRevision()
                 val workspace = withContext(Dispatchers.Default) {
                     WorkspaceRepository.saveWorkspace()
                 }
@@ -139,6 +140,7 @@ object WorkspaceSaveHelper {
                     path = path,
                 )
 
+                WorkspaceRepository.markSaved(savedRevision)
                 updateProgress(destination, SavePhase.Finishing, 1f)
                 true
             }

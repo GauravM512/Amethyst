@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isAltPressed
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,6 +48,8 @@ import dev.anthonyhfm.amethyst.timeline.data.MidiTimelineTrack
 import dev.anthonyhfm.amethyst.timeline.data.endTimeUs
 import dev.anthonyhfm.amethyst.timeline.data.timelineTrackRows
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
+import dev.anthonyhfm.amethyst.timeline.viewport.TimelineViewportLimits
+import dev.anthonyhfm.amethyst.timeline.viewport.zoomTimelineViewport
 import dev.anthonyhfm.amethyst.timeline.viewport.wheelZoomScaleFactor
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -58,6 +61,7 @@ import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.timeline.ui.components.PlayheadCursor
 import dev.anthonyhfm.amethyst.timeline.ui.TimelineClipDragCallbacks
@@ -90,8 +94,6 @@ fun TimelineLaneView(
     }
     val playheadPositionMs by viewModel.playheadPositionMs.collectAsState()
     val timelineTrailingMarginPx = 240f
-    val minZoomLevel = 0.0025f
-    val maxZoomLevel = 5f
     val maxTimelineEndMs = tracks.maxOfOrNull { track ->
         when (track) {
             is AudioTimelineTrack -> track.entries.values.maxOfOrNull { it.endTimeUs / 1000.0 } ?: 0.0
@@ -114,9 +116,19 @@ fun TimelineLaneView(
         return base.copy(
             viewportWidth = currentViewportWidthPx.value,
             contentWidth = timelineContentWidthForZoom(base.zoomX),
-            minZoomX = minZoomLevel,
-            maxZoomX = maxZoomLevel,
+            minZoomX = TimelineViewportLimits.MIN_ZOOM_X,
+            maxZoomX = TimelineViewportLimits.MAX_ZOOM_X,
         ).clamp()
+    }
+
+    fun zoomViewport(base: EditorViewportState, scaleDelta: Float, anchorPx: Float): EditorViewportState {
+        return zoomTimelineViewport(
+            viewport = viewportWithTimelineMetrics(base = base),
+            scaleDelta = scaleDelta,
+            anchorPx = anchorPx,
+            maxTimelineEndMs = currentMaxTimelineEndMs.value,
+            trailingMarginPx = timelineTrailingMarginPx,
+        )
     }
     // Build the single authoritative viewport for all renderers in this lane view.
     // Merge the ViewModel-owned scroll+zoom with locally-derived layout dimensions.
@@ -153,7 +165,7 @@ fun TimelineLaneView(
                     val liveViewport = viewportWithTimelineMetrics(currentViewport)
                     val playheadX = liveViewport.timeMsToScreenX(currentPlayheadMs.value.toDouble())
                     val anchorX = if (playheadX in 0f..viewportWidth) playheadX else viewportWidth * 0.5f
-                    viewportWithTimelineMetrics(liveViewport.zoomAtX(scaleDelta, anchorX))
+                    zoomViewport(base = liveViewport, scaleDelta = scaleDelta, anchorPx = anchorX)
                 }
                 true
             }
@@ -197,12 +209,17 @@ fun TimelineLaneView(
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
-                        val event = awaitPointerEvent()
+                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
                         if (event.type == PointerEventType.Scroll) {
                             val isZoomModifier = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
                             if (!isZoomModifier) {
                                 val change = event.changes.firstOrNull()
-                                val deltaX = change?.scrollDelta?.x ?: 0f
+                                val scrollDelta = change?.scrollDelta
+                                val deltaX = if (event.keyboardModifiers.isShiftPressed) {
+                                    scrollDelta?.x?.takeIf { it != 0f } ?: scrollDelta?.y ?: 0f
+                                } else {
+                                    scrollDelta?.x ?: 0f
+                                }
                                 if (deltaX != 0f) {
                                     viewModel.updateViewport { currentViewport ->
                                         val liveViewport = viewportWithTimelineMetrics(currentViewport)
@@ -220,7 +237,7 @@ fun TimelineLaneView(
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
-                        val event = awaitPointerEvent()
+                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
                         if (event.type == PointerEventType.Scroll) {
                             val isZoomModifier = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
                             val change = event.changes.firstOrNull()
@@ -239,7 +256,7 @@ fun TimelineLaneView(
                                 viewModel.updateViewport { currentViewport ->
                                     val liveViewport = viewportWithTimelineMetrics(currentViewport)
                                     viewportWithTimelineMetrics(
-                                        liveViewport.zoomAtX(scaleDelta, cursorX)
+                                        zoomViewport(base = liveViewport, scaleDelta = scaleDelta, anchorPx = cursorX)
                                     )
                                 }
                                 event.changes.forEach { it.consume() }
@@ -266,7 +283,7 @@ fun TimelineLaneView(
                         var zoomChanged = false
                         viewModel.updateViewport { currentViewport ->
                             val liveViewport = viewportWithTimelineMetrics(currentViewport)
-                            val zoomedViewport = viewportWithTimelineMetrics(liveViewport.zoomAtX(gestureZoom, cursorX))
+                            val zoomedViewport = zoomViewport(base = liveViewport, scaleDelta = gestureZoom, anchorPx = cursorX)
                             zoomChanged = zoomedViewport.zoomX != liveViewport.zoomX
                             if (zoomChanged && pan.x != 0f) {
                                 viewportWithTimelineMetrics(zoomedViewport.panBy(-pan.x))

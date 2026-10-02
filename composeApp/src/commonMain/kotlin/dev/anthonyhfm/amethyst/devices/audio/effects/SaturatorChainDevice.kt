@@ -101,19 +101,19 @@ class SaturatorChainDevice : AudioChainDevice<SaturatorChainDeviceState>(), Para
             Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     EffectDial("drive", "Drive", deviceState.driveDb / 36f, "${deviceState.driveDb.roundToInt()} dB") {
-                        state.update { s -> s.copy(driveDb = it * 36f) }
+                        updateStateFromUser { s -> s.copy(driveDb = it * 36f) }
                     }
                     EffectDial("output", "Output", (deviceState.outputDb + 24f) / 30f, "${deviceState.outputDb.roundToInt()} dB") {
-                        state.update { s -> s.copy(outputDb = it * 30f - 24f) }
+                        updateStateFromUser { s -> s.copy(outputDb = it * 30f - 24f) }
                     }
                     EffectDial("dryWet", "Dry / Wet", deviceState.dryWet, "${(deviceState.dryWet * 100).roundToInt()}%") {
-                        state.update { s -> s.copy(dryWet = it) }
+                        updateStateFromUser { s -> s.copy(dryWet = it) }
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Checkbox(
                         checked = deviceState.outputCompensation,
-                        onCheckedChange = { enabled -> state.update { it.copy(outputCompensation = enabled) } },
+                        onCheckedChange = { enabled -> updateStateFromUser { it.copy(outputCompensation = enabled) } },
                         size = 22.dp,
                         iconSize = 16.dp,
                     )

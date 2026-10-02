@@ -36,7 +36,6 @@ import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import dev.anthonyhfm.amethyst.devices.ChainDeviceFactory
 
@@ -113,7 +112,7 @@ class LayerChainDevice : LEDChainDevice<LayerChainDeviceState>() {
 
                             layerText?.let { layer ->
                                 if (layer in -100..100) {
-                                    state.update {
+                                    updateStateFromUser {
                                         it.copy(layer = layer)
                                     }
                                 }
@@ -129,7 +128,7 @@ class LayerChainDevice : LEDChainDevice<LayerChainDeviceState>() {
                             )
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(layer = value)
                             }
                         },
@@ -150,7 +149,7 @@ class LayerChainDevice : LEDChainDevice<LayerChainDeviceState>() {
                             val rangeText = it.trim().toIntOrNull()
                             rangeText?.let { range ->
                                 if (range in 1..200) {
-                                    state.update { it.copy(range = range) }
+                                    updateStateFromUser { it.copy(range = range) }
                                 }
                             }
                         },
@@ -164,7 +163,7 @@ class LayerChainDevice : LEDChainDevice<LayerChainDeviceState>() {
                             )
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(range = value)
                             }
                         },
@@ -175,7 +174,7 @@ class LayerChainDevice : LEDChainDevice<LayerChainDeviceState>() {
                     selectedMode = deviceState.mode,
                     onModeSelected = { mode ->
                         val before = state.value.copy()
-                        state.update { it.copy(mode = mode) }
+                        updateStateFromUser { it.copy(mode = mode) }
                         pushStateChange(before, state.value)
                     },
                     modifier = Modifier.fillMaxWidth(),

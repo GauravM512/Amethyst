@@ -3,6 +3,7 @@
 package dev.anthonyhfm.amethyst.devices.audio.sample
 
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.PadTriggerKey
+import dev.anthonyhfm.amethyst.core.engine.audio.source.ByteArrayPcmAudioSource
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.AudioTriggerRuntime
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.ChokeSourceRegistration
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
@@ -27,6 +28,52 @@ class SamplePlaybackTest {
     private val configuration = AudioConfiguration(1_000, 2, 16, 64)
     private val keyA = PadTriggerKey("launchpad-a", 1, 2)
     private val keyB = PadTriggerKey("launchpad-b", 1, 2)
+
+    @Test
+    fun nativeRateSourceKeepsItsDurationAtADifferentOutputRate() {
+        val state = state(frames = 100)
+        val source = ByteArrayPcmAudioSource("native-rate", 1_000, 1, 16, state.rawData!!)
+        val snapshot = checkNotNull(SampleRenderSnapshot.from(state, source))
+        val pool = SampleVoicePool(1).apply { prepare(AudioConfiguration(2_000, 2, 16, 64)) }
+        pool.apply(SampleVoiceCommand.Start(0, keyA, snapshot))
+
+        assertTrue(render(pool, 100).any { it > 0f })
+        assertEquals(1, pool.activeVoiceCount)
+        render(pool, 100)
+        assertEquals(0, pool.activeVoiceCount)
+    }
+
+    @Test
+    fun nativeRateSourceAdvancesPlayheadAtTheCorrectRate() {
+        val state = state(frames = 512)
+        val source = ByteArrayPcmAudioSource(
+            id = "native-rate-playhead",
+            sampleRate = 1_000,
+            channels = 1,
+            bitDepth = 16,
+            rawData = state.rawData!!,
+        )
+        val snapshot = checkNotNull(
+            value = SampleRenderSnapshot.from(state = state, source = source)
+        )
+        val pool = SampleVoicePool(maximumVoices = 1).apply {
+            prepare(
+                configuration = AudioConfiguration(
+                    sampleRate = 2_000,
+                    channels = 2,
+                    periodFrames = 16,
+                    maximumBlockFrames = 64,
+                )
+            )
+        }
+        pool.apply(command = SampleVoiceCommand.Start(targetFrame = 0, key = keyA, snapshot = snapshot))
+
+        render(pool, 700)
+        assertEquals(expected = 1, actual = pool.activeVoiceCount)
+        assertEquals(expected = 350L, actual = pool.sourceFrame)
+        render(pool, 500)
+        assertEquals(expected = 0, actual = pool.activeVoiceCount)
+    }
 
     @Test
     fun playheadProgressAccountsForRendererResampling() {

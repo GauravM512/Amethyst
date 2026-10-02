@@ -19,11 +19,14 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.DialogContent
 import dev.anthonyhfm.amethyst.ui.components.primitives.DialogHeader
 import dev.anthonyhfm.amethyst.ui.components.primitives.DialogTitle
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
+import dev.anthonyhfm.amethyst.workspace.ui.components.IosWorkspaceBridge
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import platform.UIKit.*
 
 private const val ActionButtonSize = 44.0
-private const val ActionButtonSpacing = 0.0
 
 @OptIn(ExperimentalComposeUiApi::class, kotlinx.cinterop.ExperimentalForeignApi::class)
 @Composable
@@ -35,7 +38,7 @@ actual fun LaunchpadViewportElementActions(
     val buttonCount = remember(element.hasStyleOptions) {
         3 + if (element.hasStyleOptions) 1 else 0
     }
-    val width = buttonCount * ActionButtonSize + (buttonCount - 1) * ActionButtonSpacing
+    val width = buttonCount * ActionButtonSize
 
     val connectionLabel = stringResource(Res.string.workspace_viewport_launchpad_actions_connection_ios)
     val styleTitleLabel = stringResource(Res.string.workspace_viewport_launchpad_actions_style_dialog_title_ios)
@@ -46,16 +49,30 @@ actual fun LaunchpadViewportElementActions(
 
     UIKitView(
         factory = {
-            UIToolbar().apply {
-                backgroundColor = UIColor.clearColor
-                translucent = true
-                setBackgroundImage(UIImage(), forToolbarPosition = UIBarPositionAny, barMetrics = UIBarMetricsDefault)
-                setShadowImage(UIImage(), forToolbarPosition = UIBarPositionAny)
+            UIVisualEffectView(
+                effect = IosWorkspaceBridge.createLiquidGlassEffect?.invoke()
+            ).apply {
+                clipsToBounds = true
+                layer.cornerRadius = 22.0
+
+                val stack = UIStackView()
+                stack.axis = 0
+                stack.distribution = UIStackViewDistributionFillEqually
+                stack.translatesAutoresizingMaskIntoConstraints = false
+                contentView.addSubview(stack)
+                NSLayoutConstraint.activateConstraints(
+                    listOf(
+                        stack.leftAnchor.constraintEqualToAnchor(contentView.leftAnchor),
+                        stack.rightAnchor.constraintEqualToAnchor(contentView.rightAnchor),
+                        stack.topAnchor.constraintEqualToAnchor(contentView.topAnchor),
+                        stack.bottomAnchor.constraintEqualToAnchor(contentView.bottomAnchor),
+                    ),
+                )
             }
         },
         modifier = modifier.size(width.dp, ActionButtonSize.dp),
-        update = { toolbar ->
-            toolbar.rebuildLaunchpadActions(
+        update = { actionView ->
+            actionView.rebuildLaunchpadActions(
                 element = element,
                 connectionLabel = connectionLabel,
                 styleTitleLabel = styleTitleLabel,
@@ -63,9 +80,12 @@ actual fun LaunchpadViewportElementActions(
                 deleteLabel = deleteLabel,
                 deleteTitleLabel = deleteTitleLabel,
                 cancelLabel = cancelLabel,
-                onShowStyle = { styleDialogState.visible = true },
+                onShowStyle = {
+                    IosWorkspaceBridge.onShowDeviceStyle?.invoke(element.selectionUUID)
+                        ?: run { styleDialogState.visible = true }
+                },
                 onShowDelete = {
-                    toolbar.presentDeleteAlert(element, deleteTitleLabel, cancelLabel, deleteLabel)
+                    actionView.presentDeleteAlert(element, deleteTitleLabel, cancelLabel, deleteLabel)
                 },
             )
         },
@@ -85,7 +105,7 @@ actual fun LaunchpadViewportElementActions(
 }
 
 @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-private fun UIToolbar.rebuildLaunchpadActions(
+private fun UIVisualEffectView.rebuildLaunchpadActions(
     element: LaunchpadViewportElement,
     connectionLabel: String,
     styleTitleLabel: String,
@@ -96,21 +116,28 @@ private fun UIToolbar.rebuildLaunchpadActions(
     onShowStyle: () -> Unit,
     onShowDelete: () -> Unit,
 ) {
-    val items = buildList {
+    val stack = contentView.subviews.firstOrNull() as? UIStackView ?: return
+    stack.arrangedSubviews.filterIsInstance<UIView>().forEach { button ->
+        stack.removeArrangedSubview(button)
+        button.removeFromSuperview()
+    }
+
+    val buttons = buildList {
         add(
-            actionItem(
+            actionButton(
                 systemImageName = "cable.connector",
                 accessibilityLabel = connectionLabel,
                 tintColor = UIColor.labelColor,
                 onClick = {
-                    WorkspaceRepository.openDeviceConfigurator(element.selectionUUID)
+                    IosWorkspaceBridge.onShowDeviceConfigurator?.invoke(element.selectionUUID)
+                        ?: WorkspaceRepository.openDeviceConfigurator(element.selectionUUID)
                 },
             ),
         )
 
         if (element.hasStyleOptions) {
             add(
-                actionItem(
+                actionButton(
                     systemImageName = "paintpalette",
                     accessibilityLabel = styleTitleLabel,
                     tintColor = UIColor.labelColor,
@@ -120,7 +147,7 @@ private fun UIToolbar.rebuildLaunchpadActions(
         }
 
         add(
-            actionItem(
+            actionButton(
                 systemImageName = "rotate.right",
                 accessibilityLabel = rotateLabel,
                 tintColor = UIColor.labelColor,
@@ -132,7 +159,7 @@ private fun UIToolbar.rebuildLaunchpadActions(
         )
 
         add(
-            actionItem(
+            actionButton(
                 systemImageName = "trash",
                 accessibilityLabel = deleteLabel,
                 tintColor = UIColor.systemRedColor,
@@ -141,7 +168,7 @@ private fun UIToolbar.rebuildLaunchpadActions(
         )
     }
 
-    setItems(items, animated = false)
+    buttons.forEach { button -> stack.addArrangedSubview(button) }
 }
 
 @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
@@ -151,8 +178,12 @@ private fun UIView.presentDeleteAlert(
     cancelLabel: String,
     deleteLabel: String,
 ) {
-    val presenter = nearestViewController() ?: return
-    if (presenter.presentedViewController is UIAlertController) return
+    val presenter = window?.rootViewController?.topPresentedViewController()
+        ?: nearestViewController()
+        ?: return
+    if (presenter is UIAlertController) {
+        return
+    }
 
     val alertController = UIAlertController.alertControllerWithTitle(
         title = deleteTitleLabel,
@@ -172,7 +203,9 @@ private fun UIView.presentDeleteAlert(
             style = UIAlertActionStyleDestructive,
         ) {
             SelectionManager.clear()
-            WorkspaceRepository.removeVirtualDevice(element.selectionUUID)
+            CoroutineScope(context = Dispatchers.Main).launch {
+                WorkspaceRepository.removeVirtualDeviceById(uuid = element.selectionUUID)
+            }
         },
     )
     presenter.presentViewController(alertController, animated = true, completion = null)
@@ -196,23 +229,21 @@ private fun UIViewController.topPresentedViewController(): UIViewController {
 }
 
 @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-private fun actionItem(
+private fun actionButton(
     systemImageName: String,
     accessibilityLabel: String,
     tintColor: UIColor,
     onClick: () -> Unit,
-): UIBarButtonItem {
-    val item = UIBarButtonItem(
-        image = UIImage.systemImageNamed(systemImageName),
-        style = UIBarButtonItemStyle.UIBarButtonItemStylePlain,
-        target = null,
-        action = null,
-    )
-    item.primaryAction = UIAction.actionWithHandler {
-        onClick()
+): UIButton {
+    return UIButton.buttonWithType(UIButtonTypeSystem).apply {
+        configuration = UIButtonConfiguration.plainButtonConfiguration().apply {
+            image = UIImage.systemImageNamed(systemImageName)
+            baseForegroundColor = tintColor
+        }
+        setAccessibilityLabel(accessibilityLabel)
+        addAction(
+            UIAction.actionWithHandler { onClick() },
+            forControlEvents = UIControlEventTouchUpInside,
+        )
     }
-    item.accessibilityLabel = accessibilityLabel
-    item.tintColor = tintColor
-    item.width = ActionButtonSize
-    return item
 }

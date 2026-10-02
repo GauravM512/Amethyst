@@ -13,9 +13,10 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiVelocity
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonManual
 import dev.anthonyhfm.amethyst.conversion.ableton.data.utils.AbletonOn
 import dev.anthonyhfm.amethyst.core.util.Zip
+import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonPitcherChainDeviceState
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonVelocityChainDeviceState
 import dev.anthonyhfm.amethyst.devices.audio.sample.SampleChainDeviceState
-import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
 import io.github.vinceglb.filekit.PlatformFile
 import java.nio.file.Files
 import java.nio.ByteBuffer
@@ -28,13 +29,14 @@ import kotlin.test.assertFails
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class AbletonFileImportTest {
     private fun set(tempo: Double = 123.0, tracks: List<MidiTrack> = emptyList()) = Ableton(
         majorVersion = 5, minorVersion = "12.0", creator = "fixture", revision = "1",
         liveSet = LiveSetData(
             tracks = Tracks(tracks),
-            masterTrack = MasterTrack(MasterTrack.DeviceChain(
+            currentMainTrack = MasterTrack(MasterTrack.DeviceChain(
                 mixer = MasterTrack.Mixer(MasterTrack.Mixer.Tempo(AbletonManual(tempo))),
             )),
         ),
@@ -225,7 +227,10 @@ class AbletonFileImportTest {
             val result = AbletonConverter.convertToWorkspace(
                 PlatformFile(alsFile.toString()), paletteFile.toString(), reporter = null,
             )
-            assertIs<ColorChainDeviceState>(result.lights.devices.single())
+            val velocity = assertIs<AbletonVelocityChainDeviceState>(result.lights.devices.single())
+            assertNull(actual = velocity.palette)
+            assertEquals(expected = 1, actual = velocity.outHigh)
+            assertTrue(actual = AbletonConverter.palette.contentEquals(Palettes.novation))
         } finally {
             Files.deleteIfExists(alsFile)
             Files.deleteIfExists(paletteFile)

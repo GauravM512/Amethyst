@@ -1,11 +1,9 @@
 package dev.anthonyhfm.amethyst.conversion.ableton.adapters.kaskobi
 
-import androidx.compose.runtime.key
 import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.conversion.ableton.AbletonConverter
 import dev.anthonyhfm.amethyst.conversion.ableton.adapters.AbletonAdapter
 import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxDevice
-import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MxParameter
 import dev.anthonyhfm.amethyst.conversion.ableton.utils.MidiFileImporter
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import io.github.vinceglb.filekit.PlatformFile
@@ -14,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 
 class MidiLauncherAdapter(
     private val device: MxDevice,
+    private val hash: String,
     private val offset: IntOffset
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
@@ -22,11 +21,19 @@ class MidiLauncherAdapter(
         val palette = AbletonConverter.palette
         val filePath: String = fileRef.resolvePath()
 
-        // Midi Launcher special features
-        val skipSilence: MxParameter.MxDIntParameter = device.parameterList.parameterList.parameters[0] as MxParameter.MxDIntParameter
+        val skipSilence = MidiLauncherParameters(
+            device = device,
+            hash = hash
+        ).value(
+            name = "Skip Silence",
+            indicesByHash = mapOf(
+                "2ef098a53fe4e9a4b035588561080343" to 0,
+                "f135067227057b08f8d2d2ae66a22f8d" to 1
+            )
+        ) == 1.0
 
         val data = if (AbletonConverter.isZip) {
-            AbletonConverter.readZipEntry(filePath) ?: return emptyList()
+            AbletonConverter.readZipEntry(path = filePath) ?: return emptyList()
         } else {
             try {
                 runBlocking { PlatformFile(filePath).readBytes() }
@@ -39,18 +46,20 @@ class MidiLauncherAdapter(
             data = data,
             palette = palette,
             bpm = AbletonConverter.bpm,
-            launchpad = AbletonConverter.launchpadTarget(offset).midiImportTarget(),
+            launchpad = AbletonConverter.launchpadTarget(offset = offset).midiImportTarget(),
+            preserveEndOfTrackTiming = true,
         )
 
-        keyframes = keyframes.copy(
-            frames = keyframes.frames.toMutableList().apply {
-                if (skipSilence.timeable.manual.value == 1) {
-                    while (isNotEmpty() && this[0].entries.isEmpty()) {
-                        removeAt(0)
-                    }
-                }
+        if (skipSilence) {
+            val frames = keyframes.frames.dropWhile { it.entries.isEmpty() }
+
+            if (frames.size != keyframes.frames.size) {
+                keyframes = keyframes.copy(
+                    frames = frames,
+                    renderedAnimation = emptyList()
+                )
             }
-        )
+        }
 
         return listOf(keyframes)
     }

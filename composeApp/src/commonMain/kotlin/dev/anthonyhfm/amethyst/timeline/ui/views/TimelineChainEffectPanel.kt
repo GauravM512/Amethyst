@@ -149,36 +149,39 @@ fun TimelineChainEffectPanel(
         }
 
         Box(modifier = Modifier.height(280.dp).fillMaxWidth()) {
-            ScrollArea(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(DefaultShape)
-                    .padding(bottom = 10.dp),
-                orientation = ScrollBarOrientation.Horizontal,
-                state = scrollState,
+            DragAndDropContainer(
+                state = dragAndDropState,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Row(
+                ScrollArea(
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .fillMaxSize()
+                        .clip(DefaultShape)
+                        .padding(bottom = 10.dp),
+                    orientation = ScrollBarOrientation.Horizontal,
+                    state = scrollState,
                 ) {
-                    TimelineChainEffectSourceSlot(
-                        source = runtime.source,
-                        onAddSource = { sourcePickerVisible = true },
-                        onRemoveSource = { viewModel.setChainEffectSource(trackIndex, clipId, null) },
-                    )
-
-                    Spacer(Modifier.width(12.dp))
-
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .width(1.dp)
                             .fillMaxHeight()
-                            .background(themeBorder),
-                    )
+                            .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TimelineChainEffectSourceSlot(
+                            source = runtime.source,
+                            onAddSource = { sourcePickerVisible = true },
+                            onRemoveSource = { viewModel.setChainEffectSource(trackIndex, clipId, null) },
+                        )
 
-                    DragAndDropContainer(state = dragAndDropState) {
+                        Spacer(Modifier.width(12.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(themeBorder),
+                        )
+
                         ChainView(
                             chain = runtime.processors,
                             dragAndDropState = dragAndDropState,

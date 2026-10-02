@@ -121,6 +121,19 @@ object ChainSyncCoordinator {
                 }
             }
 
+            is UndoableAction.MultiMovedChainDevices -> {
+                val movements = if (isUndo) action.movements.asReversed() else action.movements
+                movements.forEach { movement ->
+                    onDeviceMoved(
+                        chainBefore = if (isUndo) movement.chainAfter else movement.chainBefore,
+                        chainAfter = if (isUndo) movement.chainBefore else movement.chainAfter,
+                        device = movement.device,
+                        fromIndex = if (isUndo) movement.toIndex else movement.fromIndex,
+                        toIndex = if (isUndo) movement.fromIndex else movement.toIndex
+                    )
+                }
+            }
+
             is UndoableAction.ChangeDeviceState<*> -> {
                 onDeviceStateChanged(action.device, if (isUndo) action.beforeState else action.afterState)
             }

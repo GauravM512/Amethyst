@@ -19,6 +19,7 @@ import dev.anthonyhfm.amethyst.core.engine.heaven.Heaven
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.LEDChainDevice
 import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
+import dev.anthonyhfm.amethyst.timeline.data.MidiNote
 import dev.anthonyhfm.amethyst.timeline.data.GradientInterpolator
 import dev.anthonyhfm.amethyst.timeline.data.MidiEntry
 import dev.anthonyhfm.amethyst.timeline.data.isGradient
@@ -48,7 +49,13 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
     override val helpRef = "PianoRoll"
 
     private val customMode: PianoRollWorkspaceMode = PianoRollWorkspaceMode()
+    @kotlin.concurrent.Volatile
     private var isStandalonePlaying = false
+    @kotlin.concurrent.Volatile
+    private var standaloneStartedAtMs = 0.0
+    @kotlin.concurrent.Volatile
+    private var standaloneStartOffsetMs = 0L
+    private var standaloneNotes: List<MidiNote> = emptyList()
 
     override fun timelineDuration(context: TimelineDurationContext): TimelineDuration {
         val entry = state.value.midiEntry
@@ -62,11 +69,27 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
     override fun stopTimelineTrigger() {
         Heaven.cancelJobsForOwner(this)
         isStandalonePlaying = false
+        standaloneNotes.forEach { note ->
+            val (x, y) = pitchToXY(note.pitch)
+            signalExit?.invoke(
+                listOf(
+                    Signal.LED(
+                        origin = this,
+                        x = x,
+                        y = y,
+                        color = Color.Black,
+                        layer = note.led.layer,
+                        blendingMode = note.led.blendingMode,
+                    )
+                )
+            )
+        }
+        standaloneNotes = emptyList()
     }
 
     init {
         customMode.onNoteAdd = { note ->
-            state.update { currentState ->
+            updateStateFromUser { currentState ->
                 val updatedNotes = currentState.midiEntry.notes + note
                 currentState.copy(
                     midiEntry = currentState.midiEntry.copy(notes = updatedNotes)
@@ -75,7 +98,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
         }
 
         customMode.onNoteUpdate = { oldNote, newNote ->
-            state.update { currentState ->
+            updateStateFromUser { currentState ->
                 val updatedNotes = currentState.midiEntry.notes.map { 
                     if (it.noteId == oldNote.noteId) newNote else it
                 }
@@ -86,7 +109,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
         }
 
         customMode.onNoteDelete = { note ->
-            state.update { currentState ->
+            updateStateFromUser { currentState ->
                 val updatedNotes = currentState.midiEntry.notes.filterNot { it.noteId == note.noteId }
                 currentState.copy(
                     midiEntry = currentState.midiEntry.copy(notes = updatedNotes)
@@ -95,18 +118,23 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
         }
 
         customMode.modeClose = {
-            // Clear any preview state when closing the editor
-            Heaven.devices.forEach { device ->
-                device.previewState.clear()
+            if (isStandalonePlaying) {
+                stopTimelineTrigger()
+            }
+        }
+        customMode.standalonePlaybackPositionMs = {
+            if (isStandalonePlaying) {
+                standaloneStartOffsetMs + (Heaven.time - standaloneStartedAtMs).toLong().coerceAtLeast(0L)
+            } else {
+                null
             }
         }
 
         customMode.onPlaybackToggle = {
             if (isStandalonePlaying) {
-                Heaven.cancelJobsForOwner(this@PianoRollChainDevice)
-                isStandalonePlaying = false
+                stopTimelineTrigger()
             } else {
-                playStandaloneEntry()
+                playStandaloneEntry(startAtMs = customMode.selectedTimeMs ?: 0L)
             }
         }
     }
@@ -120,23 +148,27 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
         WorkspaceRepository.switchMode(mode = customMode)
     }
 
-    private fun playStandaloneEntry() {
+    private fun playStandaloneEntry(startAtMs: Long = 0L) {
         val entry = state.value.midiEntry
-        Heaven.cancelJobsForOwner(this)
+        stopTimelineTrigger()
+        val startOffsetMs = startAtMs.coerceIn(0L, entry.durationMs)
+        standaloneStartOffsetMs = startOffsetMs
+        standaloneStartedAtMs = Heaven.time
         isStandalonePlaying = true
 
-        val maxEndTimeMs = entry.notes.maxOfOrNull { it.endTimeMs } ?: 0L
+        val maxEndTimeMs = maxOf(entry.durationMs, entry.notes.maxOfOrNull { it.endTimeMs } ?: 0L)
+        standaloneNotes = entry.notes.filter { it.endTimeMs > startOffsetMs }
 
-        entry.notes.forEach { note ->
+        standaloneNotes.forEach { note ->
             val (x, y) = pitchToXY(note.pitch)
             if (note.isGradient) {
                 val gradient = note.led.gradient!!
                 val frameIntervalMs = 1000.0 / Heaven.fps
-                var t = note.startTimeMs.toDouble()
+                var t = maxOf(note.startTimeMs, startOffsetMs).toDouble()
                 while (t < note.endTimeMs.toDouble()) {
                     val fraction = ((t - note.startTimeMs) / note.durationMs.toDouble()).toFloat().coerceIn(0f, 1f)
                     val capturedFraction = fraction
-                    Heaven.schedule(t, owner = this) {
+                    Heaven.schedule(delayInMs = t - startOffsetMs, owner = this) {
                         val (r, g, b) = GradientInterpolator.interpolate(gradient, capturedFraction)
                         signalExit?.invoke(listOf(Signal.LED(
                             origin = this,
@@ -150,7 +182,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
                     t += frameIntervalMs
                 }
             } else {
-                Heaven.schedule(note.startTimeMs.toDouble(), owner = this) {
+                Heaven.schedule(delayInMs = (note.startTimeMs - startOffsetMs).coerceAtLeast(0L).toDouble(), owner = this) {
                     signalExit?.invoke(listOf(Signal.LED(
                         origin = this,
                         x = x,
@@ -161,7 +193,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
                     )))
                 }
             }
-            Heaven.schedule(note.endTimeMs.toDouble(), owner = this) {
+            Heaven.schedule(delayInMs = (note.endTimeMs - startOffsetMs).toDouble(), owner = this) {
                 signalExit?.invoke(listOf(Signal.LED(
                     origin = this,
                     x = x,
@@ -173,8 +205,7 @@ class PianoRollChainDevice : LEDChainDevice<PianoRollChainDeviceState>(), Timeli
             }
         }
 
-        // When all notes are done, mark as no longer playing
-        Heaven.schedule(maxEndTimeMs.toDouble(), owner = this) {
+        Heaven.schedule(delayInMs = (maxEndTimeMs - startOffsetMs).toDouble(), owner = this) {
             isStandalonePlaying = false
         }
     }

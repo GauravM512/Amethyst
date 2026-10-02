@@ -24,6 +24,7 @@ import java.util.concurrent.locks.LockSupport
 import kotlin.math.max
 
 actual object Echo {
+    actual fun setPreferredSampleRate(sampleRate: Int?) = Unit
     private val decoder = NativeEchoDecoder()
     private val formats = EchoSupportedAudioFormats
     private val renderRunning = AtomicBoolean(false)
@@ -248,14 +249,6 @@ actual object Echo {
             stopOutput()
             playback = AudioPlaybackEngine(chain)
             if (shouldRestart) initializeOnControlThread()
-        }
-    }
-
-    actual fun getActiveDragFile(): String? {
-        return try {
-            decoder.getActiveDragFile()
-        } catch (_: Throwable) {
-            null
         }
     }
 

@@ -3,10 +3,12 @@ package dev.anthonyhfm.amethyst.timeline.utils
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.round
+import kotlin.math.pow
 
 object GridUtils {
     private val candidates = longArrayOf(1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 60000)
     private const val MIN_SPACING_PX = 48f
+    private val musicalSubdivisions = (0..23).map { 2.0.pow(it - 13) }
 
     data class GridIntervals(
         val intervalMs: Long,
@@ -67,45 +69,29 @@ object GridUtils {
     // --- Ableton-ähnliche Grid Berechnung ---
     fun computeWithGridType(zoomLevel: Float, bpm: Double, gridType: GridType): GridIntervals {
         if (gridType is GridType.None || gridType is GridType.NoGrid) return compute(zoomLevel)
-        val safeBpm = bpm.takeIf { it > 0.0 } ?: 120.0
+        val safeBpm = bpm.takeIf { it.isFinite() && it > 0.0 } ?: 120.0
         val beatMs = 60000.0 / safeBpm // Länge eines Beats
         val barMs = beatMs * 4 // 4/4 Takt angenommen
-
-        // Liste musikalischer Subdivisionen (Bruchteile eines Bars) für flexible Auswahl
-        val subdivisions = listOf(
-            1.0 / 32.0,
-            1.0 / 16.0,
-            1.0 / 8.0,
-            1.0 / 4.0,
-            1.0 / 2.0,
-            1.0
-        )
 
         fun fractionToMs(frac: Double) = (barMs * frac).roundToLongSafe()
 
         return when (gridType) {
             GridType.None, GridType.NoGrid -> compute(zoomLevel)
-            is GridType.Flexible.Smallest -> {
-                val ms = fractionToMs(1.0 / 32.0)
-                GridIntervals(ms, (barMs / ms).ceilInt(), barMs.roundToLongSafe(), gridType)
-            }
-            is GridType.Flexible.Small -> {
-                val ms = fractionToMs(1.0 / 16.0)
-                GridIntervals(ms, (barMs / ms).ceilInt(), barMs.roundToLongSafe(), gridType)
-            }
-            is GridType.Flexible.Medium -> {
-                // Wähle kleinstes Subdivision mit ausreichender Pixelbreite
-                val chosenFrac = subdivisions.firstOrNull { (barMs * it * zoomLevel) >= MIN_SPACING_PX } ?: subdivisions.last()
-                val ms = fractionToMs(chosenFrac)
-                GridIntervals(ms, (barMs / ms).ceilInt(), barMs.roundToLongSafe(), gridType)
-            }
-            is GridType.Flexible.Large -> {
-                val ms = fractionToMs(1.0 / 4.0)
-                GridIntervals(ms, (barMs / ms).ceilInt(), barMs.roundToLongSafe(), gridType)
-            }
-            is GridType.Flexible.Largest -> {
-                val ms = fractionToMs(1.0)
-                GridIntervals(ms, 1, ms, gridType)
+            is GridType.Flexible -> {
+                val spacingPx = when (gridType) {
+                    GridType.Flexible.Smallest -> 12f
+                    GridType.Flexible.Small -> 24f
+                    GridType.Flexible.Medium -> MIN_SPACING_PX
+                    GridType.Flexible.Large -> 96f
+                    GridType.Flexible.Largest -> 192f
+                }
+                val safeZoom = zoomLevel.takeIf { it.isFinite() && it > 0f } ?: 0.025f
+                val chosenFraction = musicalSubdivisions.firstOrNull {
+                    fractionToMs(frac = it) * safeZoom >= spacingPx
+                } ?: musicalSubdivisions.last()
+                val ms = fractionToMs(frac = chosenFraction)
+                val majorMs = maxOf(ms, barMs.roundToLongSafe())
+                GridIntervals(ms, (majorMs.toDouble() / ms).ceilInt(), majorMs, gridType)
             }
             is GridType.Fixed.Bar_1 -> {
                 val ms = barMs.roundToLongSafe(); GridIntervals(ms, 1, ms, gridType)

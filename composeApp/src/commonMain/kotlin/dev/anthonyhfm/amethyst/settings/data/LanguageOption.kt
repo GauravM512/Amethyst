@@ -15,8 +15,13 @@ object LanguageOptions {
         languageTag = "zh",
         displayName = "中文",
     )
+    val German = LanguageOption(
+        languageTag = "de",
+        displayName = "Deutsch",
+    )
     val all: List<LanguageOption> = listOf(
         English,
+        German,
         Chinese,
     )
 

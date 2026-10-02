@@ -69,6 +69,10 @@ sealed interface UndoableAction {
         val toIndex: Int,
     ) : UndoableAction
 
+    data class MultiMovedChainDevices(
+        val movements: List<MovedChainDevice>,
+    ) : UndoableAction
+
     data class KeyframeCreation(
         val device: KeyframesChainDevice,
         val frameIndex: Int,
@@ -399,6 +403,12 @@ sealed interface UndoableAction {
         val onNoteUpdate: (MidiNote, MidiNote) -> Unit,
         val currentEntryGetter: () -> MidiEntry?,
         val currentEntrySetter: (MidiEntry) -> Unit
+    ) : UndoableAction
+
+    data class PianoRollNoteStep(
+        val notesBefore: List<MidiNote>,
+        val notesAfter: List<MidiNote>,
+        val applyNotes: (List<MidiNote>) -> Unit,
     ) : UndoableAction
 
     data class PianoRollNoteMultiCreation(

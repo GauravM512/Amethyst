@@ -86,7 +86,6 @@ class MultiAdapter(
             MultiGroupChainDeviceState(
                 type = TYPE.FORWARD,
                 groups = List(steps) { step ->
-                    val pitchCompensation = if (isNoteMode) step.toFloat() else 0f
                     when {
                         instrumentContainer != null -> {
                             Group(
@@ -96,7 +95,6 @@ class MultiAdapter(
                                         instrumentBranches.getOrNull(step)?.let { br ->
                                             addAll(
                                                 resolveChildren(br.deviceChain.deviceChain.devices.devices)
-                                                    .withPitchCompensation(pitchCompensation)
                                             )
                                         }
                                     }
@@ -123,7 +121,6 @@ class MultiAdapter(
                                         drumBranches.getOrNull(step)?.let { br ->
                                             addAll(
                                                 resolveChildren(br.deviceChain.deviceChain.devices.devices)
-                                                    .withPitchCompensation(pitchCompensation)
                                             )
                                         }
                                     }
@@ -132,7 +129,7 @@ class MultiAdapter(
                         }
                         else -> Group("Empty")
                     }
-                }
+                }.withMultiPitchCompensation(isNoteMode)
             )
         ).withMuteState(containerOnState)
     }

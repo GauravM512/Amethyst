@@ -25,7 +25,12 @@ internal fun determineProjectArchiveFormat(paths: List<String>): ZippedProjectFo
     paths.any { it.endsWith(".als", ignoreCase = true) } ->
         ZippedProjectFormat.ABLETON
 
-    else -> ZippedProjectFormat.UNIPAD
+    paths.any { path ->
+        val name = path.substringAfterLast('/').lowercase()
+        name == "info"
+    } -> ZippedProjectFormat.UNIPAD
+
+    else -> throw IllegalArgumentException("Archive contains no supported Ableton or UniPad project")
 }
 
 fun getProjectArchiveEntries(file: PlatformFile): List<ZipEntry> =

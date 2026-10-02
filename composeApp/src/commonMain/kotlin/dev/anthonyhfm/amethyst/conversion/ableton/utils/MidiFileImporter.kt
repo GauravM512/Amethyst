@@ -2,7 +2,7 @@ package dev.anthonyhfm.amethyst.conversion.ableton.utils
 
 import androidx.compose.ui.unit.IntOffset
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
-import dev.anthonyhfm.amethyst.core.midi.data.DRUM_RACK_TO_XY
+import dev.anthonyhfm.amethyst.devices.ableton.AbletonNoteSpace
 import dev.anthonyhfm.amethyst.core.util.Palettes
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.core.util.UUID
@@ -26,6 +26,7 @@ object MidiFileImporter {
             r: Float,
             g: Float,
             b: Float,
+            abletonPitch: Int? = null,
         ): KeyframesChainDeviceContract.KeyframesEntry =
             KeyframesChainDeviceContract.KeyframesEntry(
                 x = localX + offset.x,
@@ -36,6 +37,7 @@ object MidiFileImporter {
                 launchpadId = launchpadId,
                 localX = localX,
                 localY = localY,
+                abletonPitch = abletonPitch,
             )
     }
 
@@ -44,6 +46,7 @@ object MidiFileImporter {
         bpm: Double = 120.0,
         palette: Array<Triple<Int, Int, Int>> = Palettes.novation,
         launchpad: DeviceTarget,
+        preserveEndOfTrackTiming: Boolean = false,
     ): KeyframesChainDeviceContract.KeyframesChainDeviceState {
         var offset = 0
 
@@ -133,6 +136,7 @@ object MidiFileImporter {
         val trackEnd = offset + trackLength
 
         var currentTick = 0L
+        var endOfTrackFound = false
 
         fun cloneFrameAfterTickAdvance() {
             val last = frames.last()
@@ -140,6 +144,7 @@ object MidiFileImporter {
             currentFrame = last.copy(
                 timing = Timing.Duration(100.milliseconds),
                 entries = newEntries,
+                triggersNoteZero = false,
                 _internalUuid = UUID.randomUUID()
             )
             frames.add(currentFrame)
@@ -181,15 +186,14 @@ object MidiFileImporter {
                     }
                     val noteOn = isNoteOn && velocity != 0
 
-                    if (pitch in 0 until DRUM_RACK_TO_XY.size && DRUM_RACK_TO_XY[pitch] != 0) {
-                        val xy = DRUM_RACK_TO_XY[pitch]
-                        val localX = xy % 10
-                        val localY = 9 - (xy / 10)
+                    if (pitch in 0..127) {
+                        val xy = AbletonNoteSpace.padIndex(pitch)
+                        val localX = xy?.rem(10) ?: -1 - pitch
+                        val localY = xy?.div(10)?.let { 9 - it } ?: -1
 
                         val filtered = currentFrame.entries.filterNot {
                             it.launchpadId == launchpad.launchpadId &&
-                                it.localX == localX &&
-                                it.localY == localY
+                                it.abletonPitch == pitch
                         }
                         val updatedEntries =
                             if (noteOn) {
@@ -201,12 +205,16 @@ object MidiFileImporter {
                                     r = triple.first / 63f,
                                     g = triple.second / 63f,
                                     b = triple.third / 63f,
+                                    abletonPitch = pitch,
                                 )
                             } else {
                                 filtered
                             }
 
-                        frames[frames.lastIndex] = frames.last().copy(entries = updatedEntries)
+                        frames[frames.lastIndex] = frames.last().copy(
+                            entries = updatedEntries,
+                            triggersNoteZero = currentFrame.triggersNoteZero || (noteOn && pitch == 0)
+                        )
                         currentFrame = frames.last()
                     }
                 }
@@ -231,6 +239,7 @@ object MidiFileImporter {
                             val length = readVarLen().toInt()
                             when (metaType) {
                                 0x2F -> {
+                                    endOfTrackFound = true
                                     if (length > 0 && requireBytes(length)) offset += length
                                     offset = trackEnd
                                 }
@@ -313,7 +322,13 @@ object MidiFileImporter {
                     )
                 } else {
                     frames[i] = frames[i].copy(
-                        timing = Timing.Duration(1.milliseconds),
+                        timing = Timing.Duration(
+                            duration = if (preserveEndOfTrackTiming && endOfTrackFound) {
+                                0.milliseconds
+                            } else {
+                                1.milliseconds
+                            }
+                        ),
                         _internalUuid = UUID.randomUUID()
                     )
                 }
@@ -322,17 +337,28 @@ object MidiFileImporter {
             if (frames.isNotEmpty()) {
                 val last = frames.last()
                 val penultimate = if (frames.size >= 2) frames[frames.size - 2] else null
-                if (penultimate != null && last.entries == penultimate.entries) {
+                if (penultimate != null && last.entries == penultimate.entries && !last.triggersNoteZero) {
                     frames.removeLast()
                 } else {
-                    // Falls behalten: Dauer minimal setzen
                     frames[frames.lastIndex] = last.copy(
-                        timing = Timing.Duration(50.milliseconds),
+                        timing = Timing.Duration(
+                            duration = if (preserveEndOfTrackTiming && endOfTrackFound) {
+                                0.milliseconds
+                            } else {
+                                50.milliseconds
+                            }
+                        ),
                         _internalUuid = UUID.randomUUID()
                     )
                 }
             }
 
+        }
+
+        if (preserveEndOfTrackTiming && endOfTrackFound && frameTicks.size == 1) {
+            frames[0] = frames[0].copy(
+                timing = Timing.Duration(duration = 0.milliseconds)
+            )
         }
 
         var renderedAnimation: List<Pair<Int, List<Signal>>> = emptyList()

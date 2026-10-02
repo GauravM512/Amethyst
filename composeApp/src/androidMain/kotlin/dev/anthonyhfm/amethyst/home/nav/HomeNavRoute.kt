@@ -17,6 +17,18 @@ sealed interface HomeNavRoute {
     data object Settings : HomeNavRoute
 
     @Serializable
+    data object ProfileAuth : HomeNavRoute
+
+    @Serializable
+    data object ProfileEdit : HomeNavRoute
+
+    @Serializable
+    data object HubLiked : HomeNavRoute
+
+    @Serializable
+    data class HubDetail(val username: String, val slug: String? = null) : HomeNavRoute
+
+    @Serializable
     data object ProjectCreation : HomeNavRoute
 
     @Serializable

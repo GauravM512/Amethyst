@@ -40,7 +40,7 @@ import dev.anthonyhfm.amethyst.ui.launchpad.components.GenericLaunchpadLayout
 import dev.anthonyhfm.amethyst.ui.launchpad.components.LaunchpadLayout
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
 import kotlin.math.floor
-import dev.anthonyhfm.amethyst.ui.launchpad.applyLaunchpadGamma
+import dev.anthonyhfm.amethyst.ui.launchpad.applyMicroLightGrade
 
 import dev.anthonyhfm.amethyst.ui.launchpad.LaunchpadGraphicsRepository
 
@@ -103,7 +103,7 @@ class ViewportLaunchpadX(
                             for (y in 1..9) {
                                 if (previewGrid[x + (y * 10)].color != Color.Black) {
                                     drawRect(
-                                        color = previewGrid[x + (y * 10)].color.applyLaunchpadGamma(),
+                                        color = previewGrid[x + (y * 10)].color.applyMicroLightGrade(),
                                         topLeft = Offset(
                                             x = (x - 1) * ((size.width - (padding * 2)) / 9) + padding,
                                             y = (9 - y) * ((size.height - (padding * 2)) / 9) + padding

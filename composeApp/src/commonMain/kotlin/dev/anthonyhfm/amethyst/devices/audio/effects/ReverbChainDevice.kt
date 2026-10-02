@@ -147,21 +147,21 @@ class ReverbChainDevice : AudioChainDevice<ReverbChainDeviceState>(), ParameterO
             Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     EffectDial("preDelay", "Pre-delay", deviceState.preDelayMs / MAX_PRE_DELAY_MS, "${deviceState.preDelayMs.roundToInt()} ms", startGesture, finishGesture) {
-                        state.update { s -> s.copy(preDelayMs = it * MAX_PRE_DELAY_MS) }
+                        updateStateFromUser { s -> s.copy(preDelayMs = it * MAX_PRE_DELAY_MS) }
                     }
                     EffectDial("size", "Size", deviceState.size, "${(deviceState.size * 100).roundToInt()}%", startGesture, finishGesture) {
-                        state.update { s -> s.copy(size = it) }
+                        updateStateFromUser { s -> s.copy(size = it) }
                     }
                     EffectDial("decay", "Decay", deviceState.decay, "${formatDecay(deviceState.decay)} s", startGesture, finishGesture) {
-                        state.update { s -> s.copy(decay = it) }
+                        updateStateFromUser { s -> s.copy(decay = it) }
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     EffectDial("damping", "Damping", deviceState.damping, "${(deviceState.damping * 100).roundToInt()}%", startGesture, finishGesture) {
-                        state.update { s -> s.copy(damping = it) }
+                        updateStateFromUser { s -> s.copy(damping = it) }
                     }
                     EffectDial("dryWet", "Dry / Wet", deviceState.dryWet, "${(deviceState.dryWet * 100).roundToInt()}%", startGesture, finishGesture) {
-                        state.update { s -> s.copy(dryWet = it) }
+                        updateStateFromUser { s -> s.copy(dryWet = it) }
                     }
                 }
             }

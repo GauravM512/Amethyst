@@ -1,5 +1,7 @@
 package dev.anthonyhfm.amethyst.timeline.ui.pianoroll
 
+import amethyst.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.layout.*
 import dev.anthonyhfm.amethyst.ui.components.primitives.Separator
 import com.composeunstyled.Icon
@@ -19,7 +21,6 @@ import dev.anthonyhfm.amethyst.timeline.data.GradientInterpolator
 import dev.anthonyhfm.amethyst.timeline.data.MidiNote
 import dev.anthonyhfm.amethyst.timeline.data.NoteGradientStop
 import dev.anthonyhfm.amethyst.timeline.ui.NoteGradientEditorBar
-import dev.anthonyhfm.amethyst.timeline.ui.RecentColorsStrip
 import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollArea
 import dev.anthonyhfm.amethyst.ui.components.primitives.Tabs
 import dev.anthonyhfm.amethyst.ui.components.primitives.TabsContent
@@ -28,12 +29,12 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.TabsTrigger
 import dev.anthonyhfm.amethyst.ui.components.primitives.rememberScrollAreaState
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
+import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
 
 @Composable
 fun PianoRollInspectorSidebar(
     gradientMode: Boolean,
     selectedColor: Color,
-    recentColors: List<Triple<Float, Float, Float>>,
     onSolidColorChange: (Color) -> Unit,
     onGradientStopColorChange: (Color) -> Unit,
     onColorInteractionStart: () -> Unit,
@@ -50,6 +51,7 @@ fun PianoRollInspectorSidebar(
     onSolidTabSelected: () -> Unit,
     onGradientTabSelected: () -> Unit,
     enabled: Boolean,
+    selectionCount: Int,
     hasMultipleSelection: Boolean,
     onApplyTransform: ((List<MidiNote>) -> List<MidiNote>) -> Unit,
     onGradientSpread: () -> Unit,
@@ -78,7 +80,14 @@ fun PianoRollInspectorSidebar(
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Color / Gradient Tab Section
+                Text(
+                    text = if (enabled) {
+                        stringResource(resource = Res.string.piano_roll_selection_count, formatArgs = arrayOf(selectionCount))
+                    } else {
+                        stringResource(resource = Res.string.piano_roll_brush)
+                    },
+                    color = Theme[colors][mutedForeground],
+                )
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Tabs(
                         selectedTab = selectedPaintTab,
@@ -91,7 +100,9 @@ fun PianoRollInspectorSidebar(
                                 selected = selectedPaintTab == "solid",
                                 onSelected = {
                                     selectedPaintTab = "solid"
-                                    if (gradientMode) onSolidTabSelected()
+                                    if (gradientMode) {
+                                        onSolidTabSelected()
+                                    }
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -100,7 +111,7 @@ fun PianoRollInspectorSidebar(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(Lucide.Droplet, contentDescription = null, modifier = Modifier.size(14.dp))
-                                    Text("Solid")
+                                    Text(text = stringResource(resource = Res.string.piano_roll_solid))
                                 }
                             }
                             TabsTrigger(
@@ -108,7 +119,9 @@ fun PianoRollInspectorSidebar(
                                 selected = selectedPaintTab == "gradient",
                                 onSelected = {
                                     selectedPaintTab = "gradient"
-                                    if (!gradientMode || workingGradient == null) onGradientTabSelected()
+                                    if (!gradientMode || workingGradient == null) {
+                                        onGradientTabSelected()
+                                    }
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -117,7 +130,7 @@ fun PianoRollInspectorSidebar(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(Lucide.Blend, contentDescription = null, modifier = Modifier.size(14.dp))
-                                    Text("Gradient")
+                                    Text(text = stringResource(resource = Res.string.piano_roll_gradient))
                                 }
                             }
                         }
@@ -129,7 +142,6 @@ fun PianoRollInspectorSidebar(
                                     onInteractionStart = onColorInteractionStart,
                                     onInteractionFinish = onColorInteractionFinish,
                                 )
-                                RecentColorsStrip(recentColors, selectedColor, onSolidColorChange)
                             }
                         }
                         TabsContent("gradient") {
@@ -153,7 +165,6 @@ fun PianoRollInspectorSidebar(
                                             onInteractionStart = onColorInteractionStart,
                                             onInteractionFinish = onColorInteractionFinish,
                                         )
-                                        RecentColorsStrip(recentColors, selectedColor, onGradientStopColorChange)
                                     }
                                 }
                             } else {
@@ -165,7 +176,6 @@ fun PianoRollInspectorSidebar(
 
                 Separator()
 
-                // Transforms section
                 PianoRollTransformPanel(
                     enabled = enabled,
                     hasMultipleSelection = hasMultipleSelection,

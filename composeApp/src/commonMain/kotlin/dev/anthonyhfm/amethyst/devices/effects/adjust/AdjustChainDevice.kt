@@ -25,7 +25,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Dial
 import dev.anthonyhfm.amethyst.ui.components.DialType
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -107,7 +106,7 @@ class AdjustChainDevice : LEDChainDevice<AdjustChainDeviceState>() {
                         value = deviceState.brightness / 2f,
                         defaultValue = 0.5f,
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(
                                     brightness = (value * 2f).coerceIn(0f, 2f)
                                 )
@@ -125,7 +124,7 @@ class AdjustChainDevice : LEDChainDevice<AdjustChainDeviceState>() {
                         text = "${(deviceState.contrast * 100).roundToInt()}%",
                         value = deviceState.contrast / 2f,
                         defaultValue = 0.5f,
-                        onValueChange = { value -> state.update { it.copy(contrast = (value * 2f).coerceIn(0f, 2f)) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(contrast = (value * 2f).coerceIn(0f, 2f)) } },
                         onResolveTextValue = { text ->
                             text.removeSuffix("%").trim().toIntOrNull()?.takeIf { it in 0..200 }
                                 ?.let { v -> applyResolved { it.copy(contrast = v / 100f) } }
@@ -150,7 +149,7 @@ class AdjustChainDevice : LEDChainDevice<AdjustChainDeviceState>() {
                         type = DialType.Steps(List(201) { -100 + it }),
                         value = (deviceState.temperature * 100).toInt(),
                         defaultValue = 0,
-                        onValueChange = { value -> state.update { it.copy(temperature = value / 100f) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(temperature = value / 100f) } },
                         onResolveTextValue = { text ->
                             text.trim().toIntOrNull()?.takeIf { it in -100..100 }
                                 ?.let { v -> applyResolved { it.copy(temperature = v / 100f) } }
@@ -163,7 +162,7 @@ class AdjustChainDevice : LEDChainDevice<AdjustChainDeviceState>() {
                         type = DialType.Steps(List(201) { -100 + it }),
                         value = (deviceState.tint * 100).toInt(),
                         defaultValue = 0,
-                        onValueChange = { value -> state.update { it.copy(tint = value / 100f) } },
+                        onValueChange = { value -> updateStateFromUser { it.copy(tint = value / 100f) } },
                         onResolveTextValue = { text ->
                             text.trim().toIntOrNull()?.takeIf { it in -100..100 }
                                 ?.let { v -> applyResolved { it.copy(tint = v / 100f) } }

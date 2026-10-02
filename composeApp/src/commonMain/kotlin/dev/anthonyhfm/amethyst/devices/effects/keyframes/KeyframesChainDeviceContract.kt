@@ -65,6 +65,7 @@ sealed interface KeyframesChainDeviceContract {
         val ownershipId: String = "",
         @Transient
         val renderedAnimation: List<Pair<Int, List<Signal>>> = emptyList(),
+        val rootKeyLaunchpadId: String? = null,
     ) : DeviceState()
 
     @Serializable
@@ -73,7 +74,8 @@ sealed interface KeyframesChainDeviceContract {
         val gate: Float = 0.5f,
         val entries: List<KeyframesEntry> = emptyList(),
         @Transient
-        val _internalUuid: String = UUID.randomUUID()
+        val _internalUuid: String = UUID.randomUUID(),
+        val triggersNoteZero: Boolean = false,
     )
 
     @Serializable
@@ -87,6 +89,7 @@ sealed interface KeyframesChainDeviceContract {
         val launchpadId: String? = null,
         val localX: Int? = null,
         val localY: Int? = null,
+        val abletonPitch: Int? = null,
     ) {
         /** True when this entry carries device-local coordinate data. */
         val isDeviceAnchored: Boolean get() = launchpadId != null && localX != null && localY != null

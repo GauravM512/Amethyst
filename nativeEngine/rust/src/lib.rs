@@ -1,7 +1,6 @@
 pub mod midi;
 pub mod echo;
 pub mod pcm_output;
-pub mod drag_drop;
 #[cfg(target_os = "android")]
 mod android_context;
 

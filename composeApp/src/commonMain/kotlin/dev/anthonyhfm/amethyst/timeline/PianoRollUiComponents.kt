@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerIcon
@@ -113,7 +114,6 @@ internal data class PianoRollGridColors(
 )
 
 internal fun Modifier.pianoRollGridBackground(
-    devicePitchRange: IntRange,
     clipBeats: Float,
     metrics: PianoRollMetrics,
     beatsPerBar: Int,
@@ -125,9 +125,9 @@ internal fun Modifier.pianoRollGridBackground(
     val heightPx = size.height
 
     // Pitch 0 is at the bottom (matches pitchToYPx: y = (last - pitch) * noteHeight)
-    for (pitch in devicePitchRange) {
-        val y = (devicePitchRange.last - pitch) * metrics.noteHeightPx
-        val isWhiteKey = pitch % 12 in listOf(0, 2, 4, 5, 7, 9, 11)
+    for (pitch in metrics.pitches) {
+        val y = metrics.pitchToYPx(pitch = pitch)
+        val isWhiteKey = (pitch / 10) % 2 != 0
         drawRect(
             color = if (isWhiteKey) colors.canvasColor else colors.rowColor,
             topLeft = Offset(0f, y),
@@ -135,13 +135,13 @@ internal fun Modifier.pianoRollGridBackground(
         )
     }
 
-    for (pitch in devicePitchRange) {
-        val y = (devicePitchRange.last - pitch) * metrics.noteHeightPx
+    for (pitch in metrics.pitches) {
+        val y = metrics.pitchToYPx(pitch = pitch)
         drawLine(colors.pitchSeparatorColor, Offset(0f, y), Offset(widthPx, y), 1f)
     }
 
     // Clip start (t=0) and end (t=durationMs) screen x positions, accounting for OOB overhang
-    val clipStartX = viewport.contentToScreenX(metrics.timeMsToXPx(0))
+    val clipStartX = viewport.clipTimeMsToScreenX(clipTimeMs = 0.0, oobOffsetMs = metrics.oobOffsetMs)
     val clipEndX = clipStartX + clipBeats * metrics.pixelsPerBeatPx
 
     // Shade OOB regions (before clip start and after clip end)
@@ -156,7 +156,10 @@ internal fun Modifier.pianoRollGridBackground(
     val quarterSubdivisions = (clipBeats * 4).roundToInt()
     for (quarterIndex in 0..quarterSubdivisions) {
         val beatIndex = quarterIndex.toFloat() / 4
-        val x = clipStartX + beatIndex * metrics.pixelsPerBeatPx
+        val x = viewport.clipTimeMsToScreenX(
+            clipTimeMs = beatIndex.toDouble() * metrics.beatDurationMs,
+            oobOffsetMs = metrics.oobOffsetMs,
+        )
         if (x > widthPx) break
         drawLine(
             color = colors.quarterCellColor,
@@ -170,7 +173,10 @@ internal fun Modifier.pianoRollGridBackground(
     val totalSubdivisions = (clipBeats * subdivisionsPerBeat).roundToInt()
     for (subIndex in 0..totalSubdivisions) {
         val beatIndex = subIndex.toFloat() / subdivisionsPerBeat
-        val x = clipStartX + beatIndex * metrics.pixelsPerBeatPx
+        val x = viewport.clipTimeMsToScreenX(
+            clipTimeMs = beatIndex.toDouble() * metrics.beatDurationMs,
+            oobOffsetMs = metrics.oobOffsetMs,
+        )
         if (x > widthPx) break
         val isBarLine = (beatIndex % beatsPerBar) == 0f
         drawLine(
@@ -217,8 +223,7 @@ internal fun PianoRollSelectedTimeCursor(
 
     val screenX by remember(selectedTimeMs, viewport.zoomX, viewport.scrollX, oobOverhangMs) {
         androidx.compose.runtime.derivedStateOf {
-            val contentX = viewport.clipTimeMsToContentX(selectedTimeMs.toDouble(), oobOverhangMs)
-            viewport.contentToScreenX(contentX)
+            viewport.clipTimeMsToScreenX(clipTimeMs = selectedTimeMs.toDouble(), oobOffsetMs = oobOverhangMs)
         }
     }
     val density = LocalDensity.current
@@ -239,10 +244,12 @@ internal fun NoteBox(
     metrics: PianoRollMetrics,
     viewport: EditorViewportState,
     isSelected: Boolean,
+    isPlaying: Boolean = false,
     activeTool: TimelineEditorTool,
     clipDurationMs: Long = Long.MAX_VALUE,
     onSelect: () -> Unit,
     onEditStart: () -> Unit,
+    onEditCancel: () -> Unit,
     onDoubleClick: () -> Unit,
     onDrag: (dragAmount: Offset) -> Unit,
     onDragEnd: () -> Unit,
@@ -258,6 +265,7 @@ internal fun NoteBox(
     val directEditEnabled = activeTool == TimelineEditorTool.NORMAL
     val latestOnSelect by rememberUpdatedState(onSelect)
     val latestOnEditStart by rememberUpdatedState(onEditStart)
+    val latestOnEditCancel by rememberUpdatedState(onEditCancel)
     val latestOnDrag by rememberUpdatedState(onDrag)
     val latestOnDragEnd by rememberUpdatedState(onDragEnd)
     val latestOnResizeLeft by rememberUpdatedState(onResizeLeft)
@@ -265,9 +273,8 @@ internal fun NoteBox(
     val latestOnResizeRight by rememberUpdatedState(onResizeRight)
     val latestOnResizeRightEnd by rememberUpdatedState(onResizeRightEnd)
     val baseY = metrics.pitchToYPx(note.resolvedPadIndex)
-    val baseX = metrics.timeMsToXPx(note.startTimeMs)
-    val screenX = viewport.contentToScreenX(baseX)
-    val baseWidthPx = metrics.durationMsToWidthPx(note.durationMs)
+    val screenX = viewport.projectTimeToScreenX(timeMs = note.startTimeMs.toDouble() + metrics.oobOffsetMs)
+    val screenEndX = viewport.projectTimeToScreenX(timeMs = note.endTimeMs.toDouble() + metrics.oobOffsetMs)
     val snappedDragOffsetY = if (dragOffset.y != 0f) {
         val pitchSteps = round(dragOffset.y / metrics.noteHeightPx).toInt()
         pitchSteps * metrics.noteHeightPx
@@ -277,21 +284,29 @@ internal fun NoteBox(
 
     val currentX = screenX + dragOffset.x + resizeLeftDelta
     val currentY = baseY + snappedDragOffsetY
-    val currentWidthPx = (baseWidthPx - resizeLeftDelta + resizeRightDelta).coerceAtLeast(6f)
+    val layout = resolvePianoRollNoteLayout(
+        screenStartPx = currentX,
+        screenEndPx = screenEndX + dragOffset.x + resizeRightDelta,
+        viewportWidthPx = viewport.viewportWidth,
+    ) ?: return
 
     val isOutOfBounds = note.isOutOfBounds(clipDurationMs)
-    val normalBorderColor = Theme[colors][foreground].copy(alpha = if (isSelected) 1f else 0.4f)
+    val normalBorderColor = if (isPlaying) {
+        TimelineTheme.palette.playhead
+    } else {
+        Theme[colors][foreground].copy(alpha = if (isSelected) 1f else 0.4f)
+    }
     val outerBorderColor = if (isOutOfBounds) normalBorderColor.copy(alpha = 0.5f) else normalBorderColor
     val innerBorderColor = Theme[colors][border]
 
     BoxWithConstraints(
         modifier = Modifier
             .offset(
-                x = with(density) { currentX.toDp() },
+                x = with(density) { layout.leftPx.toDp() },
                 y = with(density) { currentY.toDp() }
             )
             .size(
-                width = with(density) { currentWidthPx.toDp() },
+                width = with(density) { layout.widthPx.toDp() },
                 height = 22.dp
             )
             .alpha(if (isOutOfBounds) 0.4f else 1f)
@@ -328,6 +343,7 @@ internal fun NoteBox(
                         detectDragGestures(
                             onDragStart = { latestOnEditStart() },
                             onDragEnd = { latestOnDragEnd() },
+                            onDragCancel = { latestOnEditCancel() },
                             onDrag = { change, dragAmount ->
                                 change.consume()
                                 latestOnDrag(dragAmount)
@@ -340,28 +356,20 @@ internal fun NoteBox(
             )
     ) {
         if (note.isGradient) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val steps = 100
-                val stepWidth = size.width / steps
-                val gradient = note.led.gradient!!
-                for (i in 0..steps) {
-                    val t = i.toFloat() / steps
-                    val (r, g, b) = GradientInterpolator.interpolate(gradient, t)
-                    drawRect(
-                        color = Color(r, g, b),
-                        topLeft = Offset(i * stepWidth, 0f),
-                        size = Size(stepWidth + 1f, size.height)
-                    )
-                }
-            }
+            PianoRollNoteGradient(note = note, layout = layout)
         }
 
         if (note.isGradient && isSelected) {
-            note.led.gradient!!.forEach { stop ->
+            note.led.gradient!!.filter { stop ->
+                layout.gradientStopX(position = stop.position) in 0f..layout.widthPx
+            }.forEach { stop ->
                 Box(
                     modifier = Modifier
                         .size(8.dp)
-                        .offset(x = (stop.position * maxWidth.value - 4).dp, y = (-4).dp)
+                        .offset(
+                            x = with(density) { layout.gradientStopX(position = stop.position).toDp() } - 4.dp,
+                            y = (-4).dp,
+                        )
                         .clip(CircleShape)
                         .background(Color(stop.r, stop.g, stop.b))
                         .border(1.dp, Theme[colors][foreground], CircleShape)
@@ -369,55 +377,79 @@ internal fun NoteBox(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .width(6.dp)
-                .fillMaxHeight()
-                .then(
-                    if (directEditEnabled) {
-                        Modifier
-                            .pointerHoverIcon(PointerIcon.ResizeLeft)
-                            .pointerInput(note, activeTool) {
-                                detectDragGestures(
-                                    onDragStart = { latestOnEditStart() },
-                                    onDragEnd = { latestOnResizeLeftEnd() },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        latestOnResizeLeft(dragAmount.x)
-                                    }
-                                )
-                            }
-                    } else {
-                        Modifier
-                    }
-                )
-        )
+        if (layout.isLeftEdgeVisible || resizeLeftDelta != 0f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(minOf(6.dp, maxWidth / 4f))
+                    .fillMaxHeight()
+                    .then(
+                        if (directEditEnabled) {
+                            Modifier
+                                .pointerHoverIcon(PointerIcon.ResizeLeft)
+                                .pointerInput(note, activeTool) {
+                                    detectDragGestures(
+                                        onDragStart = { latestOnEditStart() },
+                                        onDragEnd = { latestOnResizeLeftEnd() },
+                                        onDragCancel = { latestOnEditCancel() },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            latestOnResizeLeft(dragAmount.x)
+                                        }
+                                    )
+                                }
+                        } else {
+                            Modifier
+                        }
+                    )
+            )
+        }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .width(6.dp)
-                .fillMaxHeight()
-                .then(
-                    if (directEditEnabled) {
-                        Modifier
-                            .pointerHoverIcon(PointerIcon.ResizeRight)
-                            .pointerInput(note, activeTool) {
-                                detectDragGestures(
-                                    onDragStart = { latestOnEditStart() },
-                                    onDragEnd = { latestOnResizeRightEnd() },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        latestOnResizeRight(dragAmount.x)
-                                    }
-                                )
-                            }
-                    } else {
-                        Modifier
-                    }
-                )
-        )
+        if (layout.isRightEdgeVisible || resizeRightDelta != 0f) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(minOf(6.dp, maxWidth / 4f))
+                    .fillMaxHeight()
+                    .then(
+                        if (directEditEnabled) {
+                            Modifier
+                                .pointerHoverIcon(PointerIcon.ResizeRight)
+                                .pointerInput(note, activeTool) {
+                                    detectDragGestures(
+                                        onDragStart = { latestOnEditStart() },
+                                        onDragEnd = { latestOnResizeRightEnd() },
+                                        onDragCancel = { latestOnEditCancel() },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            latestOnResizeRight(dragAmount.x)
+                                        }
+                                    )
+                                }
+                        } else {
+                            Modifier
+                        }
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+private fun PianoRollNoteGradient(note: MidiNote, layout: PianoRollNoteLayout) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val steps = 100
+        val stepWidth = size.width / steps
+        val gradient = note.led.gradient ?: return@Canvas
+        for (i in 0 until steps) {
+            val position = layout.gradientPositionAt(xPx = layout.widthPx * i.toFloat() / steps)
+            val (r, g, b) = GradientInterpolator.interpolate(gradient, position)
+            drawRect(
+                color = Color(r, g, b),
+                topLeft = Offset(x = i * stepWidth, y = 0f),
+                size = Size(width = stepWidth + 1f, height = size.height),
+            )
+        }
     }
 }
 
@@ -429,17 +461,20 @@ internal fun DraftNoteBox(
 ) {
     val density = LocalDensity.current
     val y = metrics.pitchToYPx(note.pitch)
-    val x = viewport.contentToScreenX(metrics.timeMsToXPx(note.startTimeMs))
-    val widthPx = metrics.durationMsToWidthPx(note.durationMs)
+    val layout = resolvePianoRollNoteLayout(
+        screenStartPx = viewport.projectTimeToScreenX(timeMs = note.startTimeMs.toDouble() + metrics.oobOffsetMs),
+        screenEndPx = viewport.projectTimeToScreenX(timeMs = note.endTimeMs.toDouble() + metrics.oobOffsetMs),
+        viewportWidthPx = viewport.viewportWidth,
+    ) ?: return
 
     Box(
         modifier = Modifier
             .offset(
-                x = with(density) { x.toDp() },
+                x = with(density) { layout.leftPx.toDp() },
                 y = with(density) { y.toDp() }
             )
             .size(
-                width = with(density) { widthPx.toDp() },
+                width = with(density) { layout.widthPx.toDp() },
                 height = with(density) { metrics.noteHeightPx.toDp() }
             )
             .alpha(0.7f)
@@ -450,58 +485,46 @@ internal fun DraftNoteBox(
             .border(2.dp, Theme[colors][primary])
     ) {
         if (note.isGradient) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val steps = 100
-                val stepWidth = size.width / steps
-                val gradient = note.led.gradient!!
-                for (i in 0..steps) {
-                    val t = i.toFloat() / steps
-                    val (r, g, b) = GradientInterpolator.interpolate(gradient, t)
-                    drawRect(
-                        color = Color(r, g, b),
-                        topLeft = Offset(i * stepWidth, 0f),
-                        size = Size(stepWidth + 1f, size.height)
-                    )
-                }
-            }
+            PianoRollNoteGradient(note = note, layout = layout)
         }
     }
 }
 
 @Composable
 internal fun PianoKeysColumn(
-    totalPitches: Int,
+    pitches: List<Int>,
     noteHeight: Dp,
-    deviceIndex: Int,
-    pressedPitches: Set<Int>
+    pressedPitches: Set<Int>,
+    previewColors: Map<Int, Color>,
 ) {
     val palette = TimelineTheme.palette
-    val blackKeyColor = Theme[colors][muted]
-    val whiteKeyColor = Theme[colors][foreground]
-    val pressedKeyColor = Theme[colors][destructive]
+    val blackKeyColor = palette.laneSurface
+    val whiteKeyColor = palette.rulerSurface
+    val pressedKeyColor = palette.selectionCursor
+    val textMeasurer = rememberTextMeasurer()
+    val textColor = palette.rulerText
     val density = LocalDensity.current
 
     Box(
         modifier = Modifier
             .width(100.dp)
-            .height(noteHeight * totalPitches)
+            .height(noteHeight * pitches.size)
             .background(palette.rulerSurface)
     ) {
         val noteHeightPx = with(density) { noteHeight.toPx() }
         Canvas(
             modifier = Modifier
                 .width(120.dp)
-                .height(noteHeight * totalPitches)
+                .height(noteHeight * pitches.size)
         ) {
             val widthPx = size.width
-            for (pitch in 0 until totalPitches) {
-                val y = (totalPitches - 1 - pitch) * noteHeightPx
-                val noteInOctave = pitch % 12
-                val isBlackKey = noteInOctave in listOf(1, 3, 6, 8, 10)
+            pitches.forEachIndexed { index, pitch ->
+                val y = (pitches.lastIndex - index) * noteHeightPx
+                val isBlackKey = (pitch / 10) % 2 == 0
                 val isPressed = pressedPitches.contains(pitch)
 
                 val keyColor = when {
-                    isPressed -> pressedKeyColor
+                    isPressed -> previewColors[pitch] ?: pressedKeyColor
                     isBlackKey -> blackKeyColor
                     else -> whiteKeyColor
                 }
@@ -513,7 +536,28 @@ internal fun PianoKeysColumn(
                     size = Size(widthPx, noteHeightPx)
                 )
 
-                // Draw the separator line at the bottom of the key
+                drawText(
+                    textMeasurer = textMeasurer,
+                    text = "Pad $pitch",
+                    topLeft = Offset(8.dp.toPx(), y + 3.dp.toPx()),
+                    style = TextStyle(
+                        color = if (isPressed) {
+                            if (keyColor.luminance() > 0.4f) Color.Black else Color.White
+                        } else {
+                            textColor
+                        },
+                        fontSize = 11.sp,
+                    ),
+                )
+                if (isPressed) {
+                    drawRect(
+                        color = pressedKeyColor,
+                        topLeft = Offset(0f, y),
+                        size = Size(widthPx, noteHeightPx),
+                        style = Stroke(width = 2.dp.toPx()),
+                    )
+                }
+
                 drawLine(
                     color = palette.canvas,
                     start = Offset(0f, y + noteHeightPx),
@@ -546,10 +590,11 @@ internal fun PianoRollRuler(
     ) {
         val heightPx = size.height
         val totalBeats = clipBeats.toInt() + 1
-        val clipStartX = viewport.contentToScreenX(metrics.timeMsToXPx(0))
-
         for (beatIndex in 0 until totalBeats) {
-            val x = clipStartX + beatIndex * metrics.pixelsPerBeatPx
+            val x = viewport.clipTimeMsToScreenX(
+                clipTimeMs = beatIndex.toDouble() * metrics.beatDurationMs,
+                oobOffsetMs = metrics.oobOffsetMs,
+            )
             if (x > size.width) break
 
             val isBar = (beatIndex % beatsPerBar) == 0
@@ -564,7 +609,10 @@ internal fun PianoRollRuler(
         }
 
         for (beatIndex in 0 until totalBeats) {
-            val x = clipStartX + beatIndex * metrics.pixelsPerBeatPx
+            val x = viewport.clipTimeMsToScreenX(
+                clipTimeMs = beatIndex.toDouble() * metrics.beatDurationMs,
+                oobOffsetMs = metrics.oobOffsetMs,
+            )
             if (x > size.width) break
 
             if ((beatIndex % beatsPerBar) == 0) {
@@ -581,7 +629,10 @@ internal fun PianoRollRuler(
                 )
 
                 for (beat in 1 until beatsPerBar) {
-                    val beatX = clipStartX + (beatIndex + beat) * metrics.pixelsPerBeatPx
+                    val beatX = viewport.clipTimeMsToScreenX(
+                        clipTimeMs = (beatIndex + beat).toDouble() * metrics.beatDurationMs,
+                        oobOffsetMs = metrics.oobOffsetMs,
+                    )
                     if (beatX > size.width) break
 
                     drawText(

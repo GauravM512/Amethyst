@@ -25,7 +25,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.Dial
 import dev.anthonyhfm.amethyst.ui.components.DialType
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.math.abs
 import kotlin.math.max
@@ -136,7 +135,7 @@ class ColorFilterChainDevice : LEDChainDevice<ColorFilterChainDeviceState>() {
                             beforeState = state.value.copy()
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(hue = value)
                             }
                         },
@@ -160,7 +159,7 @@ class ColorFilterChainDevice : LEDChainDevice<ColorFilterChainDeviceState>() {
                             beforeState = state.value.copy()
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(hueTolerance = value)
                             }
                         },
@@ -194,7 +193,7 @@ class ColorFilterChainDevice : LEDChainDevice<ColorFilterChainDeviceState>() {
                             beforeState = state.value.copy()
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(saturation = value)
                             }
                         },
@@ -218,7 +217,7 @@ class ColorFilterChainDevice : LEDChainDevice<ColorFilterChainDeviceState>() {
                             beforeState = state.value.copy()
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(saturationTolerance = value)
                             }
                         },
@@ -252,7 +251,7 @@ class ColorFilterChainDevice : LEDChainDevice<ColorFilterChainDeviceState>() {
                             beforeState = state.value.copy()
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(value = value)
                             }
                         },
@@ -276,7 +275,7 @@ class ColorFilterChainDevice : LEDChainDevice<ColorFilterChainDeviceState>() {
                             beforeState = state.value.copy()
                         },
                         onValueChange = { value ->
-                            state.update {
+                            updateStateFromUser {
                                 it.copy(valueTolerance = value)
                             }
                         },

@@ -14,14 +14,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,26 +37,37 @@ import com.mohamedrejeb.compose.dnd.DragAndDropContainer
 import com.mohamedrejeb.compose.dnd.rememberDragAndDropState
 import dev.anthonyhfm.amethyst.core.network.presence.CollaborationPresence
 import dev.anthonyhfm.amethyst.core.util.isMobile
+import dev.anthonyhfm.amethyst.core.util.Platform
 import dev.anthonyhfm.amethyst.core.util.platform
+import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.settings.data.ExperimentalSettings
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
+import dev.anthonyhfm.amethyst.workspace.ui.components.SimpleModeSnackbar
 import dev.anthonyhfm.amethyst.workspace.ui.components.ActivityToastOverlay
 import dev.anthonyhfm.amethyst.workspace.ui.components.AudioLibraryDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.AudioLibraryPanel
-import dev.anthonyhfm.amethyst.workspace.ui.components.DeviceSettingsDialog
 import dev.anthonyhfm.amethyst.workspace.ui.components.ExitWorkspaceDialog
-import dev.anthonyhfm.amethyst.workspace.ui.components.InsertLaunchpadDialog
+import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceDeviceDialogs
 import dev.anthonyhfm.amethyst.workspace.ui.components.PerformanceOverlay
 import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceTopAppBar
+import dev.anthonyhfm.amethyst.workspace.modes.defaults.LayoutWorkspaceMode
 import dev.anthonyhfm.amethyst.timeline.data.AudioSource
 import dev.anthonyhfm.amethyst.workspace.audio.LocalAudioLibraryDragAndDropState
+import kotlinx.coroutines.launch
 
 @Composable
 fun Workspace(onBack: () -> Unit = {}) {
     val mode by WorkspaceRepository.mode.collectAsState()
+    val simpleMode by GeneralSettings.simpleMode.flow.collectAsState()
+
+    LaunchedEffect(key1 = simpleMode) {
+        WorkspaceRepository.enforceSimpleMode()
+    }
     val activityToasts by CollaborationPresence.activityToasts.collectAsState()
     var showExitDialog by remember { mutableStateOf(false) }
+    val saveScope = rememberCoroutineScope()
     val audioLibraryDragState = rememberDragAndDropState<AudioSource>()
 
     val showDeviceConfigurator by WorkspaceRepository.showDeviceConfigurator.collectAsState()
@@ -78,6 +94,17 @@ fun Workspace(onBack: () -> Unit = {}) {
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .then(
+                    if (platform is Platform.iOS && mode !is LayoutWorkspaceMode) {
+                        Modifier
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .padding(top = 8.dp)
+                    } else if (platform is Platform.iOS) {
+                        Modifier.padding(top = 8.dp)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             CompositionLocalProvider(LocalAudioLibraryDragAndDropState provides audioLibraryDragState) {
                 DragAndDropContainer(
@@ -145,8 +172,15 @@ fun Workspace(onBack: () -> Unit = {}) {
                 ExitWorkspaceDialog(
                     onSaveAndExit = {
                         showExitDialog = false
-                        WorkspaceRepository.saveWorkspace()
-                        onBack()
+                        saveScope.launch {
+                            if (platform.isMobile) {
+                                if (HomeRepository.saveOpenMobileWorkspace()) onBack()
+                                else showExitDialog = true
+                            } else {
+                                WorkspaceRepository.saveWorkspace()
+                                onBack()
+                            }
+                        }
                     },
                     onDiscardAndExit = {
                         showExitDialog = false
@@ -158,15 +192,10 @@ fun Workspace(onBack: () -> Unit = {}) {
                 )
             }
 
-            if (showDeviceConfigurator != null) {
-                DeviceSettingsDialog(
-                    uuid = showDeviceConfigurator!!
-                )
-            }
-
-            if (showDevicePicker) {
-                InsertLaunchpadDialog()
-            }
+            WorkspaceDeviceDialogs(
+                deviceConfigurationUuid = showDeviceConfigurator,
+                showDevicePicker = showDevicePicker,
+            )
 
             ActivityToastOverlay(
                 toasts = activityToasts,
@@ -174,6 +203,13 @@ fun Workspace(onBack: () -> Unit = {}) {
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(24.dp),
+            )
+
+            SimpleModeSnackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(insets = WindowInsets.navigationBars)
+                    .padding(all = 16.dp),
             )
 
             val showPerformanceOverlay by ExperimentalSettings.showPerformanceOverlay.flow.collectAsState()

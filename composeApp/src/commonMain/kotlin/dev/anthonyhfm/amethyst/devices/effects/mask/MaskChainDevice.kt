@@ -170,7 +170,7 @@ class MaskChainDevice : LEDChainDevice<MaskChainDeviceState>(), NestedChainDevic
 
     fun openLayer(layer: MaskLayer) {
         if (state.value.openedLayer != layer) {
-            state.update { it.copy(openedLayer = layer) }
+            updateStateFromUser { it.copy(openedLayer = layer) }
         }
     }
 

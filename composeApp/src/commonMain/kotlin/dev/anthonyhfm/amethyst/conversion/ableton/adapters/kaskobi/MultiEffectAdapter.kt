@@ -28,7 +28,10 @@ class MultiEffectAdapter(
             it is MxParameter.MxDIntParameter
         } as? MxParameter.MxDIntParameter
 
-        val steps = parameter?.timeable?.manual?.value ?: 1
+        val steps = parameter?.timeable?.manual?.value
+            ?: runCatching {
+                jsonDecoder.decodeFromString<MidiExtMultiSettings>(string = device.decodeBlob()).cycleLength
+            }.getOrDefault(defaultValue = 1)
         val resetGroupId = Regex("\\\"MIDI Extension Choke\\\"\\s*:\\s*\\[\\s*(\\d+)")
             .find(device.decodeBlob())
             ?.groupValues?.get(1)
@@ -94,7 +97,6 @@ class MultiEffectAdapter(
                 type = TYPE.FORWARD,
                 resetGroupId = resetGroupId,
                 groups = List(steps) { step ->
-                    val pitchCompensation = if (isKeyRangeOrDrum) step.toFloat() else 0f
                     when {
                         instrumentContainer != null -> {
                             Group(
@@ -104,7 +106,6 @@ class MultiEffectAdapter(
                                         instrumentBranches.getOrNull(step)?.let { br ->
                                             addAll(
                                                 resolveChildren(br.deviceChain.deviceChain.devices.devices)
-                                                    .withPitchCompensation(pitchCompensation)
                                             )
                                         }
                                     }
@@ -131,7 +132,6 @@ class MultiEffectAdapter(
                                         drumBranches.getOrNull(step)?.let { br ->
                                             addAll(
                                                 resolveChildren(br.deviceChain.deviceChain.devices.devices)
-                                                    .withPitchCompensation(pitchCompensation)
                                             )
                                         }
                                     }
@@ -140,7 +140,7 @@ class MultiEffectAdapter(
                         }
                         else -> Group("Empty")
                     }
-                }
+                }.withMultiPitchCompensation(isKeyRangeOrDrum)
             )
         ).withMuteState(containerOnState)
     }

@@ -19,6 +19,7 @@ struct AbletonImportWizardSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.amethystTheme) private var theme
+    @Environment(AppLocalization.self) private var localization
 
     private enum ActivePicker: Identifiable {
         case palette
@@ -45,8 +46,8 @@ struct AbletonImportWizardSheet: View {
         NavigationStack {
             Form {
                 // Import source (read-only)
-                Section("Import Source") {
-                    LabeledContent("File") {
+                Section(localization.string("home_import_wizard_import_source", fallback: "Import Source")) {
+                    LabeledContent(localization.string("common_file", fallback: "File")) {
                         Text(importName)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -58,83 +59,83 @@ struct AbletonImportWizardSheet: View {
                 // Custom palette (optional)
                 Section {
                     if palettePath.isEmpty {
-                        Text("No custom palette selected")
+                        Text(localization.string("home_import_wizard_no_palette", fallback: "No custom palette selected"))
                             .foregroundStyle(.secondary)
-                        Text("Optional. The default Novation palette will be used.")
+                        Text(localization.string("home_import_wizard_palette_desc", fallback: "Optional. The default Novation palette will be used."))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     } else {
-                        LabeledContent("File") {
+                        LabeledContent(localization.string("common_file", fallback: "File")) {
                             Text(paletteName)
                                 .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         }
-                        Button("Change…") {
+                        Button(localization.string("common_change", fallback: "Change…")) {
                             activePicker = .palette
                         }
-                        Button("Remove", role: .destructive) {
+                        Button(localization.string("common_remove", fallback: "Remove"), role: .destructive) {
                             palettePath = ""
                         }
                     }
 
                     if palettePath.isEmpty {
-                        Button("Select Palette…") {
+                        Button(localization.string("home_import_wizard_sheet_palette_select", fallback: "Select Palette…")) {
                             activePicker = .palette
                         }
                     }
                 } header: {
-                    Text("Custom Palette")
+                    Text(localization.string("home_import_wizard_custom_palette", fallback: "Custom Palette"))
                 } footer: {
-                    Text("Optional. Overrides the default Novation colour palette.")
+                    Text(localization.string("home_import_wizard_palette_desc", fallback: "Optional. Overrides the default Novation colour palette."))
                 }
                 .listRowBackground(theme.muted)
 
                 // Apollo project (optional)
                 Section {
                     if apolloPath.isEmpty {
-                        Text("No Apollo project selected")
+                        Text(localization.string("home_import_wizard_no_apollo", fallback: "No Apollo project selected"))
                             .foregroundStyle(.secondary)
-                        Text("Optional. Lights will be sourced from Ableton MIDI tracks.")
+                        Text(localization.string("home_import_wizard_apollo_empty_description", fallback: "Optional. Lights will be sourced from Ableton MIDI tracks."))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     } else {
-                        LabeledContent("File") {
+                        LabeledContent(localization.string("common_file", fallback: "File")) {
                             Text(apolloName)
                                 .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         }
-                        Button("Change…") {
+                        Button(localization.string("common_change", fallback: "Change…")) {
                             activePicker = .apollo
                         }
-                        Button("Remove", role: .destructive) {
+                        Button(localization.string("common_remove", fallback: "Remove"), role: .destructive) {
                             apolloPath = ""
                         }
                     }
 
                     if apolloPath.isEmpty {
-                        Button("Select Apollo Project…") {
+                        Button(localization.string("home_import_wizard_sheet_apollo_select", fallback: "Select Apollo Project…")) {
                             activePicker = .apollo
                         }
                     }
                 } header: {
-                    Text("Apollo Lights Project (.approj)")
+                    Text(localization.string("home_import_wizard_apollo_project", fallback: "Apollo Lights Project (.approj)"))
                 } footer: {
-                    Text("Optional. If set, the lights chain will be taken from the Apollo project instead.")
+                    Text(localization.string("home_import_wizard_apollo_selection_description", fallback: "Optional. If set, the lights chain will be taken from the Apollo project instead."))
                 }
                 .listRowBackground(theme.muted)
             }
             .scrollContentBackground(.hidden)
             .background(theme.background.ignoresSafeArea())
-            .navigationTitle("Ableton Import Wizard")
+            .navigationTitle(localization.string("home_import_wizard_title", fallback: "Ableton Import Wizard"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(localization.string("home_import_wizard_cancel", fallback: "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Convert") {
+                    Button(localization.string("common_convert", fallback: "Convert")) {
                         startConversion()
                     }
                     .fontWeight(.semibold)

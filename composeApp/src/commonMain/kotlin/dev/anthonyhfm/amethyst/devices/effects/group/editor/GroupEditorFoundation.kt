@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -310,13 +309,13 @@ internal fun GroupEditorRail(
 @Composable
 internal fun GroupEditorList(
     parentDevice: GenericChainDevice<*>,
+    lazyListState: LazyListState,
     groups: List<Group>,
     openedGroupIndex: Int,
     uiState: GroupEditorUiState,
     actions: GroupEditorActions,
     modifier: Modifier = Modifier,
 ) {
-    val lazyListState = rememberLazyListState()
     val reorderState = rememberReorderState<Group>()
     val clipboard by ClipboardManager.clipboardData.collectAsState()
     val scope = rememberCoroutineScope()

@@ -89,6 +89,12 @@ sealed interface TimelineEditCommand {
         val notes: List<MidiNote>
     ) : TimelineEditCommand
 
+    data class ReplaceNotes(
+        val trackIndex: Int,
+        val entryStartTime: Long,
+        val notes: List<MidiNote>,
+    ) : TimelineEditCommand
+
     data class CreateAutomationPoints(
         val trackIndex: Int,
         val lane: TimelineAutomationLaneKey,

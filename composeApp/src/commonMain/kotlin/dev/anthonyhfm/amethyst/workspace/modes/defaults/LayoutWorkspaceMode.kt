@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
@@ -19,11 +20,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import dev.anthonyhfm.amethyst.core.controls.selection.Selectable
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.midi.data.MidiInputData
+import dev.anthonyhfm.amethyst.core.util.Platform
+import dev.anthonyhfm.amethyst.core.util.platform
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.modes.WorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.ui.components.AddDeviceButton
@@ -64,13 +69,29 @@ class LayoutWorkspaceMode(
 
     @Composable
     override fun Content(modifier: Modifier) {
+        val isMobile = platform !is Platform.Desktop
+
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp)
-                .padding(bottom = 12.dp)
+                .then(
+                    if (isMobile) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 12.dp)
+                    }
+                )
         ) {
             WorkspaceViewport(
+                modifier = if (isMobile) {
+                    Modifier
+                        .fillMaxSize()
+                        .clip(shape = RoundedCornerShape(size = 32.dp))
+                } else {
+                    Modifier
+                },
                 viewportKey = "workspace-layout",
                 config = ViewportConfig(
                     minZoom = 0.5f,
@@ -83,7 +104,7 @@ class LayoutWorkspaceMode(
                     showOrigin = true,
                     showActions = true,
                     showRemoteCursors = true,
-                    contentPadding = 80.dp
+                    contentPadding = if (isMobile) 32.dp else 80.dp
                 ),
             )
 
@@ -93,7 +114,13 @@ class LayoutWorkspaceMode(
                 exit = fadeOut() + scaleOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .then(
+                        if (isMobile) {
+                            Modifier.windowInsetsPadding(WindowInsets.navigationBars)
+                        } else {
+                            Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
+                        }
+                    )
                     .padding(24.dp),
             ) {
                 AddDeviceButton(

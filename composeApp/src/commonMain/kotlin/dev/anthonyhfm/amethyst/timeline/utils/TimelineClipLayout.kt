@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.timeline.utils
 
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
+import kotlin.math.roundToLong
 import kotlin.math.roundToInt
 
 internal data class TimelineProjectedSpanPx(
@@ -22,6 +23,25 @@ internal fun projectTimelineSpanPx(
         startPx = startPx,
         endPx = endPx,
     )
+}
+
+internal fun projectTimelineTimeToScreenPx(timeMs: Long, zoomX: Float, scrollX: Float): Float =
+    (timeMs.toDouble() * zoomX.toDouble() - scrollX.toDouble()).toFloat()
+
+internal fun computeVisibleTimelineRangePx(
+    startMs: Long,
+    endMs: Long,
+    viewport: EditorViewportState,
+): TimelineVisibleClipWindowPx? {
+    if (endMs <= startMs) {
+        return null
+    }
+    val span = projectTimelineSpanPx(
+        startTimeMs = startMs.toDouble(),
+        endTimeMs = endMs.toDouble(),
+        zoomX = viewport.zoomX,
+    )
+    return computeVisibleClipWindowPx(contentStartPx = span.startPx, contentEndPx = span.endPx, viewport = viewport)
 }
 
 internal fun computeTimelineContentWidthPx(
@@ -118,4 +138,37 @@ internal fun computeVisibleClipWindowPx(
         visibleContentStartPx = contentStartPx + hiddenLeftPx,
         visibleContentEndPx = normalizedEndPx - hiddenRightPx,
     )
+}
+
+internal data class MidiClipTrimSpan(
+    val startMs: Long,
+    val endMs: Long,
+) {
+    val durationMs: Long
+        get() = endMs - startMs
+}
+
+internal fun resolveMidiClipTrimSpan(
+    startMs: Long,
+    endMs: Long,
+    leftDeltaPx: Float,
+    rightDeltaPx: Float,
+    zoomX: Float,
+    snapTime: (Long) -> Long,
+): MidiClipTrimSpan {
+    val minimumDurationMs = minOf(50L, endMs - startMs).coerceAtLeast(1L)
+    val safeZoomX = zoomX.coerceAtLeast(0.0001f)
+    val trimmedStartMs = if (leftDeltaPx != 0f) {
+        snapTime((startMs.toDouble() + leftDeltaPx.toDouble() / safeZoomX).roundToLong())
+            .coerceIn(0L, (endMs - minimumDurationMs).coerceAtLeast(0L))
+    } else {
+        startMs
+    }
+    val trimmedEndMs = if (rightDeltaPx != 0f) {
+        snapTime((endMs.toDouble() + rightDeltaPx.toDouble() / safeZoomX).roundToLong())
+            .coerceAtLeast(trimmedStartMs + minimumDurationMs)
+    } else {
+        endMs
+    }
+    return MidiClipTrimSpan(startMs = trimmedStartMs, endMs = trimmedEndMs)
 }

@@ -35,6 +35,7 @@ object NodeRegistry {
         register(GlitchNode)
         register(WaveNode)
         register(KaleidoscopeNode)
+        register(TimeProgressionNode)
         register(OutputNode)
     }
 

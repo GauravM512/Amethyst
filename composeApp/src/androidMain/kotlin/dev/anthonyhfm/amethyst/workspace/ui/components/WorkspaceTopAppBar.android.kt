@@ -5,6 +5,10 @@ import amethyst.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -26,6 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.anthonyhfm.amethyst.core.util.isPhone
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -42,6 +50,8 @@ import com.composables.icons.lucide.Settings
 import com.composables.icons.lucide.X
 import dev.anthonyhfm.amethyst.core.controls.automapping.AutomappingManager
 import dev.anthonyhfm.amethyst.settings.SettingsDialog
+import dev.anthonyhfm.amethyst.settings.data.GeneralSettings
+import dev.anthonyhfm.amethyst.timeline.PianoRollWorkspaceMode
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 
 import dev.anthonyhfm.amethyst.workspace.modes.WorkspaceMode
@@ -75,107 +85,131 @@ actual fun WorkspaceTopAppBar(
     onBack: () -> Unit,
     mode: WorkspaceMode,
 ) {
+    val simpleMode by GeneralSettings.simpleMode.flow.collectAsState()
+    val simpleModeEnabled = isPhone || simpleMode
     val automappingState by AutomappingManager.state.collectAsState()
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showModePicker by remember { mutableStateOf(false) }
 
+    val unavailableLabel = stringResource(resource = Res.string.workspace_mode_unavailable_in_simple_mode)
     val currentEntry = selectableModes.firstOrNull { modeMatches(mode, it.mode) }
 
-    CenterAlignedTopAppBar(
-        navigationIcon = {
-            if (mode.selectableMode) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Lucide.ChevronLeft,
-                        contentDescription = stringResource(Res.string.workspace_topappbar_back_to_home),
-                    )
-                }
-            } else {
-                IconButton(onClick = { WorkspaceRepository.switchToPreviousMode() }) {
-                    Icon(
-                        imageVector = Lucide.X,
-                        contentDescription = "Close ${mode.displayName}",
-                    )
-                }
-            }
-        },
-        title = {
-            if (mode.selectableMode) {
-                Box {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable { showModePicker = true }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        Text(
-                            text = currentEntry?.label ?: mode.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-
+    Column {
+        CenterAlignedTopAppBar(
+            navigationIcon = {
+                if (mode.selectableMode) {
+                    IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Lucide.ChevronDown,
-                            contentDescription = stringResource(Res.string.workspace_topappbar_switch_mode),
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(18.dp),
+                            imageVector = Lucide.ChevronLeft,
+                            contentDescription = stringResource(Res.string.workspace_topappbar_back_to_home),
                         )
                     }
+                } else {
+                    IconButton(onClick = { WorkspaceRepository.switchToPreviousMode() }) {
+                        Icon(
+                            imageVector = Lucide.X,
+                            contentDescription = "Close ${mode.displayName}",
+                        )
+                    }
+                }
+            },
+            title = {
+                if (mode.selectableMode) {
+                    Box {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { showModePicker = true }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                text = currentEntry?.label ?: mode.displayName,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
 
-                    DropdownMenu(
-                        expanded = showModePicker,
-                        onDismissRequest = { showModePicker = false },
-                    ) {
-                        selectableModes.forEach { entry ->
-                            DropdownMenuItem(
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = entry.icon,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                },
-                                text = { Text(entry.label) },
-                                onClick = {
-                                    WorkspaceRepository.switchMode(entry.mode)
-                                    showModePicker = false
-                                },
+                            Icon(
+                                imageVector = Lucide.ChevronDown,
+                                contentDescription = stringResource(Res.string.workspace_topappbar_switch_mode),
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .size(18.dp),
                             )
                         }
+
+                        DropdownMenu(
+                            expanded = showModePicker,
+                            onDismissRequest = { showModePicker = false },
+                        ) {
+                            selectableModes.forEach { entry ->
+                                val available = !simpleModeEnabled || entry.mode.availableInSimpleMode
+
+                                DropdownMenuItem(
+                                    modifier = Modifier
+                                        .alpha(alpha = if (available) 1f else 0.38f)
+                                        .semantics {
+                                            if (!available) {
+                                                stateDescription = unavailableLabel
+                                            }
+                                        },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = entry.icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    },
+                                    text = { Text(entry.label) },
+                                    onClick = {
+                                        WorkspaceRepository.switchMode(mode = entry.mode)
+                                        showModePicker = false
+                                    },
+                                )
+                            }
+                        }
                     }
-                }
-            } else {
-                Text(
-                    text = mode.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-        },
-        actions = {
-            if (automappingState.isActive) {
-                Text(
-                    text = stringResource(Res.string.workspace_topappbar_auto),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            if (mode.selectableMode) {
-                IconButton(onClick = { WorkspaceRepository.toggleAudioLibrary() }) {
-                    Icon(
-                        imageVector = Lucide.Music,
-                        contentDescription = stringResource(Res.string.workspace_topappbar_open_audio_library),
+                } else {
+                    Text(
+                        text = mode.displayName,
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 }
-            }
-            IconButton(onClick = { showSettingsDialog = true }) {
-                Icon(
-                    imageVector = Lucide.Settings,
-                    contentDescription = stringResource(Res.string.workspace_topappbar_open_settings),
-                )
-            }
-        },
-    )
+            },
+            actions = {
+                if (automappingState.isActive) {
+                    Text(
+                        text = stringResource(Res.string.workspace_topappbar_auto),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                if (mode.selectableMode) {
+                    IconButton(onClick = { WorkspaceRepository.toggleAudioLibrary() }) {
+                        Icon(
+                            imageVector = Lucide.Music,
+                            contentDescription = stringResource(Res.string.workspace_topappbar_open_audio_library),
+                        )
+                    }
+                }
+                IconButton(onClick = { showSettingsDialog = true }) {
+                    Icon(
+                        imageVector = Lucide.Settings,
+                        contentDescription = stringResource(Res.string.workspace_topappbar_open_settings),
+                    )
+                }
+            },
+        )
+
+        if (mode is PianoRollWorkspaceMode) {
+            PianoRollWorkspaceControls(
+                mode = mode,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(state = rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
+    }
 
     SettingsDialog(
         visible = showSettingsDialog,

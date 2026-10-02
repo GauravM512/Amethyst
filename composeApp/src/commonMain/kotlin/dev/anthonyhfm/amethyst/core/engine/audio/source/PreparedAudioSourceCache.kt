@@ -17,7 +17,18 @@ object PreparedAudioSourceCache {
         val frameCount: Long,
     )
 
-    private val entries = atomic<Map<Key, AudioSource>>(emptyMap())
+    private data class Entry(val sourceBytes: ByteArray?, val prepared: AudioSource)
+
+    private val entries = atomic<Map<Key, Entry>>(emptyMap())
+    private val persistentRoot = atomic<String?>(null)
+
+    /** A converted mobile project keeps prepared PCM for later offline opens. */
+    fun configurePersistentRoot(root: String?) {
+        if (persistentRoot.value != root) {
+            entries.value = emptyMap()
+            persistentRoot.value = root
+        }
+    }
 
     fun getOrPrepare(source: AudioSource, outputRate: Int): AudioSource {
         require(outputRate > 0)
@@ -29,12 +40,34 @@ object PreparedAudioSourceCache {
             channels = source.channels,
             frameCount = source.frameCount,
         )
-        entries.value[key]?.let { return it }
+        val sourceBytes = (source as? ByteArrayPcmAudioSource)?.rawData
+        entries.value[key]?.takeIf { it.sourceBytes === sourceBytes }?.let { return it.prepared }
 
-        val prepared = resampleToPcm24(source, outputRate)
+        val diskKey = (source as? ByteArrayPcmAudioSource)?.let {
+            "${source.id.hashCode().toUInt().toString(16)}-${it.rawData.contentHashCode().toUInt().toString(16)}-" +
+                "${source.sampleRate}-$outputRate-${source.channels}-${source.frameCount}"
+        }
+        val outputFrames = (source.frameCount.toDouble() * outputRate / source.sampleRate)
+            .toLong().coerceAtLeast(1L)
+        val expectedBytes = outputFrames * source.channels * BYTES_PER_PCM24_SAMPLE
+        val root = persistentRoot.value
+        val diskBytes = if (root != null && diskKey != null && expectedBytes <= Int.MAX_VALUE) {
+            runCatching { PreparedAudioDiskCache.read(root, diskKey, expectedBytes.toInt()) }.getOrNull()
+        } else null
+        val prepared = if (diskBytes != null) {
+            ByteArrayPcmAudioSource(source.id, outputRate, source.channels, 24, diskBytes)
+        } else {
+            (if (source is ByteArrayPcmAudioSource) {
+                platformResampleToPcm24(source, outputRate)
+            } else null).let { it ?: resampleToPcm24(source, outputRate) }.also { result ->
+                if (root != null && diskKey != null && result is ByteArrayPcmAudioSource) {
+                    runCatching { PreparedAudioDiskCache.write(root, diskKey, result.rawData) }
+                }
+            }
+        }
         while (true) {
             val current = entries.value
-            current[key]?.let { return it }
+            current[key]?.takeIf { it.sourceBytes === sourceBytes }?.let { return it.prepared }
             val trimmed = if (current.size >= MAXIMUM_ENTRIES) {
                 current.entries.drop(current.size - MAXIMUM_ENTRIES + 1)
                     .associate { it.toPair() }
@@ -44,7 +77,7 @@ object PreparedAudioSourceCache {
             if (
                 entries.compareAndSet(
                     current,
-                    trimmed + (key to prepared),
+                    trimmed + (key to Entry(sourceBytes, prepared)),
                 )
             ) {
                 return prepared

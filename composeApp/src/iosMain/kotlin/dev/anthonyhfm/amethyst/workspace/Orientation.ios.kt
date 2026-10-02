@@ -1,15 +1,15 @@
 package dev.anthonyhfm.amethyst.workspace
 
+import dev.anthonyhfm.amethyst.core.util.isPhone
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import dev.anthonyhfm.amethyst.workspace.ui.components.IosWorkspaceBridge
-import platform.UIKit.UIDevice
-import platform.UIKit.UIUserInterfaceIdiomPhone
 
 @Composable
 actual fun ForceScreenOrientation(landscape: Boolean) {
-    DisposableEffect(landscape) {
-        IosWorkspaceBridge.onOrientationChanged?.invoke(landscape)
+    DisposableEffect(key1 = Unit) {
+        IosWorkspaceBridge.onOrientationChanged?.invoke(false)
+
         onDispose {
             IosWorkspaceBridge.onOrientationChanged?.invoke(false)
         }
@@ -18,7 +18,7 @@ actual fun ForceScreenOrientation(landscape: Boolean) {
 
 @Composable
 actual fun isMobilePhone(): Boolean {
-    return UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone
+    return isPhone
 }
 
 actual fun triggerSettingsShow(onShowCommonDialog: () -> Unit) {

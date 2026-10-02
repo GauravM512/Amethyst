@@ -23,7 +23,10 @@ import com.composeunstyled.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,6 +68,7 @@ fun AbletonImportWizard(
     val customPalettePath: String by viewModel.customPalettePath.collectAsState()
     val apolloProjPath: String by viewModel.apolloProjPath.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+    var conversionError by remember(path) { mutableStateOf(false) }
     val paletteName = customPalettePath.substringAfterLast("/").ifBlank { customPalettePath }
     val apolloProjName = apolloProjPath.substringAfterLast("/").ifBlank { apolloProjPath }
 
@@ -118,6 +122,10 @@ fun AbletonImportWizard(
                     onSelectApolloProj = { viewModel.onClickImportApolloProjFile() },
                 )
 
+                if (conversionError) {
+                    FieldDescription(stringResource(Res.string.home_import_wizard_conversion_failed))
+                }
+
                 Spacer(Modifier.weight(1f))
 
                 val loadingMsg = stringResource(Res.string.home_import_wizard_sheet_loading_msg)
@@ -128,6 +136,7 @@ fun AbletonImportWizard(
                         onCancel()
                     },
                     onStartConversion = {
+                        conversionError = false
                         dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.startLoading(
                             initialTitle = "ABLETON LIVE-SET KONVERTIEREN",
                             initialStatus = loadingMsg
@@ -142,6 +151,8 @@ fun AbletonImportWizard(
                             } catch (e: Exception) {
                                 dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager.finishLoading()
                                 e.printStackTrace()
+                                navigator.popBackStack()
+                                conversionError = true
                             }
                         }
                     },

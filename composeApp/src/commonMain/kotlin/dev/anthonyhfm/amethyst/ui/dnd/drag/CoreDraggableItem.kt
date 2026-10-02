@@ -66,6 +66,8 @@ internal fun <T> CoreDraggableItem(
     dropStrategy: DropStrategy,
     dropAnimationSpec: AnimationSpec<Offset>,
     sizeDropAnimationSpec: AnimationSpec<Size>,
+    isPartOfActiveDrag: Boolean = false,
+    animatePreviewOnStart: Boolean = true,
     draggableContent: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -92,6 +94,7 @@ internal fun <T> CoreDraggableItem(
             dropAnimationSpec = dropAnimationSpec,
             sizeDropAnimationSpec = sizeDropAnimationSpec,
             content = draggableContent,
+            animatePreviewOnStart = animatePreviewOnStart,
         )
     }
 
@@ -115,9 +118,8 @@ internal fun <T> CoreDraggableItem(
         draggableItemState.sizeDropAnimationSpec = sizeDropAnimationSpec
     }
 
-    LaunchedEffect(draggableItemState, draggableContent) {
-        draggableItemState.content = draggableContent
-    }
+    draggableItemState.content = draggableContent
+    draggableItemState.animatePreviewOnStart = animatePreviewOnStart
 
     DisposableEffect(key, state, draggableItemState) {
         state.addDraggableItem(draggableItemState)
@@ -152,7 +154,7 @@ internal fun <T> CoreDraggableItem(
                 )
             },
     ) {
-        val isBeingDragged = state.draggedItem?.key == key
+        val isBeingDragged = state.draggedItem?.key == key || isPartOfActiveDrag
         // Sanfte Placeholder Transparenz & leichte Schrumpfung während der Shadow aktiv ist
         val placeholderAlpha by animateFloatAsState(
             targetValue = if (isBeingDragged) 0.15f else 1f,
