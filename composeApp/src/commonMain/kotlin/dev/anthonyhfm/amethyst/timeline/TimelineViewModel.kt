@@ -40,6 +40,7 @@ import io.github.vinceglb.filekit.name
 import io.github.vinceglb.filekit.path
 import kotlinx.coroutines.Dispatchers
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
+import dev.anthonyhfm.amethyst.timeline.viewport.TimelineViewportLimits
 import dev.anthonyhfm.amethyst.devices.GenericChainDevice
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
 import dev.anthonyhfm.amethyst.devices.TimelineTriggerable
@@ -56,7 +57,13 @@ class TimelineViewModel : ViewModel() {
 
     // Single authoritative viewport state — zoom and scroll are always emitted together so
     // renderers never observe a mismatched (newScroll, oldZoom) combination.
-    private val _viewport = MutableStateFlow(EditorViewportState(zoomX = 0.025f))
+    private val _viewport = MutableStateFlow(
+        EditorViewportState(
+            zoomX = 0.025f,
+            minZoomX = TimelineViewportLimits.MIN_ZOOM_X,
+            maxZoomX = TimelineViewportLimits.MAX_ZOOM_X,
+        )
+    )
     val viewport: StateFlow<EditorViewportState> = _viewport.asStateFlow()
 
     val playheadPositionMs = TimelineRepository.playheadPositionMs
@@ -82,6 +89,7 @@ class TimelineViewModel : ViewModel() {
             duplicateChainEffect(trackIndex, clipId)
         }
         TimelineKeyHandler.nudgeTimelineTime = ::nudgeSelectedTimelineTime
+        TimelineKeyHandler.insertMidiClip = ::insertMidiClipForSelection
         viewModelScope.launch {
             TimelineRepository.tracks.collect { repoTracks ->
                 _tracks.value = repoTracks
@@ -562,14 +570,14 @@ class TimelineViewModel : ViewModel() {
     }
 
     fun setZoomLevel(zoom: Float) {
-        val clamped = zoom.coerceIn(0.01f, 10.0f)
+        val clamped = zoom.coerceIn(_viewport.value.minZoomX, _viewport.value.maxZoomX)
         _viewport.value = _viewport.value.copy(zoomX = clamped)
     }
 
     fun zoomBy(factor: Float) {
         val before = _viewport.value.zoomX
         val requested = before * factor
-        val clamped = requested.coerceIn(0.01f, 10.0f)
+        val clamped = requested.coerceIn(_viewport.value.minZoomX, _viewport.value.maxZoomX)
         _viewport.value = _viewport.value.copy(zoomX = clamped)
     }
 
@@ -928,21 +936,40 @@ class TimelineViewModel : ViewModel() {
         // Note: UndoableAction would need to be extended to support MIDI entries
     }
 
-    /**
-     * Handle an arrangement open request on a MIDI track by opening an existing entry.
-     */
     fun onDoubleClickMidiTrack(trackIndex: Int, timeMs: Long) {
         val track = _tracks.value.getOrNull(trackIndex) as? MidiTimelineTrack ?: return
-        
-        // Only open the Piano Roll if there's an existing entry at this time
         val existingEntry = track.entries.values.firstOrNull { entry ->
             timeMs >= entry.startTimeMs && timeMs < entry.endTimeMs
         }
-        
-        if (existingEntry != null) {
-            val clipContext = TimelineClipContext.midi(trackIndex, existingEntry)
-            enterPianoRollForEntry(clipContext, existingEntry)
+        val entry = existingEntry ?: run {
+            val startMs = snapTimelineTime(timeMs.coerceAtLeast(0L))
+            if (track.hasOneDimensionalBlockerAt(startMs)) {
+                return
+            }
+            createMidiEntry(trackIndex = trackIndex, startMs = startMs, endMs = startMs + oneBeatMs() * 4L)
+            (_tracks.value.getOrNull(trackIndex) as? MidiTimelineTrack)?.entries?.get(startMs)
+        } ?: return
+        enterPianoRollForEntry(clipContext = TimelineClipContext.midi(trackIndex, entry), entry = entry)
+    }
+
+    internal fun insertMidiClipForSelection(): Boolean {
+        val selections = SelectionManager.selections.value
+        val range = selections.filterIsInstance<Selectable.TimelineRange>().lastOrNull()
+        val time = selections.filterIsInstance<Selectable.TimelineTime>().lastOrNull()
+        val trackIndex = range?.trackIndex ?: time?.trackIndex
+            ?: selections.filterIsInstance<Selectable.TimelineTrack>().lastOrNull()?.trackIndex
+            ?: return false
+        val track = _tracks.value.getOrNull(trackIndex) as? MidiTimelineTrack ?: return false
+        val startMs = (range?.startMs ?: time?.timeMs ?: playheadPositionMs.value).coerceAtLeast(0L)
+        if (track.hasOneDimensionalBlockerAt(startMs)) {
+            return false
         }
+        createMidiEntry(
+            trackIndex = trackIndex,
+            startMs = startMs,
+            endMs = range?.endMs ?: startMs + oneBeatMs() * 4L,
+        )
+        return true
     }
 
     /**
@@ -1232,6 +1259,7 @@ class TimelineViewModel : ViewModel() {
         TimelineKeyHandler.deleteChainEffectClip = null
         TimelineKeyHandler.duplicateChainEffectClip = null
         TimelineKeyHandler.nudgeTimelineTime = null
+        TimelineKeyHandler.insertMidiClip = null
         super.onCleared()
     }
 
@@ -1263,7 +1291,6 @@ class TimelineViewModel : ViewModel() {
                 deleteMidiNoteLive(currentClipContext.trackIndex, currentClipContext.entryStartMs, note)
             }
         }
-        pianoRollMode.modeClose = { WorkspaceRepository.switchToPreviousMode() }
         WorkspaceRepository.switchMode(pianoRollMode)
         println("Opened Piano Roll for entry at ${clipContext.entryStartMs}ms on track ${clipContext.trackIndex}")
     }

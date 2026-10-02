@@ -79,13 +79,12 @@ internal fun computeSnappedTimeFromViewport(
     gridType: GridUtils.GridType,
     snapEnabled: Boolean = true,
 ): Long {
-    return computeSnappedTimeFromContentX(
-        x = viewport.screenToContentX(screenX),
-        zoomLevel = viewport.zoomX,
-        bpm = bpm,
-        gridType = gridType,
-        snapEnabled = snapEnabled,
-    )
+    val rawTimeMs = viewport.screenToTimeMs(screenX = screenX).roundToLong().coerceAtLeast(0L)
+    return if (snapEnabled) {
+        GridUtils.snapToGrid(timeMs = rawTimeMs, zoomLevel = viewport.zoomX, bpm = bpm, gridType = gridType)
+    } else {
+        rawTimeMs
+    }
 }
 
 /**
@@ -98,7 +97,7 @@ internal fun computeSnappedTimeFromViewport(
  */
 internal fun findHeaderEntryHit(
     track: TimelineTrack<*>,
-    x: Float,
+    x: Double,
     y: Float,
     zoom: Float,
     headerHeightPx: Float

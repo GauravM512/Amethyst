@@ -36,6 +36,9 @@ object TimelineCommandExecutor {
             is TimelineEditCommand.ResizeNotes -> resizeNotes(command.trackIndex, command.entryStartTime, command.changes)
             is TimelineEditCommand.UpdateNotes -> updateNotes(command.trackIndex, command.entryStartTime, command.changes)
             is TimelineEditCommand.DeleteNotes -> deleteNotes(command.trackIndex, command.entryStartTime, command.notes)
+            is TimelineEditCommand.ReplaceNotes -> updateMidiEntryNotes(command.trackIndex, command.entryStartTime) {
+                it.copy(notes = command.notes)
+            }
             is TimelineEditCommand.CreateAutomationPoints -> createAutomationPoints(command.trackIndex, command.lane, command.points)
             is TimelineEditCommand.MoveAutomationPoints -> moveAutomationPoints(command.trackIndex, command.lane, command.changes)
             is TimelineEditCommand.DeleteAutomationPoints -> deleteAutomationPoints(command.trackIndex, command.lane, command.pointIds)

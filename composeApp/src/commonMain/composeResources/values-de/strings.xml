@@ -1008,4 +1008,9 @@
     <string name="home_projects_remove_downloaded_error">Das Projekt konnte nicht entfernt werden. Bitte versuche es erneut.</string>
     <string name="home_projects_removing_downloaded">Wird entfernt…</string>
     <string name="home_projects_removed_downloaded">Projekt entfernt.</string>
+    <string name="piano_roll_snap">Am Raster einrasten</string>
+    <string name="piano_roll_selection_count">Ausgewählte Lichtnoten: %1$d</string>
+    <string name="piano_roll_brush">Farbe für neue Lichtnoten</string>
+    <string name="piano_roll_solid">Farbe</string>
+    <string name="piano_roll_gradient">Verlauf</string>
 </resources>

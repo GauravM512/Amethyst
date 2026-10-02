@@ -9,6 +9,7 @@ import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
 
 internal class PianoRollPadPreview(
+    private val layer: Int = Int.MAX_VALUE,
     private val nowMs: () -> Double = { Heaven.time },
     private val frameIntervalMs: () -> Double = { 1000.0 / Heaven.fps.coerceAtLeast(1) },
     private val schedule: (Double, Any, () -> Unit) -> Unit = { delay, owner, frame ->
@@ -22,6 +23,7 @@ internal class PianoRollPadPreview(
         val gradient: List<NoteGradientStop>?,
         val durationMs: Long,
         val startedAtMs: Double,
+        val repeat: Boolean,
     )
 
     private val lock = SynchronizedObject()
@@ -32,13 +34,15 @@ internal class PianoRollPadPreview(
         signal: Signal.LED,
         gradient: List<NoteGradientStop>?,
         durationMs: Long,
+        repeat: Boolean = true,
     ) = synchronized(lock) {
         release(key = key)
         val pad = HeldPad(
-            signal = signal.copy(layer = Int.MAX_VALUE),
+            signal = signal.copy(layer = layer),
             gradient = gradient?.takeIf { it.size >= 2 }?.let(GradientInterpolator::normalize),
             durationMs = durationMs.coerceAtLeast(1L),
             startedAtMs = nowMs(),
+            repeat = repeat,
         )
         heldPads[key] = pad
         render(key = key, pad = pad)
@@ -48,14 +52,26 @@ internal class PianoRollPadPreview(
         if (heldPads[key] !== pad) {
             return@synchronized
         }
+        val elapsedMs = (nowMs() - pad.startedAtMs).coerceAtLeast(0.0)
+        if (!pad.repeat && elapsedMs >= pad.durationMs) {
+            release(key = key)
+            return@synchronized
+        }
         val color = pad.gradient?.let { gradient ->
-            val fraction = ((nowMs() - pad.startedAtMs) % pad.durationMs / pad.durationMs).toFloat()
+            val fraction = (elapsedMs % pad.durationMs / pad.durationMs).toFloat()
             val (red, green, blue) = GradientInterpolator.interpolate(gradient, fraction)
             Color(red = red, green = green, blue = blue)
         } ?: pad.signal.color
         send(pad.signal.copy(color = color))
         if (pad.gradient != null) {
-            schedule(frameIntervalMs(), pad) { render(key = key, pad = pad) }
+            val nextFrameMs = if (pad.repeat) {
+                frameIntervalMs()
+            } else {
+                minOf(frameIntervalMs(), pad.durationMs - elapsedMs)
+            }
+            schedule(nextFrameMs, pad) { render(key = key, pad = pad) }
+        } else if (!pad.repeat) {
+            schedule(pad.durationMs - elapsedMs, pad) { render(key = key, pad = pad) }
         }
     }
 

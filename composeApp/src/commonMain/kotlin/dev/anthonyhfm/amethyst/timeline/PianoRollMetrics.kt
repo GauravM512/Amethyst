@@ -36,9 +36,9 @@ internal class PianoRollMetrics(
         pitches[(pitches.lastIndex - (y / noteHeightPx).toInt()).coerceIn(0, pitches.lastIndex)]
 
     fun timeMsToXPx(startTimeMs: Long): Float =
-        ((startTimeMs + oobOffsetMs) / beatDurationMs.toFloat()) * pixelsPerBeatPx
+        ((startTimeMs.toDouble() + oobOffsetMs) * zoomX.toDouble()).toFloat()
 
-    fun durationMsToWidthPx(durationMs: Long): Float = (durationMs / beatDurationMs.toFloat()) * pixelsPerBeatPx
+    fun durationMsToWidthPx(durationMs: Long): Float = (durationMs.toDouble() * zoomX.toDouble()).toFloat()
 
     /** Snaps to the *nearest* grid boundary — used for cursor and ruler placement. */
     fun xPxToTimeMs(x: Float): Long {

@@ -523,6 +523,12 @@ object UndoManager {
                     redoStack.add(action)
                 }
 
+                is UndoableAction.PianoRollNoteStep -> {
+                    action.applyNotes(action.notesBefore)
+                    SelectionManager.clear()
+                    redoStack.add(action)
+                }
+
                 is UndoableAction.PianoRollNoteMultiCreation -> {
                     // Undo: Delete all created notes
                     action.notes.forEach { note ->
@@ -1138,6 +1144,12 @@ object UndoManager {
                         ),
                         single = true
                     )
+                    undoStack.add(action)
+                }
+
+                is UndoableAction.PianoRollNoteStep -> {
+                    action.applyNotes(action.notesAfter)
+                    SelectionManager.clear()
                     undoStack.add(action)
                 }
 

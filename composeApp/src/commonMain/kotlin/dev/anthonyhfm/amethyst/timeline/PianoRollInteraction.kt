@@ -3,6 +3,9 @@ package dev.anthonyhfm.amethyst.timeline
 import androidx.compose.ui.geometry.Offset
 import dev.anthonyhfm.amethyst.timeline.contract.GridResolution
 import dev.anthonyhfm.amethyst.timeline.data.MidiNote
+import dev.anthonyhfm.amethyst.timeline.data.NoteGradientStop
+import androidx.compose.ui.graphics.Color
+import dev.anthonyhfm.amethyst.timeline.data.resolvedDeviceIndex
 import dev.anthonyhfm.amethyst.timeline.data.resolvedPadIndex
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
 import kotlin.math.ceil
@@ -10,6 +13,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 internal sealed interface PianoRollHitTarget {
     data object Empty : PianoRollHitTarget
@@ -33,6 +37,41 @@ internal data class PianoRollNoteRect(
 
     fun contains(point: Offset): Boolean =
         point.x in left..right && point.y in top..bottom
+}
+
+internal data class PianoRollNoteLayout(
+    val leftPx: Float,
+    val widthPx: Float,
+    val fullWidthPx: Float,
+    val hiddenLeftPx: Float,
+    val isLeftEdgeVisible: Boolean,
+    val isRightEdgeVisible: Boolean,
+) {
+    fun gradientPositionAt(xPx: Float): Float =
+        ((hiddenLeftPx + xPx) / fullWidthPx).coerceIn(0f, 1f)
+
+    fun gradientStopX(position: Float): Float = position * fullWidthPx - hiddenLeftPx
+}
+
+internal fun resolvePianoRollNoteLayout(
+    screenStartPx: Double,
+    screenEndPx: Double,
+    viewportWidthPx: Float,
+): PianoRollNoteLayout? {
+    val normalizedEndPx = screenEndPx.coerceAtLeast(screenStartPx + 6.0)
+    val leftPx = screenStartPx.coerceAtLeast(0.0)
+    val rightPx = normalizedEndPx.coerceAtMost(viewportWidthPx.toDouble())
+    if (rightPx <= leftPx) {
+        return null
+    }
+    return PianoRollNoteLayout(
+        leftPx = leftPx.toFloat(),
+        widthPx = (rightPx - leftPx).toFloat(),
+        fullWidthPx = (normalizedEndPx - screenStartPx).toFloat(),
+        hiddenLeftPx = (leftPx - screenStartPx).toFloat(),
+        isLeftEdgeVisible = screenStartPx >= 0.0,
+        isRightEdgeVisible = normalizedEndPx <= viewportWidthPx,
+    )
 }
 
 internal data class PianoRollDraftSpan(
@@ -82,13 +121,186 @@ internal fun findPianoRollHitTarget(
     noteRects: List<PianoRollNoteRect>,
     resizeHandleWidthPx: Float = 6f,
 ): PianoRollHitTarget {
-    val hitRect = noteRects.firstOrNull { it.contains(point) } ?: return PianoRollHitTarget.Empty
-    val handleWidth = resizeHandleWidthPx.coerceAtLeast(0f)
+    val hitRect = noteRects.lastOrNull { it.contains(point) } ?: return PianoRollHitTarget.Empty
+    val handleWidth = pianoRollResizeHandleWidthPx(
+        noteWidthPx = hitRect.width,
+        preferredWidthPx = resizeHandleWidthPx,
+    )
     return when {
         point.x <= hitRect.left + handleWidth -> PianoRollHitTarget.ResizeLeft(hitRect.note)
         point.x >= hitRect.right - handleWidth -> PianoRollHitTarget.ResizeRight(hitRect.note)
         else -> PianoRollHitTarget.NoteBody(hitRect.note)
     }
+}
+
+internal fun pianoRollResizeHandleWidthPx(
+    noteWidthPx: Float,
+    preferredWidthPx: Float,
+): Float = minOf(preferredWidthPx.coerceAtLeast(0f), noteWidthPx.coerceAtLeast(0f) / 4f)
+
+internal fun movePianoRollNotes(
+    notes: List<MidiNote>,
+    timeDeltaMs: Long,
+    padDelta: Int,
+    pads: List<Int>,
+): List<TimelineEditedNote> {
+    if (notes.isEmpty() || pads.isEmpty()) {
+        return emptyList()
+    }
+    val indices = notes.map { pads.indexOf(it.resolvedPadIndex) }
+    if (indices.any { it < 0 }) {
+        return emptyList()
+    }
+    val boundedTimeDelta = timeDeltaMs.coerceAtLeast(-notes.minOf { it.startTimeMs })
+    val boundedPadDelta = padDelta.coerceIn(-indices.min(), pads.lastIndex - indices.max())
+    return notes.mapIndexed { index, note ->
+        val pad = pads[indices[index] + boundedPadDelta]
+        TimelineEditedNote(
+            before = note,
+            after = note.copy(
+                startTimeMs = note.startTimeMs + boundedTimeDelta,
+                device = note.resolvedDeviceIndex,
+                pitch = pad,
+                led = note.led.copy(index = pad),
+            ),
+        )
+    }
+}
+
+internal fun pianoRollNoteEditResolution(resolution: GridResolution): GridResolution =
+    if (resolution.snapDivisionsPerBeat < GridResolution.Sixteenth.snapDivisionsPerBeat) {
+        GridResolution.Sixteenth
+    } else {
+        resolution
+    }
+
+internal fun pianoRollNoteMoveTimeDelta(
+    anchorStartMs: Long,
+    timeDeltaMs: Double,
+    resolution: GridResolution,
+    beatDurationMs: Double,
+    snapEnabled: Boolean,
+): Long {
+    if (timeDeltaMs == 0.0) {
+        return 0L
+    }
+    val targetStartMs = if (snapEnabled) {
+        snapClipTimeToGrid(
+            clipTimeMs = anchorStartMs + timeDeltaMs,
+            resolution = pianoRollNoteEditResolution(resolution = resolution),
+            beatDurationMs = beatDurationMs,
+        )
+    } else {
+        (anchorStartMs + timeDeltaMs).roundToLong()
+    }
+    return targetStartMs - anchorStartMs
+}
+
+internal fun resizePianoRollNotes(
+    notes: List<MidiNote>,
+    anchorNote: MidiNote,
+    fromLeft: Boolean,
+    timeDeltaMs: Double,
+    resolution: GridResolution,
+    beatDurationMs: Double,
+    snapEnabled: Boolean,
+): List<TimelineEditedNote> {
+    if (notes.isEmpty() || timeDeltaMs == 0.0) {
+        return emptyList()
+    }
+    val resizeResolution = pianoRollNoteEditResolution(resolution = resolution)
+    val anchorEdgeMs = if (fromLeft) anchorNote.startTimeMs else anchorNote.endTimeMs
+    val requestedEdgeMs = if (snapEnabled) {
+        snapClipTimeToGrid(
+            clipTimeMs = anchorEdgeMs + timeDeltaMs,
+            resolution = resizeResolution,
+            beatDurationMs = beatDurationMs,
+        )
+    } else {
+        (anchorEdgeMs + timeDeltaMs).roundToLong()
+    }
+    val minimumCellMs = if (snapEnabled) {
+        (beatDurationMs / resizeResolution.snapDivisionsPerBeat).toLong().coerceAtLeast(1L)
+    } else {
+        1L
+    }
+    val maximumShrinkMs = notes.minOf { note ->
+        note.durationMs - minOf(note.durationMs.coerceAtLeast(1L), minimumCellMs)
+    }
+    val requestedDeltaMs = requestedEdgeMs - anchorEdgeMs
+    val boundedDeltaMs = if (fromLeft) {
+        requestedDeltaMs.coerceIn(-notes.minOf { it.startTimeMs }, maximumShrinkMs)
+    } else {
+        requestedDeltaMs.coerceAtLeast(-maximumShrinkMs)
+    }
+    return notes.map { note ->
+        TimelineEditedNote(
+            before = note,
+            after = if (fromLeft) {
+                note.copy(
+                    startTimeMs = note.startTimeMs + boundedDeltaMs,
+                    durationMs = note.durationMs - boundedDeltaMs,
+                )
+            } else {
+                note.copy(durationMs = note.durationMs + boundedDeltaMs)
+            },
+        )
+    }
+}
+
+internal fun stepPianoRollPadNotes(
+    notes: List<MidiNote>,
+    pads: List<Pair<Int, Int>>,
+    currentMs: Long,
+    nextMs: Long,
+    color: Color,
+    gradient: List<NoteGradientStop>?,
+): List<MidiNote> {
+    if (nextMs == currentMs) {
+        return notes
+    }
+    val updatedNotes = notes.toMutableList()
+    pads.distinct().forEach { (deviceIndex, padIndex) ->
+        val index = updatedNotes.indexOfLast { note ->
+            val samePad = note.resolvedDeviceIndex == deviceIndex && note.resolvedPadIndex == padIndex
+            if (nextMs < currentMs) {
+                samePad && note.startTimeMs < currentMs && note.endTimeMs >= currentMs
+            } else {
+                val samePaint = if (gradient != null) {
+                    note.led.gradient?.map { listOf(it.position, it.r, it.g, it.b) } ==
+                        gradient.map { listOf(it.position, it.r, it.g, it.b) }
+                } else {
+                    note.led.gradient == null && note.led.red == color.red &&
+                        note.led.green == color.green && note.led.blue == color.blue
+                }
+                samePad && samePaint && note.startTimeMs <= currentMs && note.endTimeMs >= currentMs
+            }
+        }
+        val note = updatedNotes.getOrNull(index)
+        if (nextMs < currentMs) {
+            if (note != null) {
+                if (nextMs <= note.startTimeMs) {
+                    updatedNotes.removeAt(index = index)
+                } else {
+                    updatedNotes[index] = note.copy(durationMs = nextMs - note.startTimeMs)
+                }
+            }
+        } else if (note != null) {
+            updatedNotes[index] = note.copy(durationMs = maxOf(note.endTimeMs, nextMs) - note.startTimeMs)
+        } else {
+            updatedNotes.add(
+                MidiNote.withPaint(
+                    device = deviceIndex,
+                    pitch = padIndex,
+                    color = color,
+                    startTimeMs = currentMs,
+                    durationMs = nextMs - currentMs,
+                    gradient = gradient,
+                )
+            )
+        }
+    }
+    return updatedNotes
 }
 
 internal fun resolveDraftSpan(
@@ -181,7 +393,10 @@ internal fun stepClipTimeOnGrid(
 ): Long {
     val n = resolution.snapDivisionsPerBeat
     val beatFraction = clipTimeMs / beatDurationMs
-    val k = beatFraction * n
+    val rawK = beatFraction * n
+    val nearestK = kotlin.math.round(rawK)
+    val nearestTimeMs = (nearestK * beatDurationMs / n.toDouble()).toLong()
+    val k = if (clipTimeMs == nearestTimeMs) nearestK else rawK
     val epsilon = 1e-6
     val steppedK = if (direction >= 0) {
         floor(k + epsilon) + 1
@@ -205,9 +420,24 @@ internal fun buildNoteRectsScreenSpace(
 ): List<PianoRollNoteRect> = notes.map { note ->
     PianoRollNoteRect(
         note = note,
-        left = viewport.contentToScreenX(metrics.timeMsToXPx(note.startTimeMs)),
+        left = viewport.clipTimeMsToScreenX(clipTimeMs = note.startTimeMs.toDouble(), oobOffsetMs = metrics.oobOffsetMs),
         top = metrics.pitchToYPx(note.resolvedPadIndex),
-        width = metrics.durationMsToWidthPx(note.durationMs),
+        width = metrics.durationMsToWidthPx(note.durationMs).coerceAtLeast(6f),
         height = metrics.noteRenderHeightPx,
+    )
+}
+
+internal fun zoomPianoRollViewport(
+    viewport: EditorViewportState,
+    scaleDelta: Float,
+    anchorPx: Float,
+    contentDurationMs: Long,
+): EditorViewportState {
+    val zoomX = (viewport.zoomX * scaleDelta).coerceIn(viewport.minZoomX, viewport.maxZoomX)
+    val anchorTimeMs = viewport.screenToTimeMs(screenX = anchorPx)
+    return viewport.withConstrainedViewport(
+        zoomX = zoomX,
+        scrollX = (anchorTimeMs * zoomX - anchorPx).toFloat(),
+        contentWidth = zoomX * contentDurationMs,
     )
 }

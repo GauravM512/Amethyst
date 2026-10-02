@@ -55,10 +55,13 @@ data class EditorViewportState(
     fun timeMsToContentX(timeMs: Double): Float = (timeMs * zoomX).toFloat()
 
     /** Screen-space x → milliseconds. */
-    fun screenToTimeMs(screenX: Float): Double = contentXToTimeMs(screenToContentX(screenX))
+    fun screenToTimeMs(screenX: Float): Double =
+        if (zoomX > 0f) (screenX.toDouble() + scrollX.toDouble()) / zoomX.toDouble() else 0.0
 
     /** Milliseconds → screen-space x in pixels. */
-    fun timeMsToScreenX(timeMs: Double): Float = contentToScreenX(timeMsToContentX(timeMs))
+    fun timeMsToScreenX(timeMs: Double): Float = projectTimeToScreenX(timeMs = timeMs).toFloat()
+
+    internal fun projectTimeToScreenX(timeMs: Double): Double = timeMs * zoomX.toDouble() - scrollX.toDouble()
 
     // ── OOB-aware clip-time projections ──────────────────────────────────────
 

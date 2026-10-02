@@ -331,6 +331,8 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
             ) {
                 SimplerWaveformEditor(
                     rawData = resolvedRawData,
+                    onInteractionStart = { beforeState = state.value },
+                    onInteractionCancel = { updateStateFromUser { beforeState } },
                     sampleRate = deviceState.sampleRate,
                     channels = deviceState.channels,
                     bitDepth = deviceState.bitDepth,

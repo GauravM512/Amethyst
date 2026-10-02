@@ -172,6 +172,16 @@ object TimelineCommandSurface {
         )
     }
 
+    fun replaceNotes(trackIndex: Int, entryStartMs: Long, notes: List<MidiNote>): TimelineCommandResult {
+        return TimelineCommandExecutor.execute(
+            TimelineEditCommand.ReplaceNotes(
+                trackIndex = trackIndex,
+                entryStartTime = entryStartMs,
+                notes = notes,
+            )
+        )
+    }
+
     fun moveNotes(trackIndex: Int, entryStartMs: Long, changes: List<TimelineEditedNote>): TimelineCommandResult {
         return TimelineCommandExecutor.execute(
             TimelineEditCommand.MoveNotes(

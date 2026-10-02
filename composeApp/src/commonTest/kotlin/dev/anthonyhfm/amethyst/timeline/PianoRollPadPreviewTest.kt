@@ -122,4 +122,56 @@ class PianoRollPadPreviewTest {
         assertEquals(Color.Black, harness.signals.last().color)
         assertTrue(harness.pendingFrames.isEmpty())
     }
+
+    @Test
+    fun oneShotSolidPreviewReleasesAutomatically() {
+        val harness = PreviewHarness()
+        harness.preview.press(
+            key = 0 to 11,
+            signal = signal(),
+            gradient = null,
+            durationMs = 250L,
+            repeat = false,
+        )
+        assertEquals(Color.Green, harness.signals.last().color)
+        harness.advanceTo(timeMs = 250.0)
+        assertEquals(Color.Black, harness.signals.last().color)
+        assertTrue(harness.pendingFrames.isEmpty())
+    }
+
+    @Test
+    fun oneShotGradientEndsInsteadOfRestarting() {
+        val harness = PreviewHarness()
+        harness.preview.press(
+            key = 0 to 11,
+            signal = signal(),
+            gradient = gradient,
+            durationMs = 200L,
+            repeat = false,
+        )
+        harness.advanceTo(timeMs = 100.0)
+        assertEquals(0.5f, harness.signals.last().color.red, absoluteTolerance = 1f / 255f)
+        harness.advanceTo(timeMs = 200.0)
+        assertEquals(Color.Black, harness.signals.last().color)
+        assertTrue(harness.pendingFrames.isEmpty())
+    }
+
+    @Test
+    fun expiredAuditionCannotReleaseANewerHeldPad() {
+        val harness = PreviewHarness()
+        harness.preview.press(
+            key = 0 to 11,
+            signal = signal(),
+            gradient = null,
+            durationMs = 200L,
+            repeat = false,
+        )
+        val expiredFrame = harness.pendingFrames.single().second
+        harness.preview.press(key = 0 to 11, signal = signal(), gradient = null, durationMs = 500L)
+        harness.timeMs = 200.0
+        expiredFrame()
+        assertEquals(Color.Green, harness.signals.last().color)
+        assertTrue(harness.pendingFrames.isEmpty())
+    }
+
 }

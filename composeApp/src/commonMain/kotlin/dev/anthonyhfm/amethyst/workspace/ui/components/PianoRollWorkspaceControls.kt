@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.composables.icons.lucide.Magnet
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ListFilter
 import com.composables.icons.lucide.Lucide
@@ -103,6 +104,17 @@ fun PianoRollWorkspaceControls(
             )
         }
 
+        WorkspaceToolbarSurface {
+            WorkspaceToolbarIconButton(
+                onClick = { mode.snapEnabled = !mode.snapEnabled },
+                imageVector = Lucide.Magnet,
+                contentDescription = stringResource(resource = Res.string.piano_roll_snap) + " (Ctrl/Cmd+4)",
+                modifier = Modifier
+                    .semantics { selected = mode.snapEnabled },
+                variant = if (mode.snapEnabled) ButtonVariant.Default else ButtonVariant.Ghost,
+            )
+        }
+
         PianoRollGridPicker(mode = mode)
 
         WorkspaceToolbarSurface {
@@ -121,7 +133,7 @@ fun PianoRollWorkspaceControls(
             WorkspaceToolbarIconButton(
                 onClick = { mode.zoomToFit() },
                 imageVector = Lucide.Maximize2,
-                contentDescription = stringResource(resource = Res.string.workspace_topappbar_zoom_fit),
+                contentDescription = stringResource(resource = Res.string.workspace_topappbar_zoom_fit) + " (X)",
                 enabled = mode.canZoom,
             )
         }

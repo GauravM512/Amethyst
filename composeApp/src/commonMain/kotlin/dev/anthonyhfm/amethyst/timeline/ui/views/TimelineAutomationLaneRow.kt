@@ -55,7 +55,9 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.ContextMenuItem
 import dev.anthonyhfm.amethyst.ui.modifier.rightClickable
 import dev.anthonyhfm.amethyst.ui.theme.TimelineTheme
 import dev.anthonyhfm.amethyst.timeline.utils.GridUtils
-import dev.anthonyhfm.amethyst.timeline.utils.computeSnappedTimeFromContentX
+import dev.anthonyhfm.amethyst.timeline.utils.computeVisibleTimelineRangePx
+import dev.anthonyhfm.amethyst.timeline.utils.projectTimelineTimeToScreenPx
+import dev.anthonyhfm.amethyst.timeline.utils.computeSnappedTimeFromViewport
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import kotlin.math.abs
@@ -746,16 +748,18 @@ internal fun TimelineAutomationLaneRow(
                 val overlayStart = selectedRange?.startMs
                 val overlayEnd = selectedRange?.endMs
 
-                if (overlayStart != null && overlayEnd != null && overlayEnd > overlayStart) {
+                val rangeWindow = if (overlayStart != null && overlayEnd != null) {
+                    computeVisibleTimelineRangePx(startMs = overlayStart, endMs = overlayEnd, viewport = viewport)
+                } else {
+                    null
+                }
+                if (rangeWindow != null) {
                     drawRect(
                         color = timelinePalette.selectionFill.copy(alpha = 0.22f),
-                        topLeft = Offset(
-                            x = overlayStart.toFloat() * zoomLevel - scrollOffsetPx,
-                            y = 0f
-                        ),
+                        topLeft = Offset(x = rangeWindow.visibleLeftPx.toFloat(), y = 0f),
                         size = androidx.compose.ui.geometry.Size(
-                            width = (overlayEnd - overlayStart).toFloat() * zoomLevel,
-                            height = size.height
+                            width = rangeWindow.visibleWidthPx.toFloat(),
+                            height = size.height,
                         )
                     )
                 }
@@ -796,7 +800,7 @@ internal fun TimelineAutomationLaneRow(
                     } else {
                         renderedLane.points.forEachIndexed { index, point ->
                             // Screen-space x: subtract scroll so coordinates are viewport-relative.
-                            val pointX = point.timeMs.toFloat() * zoomLevel - scrollOffsetPx
+                            val pointX = projectTimelineTimeToScreenPx(timeMs = point.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
                             val pointY = valueToY(
                                 value = point.value,
                                 laneHeightPx = size.height,
@@ -842,7 +846,7 @@ internal fun TimelineAutomationLaneRow(
 
                 renderedLane.points.forEach { point ->
                     // Screen-space x: subtract scroll so coordinates are viewport-relative.
-                    val pointX = point.timeMs.toFloat() * zoomLevel - scrollOffsetPx
+                    val pointX = projectTimelineTimeToScreenPx(timeMs = point.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
                     val pointY = valueToY(
                         value = point.value,
                         laneHeightPx = size.height,
@@ -921,7 +925,7 @@ internal fun TimelineAutomationLaneRow(
                     if (startPt != null && endPt != null) {
                         val hoverSegPath = Path().apply {
                             moveTo(
-                                startPt.timeMs.toFloat() * zoomLevel - scrollOffsetPx,
+                                projectTimelineTimeToScreenPx(timeMs = startPt.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx),
                                 valueToY(startPt.value, size.height, normalizedLane.target)
                             )
                             appendAutomationSegmentToPath(
@@ -959,7 +963,7 @@ internal fun TimelineAutomationLaneRow(
                         val segEndPt = renderedLane.points[startIdx + 1]
                         val segPath = Path().apply {
                             moveTo(
-                                segStartPt.timeMs.toFloat() * zoomLevel - scrollOffsetPx,
+                                projectTimelineTimeToScreenPx(timeMs = segStartPt.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx),
                                 valueToY(segStartPt.value, size.height, normalizedLane.target)
                             )
                             appendAutomationSegmentToPath(
@@ -1109,7 +1113,7 @@ private fun appendAutomationSegmentToPath(
         abs(startPoint.curve) < 0.001f
     ) {
         path.lineTo(
-            endPoint.timeMs.toFloat() * zoomLevel - scrollOffsetPx,
+            projectTimelineTimeToScreenPx(timeMs = endPoint.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx),
             valueToY(
                 value = endPoint.value,
                 laneHeightPx = laneHeightPx,
@@ -1119,8 +1123,8 @@ private fun appendAutomationSegmentToPath(
         return
     }
 
-    val startX = startPoint.timeMs.toFloat() * zoomLevel - scrollOffsetPx
-    val endX = endPoint.timeMs.toFloat() * zoomLevel - scrollOffsetPx
+    val startX = projectTimelineTimeToScreenPx(timeMs = startPoint.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
+    val endX = projectTimelineTimeToScreenPx(timeMs = endPoint.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
     // More steps for extreme curves to keep the visual smooth
     val steps = if (
         (startPoint.curveHandleTime != null && startPoint.curveHandleValue != null) ||
@@ -1148,7 +1152,7 @@ private fun appendAutomationSegmentToPath(
     }
 }
 
-private fun hitAutomationPoint(
+internal fun hitAutomationPoint(
     points: List<TimelineAutomationPoint>,
     tapOffset: Offset,
     zoomLevel: Float,
@@ -1160,7 +1164,7 @@ private fun hitAutomationPoint(
 
     return points.firstOrNull { point ->
         val pointOffset = Offset(
-            x = point.timeMs.toFloat() * zoomLevel - scrollOffsetPx,
+            x = projectTimelineTimeToScreenPx(timeMs = point.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx),
             y = valueToY(
                 value = point.value,
                 laneHeightPx = laneHeightPx,
@@ -1185,8 +1189,8 @@ private fun hitAutomationSegment(
     var closestHit: AutomationSegmentHit? = null
     var closestDistance = Float.MAX_VALUE
     points.zipWithNext().forEach { (startPoint, endPoint) ->
-        val startX = startPoint.timeMs.toFloat() * zoomLevel - scrollOffsetPx
-        val endX = endPoint.timeMs.toFloat() * zoomLevel - scrollOffsetPx
+        val startX = projectTimelineTimeToScreenPx(timeMs = startPoint.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
+        val endX = projectTimelineTimeToScreenPx(timeMs = endPoint.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
         if (tapOffset.x < minOf(startX, endX) - AutomationSegmentHitRadiusPx ||
             tapOffset.x > maxOf(startX, endX) + AutomationSegmentHitRadiusPx
         ) {
@@ -1306,21 +1310,13 @@ private fun pointerOffsetToTimeMs(
     gridType: GridUtils.GridType,
     snapToGrid: Boolean,
 ): Long {
-    val contentX = viewport.screenToContentX(screenX)
-    val rawTimeMs = viewport.contentXToTimeMs(contentX)
-        .roundToLong()
-        .coerceAtLeast(0L)
-
-    return if (snapToGrid) {
-        computeSnappedTimeFromContentX(
-            x = contentX,
-            zoomLevel = viewport.zoomX,
-            bpm = bpm,
-            gridType = gridType
-        )
-    } else {
-        rawTimeMs
-    }
+    return computeSnappedTimeFromViewport(
+        screenX = screenX,
+        viewport = viewport,
+        bpm = bpm,
+        gridType = gridType,
+        snapEnabled = snapToGrid,
+    )
 }
 
 private fun automationSegmentValueAtProgress(
@@ -1348,8 +1344,8 @@ private fun automationSegmentHandleOffset(
         target = target,
         endPoint = endPoint
     )
-    val startX = startPoint.timeMs.toFloat() * zoomLevel - scrollOffsetPx
-    val endX = endPoint.timeMs.toFloat() * zoomLevel - scrollOffsetPx
+    val startX = projectTimelineTimeToScreenPx(timeMs = startPoint.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
+    val endX = projectTimelineTimeToScreenPx(timeMs = endPoint.timeMs, zoomX = zoomLevel, scrollX = scrollOffsetPx)
     return Offset(
         x = lerp(startX, endX, handle.timeProgress),
         y = valueToY(

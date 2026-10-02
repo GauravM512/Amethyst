@@ -193,6 +193,7 @@ object WorkspaceRepository {
 
     private val _gridType = MutableStateFlow<GridUtils.GridType>(GridUtils.GridType.Flexible.Medium)
     val gridType: StateFlow<GridUtils.GridType> = _gridType.asStateFlow()
+    private var lastEnabledGridType: GridUtils.GridType = GridUtils.GridType.Flexible.Medium
 
     private val _showDeviceConfigurator = MutableStateFlow<String?>(null)
     val showDeviceConfigurator: StateFlow<String?> = _showDeviceConfigurator.asStateFlow()
@@ -460,7 +461,20 @@ object WorkspaceRepository {
         }
     }
 
+    fun toggleGridSnapping() {
+        setGridType(
+            type = if (_gridType.value == GridUtils.GridType.NoGrid) {
+                lastEnabledGridType
+            } else {
+                GridUtils.GridType.NoGrid
+            }
+        )
+    }
+
     fun setGridType(type: GridUtils.GridType, fromRemote: Boolean = false) {
+        if (type != GridUtils.GridType.NoGrid) {
+            lastEnabledGridType = type
+        }
         isApplyingRemoteGridTypeUpdate = fromRemote
         _gridType.update { type }
         if (!fromRemote) isApplyingRemoteGridTypeUpdate = false

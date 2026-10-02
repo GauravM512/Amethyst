@@ -92,6 +92,8 @@ fun SimplerWaveformEditor(
     onLoopStartPositionFinishChange: (() -> Unit)? = null,
     onLoopEndPositionFinishChange: (() -> Unit)? = null,
     playheadPosition: Float? = null,
+    onInteractionStart: (() -> Unit)? = null,
+    onInteractionCancel: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val resolvedChannels = if (channels > 0) channels else 2
@@ -117,6 +119,21 @@ fun SimplerWaveformEditor(
     val currentDurationMs by rememberUpdatedState(totalDurationMs)
     val currentLoopStart by rememberUpdatedState(loopStartPosition)
     val currentLoopEnd by rememberUpdatedState(loopEndPosition)
+    val latestViewSpan by rememberUpdatedState(currentViewSpan)
+    val latestOnStartPositionChange by rememberUpdatedState(onStartPositionChange)
+    val latestOnEndPositionChange by rememberUpdatedState(onEndPositionChange)
+    val latestOnStartPositionFinishChange by rememberUpdatedState(onStartPositionFinishChange)
+    val latestOnEndPositionFinishChange by rememberUpdatedState(onEndPositionFinishChange)
+    val latestOnFadeInChange by rememberUpdatedState(onFadeInChange)
+    val latestOnFadeOutChange by rememberUpdatedState(onFadeOutChange)
+    val latestOnFadeInFinishChange by rememberUpdatedState(onFadeInFinishChange)
+    val latestOnFadeOutFinishChange by rememberUpdatedState(onFadeOutFinishChange)
+    val latestOnLoopStartPositionChange by rememberUpdatedState(onLoopStartPositionChange)
+    val latestOnLoopEndPositionChange by rememberUpdatedState(onLoopEndPositionChange)
+    val latestOnLoopStartPositionFinishChange by rememberUpdatedState(onLoopStartPositionFinishChange)
+    val latestOnLoopEndPositionFinishChange by rememberUpdatedState(onLoopEndPositionFinishChange)
+    val latestOnInteractionStart by rememberUpdatedState(onInteractionStart)
+    val latestOnInteractionCancel by rememberUpdatedState(onInteractionCancel)
 
     // Drag interaction states & initial values
     var activeDragTarget by remember { mutableStateOf(DragTarget.None) }
@@ -215,6 +232,7 @@ fun SimplerWaveformEditor(
                         val h = size.height.toFloat()
                         if (w <= 0f) return@detectDragGestures
 
+                        latestOnInteractionStart?.invoke()
                         initialStartFrac = currentStart
                         initialEndFrac = currentEnd
                         initialFadeInMs = currentFadeInMs
@@ -224,8 +242,8 @@ fun SimplerWaveformEditor(
                         initialViewStartFrac = viewStart
                         accumulatedDragPx = 0f
 
-                        val sX = ((currentStart - viewStart) / currentViewSpan) * w
-                        val eX = ((currentEnd - viewStart) / currentViewSpan) * w
+                        val sX = ((currentStart - viewStart) / latestViewSpan) * w
+                        val eX = ((currentEnd - viewStart) / latestViewSpan) * w
 
                         val activeDurMs = (currentDurationMs * (currentEnd - currentStart)).coerceAtLeast(1f)
                         val fadeInRatio = (currentFadeInMs / activeDurMs).coerceIn(0f, 1f)
@@ -243,10 +261,10 @@ fun SimplerWaveformEditor(
                         val isNearStart = abs(offset.x - sX) <= hitSlopPx
                         val isNearEnd = abs(offset.x - eX) <= hitSlopPx
                         val loopStartX = currentLoopStart?.let {
-                            ((it - viewStart) / currentViewSpan) * w
+                            ((it - viewStart) / latestViewSpan) * w
                         }
                         val loopEndX = currentLoopEnd?.let {
-                            ((it - viewStart) / currentViewSpan) * w
+                            ((it - viewStart) / latestViewSpan) * w
                         }
                         val isBottomZone = offset.y >= h - 36f
 
@@ -300,65 +318,65 @@ fun SimplerWaveformEditor(
                         if (w <= 0f || activeDragTarget == DragTarget.None) return@detectDragGestures
 
                         accumulatedDragPx += dragAmount.x
-                        val totalDeltaFrac = (accumulatedDragPx / w) * currentViewSpan
+                        val totalDeltaFrac = (accumulatedDragPx / w) * latestViewSpan
                         val activeDurMs = (currentDurationMs * (currentEnd - currentStart)).coerceAtLeast(1f)
 
                         when (activeDragTarget) {
                             DragTarget.StartFlag -> {
                                 val newStart = (initialStartFrac + totalDeltaFrac).coerceIn(0f, currentEnd - 0.001f)
-                                onStartPositionChange(newStart)
+                                latestOnStartPositionChange(newStart)
                                 dragTooltipText = "Start: ${formatRulerTime(totalDurationMs * newStart)}"
                             }
                             DragTarget.EndFlag -> {
                                 val newEnd = (initialEndFrac + totalDeltaFrac).coerceIn(currentStart + 0.001f, 1f)
-                                onEndPositionChange(newEnd)
+                                latestOnEndPositionChange(newEnd)
                                 dragTooltipText = "End: ${formatRulerTime(totalDurationMs * newEnd)}"
                             }
                             DragTarget.Body -> {
                                 val span = initialEndFrac - initialStartFrac
                                 val newStart = (initialStartFrac + totalDeltaFrac).coerceIn(0f, 1f - span)
                                 val newEnd = newStart + span
-                                onStartPositionChange(newStart)
-                                onEndPositionChange(newEnd)
+                                latestOnStartPositionChange(newStart)
+                                latestOnEndPositionChange(newEnd)
                                 dragTooltipText = "Range: ${formatRulerTime(totalDurationMs * newStart)} - ${formatRulerTime(totalDurationMs * newEnd)}"
                             }
                             DragTarget.FadeInNode -> {
-                                val sX = ((currentStart - viewStart) / currentViewSpan) * w
-                                val eX = ((currentEnd - viewStart) / currentViewSpan) * w
+                                val sX = ((currentStart - viewStart) / latestViewSpan) * w
+                                val eX = ((currentEnd - viewStart) / latestViewSpan) * w
                                 val activeWidthPx = (eX - sX).coerceAtLeast(1f)
                                 val deltaActiveRatio = accumulatedDragPx / activeWidthPx
                                 val newFadeIn = (initialFadeInMs + deltaActiveRatio * activeDurMs).coerceIn(0f, activeDurMs)
-                                onFadeInChange(newFadeIn)
+                                latestOnFadeInChange(newFadeIn)
                                 dragTooltipText = "Fade In: ${newFadeIn.roundToInt()} ms"
                             }
                             DragTarget.FadeOutNode -> {
-                                val sX = ((currentStart - viewStart) / currentViewSpan) * w
-                                val eX = ((currentEnd - viewStart) / currentViewSpan) * w
+                                val sX = ((currentStart - viewStart) / latestViewSpan) * w
+                                val eX = ((currentEnd - viewStart) / latestViewSpan) * w
                                 val activeWidthPx = (eX - sX).coerceAtLeast(1f)
                                 val deltaActiveRatio = -accumulatedDragPx / activeWidthPx
                                 val newFadeOut = (initialFadeOutMs + deltaActiveRatio * activeDurMs).coerceIn(0f, activeDurMs)
-                                onFadeOutChange(newFadeOut)
+                                latestOnFadeOutChange(newFadeOut)
                                 dragTooltipText = "Fade Out: ${newFadeOut.roundToInt()} ms"
                             }
                             DragTarget.LoopStart -> {
                                 val upper = (currentLoopEnd ?: currentEnd) - 0.001f
                                 val value = (initialLoopStartFrac + totalDeltaFrac)
                                     .coerceIn(currentStart, upper)
-                                onLoopStartPositionChange?.invoke(value)
+                                latestOnLoopStartPositionChange?.invoke(value)
                                 dragTooltipText = "Loop Start: ${formatRulerTime(totalDurationMs * value)}"
                             }
                             DragTarget.LoopEnd -> {
                                 val lower = (currentLoopStart ?: currentStart) + 0.001f
                                 val value = (initialLoopEndFrac + totalDeltaFrac)
                                     .coerceIn(lower, currentEnd)
-                                onLoopEndPositionChange?.invoke(value)
+                                latestOnLoopEndPositionChange?.invoke(value)
                                 dragTooltipText = "Loop End: ${formatRulerTime(totalDurationMs * value)}"
                             }
                             DragTarget.PanView -> {
                                 val panDelta = -totalDeltaFrac
-                                val newStart = (initialViewStartFrac + panDelta).coerceIn(0f, 1f - currentViewSpan)
+                                val newStart = (initialViewStartFrac + panDelta).coerceIn(0f, 1f - latestViewSpan)
                                 viewStart = newStart
-                                viewEnd = newStart + currentViewSpan
+                                viewEnd = newStart + latestViewSpan
                             }
                             DragTarget.None -> {}
                         }
@@ -366,18 +384,19 @@ fun SimplerWaveformEditor(
                     },
                     onDragEnd = {
                         when (activeDragTarget) {
-                            DragTarget.StartFlag, DragTarget.Body -> onStartPositionFinishChange?.invoke()
-                            DragTarget.EndFlag -> onEndPositionFinishChange?.invoke()
-                            DragTarget.FadeInNode -> onFadeInFinishChange?.invoke()
-                            DragTarget.FadeOutNode -> onFadeOutFinishChange?.invoke()
-                            DragTarget.LoopStart -> onLoopStartPositionFinishChange?.invoke()
-                            DragTarget.LoopEnd -> onLoopEndPositionFinishChange?.invoke()
+                            DragTarget.StartFlag, DragTarget.Body -> latestOnStartPositionFinishChange?.invoke()
+                            DragTarget.EndFlag -> latestOnEndPositionFinishChange?.invoke()
+                            DragTarget.FadeInNode -> latestOnFadeInFinishChange?.invoke()
+                            DragTarget.FadeOutNode -> latestOnFadeOutFinishChange?.invoke()
+                            DragTarget.LoopStart -> latestOnLoopStartPositionFinishChange?.invoke()
+                            DragTarget.LoopEnd -> latestOnLoopEndPositionFinishChange?.invoke()
                             else -> {}
                         }
                         activeDragTarget = DragTarget.None
                         dragTooltipText = null
                     },
                     onDragCancel = {
+                        latestOnInteractionCancel?.invoke()
                         activeDragTarget = DragTarget.None
                         dragTooltipText = null
                     }

@@ -405,6 +405,12 @@ sealed interface UndoableAction {
         val currentEntrySetter: (MidiEntry) -> Unit
     ) : UndoableAction
 
+    data class PianoRollNoteStep(
+        val notesBefore: List<MidiNote>,
+        val notesAfter: List<MidiNote>,
+        val applyNotes: (List<MidiNote>) -> Unit,
+    ) : UndoableAction
+
     data class PianoRollNoteMultiCreation(
         val trackIndex: Int,
         val entryStartMs: Long,
