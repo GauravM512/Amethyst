@@ -7,6 +7,7 @@ struct RecentProjectRow: View {
     let isHubDownload: Bool
     let hubProject: ComposeApp.HubProject?
     let repository: HubRepository
+    let loadAuthor: () async -> String?
     let onOpen: () -> Void
     let onViewHub: (() -> Void)?
     let onViewArtist: (() -> Void)?
@@ -73,9 +74,9 @@ struct RecentProjectRow: View {
         .contextMenu { actions }
         .task(id: "\(project.path):\(project.lastOpened)") {
             guard !isHubDownload, isAmethystProject else { return }
-            let details = try? await HomeRepository.shared.loadProjectDetails(path: project.path)
-            let author = details?.author.trimmingCharacters(in: .whitespacesAndNewlines)
-            localAuthor = author?.isEmpty == false ? author : nil
+            let author = await loadAuthor()
+            guard !Task.isCancelled else { return }
+            localAuthor = author
         }
     }
 

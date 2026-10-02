@@ -26,6 +26,15 @@ enum HomeSheet: Identifiable {
     }
 }
 
+struct RecentProjectItem: Identifiable {
+    let project: RecentWorkspace
+    let hubID: String?
+    let isStoredImport: Bool
+    let canDelete: Bool
+
+    var id: String { project.path }
+}
+
 // MARK: - ViewModel
 
 @Observable
@@ -34,6 +43,9 @@ final class HomeViewModel {
 
     // Published state
     var recentProjects: [RecentWorkspace] = []
+    private(set) var localProjects: [RecentProjectItem] = []
+    private(set) var downloadedProjects: [RecentProjectItem] = []
+    @ObservationIgnored private var authorTasks: [String: Task<String?, Never>] = [:]
     var isLoading = false
     var loadingProgress: Double = 0.0
     var loadingTitle: String? = nil
@@ -83,6 +95,30 @@ final class HomeViewModel {
         recentProjects = ((raw as? [RecentWorkspace]) ?? []).filter {
             FileManager.default.fileExists(atPath: $0.path)
         }
+        let items = recentProjects.map { project in
+            RecentProjectItem(
+                project: project,
+                hubID: HomeSwiftBridge.shared.mobileProjectForPath(path: project.path)?.hubProjectId,
+                isStoredImport: isStoredImport(path: project.path),
+                canDelete: canDeleteLocalProject(path: project.path)
+            )
+        }
+        localProjects = items.filter { $0.hubID == nil }
+        downloadedProjects = items.filter { $0.hubID != nil }
+        authorTasks.removeAll()
+    }
+
+    func projectAuthor(path: String) async -> String? {
+        if let task = authorTasks[path] {
+            return await task.value
+        }
+        let task = Task<String?, Never> {
+            let details = try? await HomeRepository.shared.loadProjectDetails(path: path)
+            let author = details?.author.trimmingCharacters(in: .whitespacesAndNewlines)
+            return author?.isEmpty == false ? author : nil
+        }
+        authorTasks[path] = task
+        return await task.value
     }
 
     // ── Recent projects ────────────────────────────────────────────────────
