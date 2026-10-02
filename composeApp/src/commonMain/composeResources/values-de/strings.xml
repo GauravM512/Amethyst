@@ -1003,4 +1003,9 @@
     <string name="workspace_device_settings_description">Wähle das MIDI-Gerät für dieses Layout-Element.</string>
     <string name="workspace_device_settings_disconnected">Das ausgewählte Gerät wurde getrennt. Verbinde es erneut oder wähle eine andere Option.</string>
     <string name="workspace_insert_launchpad_description">Wähle ein Controller-Layout für deinen Workspace.</string>
+    <string name="home_projects_remove_downloaded">Projekt entfernen</string>
+    <string name="home_projects_remove_downloaded_confirm">Dieses heruntergeladene Projekt und alle zugehörigen Dateien von diesem Gerät entfernen? Lokale Änderungen gehen verloren. Du kannst es erneut vom Hub herunterladen.</string>
+    <string name="home_projects_remove_downloaded_error">Das Projekt konnte nicht entfernt werden. Bitte versuche es erneut.</string>
+    <string name="home_projects_removing_downloaded">Wird entfernt…</string>
+    <string name="home_projects_removed_downloaded">Projekt entfernt.</string>
 </resources>

@@ -130,6 +130,11 @@ actual fun Home(
                         AppLocaleRefreshBoundary {
                             RecentView(
                                 navigator = navigator,
+                                onNavigateHub = { destination ->
+                                    hubStack.clear()
+                                    hubStack.add(destination)
+                                    navigator.navigate(route = HomeNavRoute.Browser)
+                                },
                                 onOpenWorkspace = {
                                     onOpenWorkspace()
                                 },

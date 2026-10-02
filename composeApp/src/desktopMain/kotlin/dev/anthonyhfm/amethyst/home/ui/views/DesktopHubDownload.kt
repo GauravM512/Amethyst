@@ -5,6 +5,8 @@ import dev.anthonyhfm.amethyst.hub.data.HubRepository
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.home.data.MobileProjectRecord
+import dev.anthonyhfm.amethyst.home.data.DesktopProjectStorage
+import dev.anthonyhfm.amethyst.home.data.downloadedDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -142,7 +144,7 @@ internal object DesktopHubDownload {
         ).firstOrNull(::isSupportedFilename) ?: error("Unsupported file type")
 
         val safeId = project.id.replace(Regex("[^A-Za-z0-9_-]"), "_")
-        val directory = appDataDirectory()
+        val directory = DesktopProjectStorage.directory
             .resolve("Hub")
             .resolve(safeId)
             .resolve("Original")
@@ -256,6 +258,7 @@ internal object DesktopHubDownload {
                 importedAt = System.currentTimeMillis(),
                 hubProjectId = project.id,
                 sourceHash = hash,
+                hubDetails = project.downloadedDetails(),
             )
 
             withContext(Dispatchers.Main) {
@@ -381,25 +384,5 @@ internal object DesktopHubDownload {
 
         return Regex("filename\\s*=\\s*\\\"?([^\\\";]+)", RegexOption.IGNORE_CASE)
             .find(header)?.groupValues?.get(1)?.trim()
-    }
-
-    private fun appDataDirectory(): java.nio.file.Path {
-        val home = System.getProperty("user.home")
-        val os = System.getProperty("os.name").lowercase()
-        val base = when {
-            os.contains("mac") -> {
-                java.nio.file.Path.of(home, "Library", "Application Support")
-            }
-
-            os.contains("win") -> {
-                java.nio.file.Path.of(System.getenv("APPDATA") ?: home)
-            }
-
-            else -> {
-                java.nio.file.Path.of(System.getenv("XDG_DATA_HOME") ?: "$home/.local/share")
-            }
-        }
-
-        return base.resolve("Amethyst")
     }
 }

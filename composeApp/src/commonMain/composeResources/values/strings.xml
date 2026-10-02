@@ -394,6 +394,11 @@
     <string name="home_projects_delete_local">Delete Local Project</string>
     <string name="home_projects_delete_local_confirm">Delete this project and its files from this device?</string>
     <string name="home_projects_delete_local_error">Could not delete the local project.</string>
+    <string name="home_projects_remove_downloaded">Remove project</string>
+    <string name="home_projects_remove_downloaded_confirm">Remove this downloaded project and all its files from this device? Local changes will be lost. You can download it again from Hub.</string>
+    <string name="home_projects_remove_downloaded_error">Could not remove the project. Please try again.</string>
+    <string name="home_projects_removing_downloaded">Removing…</string>
+    <string name="home_projects_removed_downloaded">Project removed.</string>
     <string name="home_projects_item_options_desc">Project options</string>
     <string name="home_projects_loading_project_msg">Loading Project</string>
     <string name="home_projects_new_button">New Project</string>
