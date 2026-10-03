@@ -89,7 +89,8 @@ object AudioLibraryRepository {
 
         val fingerprint = source.fingerprint()
         val duplicate = current.values.firstOrNull { candidate ->
-            candidate.fingerprint() == fingerprint && candidate.rawData.contentEquals(source.rawData)
+            candidate.isLibraryAsset && candidate.fingerprint() == fingerprint &&
+                candidate.rawData.contentEquals(source.rawData)
         }
         if (duplicate != null) return duplicate
 
@@ -108,12 +109,33 @@ object AudioLibraryRepository {
         return _sourceOrder.value.mapNotNull(current::get)
     }
 
+    fun projectSources(referencedSourceIds: Set<String>): List<AudioSource> =
+        all() + _sources.value.values.filter { source ->
+            !source.isLibraryAsset && source.id in referencedSourceIds
+        }
+
+    internal fun retainInstances(sources: List<AudioSource>) {
+        require(sources.all { !it.isLibraryAsset })
+        require(sources.none { it.id in _sources.value })
+        _sources.update { it + sources.associateBy(AudioSource::id) }
+        WorkspaceRepository.markDirty()
+    }
+
+    internal fun releaseInstances(sourceIds: Set<String>) {
+        require(sourceIds.none { _sources.value[it]?.isLibraryAsset == true })
+        PreparedAudioSourceCache.clear()
+        _sources.update { it - sourceIds }
+        WorkspaceRepository.markDirty()
+    }
+
     fun stemsFor(parentSourceId: String): List<AudioSource> = all()
         .filter { it.stemMetadata?.parentSourceId == parentSourceId }
         .sortedBy { STEM_ORDER.indexOf(it.stemMetadata?.kind) }
 
     fun hasStems(parentSourceId: String): Boolean =
-        _sources.value.values.any { it.stemMetadata?.parentSourceId == parentSourceId }
+        _sources.value.values.any { source ->
+            source.isLibraryAsset && source.stemMetadata?.parentSourceId == parentSourceId
+        }
 
     fun missingStemKinds(parentSourceId: String): Set<StemKind> {
         val existingKinds = stemsFor(parentSourceId).mapNotNullTo(mutableSetOf()) { it.stemMetadata?.kind }
@@ -255,7 +277,7 @@ object AudioLibraryRepository {
             canonical[source.id] = source
         }
         _sources.value = canonical
-        _sourceOrder.value = canonical.keys.toList()
+        _sourceOrder.value = canonical.values.filter(AudioSource::isLibraryAsset).map(AudioSource::id)
     }
 
     suspend fun importFile(file: PlatformFile): AudioSource? {

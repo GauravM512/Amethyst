@@ -36,7 +36,7 @@ struct ProjectsTabView: View {
                     recentList
                 }
             }
-            .navigationTitle(localization.string("home_projects_title", fallback: "Recent Projects"))
+            .navigationTitle(localization.string("home_projects_title", fallback: "Projects"))
             .navigationBarTitleDisplayMode(.large)
             .background(theme.background)
             .toolbar {
@@ -232,7 +232,7 @@ struct ProjectsTabView: View {
                     .foregroundStyle(theme.mutedForeground.opacity(0.6))
                     .padding(.bottom, 4)
 
-                Text(localization.string("home_projects_empty_title", fallback: "No Recent Projects"))
+                Text(localization.string("home_projects_empty_title", fallback: "No Projects"))
                     .font(.title2.weight(.bold))
                     .foregroundStyle(theme.foreground)
 

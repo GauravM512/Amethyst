@@ -383,7 +383,7 @@
     <string name="home_projects_action_open_desc">Open Project</string>
     <string name="home_projects_dialog_file_picker_title">Open Project File</string>
     <string name="home_projects_empty_desc">Open an existing workspace or create a new project to get started.</string>
-    <string name="home_projects_empty_title">No Recent Projects</string>
+    <string name="home_projects_empty_title">No Projects</string>
     <string name="home_projects_failed_ableton_apollo_msg">Failed to convert Ableton + Apollo Project</string>
     <string name="home_projects_failed_apollo_msg">Failed to convert Apollo Project</string>
     <string name="home_projects_failed_open_recent_msg">Failed to open recent project</string>
@@ -411,7 +411,7 @@
     <string name="home_projects_local_section">Local Projects</string>
     <string name="home_projects_view_hub">View on Hub</string>
     <string name="home_projects_view_artist">View Artist</string>
-    <string name="home_projects_title">Recent Projects</string>
+    <string name="home_projects_title">Projects</string>
     <string name="home_projects_translating_ableton_apollo_msg">Translating your Ableton + Apollo Project</string>
     <string name="home_projects_translating_apollo_msg">Translating your Apollo Project</string>
     <string name="home_projects_translating_unipad_msg">Translating your UniPad Project</string>
@@ -424,7 +424,7 @@
     <string name="home_recent_collaboration_session_unknown_host">Unknown</string>
     <string name="home_recent_dialog_file_picker_title">Open Project File</string>
     <string name="home_recent_empty_desc">Create a new project or open an existing .ame workspace. Alternatively, convert an Ableton, Apollo or UniPad project into an Amethyst workspace!</string>
-    <string name="home_recent_empty_title">No recent projects yet</string>
+    <string name="home_recent_empty_title">No projects yet</string>
     <string name="home_recent_failed_ableton_apollo_msg">Failed to convert Ableton + Apollo Project</string>
     <string name="home_recent_failed_apollo_msg">Failed to convert Apollo Project</string>
     <string name="home_recent_failed_open_recent_msg">Failed to open recent project</string>
@@ -444,7 +444,7 @@
     <string name="home_recent_new_project">New Project</string>
     <string name="home_recent_open_project">Open Project</string>
     <string name="home_recent_subtitle">Open an existing workspace, continue where you left off, or start a new project.</string>
-    <string name="home_recent_title">Recent Projects</string>
+    <string name="home_recent_title">Projects</string>
     <string name="home_recent_translating_ableton_apollo_msg">Translating your Ableton + Apollo Project</string>
     <string name="home_recent_translating_apollo_msg">Translating your Apollo Project</string>
     <string name="home_recent_translating_unipad_msg">Translating your UniPad Project</string>
@@ -469,8 +469,8 @@
     <string name="home_widescreen_navbar_group_support">Support</string>
     <string name="home_widescreen_navbar_logo_desc">Amethyst Logo</string>
     <string name="home_widescreen_navbar_project_browser">Project Browser</string>
-    <string name="home_widescreen_navbar_recent">Recent</string>
-    <string name="home_widescreen_navbar_recent_projects">Recent Projects</string>
+    <string name="home_widescreen_navbar_recent">Projects</string>
+    <string name="home_widescreen_navbar_recent_projects">Projects</string>
     <string name="home_widescreen_navbar_settings">Settings</string>
     <string name="home_widescreen_navbar_studio_home">Studio Home</string>
     <string name="home_widescreen_navbar_tutorials">Tutorials</string>
@@ -898,8 +898,10 @@
     <string name="audio_library_remove_source">Remove audio source</string>
     <string name="audio_library_remove_stem">Remove extracted stem</string>
     <string name="audio_library_remove_in_use_title">Audio source is in use</string>
-    <string name="audio_library_remove_in_use_description">“%1$s” is used by %2$d timeline clip(s) and %3$d sample device(s). Remove those usages first.</string>
+    <string name="audio_library_remove_in_use_description">“%1$s” is used by %2$d timeline clip(s) and %3$d sample device(s). Unlink instances to remove it from the library and keep only their used audio regions. Playback stays intact; extending beyond those regions requires importing the file again.</string>
     <string name="audio_library_remove_in_use_ok">OK</string>
+    <string name="audio_library_remove_in_use_cancel">Cancel</string>
+    <string name="audio_library_unlink_instances">Unlink instances</string>
     <string name="stem_vocals">Vocals</string>
     <string name="stem_drums">Drums</string>
     <string name="stem_bass">Bass</string>

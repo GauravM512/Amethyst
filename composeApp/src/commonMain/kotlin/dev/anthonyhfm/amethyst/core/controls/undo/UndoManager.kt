@@ -111,6 +111,11 @@ object UndoManager {
             val action = undoStack.removeAt(undoStack.lastIndex)
 
             when (action) {
+                is UndoableAction.AudioLibrarySourceUnlink -> {
+                    action.change.undo()
+                    redoStack.add(action)
+                }
+
                 is UndoableAction.AudioLibrarySourceRemoval -> {
                     AudioLibraryRepository.restore(action.removal)
                     redoStack.add(action)
@@ -749,6 +754,11 @@ object UndoManager {
             val action = redoStack.removeAt(redoStack.lastIndex)
 
             when (action) {
+                is UndoableAction.AudioLibrarySourceUnlink -> {
+                    action.change.redo()
+                    undoStack.add(action)
+                }
+
                 is UndoableAction.AudioLibrarySourceRemoval -> {
                     AudioLibraryRepository.remove(action.removal)
                     undoStack.add(action)

@@ -16,8 +16,13 @@ import dev.anthonyhfm.amethyst.timeline.data.TimelineTrack
 import dev.anthonyhfm.amethyst.workspace.data.Macro
 import dev.anthonyhfm.amethyst.workspace.data.ParameterMapping
 import dev.anthonyhfm.amethyst.workspace.audio.AudioLibraryRepository
+import dev.anthonyhfm.amethyst.workspace.audio.AudioLibraryUnlink
 
 sealed interface UndoableAction {
+    data class AudioLibrarySourceUnlink(
+        val change: AudioLibraryUnlink.Change,
+    ) : UndoableAction
+
     data class AudioLibrarySourceRemoval(
         val removal: AudioLibraryRepository.Removal,
     ) : UndoableAction

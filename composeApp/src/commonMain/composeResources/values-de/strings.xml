@@ -382,7 +382,7 @@
     <string name="home_projects_action_open_desc">Projekt öffnen</string>
     <string name="home_projects_dialog_file_picker_title">Projektdatei öffnen</string>
     <string name="home_projects_empty_desc">Öffne einen vorhandenen Workspace oder erstelle ein neues Projekt, um durchzustarten.</string>
-    <string name="home_projects_empty_title">Keine letzten Projekte</string>
+    <string name="home_projects_empty_title">Keine Projekte</string>
     <string name="home_projects_failed_ableton_apollo_msg">Konvertierung des Ableton + Apollo Projekts fehlgeschlagen</string>
     <string name="home_projects_failed_apollo_msg">Konvertierung des Apollo Projekts fehlgeschlagen</string>
     <string name="home_projects_failed_open_recent_msg">Zuletzt genutztes Projekt konnte nicht geöffnet werden</string>
@@ -405,7 +405,7 @@
     <string name="home_projects_local_section">Lokale Projekte</string>
     <string name="home_projects_view_hub">Im Hub ansehen</string>
     <string name="home_projects_view_artist">Künstlerprofil ansehen</string>
-    <string name="home_projects_title">Zuletzt verwendet</string>
+    <string name="home_projects_title">Projekte</string>
     <string name="home_projects_translating_ableton_apollo_msg">Dein Ableton + Apollo Projekt wird konvertiert</string>
     <string name="home_projects_translating_apollo_msg">Dein Apollo Projekt wird konvertiert</string>
     <string name="home_projects_translating_unipad_msg">Dein UniPad Projekt wird konvertiert</string>
@@ -418,7 +418,7 @@
     <string name="home_recent_collaboration_session_unknown_host">Unbekannt</string>
     <string name="home_recent_dialog_file_picker_title">Projektdatei öffnen</string>
     <string name="home_recent_empty_desc">Erstelle ein neues Projekt oder öffne einen bestehenden .ame Workspace. Du kannst auch ein Ableton-, Apollo- oder UniPad-Projekt konvertieren!</string>
-    <string name="home_recent_empty_title">Noch keine letzten Projekte</string>
+    <string name="home_recent_empty_title">Noch keine Projekte</string>
     <string name="home_recent_failed_ableton_apollo_msg">Konvertierung des Ableton + Apollo Projekts fehlgeschlagen</string>
     <string name="home_recent_failed_apollo_msg">Konvertierung des Apollo Projekts fehlgeschlagen</string>
     <string name="home_recent_failed_open_recent_msg">Projekt konnte nicht geöffnet werden</string>
@@ -438,7 +438,7 @@
     <string name="home_recent_new_project">Neues Projekt</string>
     <string name="home_recent_open_project">Projekt öffnen</string>
     <string name="home_recent_subtitle">Öffne einen bestehenden Workspace, mach genau da weiter wo du aufgehört hast, oder starte ein neues Projekt.</string>
-    <string name="home_recent_title">Zuletzt verwendet</string>
+    <string name="home_recent_title">Projekte</string>
     <string name="home_recent_translating_ableton_apollo_msg">Dein Ableton + Apollo Projekt wird konvertiert</string>
     <string name="home_recent_translating_apollo_msg">Dein Apollo Projekt wird konvertiert</string>
     <string name="home_recent_translating_unipad_msg">Dein UniPad Projekt wird konvertiert</string>
@@ -463,8 +463,8 @@
     <string name="home_widescreen_navbar_group_support">Support</string>
     <string name="home_widescreen_navbar_logo_desc">Amethyst Logo</string>
     <string name="home_widescreen_navbar_project_browser">Projekt-Browser</string>
-    <string name="home_widescreen_navbar_recent">Recent</string>
-    <string name="home_widescreen_navbar_recent_projects">Letzte Projekte</string>
+    <string name="home_widescreen_navbar_recent">Projekte</string>
+    <string name="home_widescreen_navbar_recent_projects">Projekte</string>
     <string name="home_widescreen_navbar_settings">Settings</string>
     <string name="home_widescreen_navbar_studio_home">Studio Home</string>
     <string name="home_widescreen_navbar_tutorials">Tutorials</string>
@@ -888,8 +888,10 @@
     <string name="audio_library_remove_source">Audioquelle entfernen</string>
     <string name="audio_library_remove_stem">Extrahierten Stem entfernen</string>
     <string name="audio_library_remove_in_use_title">Audioquelle wird verwendet</string>
-    <string name="audio_library_remove_in_use_description">„%1$s“ wird von %2$d Timeline-Clip(s) und %3$d Sample-Device(s) verwendet. Entferne zuerst diese Verwendungen.</string>
+    <string name="audio_library_remove_in_use_description">„%1$s“ wird von %2$d Timeline-Clip(s) und %3$d Sample-Device(s) verwendet. Mit „Instanzen entkoppeln“ entfernst du die Datei aus der Library und behältst nur deren verwendete Audiobereiche. Die Wiedergabe bleibt erhalten; für eine Erweiterung über diese Bereiche hinaus musst du die Datei erneut importieren.</string>
     <string name="audio_library_remove_in_use_ok">OK</string>
+    <string name="audio_library_remove_in_use_cancel">Abbrechen</string>
+    <string name="audio_library_unlink_instances">Instanzen entkoppeln</string>
     <string name="stem_vocals">Gesang</string>
     <string name="stem_drums">Schlagzeug</string>
     <string name="stem_bass">Bass</string>

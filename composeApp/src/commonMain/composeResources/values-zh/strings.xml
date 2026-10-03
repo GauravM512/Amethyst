@@ -378,7 +378,7 @@
     <string name="home_projects_action_open_desc">打开工程</string>
     <string name="home_projects_dialog_file_picker_title">打开工程文件</string>
     <string name="home_projects_empty_desc">打开一个现有工作区或创建一个新工程以开始。</string>
-    <string name="home_projects_empty_title">没有最近的工程</string>
+    <string name="home_projects_empty_title">没有工程</string>
     <string name="home_projects_failed_ableton_apollo_msg">未能转换Ableton + Apollo工程</string>
     <string name="home_projects_failed_apollo_msg">未能转换Apollo工程</string>
     <string name="home_projects_failed_open_recent_msg">未能打开最近的工程</string>
@@ -401,7 +401,7 @@
     <string name="home_projects_local_section">本地工程</string>
     <string name="home_projects_view_hub">在 Hub 中查看</string>
     <string name="home_projects_view_artist">查看创作者</string>
-    <string name="home_projects_title">最近的工程</string>
+    <string name="home_projects_title">工程</string>
     <string name="home_projects_translating_ableton_apollo_msg">正在转换你的Ableton + Apollo工程</string>
     <string name="home_projects_translating_apollo_msg">正在转换你的Apollo工程</string>
     <string name="home_projects_translating_unipad_msg">正在转换你的UniPad工程</string>
@@ -414,7 +414,7 @@
     <string name="home_recent_collaboration_session_unknown_host">未知</string>
     <string name="home_recent_dialog_file_picker_title">打开工程文件</string>
     <string name="home_recent_empty_desc">创建一个新工程或打开现有的 .ame 文件。你也可以将 Ableton、Apollo或UniPad工程转换为Amethyst可用文件！</string>
-    <string name="home_recent_empty_title">暂无最近工程</string>
+    <string name="home_recent_empty_title">暂无工程</string>
     <string name="home_recent_failed_ableton_apollo_msg">未能转换Ableton + Apollo工程</string>
     <string name="home_recent_failed_apollo_msg">未能转换 Apollo 工程</string>
     <string name="home_recent_failed_open_recent_msg">未能打开最近的工程</string>
@@ -434,7 +434,7 @@
     <string name="home_recent_new_project">新建工程</string>
     <string name="home_recent_open_project">打开工程</string>
     <string name="home_recent_subtitle">打开现有工作区、继续上次的进度，或者开始一个新工程。</string>
-    <string name="home_recent_title">最近的工程</string>
+    <string name="home_recent_title">工程</string>
     <string name="home_recent_translating_ableton_apollo_msg">正在转换你的Ableton + Apollo工程</string>
     <string name="home_recent_translating_apollo_msg">正在转换你的Apollo工程</string>
     <string name="home_recent_translating_unipad_msg">正在转换你的UniPad工程</string>
@@ -459,8 +459,8 @@
     <string name="home_widescreen_navbar_group_support">支持</string>
     <string name="home_widescreen_navbar_logo_desc">Amethyst图标</string>
     <string name="home_widescreen_navbar_project_browser">工作区工坊</string>
-    <string name="home_widescreen_navbar_recent">最近</string>
-    <string name="home_widescreen_navbar_recent_projects">最近的工程</string>
+    <string name="home_widescreen_navbar_recent">工程</string>
+    <string name="home_widescreen_navbar_recent_projects">工程</string>
     <string name="home_widescreen_navbar_settings">设置</string>
     <string name="home_widescreen_navbar_studio_home">工作室主页</string>
     <string name="home_widescreen_navbar_tutorials">教程</string>
@@ -877,8 +877,10 @@
     <string name="audio_library_remove_source">移除音频源</string>
     <string name="audio_library_remove_stem">移除已提取的分轨</string>
     <string name="audio_library_remove_in_use_title">音频源正在使用</string>
-    <string name="audio_library_remove_in_use_description">“%1$s”正被 %2$d 个时间线片段和 %3$d 个采样设备使用。请先移除这些引用。</string>
+    <string name="audio_library_remove_in_use_description">“%1$s”正被 %2$d 个时间线片段和 %3$d 个采样设备使用。解除实例关联可将其从音频库中移除，并仅保留这些实例使用的音频区域。播放不受影响；若要扩展到这些区域之外，需要重新导入文件。</string>
     <string name="audio_library_remove_in_use_ok">确定</string>
+    <string name="audio_library_remove_in_use_cancel">取消</string>
+    <string name="audio_library_unlink_instances">解除实例关联</string>
     <string name="stem_extract_missing">提取缺失的分轨</string>
     <string name="stem_all_extracted">已提取所有分轨</string>
     <string name="device_macro_control_create">创建宏</string>

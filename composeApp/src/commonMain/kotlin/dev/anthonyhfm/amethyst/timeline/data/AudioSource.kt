@@ -28,6 +28,8 @@ data class AudioSource(
     val bitDepth: Int,
     @ProtoNumber(7)
     val stemMetadata: StemMetadata? = null,
+    @ProtoNumber(8)
+    val isLibraryAsset: Boolean = true,
 ) {
     val bytesPerSample: Int get() = (bitDepth / 8) * channels
     val totalSamples: Long get() = rawData.size.toLong() / bytesPerSample

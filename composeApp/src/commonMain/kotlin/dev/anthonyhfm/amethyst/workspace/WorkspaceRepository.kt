@@ -54,6 +54,7 @@ import dev.anthonyhfm.amethyst.core.network.sync.DeviceSyncCoordinator
 import dev.anthonyhfm.amethyst.timeline.TimelineRepository
 import dev.anthonyhfm.amethyst.timeline.data.AudioSource
 import dev.anthonyhfm.amethyst.workspace.audio.AudioLibraryRepository
+import dev.anthonyhfm.amethyst.workspace.audio.AudioLibraryUnlink
 import dev.anthonyhfm.amethyst.workspace.audio.StemExtractionRepository
 import dev.anthonyhfm.amethyst.timeline.data.AudioTimelineTrack
 import dev.anthonyhfm.amethyst.workspace.data.AutoPlayData
@@ -235,9 +236,14 @@ object WorkspaceRepository {
         _showAudioLibrary.value = false
     }
 
-    fun removeAudioSource(sourceId: String): AudioSourceRemovalResult {
-        val source = AudioLibraryRepository.get(sourceId) ?: return AudioSourceRemovalResult.NotFound
-        val sourceIds = AudioLibraryRepository.removalSourceIds(sourceId)
+    fun removeAudioSource(
+        sourceId: String,
+        unlinkInstances: Boolean = false,
+    ): AudioSourceRemovalResult {
+        val source = AudioLibraryRepository.get(id = sourceId)
+            ?.takeIf(AudioSource::isLibraryAsset)
+            ?: return AudioSourceRemovalResult.NotFound
+        val sourceIds = AudioLibraryRepository.removalSourceIds(sourceId = sourceId)
         val timelineClipCount = TimelineRepository.tracks.value
             .filterIsInstance<AudioTimelineTrack>()
             .sumOf { track -> track.entries.values.count { it.sourceId in sourceIds } }
@@ -245,15 +251,26 @@ object WorkspaceRepository {
             .filterIsInstance<SampleChainDevice>()
             .count { it.state.value.sourceId in sourceIds }
 
-        if (timelineClipCount > 0 || sampleDeviceCount > 0) {
-            return AudioSourceRemovalResult.InUse(timelineClipCount, sampleDeviceCount)
+        val isInUse = timelineClipCount > 0 || sampleDeviceCount > 0
+        if (isInUse && !unlinkInstances) {
+            return AudioSourceRemovalResult.InUse(
+                timelineClipCount = timelineClipCount,
+                sampleDeviceCount = sampleDeviceCount,
+            )
         }
 
         val parentSourceId = source.stemMetadata?.parentSourceId ?: source.id
-        StemExtractionRepository.cancelForSource(parentSourceId)
-        val removal = AudioLibraryRepository.remove(sourceId)
+        StemExtractionRepository.cancelForSource(sourceId = parentSourceId)
+        if (isInUse) {
+            val change = AudioLibraryUnlink.remove(sourceId = sourceId)
+                ?: return AudioSourceRemovalResult.NotFound
+            UndoManager.addAction(action = UndoableAction.AudioLibrarySourceUnlink(change = change))
+            return AudioSourceRemovalResult.Removed
+        }
+
+        val removal = AudioLibraryRepository.remove(sourceId = sourceId)
             ?: return AudioSourceRemovalResult.NotFound
-        UndoManager.addAction(UndoableAction.AudioLibrarySourceRemoval(removal))
+        UndoManager.addAction(action = UndoableAction.AudioLibrarySourceRemoval(removal = removal))
         return AudioSourceRemovalResult.Removed
     }
 
@@ -1213,7 +1230,16 @@ object WorkspaceRepository {
                     else -> { TODO("Could not serialize virtual launchpad element for the workspace") }
                 }
             },
-            audioSources = AudioLibraryRepository.all(),
+            audioSources = AudioLibraryRepository.projectSources(
+                referencedSourceIds = buildSet {
+                    TimelineRepository.tracks.value.filterIsInstance<AudioTimelineTrack>().forEach { track ->
+                        track.entries.values.mapTo(this) { it.sourceId }
+                    }
+                    samplingChain.devicesDepthFirst().filterIsInstance<SampleChainDevice>().forEach { device ->
+                        device.state.value.sourceId?.let { add(it) }
+                    }
+                },
+            ),
         )
     }
 

@@ -124,6 +124,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 private data class BlockedAudioRemoval(
+    val sourceId: String,
     val sourceName: String,
     val timelineClipCount: Int,
     val sampleDeviceCount: Int,
@@ -183,6 +184,13 @@ fun AudioLibraryPanel(
         AudioRemovalBlockedDialog(
             blocked = blocked,
             onDismiss = { blockedRemoval = null },
+            onUnlink = {
+                WorkspaceRepository.removeAudioSource(
+                    sourceId = blocked.sourceId,
+                    unlinkInstances = true,
+                )
+                blockedRemoval = null
+            },
         )
     }
 
@@ -264,12 +272,13 @@ fun AudioLibraryPanel(
     }
 
     fun removeSource(source: AudioSource) {
-        when (val result = WorkspaceRepository.removeAudioSource(source.id)) {
+        when (val result = WorkspaceRepository.removeAudioSource(sourceId = source.id)) {
             AudioSourceRemovalResult.Removed,
             AudioSourceRemovalResult.NotFound -> Unit
 
             is AudioSourceRemovalResult.InUse -> {
                 blockedRemoval = BlockedAudioRemoval(
+                    sourceId = source.id,
                     sourceName = source.fileName,
                     timelineClipCount = result.timelineClipCount,
                     sampleDeviceCount = result.sampleDeviceCount,
@@ -347,7 +356,7 @@ fun AudioLibraryPanel(
             )
         }
 
-        if (sources.isEmpty()) {
+        if (sourceOrder.isEmpty()) {
             AudioLibraryEmptyState(Modifier.weight(1f))
         } else {
             ScrollArea(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -756,23 +765,32 @@ private fun AudioLibraryItem(
 private fun AudioRemovalBlockedDialog(
     blocked: BlockedAudioRemoval,
     onDismiss: () -> Unit,
+    onUnlink: () -> Unit,
 ) {
     val state = rememberDialogState(initiallyVisible = true)
-    AlertDialog(state = state, onDismiss = onDismiss) {
+    AlertDialog(
+        state = state,
+        onDismiss = onDismiss,
+    ) {
         AlertDialogHeader {
-            AlertDialogTitle(stringResource(Res.string.audio_library_remove_in_use_title))
+            AlertDialogTitle(text = stringResource(resource = Res.string.audio_library_remove_in_use_title))
             AlertDialogDescription(
-                stringResource(
-                    Res.string.audio_library_remove_in_use_description,
-                    blocked.sourceName,
-                    blocked.timelineClipCount,
-                    blocked.sampleDeviceCount,
+                text = stringResource(
+                    resource = Res.string.audio_library_remove_in_use_description,
+                    formatArgs = arrayOf<Any>(
+                        blocked.sourceName,
+                        blocked.timelineClipCount,
+                        blocked.sampleDeviceCount,
+                    ),
                 )
             )
         }
         AlertDialogFooter {
-            AlertDialogAction(onClick = onDismiss) {
-                Text(stringResource(Res.string.audio_library_remove_in_use_ok))
+            AlertDialogCancel(onClick = onDismiss) {
+                Text(text = stringResource(resource = Res.string.audio_library_remove_in_use_cancel))
+            }
+            AlertDialogAction(onClick = onUnlink) {
+                Text(text = stringResource(resource = Res.string.audio_library_unlink_instances))
             }
         }
     }
