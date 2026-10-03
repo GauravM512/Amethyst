@@ -1,15 +1,11 @@
 package dev.anthonyhfm.amethyst.devices.ableton
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.composeunstyled.Text
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.isOn
@@ -38,15 +34,11 @@ class AbletonRandomChainDevice : GenericChainDevice<AbletonRandomChainDeviceStat
             title = "Ableton Random",
             isSelected = selections.any { it.selectionUUID == selectionUUID },
             isDragging = isDragging.value,
-            modifier = Modifier.width(150.dp),
+            modifier = Modifier
+                .width(width = 150.dp),
             titleBarModifier = LocalTitleBarModifier.current,
         ) {
-            Box(
-                modifier = Modifier.padding(all = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(text = "${state.value.choices} choices")
-            }
+            AbletonCompatibilityNotice()
         }
     }
 

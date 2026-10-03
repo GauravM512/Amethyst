@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="device_ableton_compatibility_notice">此设备用于兼容 Ableton，且只能通过转换创建。</string>
     <string name="device_ableton_arpeggiator_description">这个设备是基于Ableton Converter的，所以它无法进行操作，只能用来模拟Ableton原自带的琶音器。</string>
     <string name="device_ableton_arpeggiator_title">琶音器 </string>
     <string name="device_ableton_pitcher_description">这个设备是基于Ableton Converter的，所以它无法进行操作，只能用来模拟Ableton原自带的音高调节器。</string>

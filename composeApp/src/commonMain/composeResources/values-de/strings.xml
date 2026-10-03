@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="device_ableton_compatibility_notice">Dieses Device dient der Kompatibilität mit Ableton und kann nur durch Konvertierung erstellt werden.</string>
     <string name="device_ableton_arpeggiator_description">Dieses Device stammt aus dem Ableton Converter. Es ist nicht interaktiv und dient nur zur Simulation des Ableton Arpeggiators.</string>
     <string name="device_ableton_arpeggiator_title">Arpeggiator</string>
     <string name="device_ableton_pitcher_description">Dieses Device stammt aus dem Ableton Converter. Es ist nicht interaktiv und dient nur zur Simulation des Ableton Pitchers.</string>

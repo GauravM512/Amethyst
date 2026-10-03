@@ -1,18 +1,12 @@
 package dev.anthonyhfm.amethyst.devices.ableton
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.composeunstyled.Text
-import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.isSilentReplay
@@ -26,8 +20,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.ChainDeviceShell
 import dev.anthonyhfm.amethyst.ui.components.toExactMsValue
 import dev.anthonyhfm.amethyst.devices.TimelineDuration
 import dev.anthonyhfm.amethyst.devices.TimelineDurationContext
-import dev.anthonyhfm.amethyst.ui.theme.colors
-import dev.anthonyhfm.amethyst.ui.theme.primaryForeground
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,19 +51,11 @@ class AbletonArpeggiatorChainDevice : GenericChainDevice<AbletonArpeggiatorChain
             title = "Arpeggiator",
             isSelected = isSelected,
             isDragging = isDragging.value,
-            modifier = Modifier.width(160.dp),
+            modifier = Modifier
+                .width(width = 150.dp),
             titleBarModifier = LocalTitleBarModifier.current
         ) {
-            Box(
-                modifier = Modifier.padding(all = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "${state.value.steps + 1} steps · ${state.value.distance} st",
-                    color = Theme[colors][primaryForeground],
-                    textAlign = TextAlign.Center,
-                )
-            }
+            AbletonCompatibilityNotice()
         }
     }
 

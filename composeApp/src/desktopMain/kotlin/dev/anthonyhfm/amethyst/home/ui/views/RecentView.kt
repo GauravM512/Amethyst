@@ -70,7 +70,6 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogFooter
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogHeader
 import dev.anthonyhfm.amethyst.ui.components.primitives.AlertDialogTitle
 import dev.anthonyhfm.amethyst.ui.components.primitives.Card
-import dev.anthonyhfm.amethyst.ui.components.primitives.CardContent
 import dev.anthonyhfm.amethyst.ui.components.primitives.CardDescription
 import dev.anthonyhfm.amethyst.ui.components.primitives.CardHeader
 import dev.anthonyhfm.amethyst.ui.components.primitives.CardTitle
@@ -85,6 +84,7 @@ import dev.anthonyhfm.amethyst.ui.components.primitives.ScrollArea
 import dev.anthonyhfm.amethyst.ui.components.primitives.TypographyH2
 import dev.anthonyhfm.amethyst.ui.components.primitives.TypographyLead
 import dev.anthonyhfm.amethyst.ui.components.primitives.TypographyMuted
+import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.card
 import dev.anthonyhfm.amethyst.ui.theme.cardForeground
@@ -99,7 +99,6 @@ import dev.anthonyhfm.amethyst.ui.theme.primaryForeground
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -194,7 +193,7 @@ fun RecentView(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 24.dp, top = 24.dp, end = 12.dp, bottom = 24.dp),
+                    .padding(start = 24.dp, top = 24.dp, end = 12.dp),
             ) {
                 ScrollArea(
                     modifier = Modifier.weight(1f),
@@ -542,7 +541,8 @@ private fun RecentActions(
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
-            .padding(end  = 12.dp),
+            .background(Theme[colors][background])
+            .padding(horizontal = 12.dp, vertical = 20.dp),
     ) {
         Button(
             onClick = onCreateProject,
