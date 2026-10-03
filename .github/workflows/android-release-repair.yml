@@ -1,0 +1,165 @@
+name: Repair Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing release version'
+        required: true
+        default: '0.7.0'
+        type: string
+      version_code:
+        description: 'Android version code (must be at least the existing APK version code)'
+        required: true
+        default: '28'
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  NUCLEUS_REVISION: 6bcffd07c6e3a9c0e17558a098ef8b8c3c4a80b3
+
+jobs:
+  android:
+    name: Build (Android)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      ANDROID_BUILD_TOOLS_VERSION: '37.0.0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout Nucleus fork
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/Nucleus
+          ref: ${{ env.NUCLEUS_REVISION }}
+          path: Nucleus
+          persist-credentials: false
+
+      - name: Fetch ML Graphics
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.ML_GRAPHICS_REPOSITORY }}
+          token: ${{ secrets.ML_GRAPHICS_TOKEN }}
+          path: ml3-graphics
+          sparse-checkout: launchpad
+
+      - name: Copy ML Graphics
+        shell: bash
+        run: mkdir -p composeApp/src/commonMain/composeResources/files && cp -r ml3-graphics/. composeApp/src/commonMain/composeResources/files/
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0 ndk;27.1.12297006'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android, i686-linux-android
+
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install --yes build-essential libasound2-dev pkg-config
+
+      - name: Stage Android native libraries
+        shell: bash
+        run: |
+          ./gradlew \
+            :nativeEngine:copyAndroidAndroidArm64Release \
+            :nativeEngine:copyAndroidAndroidArmV7Release \
+            :nativeEngine:copyAndroidAndroidX64Release \
+            :nativeEngine:copyAndroidAndroidX86Release \
+            -Pamethyst.nucleus.path=Nucleus \
+            -Pamethyst.native.variant=release \
+            --no-configuration-cache
+
+      - name: Build Android release
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          ./gradlew :composeApp:assembleRelease \
+            -Pamethyst.nucleus.path=Nucleus \
+            -Pamethyst.native.variant=release \
+            "-Pamethyst.android.versionName=$RELEASE_VERSION" \
+            "-Pamethyst.android.versionCode=$ANDROID_VERSION_CODE" \
+            --no-configuration-cache
+
+      - name: Verify Android native engine
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          from zipfile import ZipFile
+
+          apk = "composeApp/build/outputs/apk/release/composeApp-release-unsigned.apk"
+          with ZipFile(apk) as archive:
+              for abi in ("arm64-v8a", "armeabi-v7a", "x86_64", "x86"):
+                  for library in ("libamethyst_native_engine.so", "libc++_shared.so"):
+                      entry = f"lib/{abi}/{library}"
+                      if archive.getinfo(entry).file_size == 0:
+                          raise SystemExit(f"Empty native library: {entry}")
+                      print(f"Verified {entry}")
+                  if f"lib/{abi}/libaaudio.so" in archive.namelist():
+                      raise SystemExit("The Android system AAudio library must not be bundled")
+          PYTHON
+
+      - name: Sign and verify APK
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for secret in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!secret}" ]; then
+              echo "::error::Missing GitHub secret: $secret"
+              exit 1
+            fi
+          done
+          keystore="$RUNNER_TEMP/amethyst-release.jks"
+          trap 'rm -f "$keystore"' EXIT
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          mkdir -p android-release
+          apk="android-release/amethyst-android-$RELEASE_VERSION.apk"
+          tools="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+          "$tools/zipalign" -P 16 -f 4 \
+            composeApp/build/outputs/apk/release/composeApp-release-unsigned.apk \
+            "$RUNNER_TEMP/amethyst-aligned.apk"
+          "$tools/apksigner" sign \
+            --ks "$keystore" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$apk" \
+            "$RUNNER_TEMP/amethyst-aligned.apk"
+          "$tools/apksigner" verify "$apk"
+          "$tools/zipalign" -c -P 16 4 "$apk"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-amethyst-android
+          path: android-release/*.apk
+          if-no-files-found: error
+

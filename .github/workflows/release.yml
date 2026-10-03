@@ -255,6 +255,18 @@ jobs:
         shell: bash
         run: sudo apt-get update && sudo apt-get install --yes build-essential libasound2-dev pkg-config
 
+      - name: Stage Android native libraries
+        shell: bash
+        run: |
+          ./gradlew \
+            :nativeEngine:copyAndroidAndroidArm64Release \
+            :nativeEngine:copyAndroidAndroidArmV7Release \
+            :nativeEngine:copyAndroidAndroidX64Release \
+            :nativeEngine:copyAndroidAndroidX86Release \
+            -Pamethyst.nucleus.path=Nucleus \
+            -Pamethyst.native.variant=release \
+            --no-configuration-cache
+
       - name: Build Android release
         shell: bash
         env:
@@ -264,7 +276,26 @@ jobs:
             -Pamethyst.nucleus.path=Nucleus \
             -Pamethyst.native.variant=release \
             "-Pamethyst.android.versionName=$RELEASE_VERSION" \
-            "-Pamethyst.android.versionCode=$ANDROID_VERSION_CODE"
+            "-Pamethyst.android.versionCode=$ANDROID_VERSION_CODE" \
+            --no-configuration-cache
+
+      - name: Verify Android native engine
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          from zipfile import ZipFile
+
+          apk = "composeApp/build/outputs/apk/release/composeApp-release-unsigned.apk"
+          with ZipFile(apk) as archive:
+              for abi in ("arm64-v8a", "armeabi-v7a", "x86_64", "x86"):
+                  for library in ("libamethyst_native_engine.so", "libc++_shared.so"):
+                      entry = f"lib/{abi}/{library}"
+                      if archive.getinfo(entry).file_size == 0:
+                          raise SystemExit(f"Empty native library: {entry}")
+                      print(f"Verified {entry}")
+                  if f"lib/{abi}/libaaudio.so" in archive.namelist():
+                      raise SystemExit("The Android system AAudio library must not be bundled")
+          PYTHON
 
       - name: Sign and verify APK
         shell: bash

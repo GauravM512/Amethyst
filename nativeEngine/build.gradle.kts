@@ -62,8 +62,7 @@ cargo {
     }
 
     builds.android {
-        // cpal's Android backend (oboe-rs) needs AAudio and the shared libc++ runtime at runtime.
-        dynamicLibraries.addAll("aaudio", "c++_shared")
+        dynamicLibraries.add("c++_shared")
     }
 }
 
