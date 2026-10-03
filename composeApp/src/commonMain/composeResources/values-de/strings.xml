@@ -955,6 +955,14 @@
     <string name="device_sample_loop_start">Loop-Start</string>
     <string name="device_sample_loop_end">Loop-Ende</string>
     <string name="device_sample_center">Mitte</string>
+    <string name="device_sample_empty">Kein Sample geladen</string>
+    <string name="device_sample_open">Sample öffnen</string>
+    <string name="device_sample_select_file">Audiodatei auswählen</string>
+    <string name="device_sample_loading">Sample wird geladen…</string>
+    <string name="device_sample_preparing_waveform">Wellenform wird vorbereitet…</string>
+    <string name="device_sample_decode_failed">Das Sample konnte nicht geladen werden. Versuche eine andere Audiodatei.</string>
+    <string name="device_sample_load_failed">Das Sample konnte nicht geladen werden. Versuche es erneut.</string>
+    <string name="device_sample_open_failed">Die Audiodatei konnte nicht geöffnet werden. Versuche es erneut.</string>
     <string name="device_eq_three_low_kill">Low Kill</string>
     <string name="device_eq_three_mid_kill">Mid Kill</string>
     <string name="device_eq_three_high_kill">High Kill</string>

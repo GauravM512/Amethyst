@@ -906,6 +906,14 @@
     <string name="device_sample_loop_start">循环起点</string>
     <string name="device_sample_loop_end">循环终点</string>
     <string name="device_sample_center">中央</string>
+    <string name="device_sample_empty">未加载采样</string>
+    <string name="device_sample_open">打开采样</string>
+    <string name="device_sample_select_file">选择音频文件</string>
+    <string name="device_sample_loading">正在加载采样…</string>
+    <string name="device_sample_preparing_waveform">正在准备波形…</string>
+    <string name="device_sample_decode_failed">无法加载采样。请尝试其他音频文件。</string>
+    <string name="device_sample_load_failed">无法加载采样。请重试。</string>
+    <string name="device_sample_open_failed">无法打开音频文件。请重试。</string>
     <string name="device_eq_three_low_kill">低频静音</string>
     <string name="device_eq_three_mid_kill">中频静音</string>
     <string name="device_eq_three_high_kill">高频静音</string>

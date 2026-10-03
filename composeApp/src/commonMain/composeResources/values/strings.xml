@@ -965,6 +965,14 @@
     <string name="device_sample_loop_start">Loop Start</string>
     <string name="device_sample_loop_end">Loop End</string>
     <string name="device_sample_center">Center</string>
+    <string name="device_sample_empty">No sample loaded</string>
+    <string name="device_sample_open">Open Sample</string>
+    <string name="device_sample_select_file">Select Audio File</string>
+    <string name="device_sample_loading">Loading sample…</string>
+    <string name="device_sample_preparing_waveform">Preparing waveform…</string>
+    <string name="device_sample_decode_failed">Could not load sample. Try another audio file.</string>
+    <string name="device_sample_load_failed">Could not load sample. Try again.</string>
+    <string name="device_sample_open_failed">Could not open audio file. Try again.</string>
     <string name="device_eq_three_low_kill">Low Kill</string>
     <string name="device_eq_three_mid_kill">Mid Kill</string>
     <string name="device_eq_three_high_kill">High Kill</string>

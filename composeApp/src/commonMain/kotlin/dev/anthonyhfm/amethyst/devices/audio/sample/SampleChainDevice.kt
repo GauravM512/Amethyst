@@ -2,6 +2,7 @@
 
 package dev.anthonyhfm.amethyst.devices.audio.sample
 
+import amethyst.composeapp.generated.resources.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,11 +38,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.theme.Theme
+import com.composeunstyled.Text
 import com.mohamedrejeb.compose.dnd.drop.dropTarget
 import dev.anthonyhfm.amethyst.core.controls.automation.LiveAutomationTarget
 import dev.anthonyhfm.amethyst.core.controls.selection.SelectionManager
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.core.engine.elements.SIGNAL_EXTRA_SILENT_REPLAY
+import dev.anthonyhfm.amethyst.core.engine.echo.Echo
 import dev.anthonyhfm.amethyst.core.engine.audio.source.ByteArrayPcmAudioSource
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.AudioTriggerBatch
 import dev.anthonyhfm.amethyst.core.engine.audio.trigger.AudioTriggerRuntime
@@ -75,20 +79,34 @@ import dev.anthonyhfm.amethyst.ui.components.SimplerWaveformEditor
 import dev.anthonyhfm.amethyst.ui.components.primitives.ChainDeviceShell
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
+import dev.anthonyhfm.amethyst.ui.theme.destructive
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
 import dev.anthonyhfm.amethyst.ui.theme.primary
 import dev.anthonyhfm.amethyst.ui.theme.secondary
 import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
+import dev.anthonyhfm.amethyst.ui.theme.small
+import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.audio.LocalAudioLibraryDragAndDropState
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.dialogs.FileKitMode
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.openFilePicker
+import io.github.vinceglb.filekit.name
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.atomicfu.atomic
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import kotlin.math.sqrt
@@ -239,6 +257,98 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
         val audioLibraryDragState = LocalAudioLibraryDragAndDropState.current
         val audioDropKey = remember(selectionUUID) { "audio-library-sample-$selectionUUID" }
         var isAudioDropHover by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        var loadingFileName by remember { mutableStateOf<String?>(null) }
+        var loadError by remember { mutableStateOf<StringResource?>(null) }
+        var isChoosingSample by remember { mutableStateOf(false) }
+
+        val selectFileTitle = stringResource(resource = Res.string.device_sample_select_file)
+
+        fun loadSample(
+            fileName: String,
+            loadState: suspend () -> SampleChainDeviceState?
+        ) {
+            if (loadingFileName != null) {
+                return
+            }
+
+            loadingFileName = fileName
+            loadError = null
+
+            scope.launch {
+                try {
+                    val loadedState = withContext(context = Dispatchers.Default) {
+                        val nextState = loadState() ?: return@withContext null
+
+                        if (audioConfiguration.value != null) {
+                            renderSnapshot(deviceState = nextState)
+                        }
+
+                        nextState
+                    }
+
+                    if (loadedState == null) {
+                        loadError = Res.string.device_sample_decode_failed
+                        return@launch
+                    }
+
+                    resetAudio()
+                    updateStateFromUser { loadedState }
+                    isCollapsedState.value = loadedState.isCollapsed
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    loadError = Res.string.device_sample_load_failed
+                } finally {
+                    loadingFileName = null
+                }
+            }
+        }
+
+        fun openSample() {
+            if (isChoosingSample || loadingFileName != null) {
+                return
+            }
+
+            isChoosingSample = true
+
+            scope.launch {
+                try {
+                    val file = FileKit.openFilePicker(
+                        mode = FileKitMode.Single,
+                        title = selectFileTitle,
+                        type = FileKitType.File(
+                            extensions = Echo.getSupportedFormats()
+                        )
+                    )
+
+                    if (file != null) {
+                        loadSample(fileName = file.name) {
+                            AudioLibraryRepository.importFile(file = file)?.let { source ->
+                                state.value.copy(
+                                    fileName = source.fileName,
+                                    rawData = null,
+                                    sampleRate = source.sampleRate,
+                                    channels = source.channels,
+                                    bitDepth = source.bitDepth,
+                                    totalDurationMs = source.totalDurationMs,
+                                    isLoaded = true,
+                                    sourceId = source.id,
+                                    sourceStartFrame = 0L,
+                                    sourceEndFrameExclusive = source.totalSamples
+                                )
+                            }
+                        }
+                    }
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    loadError = Res.string.device_sample_open_failed
+                } finally {
+                    isChoosingSample = false
+                }
+            }
+        }
 
         val titleText = if (deviceState.isLoaded && deviceState.fileName.isNotBlank()) {
             formatCleanTitle(deviceState.fileName)
@@ -253,7 +363,7 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
             modifier = Modifier
                 .width(if (deviceState.isLoaded) 540.dp else 220.dp)
                 .then(
-                    if (audioLibraryDragState != null) {
+                    if (audioLibraryDragState != null && loadingFileName == null && !isChoosingSample) {
                         Modifier.dropTarget(
                             state = audioLibraryDragState,
                             key = audioDropKey,
@@ -262,10 +372,11 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                             onDragEnter = { isAudioDropHover = true },
                             onDragExit = { isAudioDropHover = false },
                             onDrop = { dragged ->
-                                resetAudio()
-                                updateStateFromUser { sampleChainStateFromAudioSource(dragged.data) }
-                                onStateRestored()
                                 isAudioDropHover = false
+
+                                loadSample(fileName = dragged.data.fileName) {
+                                    sampleChainStateFromAudioSource(source = dragged.data)
+                                }
                             },
                         )
                     } else Modifier
@@ -277,18 +388,38 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                 ),
             titleBarModifier = LocalTitleBarModifier.current
         ) {
-            if (deviceState.isLoaded) {
-                AudioView()
-            } else {
-                SampleEmptyState(
-                    state = state,
-                    onLoaded = ::primeAudioSnapshot,
-                    onStateChanged = {
-                        if (parentChain?.isWorkspaceChain() == true) {
-                            WorkspaceRepository.markDirty()
-                        }
-                    },
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+                loadError?.let { message ->
+                    Text(
+                        text = stringResource(resource = message),
+                        color = Theme[colors][destructive],
+                        style = Theme[typography][small],
+                        modifier = Modifier
+                            .padding(all = 8.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(weight = 1f)
+                ) {
+                    val loadingName = loadingFileName
+
+                    if (loadingName != null) {
+                        SampleLoadingState(fileName = loadingName)
+                    } else if (deviceState.isLoaded) {
+                        AudioView()
+                    } else {
+                        SampleEmptyState(
+                            enabled = !isChoosingSample,
+                            onOpenSample = ::openSample
+                        )
+                    }
+                }
             }
         }
     }

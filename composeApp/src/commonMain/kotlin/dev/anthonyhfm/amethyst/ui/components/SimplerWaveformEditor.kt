@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.ui.components
 
+import amethyst.composeapp.generated.resources.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +11,8 @@ import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -22,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -49,6 +53,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import dev.anthonyhfm.amethyst.timeline.viewport.wheelZoomScaleFactor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -57,6 +66,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composeunstyled.theme.Theme
+import com.composeunstyled.Text
+import dev.anthonyhfm.amethyst.ui.components.primitives.Spinner
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
@@ -66,6 +77,11 @@ import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.selectionSurface
 import dev.anthonyhfm.amethyst.ui.theme.chart2
 import dev.anthonyhfm.amethyst.ui.theme.chart4
+import dev.anthonyhfm.amethyst.ui.theme.small
+import dev.anthonyhfm.amethyst.ui.theme.typography
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -128,10 +144,51 @@ fun SimplerWaveformEditor(
     val resolvedChannels = if (channels > 0) channels else 2
     val resolvedBitDepth = if (bitDepth in listOf(8, 16, 24, 32)) bitDepth else 16
 
-    // Decode mono PCM floats once per rawData change
-    val samples: FloatArray = remember(rawData, resolvedBitDepth, resolvedChannels) {
-        val bytes = rawData ?: return@remember FloatArray(0)
-        pcmToMonoFloats(bytes, resolvedBitDepth, resolvedChannels)
+    val decodedSamples = remember(rawData, resolvedBitDepth, resolvedChannels) {
+        mutableStateOf<FloatArray?>(null)
+    }
+
+    LaunchedEffect(rawData, resolvedBitDepth, resolvedChannels) {
+        decodedSamples.value = withContext(context = Dispatchers.Default) {
+            val bytes = rawData ?: return@withContext FloatArray(size = 0)
+            pcmToMonoFloats(
+                raw = bytes,
+                bitDepth = resolvedBitDepth,
+                channels = resolvedChannels
+            )
+        }
+    }
+
+    val samples = decodedSamples.value
+
+    if (samples == null) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .semantics {
+                    liveRegion = LiveRegionMode.Polite
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(
+                space = 8.dp,
+                alignment = Alignment.CenterVertically
+            )
+        ) {
+            Spinner(
+                modifier = Modifier
+                    .semantics {
+                        progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                    }
+            )
+
+            Text(
+                text = stringResource(resource = Res.string.device_sample_preparing_waveform),
+                style = Theme[typography][small],
+                color = Theme[colors][mutedForeground]
+            )
+        }
+
+        return
     }
 
     val focusRequester = remember { FocusRequester() }
