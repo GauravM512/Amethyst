@@ -297,6 +297,13 @@ jobs:
                       raise SystemExit("The Android system AAudio library must not be bundled")
           PYTHON
 
+      - name: Verify JNA release bindings
+        shell: bash
+        run: |
+          python3 .github/scripts/verify-android-jna.py \
+            composeApp/build/outputs/apk/release/composeApp-release-unsigned.apk \
+            "$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION/dexdump"
+
       - name: Sign and verify APK
         shell: bash
         env:
