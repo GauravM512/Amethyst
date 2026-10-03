@@ -130,10 +130,18 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes build-essential libasound2-dev libdbus-1-dev libglib2.0-dev libgtk-3-dev libx11-dev pkg-config rpm
 
       - name: Test and build
+        if: runner.os != 'Windows'
         shell: bash
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: ./gradlew :composeApp:desktopTest :composeApp:${{ matrix.task }} -Pamethyst.nucleus.path=Nucleus -Pamethyst.native.variant=release -Pamethyst.stems.python=python
+
+      - name: Test and build Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: ./gradlew.bat :composeApp:desktopTest :composeApp:${{ matrix.task }} '-Pamethyst.nucleus.path=Nucleus' '-Pamethyst.native.variant=release' '-Pamethyst.stems.python=python'
 
       - name: Rename artifact
         shell: bash

@@ -69,6 +69,7 @@ cargo {
 
 uniffi {
     generateFromLibrary {
+        build = GobleyHost.current.rustTarget
         namespace = "amethyst_native_engine"
         packageName = "dev.anthonyhfm.amethyst.nativeengine"
     }

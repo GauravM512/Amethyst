@@ -1,6 +1,7 @@
 package dev.anthonyhfm.amethyst.core.midi
 
 import dev.anthonyhfm.amethyst.nativeengine.AmethystNativeEngine
+import dev.anthonyhfm.amethyst.nativeengine.MidiException
 import dev.anthonyhfm.amethyst.nativeengine.midi.NativeMidiAccess
 import dev.anthonyhfm.amethyst.nativeengine.midi.NativeMidiDevice
 import dev.anthonyhfm.amethyst.nativeengine.midi.NativeMidiPort
@@ -66,5 +67,18 @@ class DesktopMidiOutput(private val delegate: NativeMidiOutput) : AmethystMidiOu
 }
 
 actual val platformMidiAccess: AmethystMidiAccess? by lazy {
-    DesktopMidiAccess(AmethystNativeEngine.createMidiAccess())
+    createDesktopMidiAccess()
+}
+
+internal fun createDesktopMidiAccess(
+    createAccess: () -> AmethystMidiAccess = {
+        DesktopMidiAccess(delegate = AmethystNativeEngine.createMidiAccess())
+    },
+): AmethystMidiAccess? {
+    return try {
+        createAccess()
+    } catch (exception: MidiException.BackendException) {
+        println("MIDI backend unavailable: ${exception.message}")
+        null
+    }
 }
