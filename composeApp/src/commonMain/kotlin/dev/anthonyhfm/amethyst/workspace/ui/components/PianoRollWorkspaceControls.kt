@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -166,6 +167,7 @@ private fun PianoRollGridPicker(mode: PianoRollWorkspaceMode) {
                 indication = null,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 modifier = Modifier
+                    .height(height = WorkspaceToolbarControlHeight)
                     .clip(shape = SmallShape)
                     .background(color = if (hovered) Theme[colors][accent] else Color.Transparent),
             ) {

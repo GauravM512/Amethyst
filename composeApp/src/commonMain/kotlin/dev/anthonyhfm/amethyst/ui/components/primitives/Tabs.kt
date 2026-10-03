@@ -38,6 +38,7 @@ fun Tabs(
 @Composable
 fun TabsList(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(all = 4.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
     TabList(
@@ -45,7 +46,7 @@ fun TabsList(
         shape = DefaultShape,
         backgroundColor = Theme[colors][muted],
         contentColor = Theme[colors][mutedForeground],
-        contentPadding = PaddingValues(4.dp),
+        contentPadding = contentPadding,
         content = content,
     )
 }

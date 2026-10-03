@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import com.composables.icons.lucide.X
@@ -118,11 +119,15 @@ fun WorkspaceMode(
             onClick = { WorkspaceRepository.switchToPreviousMode() },
             variant = variant,
             size = ButtonSize.Small,
+            modifier = Modifier
+                .height(height = WorkspaceToolbarHeight),
         ) {
             Icon(
                 imageVector = Lucide.X,
                 contentDescription = mode.displayName,
                 tint = workspaceToolbarContentColor(variant),
+                modifier = Modifier
+                    .size(size = 16.dp),
             )
             Text(mode.displayName)
         }
@@ -134,14 +139,17 @@ fun WorkspaceMode(
         tabs = selectableModes.map { it.key },
     ) {
         TabsList(
-            modifier = Modifier.onPreviewKeyEvent { keyEvent ->
-                !keyEvent.isAltPressed && keyEvent.key in setOf(
-                    Key.DirectionLeft,
-                    Key.DirectionRight,
-                    Key.DirectionUp,
-                    Key.DirectionDown,
-                )
-            },
+            modifier = Modifier
+                .height(height = WorkspaceToolbarHeight)
+                .onPreviewKeyEvent { keyEvent ->
+                    !keyEvent.isAltPressed && keyEvent.key in setOf(
+                        Key.DirectionLeft,
+                        Key.DirectionRight,
+                        Key.DirectionUp,
+                        Key.DirectionDown,
+                    )
+                },
+            contentPadding = PaddingValues(all = WorkspaceToolbarPadding),
         ) {
             selectableModes.forEach { item ->
                 WorkspaceModeTabButton(
@@ -210,6 +218,7 @@ private fun WorkspaceModeTabButton(
         shape = SmallShape,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
         modifier = Modifier
+            .height(height = WorkspaceToolbarControlHeight)
             .clip(SmallShape)
             .background(color = backgroundColor)
             .alpha(alpha = if (available) 1f else 0.38f)

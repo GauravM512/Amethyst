@@ -80,14 +80,15 @@ fun PianoRollInspectorSidebar(
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = if (enabled) {
-                        stringResource(resource = Res.string.piano_roll_selection_count, formatArgs = arrayOf(selectionCount))
-                    } else {
-                        stringResource(resource = Res.string.piano_roll_brush)
-                    },
-                    color = Theme[colors][mutedForeground],
-                )
+                if (enabled) {
+                    Text(
+                        text = stringResource(
+                            resource = Res.string.piano_roll_selection_count,
+                            formatArgs = arrayOf(selectionCount),
+                        ),
+                        color = Theme[colors][mutedForeground],
+                    )
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Tabs(
                         selectedTab = selectedPaintTab,

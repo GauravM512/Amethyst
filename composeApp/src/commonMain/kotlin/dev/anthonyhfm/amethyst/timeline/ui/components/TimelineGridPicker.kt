@@ -39,6 +39,7 @@ import dev.anthonyhfm.amethyst.ui.theme.foreground
 import dev.anthonyhfm.amethyst.ui.theme.small
 import dev.anthonyhfm.amethyst.ui.theme.typography
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
+import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceToolbarControlHeight
 import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceToolbarIconButton
 import dev.anthonyhfm.amethyst.workspace.ui.components.WorkspaceToolbarSurface
 
@@ -75,6 +76,7 @@ fun TimelineGridPicker() {
                 indication = null,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 modifier = Modifier
+                    .height(height = WorkspaceToolbarControlHeight)
                     .clip(SmallShape)
                     .background(if (hovered) Theme[colors][accent] else Color.Transparent),
             ) {

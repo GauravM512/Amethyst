@@ -1040,7 +1040,6 @@
     <string name="workspace_mode_unavailable_in_simple_mode">unavailable in simple mode</string>
     <string name="piano_roll_snap">Snap to grid</string>
     <string name="piano_roll_selection_count">Selected light notes: %1$d</string>
-    <string name="piano_roll_brush">Paint for new light notes</string>
     <string name="piano_roll_solid">Color</string>
     <string name="piano_roll_gradient">Gradient</string>
 </resources>

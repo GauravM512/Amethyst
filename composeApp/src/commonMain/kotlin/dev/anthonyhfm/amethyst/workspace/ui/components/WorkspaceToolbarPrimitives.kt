@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.composeunstyled.Icon
 import com.composeunstyled.UnstyledButton
 import com.composeunstyled.theme.Theme
+import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonSize
 import dev.anthonyhfm.amethyst.ui.components.primitives.ButtonVariant
 import dev.anthonyhfm.amethyst.ui.components.primitives.DefaultShape
 import dev.anthonyhfm.amethyst.ui.components.primitives.SmallShape
@@ -45,6 +46,10 @@ import dev.anthonyhfm.amethyst.ui.theme.primary
 import dev.anthonyhfm.amethyst.ui.theme.primaryForeground
 import dev.anthonyhfm.amethyst.ui.theme.secondary
 import dev.anthonyhfm.amethyst.ui.theme.secondaryForeground
+
+val WorkspaceToolbarControlHeight = ButtonSize.Small.height
+val WorkspaceToolbarPadding = 2.dp
+val WorkspaceToolbarHeight = WorkspaceToolbarControlHeight + WorkspaceToolbarPadding * 2
 
 @Composable
 fun WorkspaceToolbarSlideFromTopControls(
@@ -74,14 +79,15 @@ fun WorkspaceToolbarSlideFromTopControls(
 fun WorkspaceToolbarSurface(
     modifier: Modifier = Modifier,
     spacing: Dp = 4.dp,
-    contentPadding: PaddingValues = PaddingValues(2.dp),
+    contentPadding: PaddingValues = PaddingValues(all = WorkspaceToolbarPadding),
     content: @Composable RowScope.() -> Unit,
 ) {
     Row(
         modifier = modifier
-            .background(Theme[colors][muted], DefaultShape)
-            .padding(contentPadding),
-        horizontalArrangement = Arrangement.spacedBy(spacing),
+            .height(height = WorkspaceToolbarHeight)
+            .background(color = Theme[colors][muted], shape = DefaultShape)
+            .padding(paddingValues = contentPadding),
+        horizontalArrangement = Arrangement.spacedBy(space = spacing),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -183,7 +189,7 @@ fun WorkspaceToolbarIconButton(
                 borderColor = if (hovered) hoverBorderColor else borderColor,
                 borderWidth = 1.dp,
                 modifier = modifier
-                    .height(32.dp)
+                    .height(height = WorkspaceToolbarControlHeight)
                     .alpha(if (enabled) 1f else 0.5f)
                     .clip(SmallShape)
                     .background(if (hovered) hoverBackgroundColor else backgroundColor),
