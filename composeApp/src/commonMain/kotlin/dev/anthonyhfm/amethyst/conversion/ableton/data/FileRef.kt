@@ -76,11 +76,17 @@ data class FileRef(
             AbletonConverter.file!!.parent()!!.path
         }
 
-        return resolvePath(
+        val resolvedPath = resolvePath(
             projectPath = projectPath,
             isZip = AbletonConverter.isZip,
             zipEntryExists = AbletonConverter.zipEntries::containsKey
         )
+
+        return if (AbletonConverter.isZip) {
+            resolvedPath
+        } else {
+            PlatformFile(path = resolvedPath).path
+        }
     }
 
     internal fun resolvePathCandidates(projectPath: String): List<String> {
