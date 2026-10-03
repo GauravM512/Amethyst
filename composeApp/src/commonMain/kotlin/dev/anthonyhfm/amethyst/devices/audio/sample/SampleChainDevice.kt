@@ -395,6 +395,27 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
                             )
                         }
                     },
+                    onRangePositionChange = { newStart, newEnd ->
+                        updateStateFromUser {
+                            val offset = newStart - it.startPosition
+                            it.copy(
+                                startPosition = newStart,
+                                endPosition = newEnd,
+                                sourceStartFrame = (totalFrames.toDouble() * newStart.toDouble())
+                                    .roundToLong()
+                                    .coerceIn(0L, totalFrames.toLong()),
+                                sourceEndFrameExclusive = (totalFrames.toDouble() * newEnd.toDouble())
+                                    .roundToLong()
+                                    .coerceIn(0L, totalFrames.toLong()),
+                                loopStartPosition = it.loopStartPosition?.let { position ->
+                                    (position + offset).coerceIn(newStart, newEnd)
+                                },
+                                loopEndPosition = it.loopEndPosition?.let { position ->
+                                    (position + offset).coerceIn(newStart, newEnd)
+                                },
+                            )
+                        }
+                    },
                     onStartPositionFinishChange = {
                         pushStateChange(before = beforeState, after = state.value)
                         beforeState = state.value

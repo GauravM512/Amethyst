@@ -3,30 +3,53 @@ package dev.anthonyhfm.amethyst.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalDensity
+import dev.anthonyhfm.amethyst.timeline.viewport.wheelZoomScaleFactor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +68,10 @@ import dev.anthonyhfm.amethyst.ui.theme.chart2
 import dev.anthonyhfm.amethyst.ui.theme.chart4
 import kotlin.math.abs
 import kotlin.math.roundToInt
+
+internal object WaveformKeyboardNavigation {
+    var onKeyEvent: ((KeyEvent) -> Boolean)? = null
+}
 
 private enum class DragTarget {
     None,
@@ -79,6 +106,7 @@ fun SimplerWaveformEditor(
     fadeOutMs: Float,
     onStartPositionChange: (Float) -> Unit,
     onEndPositionChange: (Float) -> Unit,
+    onRangePositionChange: ((Float, Float) -> Unit)? = null,
     onStartPositionFinishChange: (() -> Unit)? = null,
     onEndPositionFinishChange: (() -> Unit)? = null,
     onFadeInChange: (Float) -> Unit,
@@ -106,11 +134,15 @@ fun SimplerWaveformEditor(
         pcmToMonoFloats(bytes, resolvedBitDepth, resolvedChannels)
     }
 
-    // Viewport state for zooming & panning (0.0f .. 1.0f)
-    var viewStart by remember { mutableStateOf(0.0f) }
-    var viewEnd by remember { mutableStateOf(1.0f) }
+    val focusRequester = remember { FocusRequester() }
+    val navigationPaddingPx = with(LocalDensity.current) { 16.dp.toPx() }
+    val minimumViewSpan = (2.0 / samples.size.coerceAtLeast(2)).coerceAtLeast(0.0000001)
+    var viewport by remember(rawData) { mutableStateOf(WaveformViewport()) }
+    var fitSelection by remember(rawData) { mutableStateOf(true) }
+    var pointerX by remember { mutableStateOf<Float?>(null) }
 
-    val currentViewSpan = (viewEnd - viewStart).coerceIn(0.005f, 1.0f)
+    val viewStart = viewport.start
+    val viewEnd = viewport.end
 
     // Current state values captured via state holders for gesture callbacks
     val currentStart by rememberUpdatedState(startPosition)
@@ -120,7 +152,9 @@ fun SimplerWaveformEditor(
     val currentDurationMs by rememberUpdatedState(totalDurationMs)
     val currentLoopStart by rememberUpdatedState(loopStartPosition)
     val currentLoopEnd by rememberUpdatedState(loopEndPosition)
-    val latestViewSpan by rememberUpdatedState(currentViewSpan)
+    val latestMinimumViewSpan by rememberUpdatedState(minimumViewSpan)
+    val latestNavigationPaddingPx by rememberUpdatedState(navigationPaddingPx)
+    val latestOnRangePositionChange by rememberUpdatedState(onRangePositionChange)
     val latestOnStartPositionChange by rememberUpdatedState(onStartPositionChange)
     val latestOnEndPositionChange by rememberUpdatedState(onEndPositionChange)
     val latestOnStartPositionFinishChange by rememberUpdatedState(onStartPositionFinishChange)
@@ -146,11 +180,164 @@ fun SimplerWaveformEditor(
     var initialFadeOutMs by remember { mutableStateOf(0f) }
     var initialLoopStartFrac by remember { mutableStateOf(0f) }
     var initialLoopEndFrac by remember { mutableStateOf(1f) }
-    var initialViewStartFrac by remember { mutableStateOf(0f) }
+    var initialViewStartFrac by remember { mutableStateOf(0.0) }
+    var initialViewSpan by remember { mutableStateOf(1.0) }
+    var dragPointerX by remember { mutableStateOf(0f) }
     var accumulatedDragPx by remember { mutableStateOf(0f) }
 
     var canvasWidthPx by remember { mutableStateOf(0f) }
     var canvasHeightPx by remember { mutableStateOf(0f) }
+
+    fun applyRangeDrag() {
+        val totalDelta = (
+            accumulatedDragPx / canvasWidthPx.coerceAtLeast(1f) * initialViewSpan +
+                viewport.start - initialViewStartFrac
+        ).toFloat()
+
+        when (activeDragTarget) {
+            DragTarget.StartFlag -> {
+                val value = (initialStartFrac + totalDelta).coerceIn(0f, currentEnd - 0.001f)
+                latestOnStartPositionChange(value)
+                dragTooltipText = "Start: ${formatRulerTime(currentDurationMs * value)}"
+            }
+            DragTarget.EndFlag -> {
+                val value = (initialEndFrac + totalDelta).coerceIn(currentStart + 0.001f, 1f)
+                latestOnEndPositionChange(value)
+                dragTooltipText = "End: ${formatRulerTime(currentDurationMs * value)}"
+            }
+            DragTarget.Body -> {
+                val span = initialEndFrac - initialStartFrac
+                val newStart = (initialStartFrac + totalDelta).coerceIn(0f, 1f - span)
+                val newEnd = newStart + span
+                val rangeChange = latestOnRangePositionChange
+                if (rangeChange != null) {
+                    rangeChange(newStart, newEnd)
+                } else if (newStart > currentStart) {
+                    latestOnEndPositionChange(newEnd)
+                    latestOnStartPositionChange(newStart)
+                } else {
+                    latestOnStartPositionChange(newStart)
+                    latestOnEndPositionChange(newEnd)
+                }
+                dragTooltipText = "Range: ${formatRulerTime(currentDurationMs * newStart)} - ${formatRulerTime(currentDurationMs * newEnd)}"
+            }
+            DragTarget.LoopStart -> {
+                val upper = (currentLoopEnd ?: currentEnd) - 0.001f
+                val value = (initialLoopStartFrac + totalDelta).coerceIn(currentStart, upper)
+                latestOnLoopStartPositionChange?.invoke(value)
+                dragTooltipText = "Loop Start: ${formatRulerTime(currentDurationMs * value)}"
+            }
+            DragTarget.LoopEnd -> {
+                val lower = (currentLoopStart ?: currentStart) + 0.001f
+                val value = (initialLoopEndFrac + totalDelta).coerceIn(lower, currentEnd)
+                latestOnLoopEndPositionChange?.invoke(value)
+                dragTooltipText = "Loop End: ${formatRulerTime(currentDurationMs * value)}"
+            }
+            else -> {}
+        }
+    }
+
+    fun fittedViewport(): WaveformViewport = WaveformViewport.fitSelection(
+        selectionStart = currentStart,
+        selectionEnd = currentEnd,
+        width = canvasWidthPx,
+        padding = latestNavigationPaddingPx,
+        minimumSpan = latestMinimumViewSpan,
+    )
+
+    fun zoomViewport(scale: Float, anchorX: Float) {
+        fitSelection = false
+        viewport = viewport.zoom(
+            scale = scale,
+            anchorFraction = (anchorX / canvasWidthPx.coerceAtLeast(1f)).toDouble(),
+            minimumSpan = minimumViewSpan,
+        )
+    }
+
+    val latestKeyHandler by rememberUpdatedState<(KeyEvent) -> Boolean> { event ->
+        if (event.type != KeyEventType.KeyDown || canvasWidthPx <= 0f) {
+            false
+        } else {
+            val zoomModifier = event.isMetaPressed || event.isCtrlPressed || event.isAltPressed
+            val zoomIn = event.key == Key.Plus || event.key == Key.Equals || event.key == Key.NumPadAdd
+            val zoomOut = event.key == Key.Minus || event.key == Key.NumPadSubtract
+
+            when {
+                zoomModifier && (zoomIn || zoomOut) -> {
+                    zoomViewport(
+                        scale = if (zoomIn) 1.25f else 1f / 1.25f,
+                        anchorX = pointerX ?: canvasWidthPx / 2f,
+                    )
+                    true
+                }
+                event.key == Key.DirectionLeft || event.key == Key.DirectionRight -> {
+                    fitSelection = false
+                    val direction = if (event.key == Key.DirectionLeft) -1 else 1
+                    viewport = viewport.pan(delta = direction * viewport.span * 0.1)
+                    true
+                }
+                event.key == Key.MoveHome -> {
+                    fitSelection = false
+                    viewport = viewport.copy(start = 0.0)
+                    true
+                }
+                event.key == Key.MoveEnd -> {
+                    fitSelection = false
+                    viewport = viewport.copy(start = 1.0 - viewport.span)
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+    val keyHandler = remember { { event: KeyEvent -> latestKeyHandler(event) } }
+
+    DisposableEffect(keyHandler) {
+        onDispose {
+            if (WaveformKeyboardNavigation.onKeyEvent === keyHandler) {
+                WaveformKeyboardNavigation.onKeyEvent = null
+            }
+        }
+    }
+
+    LaunchedEffect(rawData, canvasWidthPx, startPosition, endPosition, navigationPaddingPx, activeDragTarget) {
+        if (fitSelection && canvasWidthPx > 0f && activeDragTarget == DragTarget.None) {
+            viewport = fittedViewport()
+        }
+    }
+
+    LaunchedEffect(rawData, activeDragTarget) {
+        val followsDrag = activeDragTarget in setOf(
+            DragTarget.StartFlag,
+            DragTarget.EndFlag,
+            DragTarget.Body,
+            DragTarget.LoopStart,
+            DragTarget.LoopEnd,
+        )
+        if (!followsDrag) {
+            return@LaunchedEffect
+        }
+
+        var previousFrame = withFrameNanos { it }
+        while (true) {
+            val frame = withFrameNanos { it }
+            val elapsedSeconds = ((frame - previousFrame) / 1_000_000_000f).coerceAtMost(0.05f)
+            previousFrame = frame
+            val nextViewport = viewport.pan(
+                delta = waveformEdgePanDelta(
+                    pointerX = dragPointerX,
+                    width = canvasWidthPx,
+                    padding = navigationPaddingPx,
+                    span = viewport.span,
+                    elapsedSeconds = elapsedSeconds,
+                ),
+            )
+            if (nextViewport != viewport) {
+                viewport = nextViewport
+                applyRangeDrag()
+            }
+        }
+    }
 
     // Theme color palette references
     val palette = Theme[colors]
@@ -176,15 +363,18 @@ fun SimplerWaveformEditor(
         visibleEndSample,
         canvasWidthPx
     ) {
-        if (samples.isEmpty() || visibleEndSample <= visibleStartSample) FloatArray(0)
-        else computeWaveformEnvelope(
-            samples = samples,
-            startSample = visibleStartSample,
-            endSample = visibleEndSample,
-            zoomLevel = 1f,
-            sampleRate = sampleRate,
-            widthPx = canvasWidthPx.roundToInt().coerceAtLeast(100)
-        )
+        if (samples.isEmpty() || visibleEndSample <= visibleStartSample) {
+            FloatArray(0)
+        } else {
+            computeWaveformEnvelope(
+                samples = samples,
+                startSample = visibleStartSample,
+                endSample = visibleEndSample,
+                zoomLevel = 1f,
+                sampleRate = sampleRate,
+                widthPx = canvasWidthPx.roundToInt().coerceAtLeast(100)
+            )
+        }
     }
 
     val textMeasurer = rememberTextMeasurer()
@@ -199,52 +389,112 @@ fun SimplerWaveformEditor(
                 canvasWidthPx = it.width.toFloat()
                 canvasHeightPx = it.height.toFloat()
             }
-            .pointerInput(viewStart, viewEnd) {
-                // Pan via scroll wheel. Plain vertical scrolling is left untouched;
-                // waveform zooming is temporarily disabled.
+            .focusRequester(focusRequester = focusRequester)
+            .onFocusChanged { state ->
+                if (state.isFocused) {
+                    WaveformKeyboardNavigation.onKeyEvent = keyHandler
+                } else if (WaveformKeyboardNavigation.onKeyEvent === keyHandler) {
+                    WaveformKeyboardNavigation.onKeyEvent = null
+                }
+            }
+            .onKeyEvent(onKeyEvent = keyHandler)
+            .focusable()
+            .pointerInput(rawData) {
                 awaitPointerEventScope {
                     while (true) {
-                        val event = awaitPointerEvent()
-                        if (event.type == PointerEventType.Scroll) {
-                            val isCmdOrCtrl = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
-                            val change = event.changes.firstOrNull() ?: continue
-                            val deltaY = change.scrollDelta.y
-                            val deltaX = change.scrollDelta.x
+                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull() ?: continue
+                        if (event.type == PointerEventType.Exit) {
+                            pointerX = null
+                        } else {
+                            pointerX = change.position.x
+                        }
+                        if (event.type == PointerEventType.Press) {
+                            focusRequester.requestFocus()
+                        }
+                        if (event.type != PointerEventType.Scroll || change.isConsumed) {
+                            continue
+                        }
 
-                            val w = size.width.toFloat()
-                            if (w <= 0f) continue
+                        val isZoomModifier = event.keyboardModifiers.isMetaPressed || event.keyboardModifiers.isCtrlPressed
+                        val delta = change.scrollDelta
+                        val w = size.width.toFloat()
+                        if (w <= 0f) {
+                            continue
+                        }
 
-                            if (isCmdOrCtrl || deltaX != 0f) {
-                                // Pan mode
-                                val panStepFrac = (if (deltaX != 0f) deltaX else deltaY) * 0.05f * currentViewSpan
-                                val newStart = (viewStart + panStepFrac).coerceIn(0f, 1f - currentViewSpan)
-                                viewStart = newStart
-                                viewEnd = newStart + currentViewSpan
-                                change.consume()
+                        if (isZoomModifier && delta.y != 0f) {
+                            focusRequester.requestFocus()
+                            fitSelection = false
+                            viewport = viewport.zoom(
+                                scale = wheelZoomScaleFactor(scrollDelta = -delta.y),
+                                anchorFraction = (change.position.x / w).toDouble(),
+                                minimumSpan = latestMinimumViewSpan,
+                            )
+                            event.changes.forEach { it.consume() }
+                        } else if (!isZoomModifier) {
+                            val deltaX = if (event.keyboardModifiers.isShiftPressed && delta.x == 0f) {
+                                delta.y
+                            } else {
+                                delta.x
+                            }
+                            if (deltaX != 0f) {
+                                focusRequester.requestFocus()
+                                fitSelection = false
+                                viewport = viewport.pan(delta = deltaX * 40.0 / w * viewport.span)
+                                event.changes.forEach { it.consume() }
                             }
                         }
                     }
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(rawData) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                        if (event.changes.count { it.pressed && it.previousPressed } < 2) {
+                            continue
+                        }
+                        val centroid = event.calculateCentroid(useCurrent = false)
+                        val zoom = event.calculateZoom()
+                        val pan = event.calculatePan()
+                        if (zoom != 1f || pan.x != 0f) {
+                            fitSelection = false
+                            val zoomedViewport = viewport.zoom(
+                                scale = zoom,
+                                anchorFraction = (centroid.x / size.width.coerceAtLeast(1)).toDouble(),
+                                minimumSpan = latestMinimumViewSpan,
+                            )
+                            viewport = zoomedViewport.pan(
+                                delta = -pan.x / size.width.coerceAtLeast(1) * zoomedViewport.span,
+                            )
+                            event.changes.forEach { it.consume() }
+                        }
+                    }
+                }
+            }
+            .pointerInput(rawData) {
                 detectDragGestures(
                     onDragStart = { offset ->
                         val w = size.width.toFloat()
                         val h = size.height.toFloat()
-                        if (w <= 0f) return@detectDragGestures
+                        if (w <= 0f) {
+                            return@detectDragGestures
+                        }
 
-                        latestOnInteractionStart?.invoke()
+                        dragPointerX = offset.x
+                        initialViewSpan = viewport.span
                         initialStartFrac = currentStart
                         initialEndFrac = currentEnd
                         initialFadeInMs = currentFadeInMs
                         initialFadeOutMs = currentFadeOutMs
                         initialLoopStartFrac = currentLoopStart ?: currentStart
                         initialLoopEndFrac = currentLoopEnd ?: currentEnd
-                        initialViewStartFrac = viewStart
+                        initialViewStartFrac = viewport.start
                         accumulatedDragPx = 0f
 
-                        val sX = ((currentStart - viewStart) / latestViewSpan) * w
-                        val eX = ((currentEnd - viewStart) / latestViewSpan) * w
+                        val sX = viewport.screenX(position = currentStart.toDouble(), width = w)
+                        val eX = viewport.screenX(position = currentEnd.toDouble(), width = w)
 
                         val activeDurMs = (currentDurationMs * (currentEnd - currentStart)).coerceAtLeast(1f)
                         val fadeInRatio = (currentFadeInMs / activeDurMs).coerceIn(0f, 1f)
@@ -263,10 +513,10 @@ fun SimplerWaveformEditor(
                         val isNearStart = abs(offset.x - sX) <= hitSlopPx
                         val isNearEnd = abs(offset.x - eX) <= hitSlopPx
                         val loopStartX = currentLoopStart?.let {
-                            ((it - viewStart) / latestViewSpan) * w
+                            viewport.screenX(position = it.toDouble(), width = w)
                         }
                         val loopEndX = currentLoopEnd?.let {
-                            ((it - viewStart) / latestViewSpan) * w
+                            viewport.screenX(position = it.toDouble(), width = w)
                         }
                         val isBottomZone = offset.y >= h - 36f
 
@@ -288,6 +538,9 @@ fun SimplerWaveformEditor(
                             isTopZone && isNearFadeOut -> {
                                 activeDragTarget = DragTarget.FadeOutNode
                                 dragTooltipText = "Fade Out: ${currentFadeOutMs.roundToInt()} ms"
+                            }
+                            (offset.x < sX - 8.dp.toPx() || offset.x > eX + 8.dp.toPx()) -> {
+                                activeDragTarget = DragTarget.PanView
                             }
                             // Range Start Handle
                             isNearStart -> {
@@ -312,39 +565,30 @@ fun SimplerWaveformEditor(
                                 activeDragTarget = DragTarget.Body
                                 dragTooltipText = "Length: ${formatRulerTime(activeDurMs)}"
                             }
-                            else -> activeDragTarget = DragTarget.None
+                            else -> activeDragTarget = DragTarget.PanView
+                        }
+                        if (activeDragTarget == DragTarget.PanView) {
+                            fitSelection = false
+                        } else {
+                            latestOnInteractionStart?.invoke()
                         }
                     },
                     onDrag = { change, dragAmount ->
                         val w = size.width.toFloat()
-                        if (w <= 0f || activeDragTarget == DragTarget.None) return@detectDragGestures
+                        if (w <= 0f || activeDragTarget == DragTarget.None) {
+                            return@detectDragGestures
+                        }
 
+                        dragPointerX = change.position.x
                         accumulatedDragPx += dragAmount.x
-                        val totalDeltaFrac = (accumulatedDragPx / w) * latestViewSpan
                         val activeDurMs = (currentDurationMs * (currentEnd - currentStart)).coerceAtLeast(1f)
 
                         when (activeDragTarget) {
-                            DragTarget.StartFlag -> {
-                                val newStart = (initialStartFrac + totalDeltaFrac).coerceIn(0f, currentEnd - 0.001f)
-                                latestOnStartPositionChange(newStart)
-                                dragTooltipText = "Start: ${formatRulerTime(totalDurationMs * newStart)}"
-                            }
-                            DragTarget.EndFlag -> {
-                                val newEnd = (initialEndFrac + totalDeltaFrac).coerceIn(currentStart + 0.001f, 1f)
-                                latestOnEndPositionChange(newEnd)
-                                dragTooltipText = "End: ${formatRulerTime(totalDurationMs * newEnd)}"
-                            }
-                            DragTarget.Body -> {
-                                val span = initialEndFrac - initialStartFrac
-                                val newStart = (initialStartFrac + totalDeltaFrac).coerceIn(0f, 1f - span)
-                                val newEnd = newStart + span
-                                latestOnStartPositionChange(newStart)
-                                latestOnEndPositionChange(newEnd)
-                                dragTooltipText = "Range: ${formatRulerTime(totalDurationMs * newStart)} - ${formatRulerTime(totalDurationMs * newEnd)}"
-                            }
+                            DragTarget.StartFlag, DragTarget.EndFlag, DragTarget.Body,
+                            DragTarget.LoopStart, DragTarget.LoopEnd -> applyRangeDrag()
                             DragTarget.FadeInNode -> {
-                                val sX = ((currentStart - viewStart) / latestViewSpan) * w
-                                val eX = ((currentEnd - viewStart) / latestViewSpan) * w
+                                val sX = viewport.screenX(position = currentStart.toDouble(), width = w)
+                                val eX = viewport.screenX(position = currentEnd.toDouble(), width = w)
                                 val activeWidthPx = (eX - sX).coerceAtLeast(1f)
                                 val deltaActiveRatio = accumulatedDragPx / activeWidthPx
                                 val newFadeIn = (initialFadeInMs + deltaActiveRatio * activeDurMs).coerceIn(0f, activeDurMs)
@@ -352,33 +596,18 @@ fun SimplerWaveformEditor(
                                 dragTooltipText = "Fade In: ${newFadeIn.roundToInt()} ms"
                             }
                             DragTarget.FadeOutNode -> {
-                                val sX = ((currentStart - viewStart) / latestViewSpan) * w
-                                val eX = ((currentEnd - viewStart) / latestViewSpan) * w
+                                val sX = viewport.screenX(position = currentStart.toDouble(), width = w)
+                                val eX = viewport.screenX(position = currentEnd.toDouble(), width = w)
                                 val activeWidthPx = (eX - sX).coerceAtLeast(1f)
                                 val deltaActiveRatio = -accumulatedDragPx / activeWidthPx
                                 val newFadeOut = (initialFadeOutMs + deltaActiveRatio * activeDurMs).coerceIn(0f, activeDurMs)
                                 latestOnFadeOutChange(newFadeOut)
                                 dragTooltipText = "Fade Out: ${newFadeOut.roundToInt()} ms"
                             }
-                            DragTarget.LoopStart -> {
-                                val upper = (currentLoopEnd ?: currentEnd) - 0.001f
-                                val value = (initialLoopStartFrac + totalDeltaFrac)
-                                    .coerceIn(currentStart, upper)
-                                latestOnLoopStartPositionChange?.invoke(value)
-                                dragTooltipText = "Loop Start: ${formatRulerTime(totalDurationMs * value)}"
-                            }
-                            DragTarget.LoopEnd -> {
-                                val lower = (currentLoopStart ?: currentStart) + 0.001f
-                                val value = (initialLoopEndFrac + totalDeltaFrac)
-                                    .coerceIn(lower, currentEnd)
-                                latestOnLoopEndPositionChange?.invoke(value)
-                                dragTooltipText = "Loop End: ${formatRulerTime(totalDurationMs * value)}"
-                            }
                             DragTarget.PanView -> {
-                                val panDelta = -totalDeltaFrac
-                                val newStart = (initialViewStartFrac + panDelta).coerceIn(0f, 1f - latestViewSpan)
-                                viewStart = newStart
-                                viewEnd = newStart + latestViewSpan
+                                viewport = viewport.copy(
+                                    start = (initialViewStartFrac - accumulatedDragPx / w * initialViewSpan).coerceIn(0.0, 1.0 - viewport.span),
+                                )
                             }
                             DragTarget.None -> {}
                         }
@@ -398,17 +627,19 @@ fun SimplerWaveformEditor(
                         dragTooltipText = null
                     },
                     onDragCancel = {
-                        latestOnInteractionCancel?.invoke()
+                        if (activeDragTarget != DragTarget.PanView && activeDragTarget != DragTarget.None) {
+                            latestOnInteractionCancel?.invoke()
+                        }
                         activeDragTarget = DragTarget.None
                         dragTooltipText = null
                     }
                 )
             }
-            .pointerInput(Unit) {
+            .pointerInput(rawData) {
                 detectTapGestures(
                     onDoubleTap = {
-                        viewStart = 0f
-                        viewEnd = 1f
+                        fitSelection = true
+                        viewport = fittedViewport()
                     }
                 )
             }
@@ -432,7 +663,7 @@ fun SimplerWaveformEditor(
 
             if (w <= 0f) return@Canvas
 
-            fun fracToX(frac: Float): Float = ((frac - viewStart) / currentViewSpan) * w
+            fun fracToX(frac: Float): Float = viewport.screenX(position = frac.toDouble(), width = w)
 
             val sX = fracToX(startPosition)
             val eX = fracToX(endPosition)
@@ -486,7 +717,7 @@ fun SimplerWaveformEditor(
             }
 
             playheadPosition
-                ?.takeIf { it.isFinite() && it in viewStart..viewEnd }
+                ?.takeIf { it.isFinite() && it.toDouble() in viewStart..viewEnd }
                 ?.let { position ->
                     val playheadX = fracToX(position)
                     drawLine(

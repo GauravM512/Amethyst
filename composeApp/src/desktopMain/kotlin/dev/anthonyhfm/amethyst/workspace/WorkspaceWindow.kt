@@ -1,5 +1,7 @@
 package dev.anthonyhfm.amethyst.workspace
 
+import dev.anthonyhfm.amethyst.ui.components.WaveformKeyboardNavigation
+
 import amethyst.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import amethyst.composeapp.generated.resources.Res
@@ -132,6 +134,10 @@ fun WorkspaceWindow(
                         WorkspaceSaveHelper.saveWorkspace()
                     }
                 }
+                return@DecoratedWindow true
+            }
+
+            if (WaveformKeyboardNavigation.onKeyEvent?.invoke(it) == true) {
                 return@DecoratedWindow true
             }
 
