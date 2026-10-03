@@ -41,12 +41,9 @@ import dev.anthonyhfm.amethyst.home.ui.views.LoadingScreenView
 import dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager
 import dev.anthonyhfm.amethyst.hub.data.HubDeepLinks
 import dev.anthonyhfm.amethyst.hub.data.HubProjectDeepLink
-import dev.anthonyhfm.amethyst.hub.data.HubProjectCompatibility
-import dev.anthonyhfm.amethyst.hub.data.HubProjectType
 import dev.anthonyhfm.amethyst.nativeengine.AndroidNativeContext
 import dev.anthonyhfm.amethyst.settings.AppLocaleProvider
 import dev.anthonyhfm.amethyst.settings.data.AudioSettings
-import dev.anthonyhfm.amethyst.settings.data.HubSettings
 import dev.anthonyhfm.amethyst.ui.theme.ComposeAmethystTheme
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.ui.components.ExitWorkspaceDialog
@@ -214,13 +211,6 @@ class MainActivity : ComponentActivity() {
 
             val repository = AndroidHubAccount.get(context = applicationContext).repository
             val project = link.resolve(repository = repository)
-            require(
-                HubSettings.ignoreCompatibility.value ||
-                    project.projectType == HubProjectType.amethyst ||
-                    project.compatibility == HubProjectCompatibility.compatible ||
-                    project.overrideDownloadUrl != null
-            ) { "Project is not compatible with Amethyst" }
-
             val externalUrl = HubProjectDownloader.externalDownloadUrl(project = project)
             require(
                 HubProjectDownloader.canImport(

@@ -79,9 +79,6 @@ import amethyst.composeapp.generated.resources.Res
 import amethyst.composeapp.generated.resources.*
 import dev.anthonyhfm.amethyst.home.account.AndroidHubAccount
 import dev.anthonyhfm.amethyst.hub.data.HubProject
-import dev.anthonyhfm.amethyst.hub.data.HubProjectCompatibility
-import dev.anthonyhfm.amethyst.hub.data.HubProjectType
-import dev.anthonyhfm.amethyst.settings.data.HubSettings
 import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -193,9 +190,11 @@ internal fun HubProjectSheet(
                         val externalUrl = HubProjectDownloader.externalDownloadUrl(project = current)
                         val internalSource = current.overrideDownloadUrl ?: current.downloadUrl ?: current.packageName?.let { "/projects/${current.id}/download" }
                         val youtubeUrl = remember(current.youtubeUrl) { validYoutubeUrl(current.youtubeUrl) }
-                        val canImport = HubProjectDownloader.canImport(account.repository, current, externalUrl) &&
-                            (HubSettings.ignoreCompatibility.value || current.projectType == HubProjectType.amethyst ||
-                                current.compatibility == HubProjectCompatibility.compatible || current.overrideDownloadUrl != null)
+                        val canImport = HubProjectDownloader.canImport(
+                            repository = account.repository,
+                            project = current,
+                            externalUrl = externalUrl,
+                        )
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                             contentPadding = PaddingValues(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),

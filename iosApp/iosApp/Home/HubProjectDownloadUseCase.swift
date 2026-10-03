@@ -297,13 +297,6 @@ struct HubProjectImportPlan {
         return .hub(url)
     }
 
-    var canDownloadAndOpen: Bool {
-        HubSettings.shared.ignoreCompatibility.value?.boolValue == true
-            || project.projectType == .amethyst
-            || project.compatibility == .compatible
-            || project.overrideDownloadUrl != nil
-    }
-
     var suggestedFilename: String {
         let fallbackExtension: String
         switch project.projectType {

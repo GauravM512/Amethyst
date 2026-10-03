@@ -28,7 +28,6 @@ import com.composeunstyled.theme.Theme
 import dev.anthonyhfm.amethyst.home.account.DesktopHubAccount
 import dev.anthonyhfm.amethyst.hub.data.HubProjectDeepLink
 import dev.anthonyhfm.amethyst.settings.AppLocaleProvider
-import dev.anthonyhfm.amethyst.settings.data.HubSettings
 import dev.anthonyhfm.amethyst.ui.components.primitives.Button
 import dev.anthonyhfm.amethyst.ui.components.primitives.Spinner
 import dev.anthonyhfm.amethyst.ui.theme.background
@@ -65,15 +64,6 @@ internal fun DesktopHubDeepLinkHandler(
             try {
                 status = getString(resource = Res.string.home_hub_detail_loading)
                 val project = link.resolve(repository = repository)
-                val allowed = HubSettings.ignoreCompatibility.value ||
-                    project.projectType.name == "amethyst" ||
-                    project.compatibility.name == "compatible" ||
-                    project.overrideDownloadUrl != null
-
-                check(allowed) {
-                    "This project is not marked as compatible with Amethyst."
-                }
-
                 check(DesktopHubDownload.canImport(project = project, repository = repository)) {
                     getString(resource = Res.string.home_hub_detail_download_error)
                 }

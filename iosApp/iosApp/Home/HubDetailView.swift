@@ -448,7 +448,7 @@ private struct HubProjectDetailView: View {
                             .padding(.top, overhang + 16)
 
                             VStack(spacing: 10) {
-                                if let source = importSource, canDownloadAndOpen {
+                                if let source = importSource {
                                     Button {
                                         Task { await downloadAndOpen(source: source, project: project) }
                                     } label: {
@@ -655,7 +655,6 @@ private struct HubProjectDetailView: View {
         return url
     }
     private var importSource: HubProjectDownloadUseCase.Source? { importPlan?.source }
-    private var canDownloadAndOpen: Bool { importPlan?.canDownloadAndOpen == true }
     private var shareURL: URL? { URL(string: "https://projects.launchpadders.com/@\(username)/\(slug)") }
 
     private func formattedPublishedDate(for project: ComposeApp.HubProject) -> String? {

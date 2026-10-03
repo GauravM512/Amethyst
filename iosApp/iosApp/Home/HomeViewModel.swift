@@ -280,7 +280,7 @@ final class HomeViewModel {
                     }
                 }
                 let plan = HubProjectImportPlan(project: project, repository: repository)
-                guard plan.canDownloadAndOpen, let source = plan.source else {
+                guard let source = plan.source else {
                     throw HubProjectDownloadError.unavailable
                 }
                 let url = try await HubProjectDownloadUseCase().execute(

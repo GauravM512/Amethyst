@@ -468,8 +468,6 @@
     <string name="home_widescreen_navbar_studio_home">Studio Home</string>
     <string name="home_widescreen_navbar_tutorials">Tutorials</string>
     <string name="settings_audio_group_title">Audio</string>
-    <string name="settings_hub_group_title">Hub</string>
-    <string name="settings_hub_ignore_compatibility_title">Kompatibilität ignorieren</string>
     <string name="settings_audio_master_volume_title">Master Volume</string>
     <string name="settings_audio_buffer_size_title">Puffergröße</string>
     <string name="settings_audio_output_device_title">Ausgabegerät</string>

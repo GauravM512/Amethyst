@@ -65,7 +65,6 @@ import dev.anthonyhfm.amethyst.hub.data.HubArtist
 import dev.anthonyhfm.amethyst.hub.data.HubProject
 import dev.anthonyhfm.amethyst.hub.data.HubProjectCollection
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
-import dev.anthonyhfm.amethyst.settings.data.HubSettings
 import dev.anthonyhfm.amethyst.ui.components.primitives.Spinner
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.card
@@ -937,17 +936,18 @@ private fun DesktopHubProjectDetail(
                                     }
 
                                     val downloadUrl = DesktopHubDownload.downloadPageUrl(value, repository)
-                                    val allowed = HubSettings.ignoreCompatibility.value ||
-                                        value.projectType.name == "amethyst" ||
-                                        value.compatibility.name == "compatible" ||
-                                        value.overrideDownloadUrl != null
 
                                     BoxWithConstraints(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                     ) {
                                         val actions: @Composable () -> Unit = {
-                                            if (downloadUrl != null && allowed && DesktopHubDownload.canImport(value, repository)) {
+                                            if (
+                                                downloadUrl != null && DesktopHubDownload.canImport(
+                                                    project = value,
+                                                    repository = repository,
+                                                )
+                                            ) {
                                                 DesktopHubDownloadAction(
                                                     label = if (downloading) {
                                                         "${stringResource(Res.string.home_hub_detail_downloading)} ${(progress * 100).toInt()}%"
