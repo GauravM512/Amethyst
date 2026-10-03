@@ -6,6 +6,7 @@ import dev.anthonyhfm.amethyst.conversion.ableton.data.devices.MidiArpeggiator
 import dev.anthonyhfm.amethyst.core.util.Timing
 import dev.anthonyhfm.amethyst.devices.DeviceState
 import dev.anthonyhfm.amethyst.devices.ableton.AbletonArpeggiatorChainDeviceState
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 class MidiArpeggiatorAdapter(
@@ -14,7 +15,10 @@ class MidiArpeggiatorAdapter(
 ) : AbletonAdapter() {
     override fun toDeviceStates(): List<DeviceState> {
         val palette = AbletonConverter.palette
-        val velocity = device.velocityTarget.manual.value
+        val velocity = device.velocityTarget.manual.value.roundToInt().coerceIn(
+            minimumValue = 0,
+            maximumValue = palette.lastIndex,
+        )
         val syncedRate = AbletonMacroMapping.effectiveInt(
             manualValue = device.syncRate.manual.value,
             keyMidi = device.syncRate.keyMidi,

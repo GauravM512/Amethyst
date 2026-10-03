@@ -96,7 +96,7 @@ data class MidiArpeggiator(
 
     @Serializable
     data class VelocityTarget(
-        val manual: AbletonManual<Int>,
+        val manual: AbletonManual<Float>,
     )
 
     @Serializable

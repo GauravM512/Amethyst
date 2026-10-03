@@ -71,7 +71,7 @@ class MidiDeviceConversionTest {
             freeRate = MidiArpeggiator.FreeRate(AbletonManual(125f)),
             gate = MidiArpeggiator.Gate(AbletonManual(0.75f)),
             velocityEnabled = MidiArpeggiator.VelocitySwitch(AbletonManual(false)),
-            velocityTarget = MidiArpeggiator.VelocityTarget(AbletonManual(1)),
+            velocityTarget = MidiArpeggiator.VelocityTarget(manual = AbletonManual(value = 1f)),
         )
         val result = assertIs<AbletonArpeggiatorChainDeviceState>(AbletonAdapter.resolveAdapter(arp)!!.toDeviceStates().single())
         assertEquals(7, result.distance)
