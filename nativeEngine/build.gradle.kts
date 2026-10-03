@@ -41,6 +41,7 @@ kotlin {
 android {
     namespace = "dev.anthonyhfm.amethyst.nativeengine"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+    ndkVersion = "27.1.12297006"
 
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()

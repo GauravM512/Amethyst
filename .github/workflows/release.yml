@@ -15,9 +15,17 @@ on:
         description: 'Release notes / changelog (optional)'
         required: false
         type: string
+      android_runner:
+        description: 'Android Linux runner label (e.g. ubuntu-24.04 or android-release for a self-hosted runner)'
+        required: false
+        default: 'ubuntu-24.04'
+        type: string
 
 permissions:
   contents: write
+
+env:
+  NUCLEUS_REVISION: 6bcffd07c6e3a9c0e17558a098ef8b8c3c4a80b3
 
 jobs:
   build:
@@ -74,6 +82,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout Nucleus fork
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/Nucleus
+          ref: ${{ env.NUCLEUS_REVISION }}
+          path: Nucleus
+          persist-credentials: false
+
       - name: Fetch ML Graphics
         uses: actions/checkout@v4
         with:
@@ -99,6 +115,10 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Setup MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Setup stem runtime
         uses: actions/setup-python@v5
         with:
@@ -107,13 +127,13 @@ jobs:
       - name: Install Linux native dependencies
         if: runner.os == 'Linux'
         shell: bash
-        run: sudo apt-get update && sudo apt-get install --yes libasound2-dev rpm
+        run: sudo apt-get update && sudo apt-get install --yes build-essential libasound2-dev libdbus-1-dev libglib2.0-dev libgtk-3-dev libx11-dev pkg-config rpm
 
       - name: Test and build
         shell: bash
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: ./gradlew :composeApp:desktopTest :composeApp:${{ matrix.task }} -Pamethyst.native.variant=release -Pamethyst.stems.python=python
+        run: ./gradlew :composeApp:desktopTest :composeApp:${{ matrix.task }} -Pamethyst.nucleus.path=Nucleus -Pamethyst.native.variant=release -Pamethyst.stems.python=python
 
       - name: Rename artifact
         shell: bash
@@ -136,9 +156,120 @@ jobs:
           path: composeApp/build/compose/binaries/main-release/${{ matrix.artifact-dir }}/${{ matrix.artifact-name }}-${{ inputs.version }}.${{ matrix.artifact-ext }}
           if-no-files-found: error
 
+  android:
+    name: Build (Android)
+    runs-on: ${{ inputs.android_runner || 'ubuntu-24.04' }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+      ANDROID_BUILD_TOOLS_VERSION: '37.0.0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout Nucleus fork
+        uses: actions/checkout@v4
+        with:
+          repository: anthonyhfm/Nucleus
+          ref: ${{ env.NUCLEUS_REVISION }}
+          path: Nucleus
+          persist-credentials: false
+
+      - name: Fetch ML Graphics
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.ML_GRAPHICS_REPOSITORY }}
+          token: ${{ secrets.ML_GRAPHICS_TOKEN }}
+          path: ml3-graphics
+          sparse-checkout: launchpad
+
+      - name: Copy ML Graphics
+        shell: bash
+        run: mkdir -p composeApp/src/commonMain/composeResources/files && cp -r ml3-graphics/. composeApp/src/commonMain/composeResources/files/
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0 ndk;27.1.12297006'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android, i686-linux-android
+
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: sudo apt-get update && sudo apt-get install --yes build-essential libasound2-dev pkg-config
+
+      - name: Build Android release
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          ./gradlew :composeApp:assembleRelease \
+            -Pamethyst.nucleus.path=Nucleus \
+            -Pamethyst.native.variant=release \
+            "-Pamethyst.android.versionName=$RELEASE_VERSION" \
+            "-Pamethyst.android.versionCode=$ANDROID_VERSION_CODE"
+
+      - name: Sign and verify APK
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for secret in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!secret}" ]; then
+              echo "::error::Missing GitHub secret: $secret"
+              exit 1
+            fi
+          done
+          keystore="$RUNNER_TEMP/amethyst-release.jks"
+          trap 'rm -f "$keystore"' EXIT
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          mkdir -p android-release
+          apk="android-release/amethyst-android-$RELEASE_VERSION.apk"
+          tools="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION"
+          "$tools/zipalign" -P 16 -f 4 \
+            composeApp/build/outputs/apk/release/composeApp-release-unsigned.apk \
+            "$RUNNER_TEMP/amethyst-aligned.apk"
+          "$tools/apksigner" sign \
+            --ks "$keystore" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out "$apk" \
+            "$RUNNER_TEMP/amethyst-aligned.apk"
+          "$tools/apksigner" verify "$apk"
+          "$tools/zipalign" -c -P 16 4 "$apk"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-amethyst-android
+          path: android-release/*.apk
+          if-no-files-found: error
+
   release:
     name: Create Release
-    needs: [build]
+    needs: [build, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -176,5 +307,6 @@ jobs:
             release-artifacts/release-assets-amethyst-linux-deb/*.deb
             release-artifacts/release-assets-amethyst-linux-fedora-rpm/*.rpm
             release-artifacts/release-assets-amethyst-linux-appimage/*.AppImage
+            release-artifacts/release-assets-amethyst-android/*.apk
             release-artifacts/update-yml/*.yml
           fail_on_unmatched_files: false
