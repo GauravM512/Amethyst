@@ -16,6 +16,7 @@ import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceCon
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
 import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.path
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -65,7 +66,7 @@ class MidiLauncherAlsTest {
             assertEquals(expected = 1, actual = skipSilence.timeable.manual.value)
             val fileRef = assertNotNull(actual = pro.fileDropList.fileDropList.items.single().ref.fileRef)
             assertEquals(expected = "", actual = fileRef.path?.value)
-            assertEquals(expected = midi.absolutePath, actual = fileRef.resolvePath())
+            assertEquals(expected = PlatformFile(path = midi.absolutePath).path, actual = fileRef.resolvePath())
 
             MxDeviceMidiEffectAdapter.fileHashMap.clear()
             devices.forEach { device ->

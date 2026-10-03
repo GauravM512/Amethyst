@@ -14,6 +14,7 @@ import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.keyframes.KeyframesChainDeviceContract.KeyframesChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDeviceState
 import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.path
 import kotlinx.serialization.decodeFromString
 import java.io.File
 import java.nio.file.Files
@@ -147,7 +148,7 @@ class MidiExtMultiAdapterTest {
             AbletonConverter.launchpadLayout = AbletonLaunchpadLayout.create(count = 1)
             val patch = directory.resolve(relative = "MIDIext2.1 Multi-Sample.amxd")
             patch.writeBytes(array = byteArrayOf())
-            MxDeviceMidiEffectAdapter.fileHashMap[patch.absolutePath] = MIDIEXT_MULTI_SAMPLE_HASH
+            MxDeviceMidiEffectAdapter.fileHashMap[PlatformFile(path = patch.absolutePath).path] = MIDIEXT_MULTI_SAMPLE_HASH
             block(directory)
         } finally {
             AbletonConverter.file = previousFile

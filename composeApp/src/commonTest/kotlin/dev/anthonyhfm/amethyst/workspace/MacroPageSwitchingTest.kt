@@ -251,7 +251,7 @@ class MacroPageSwitchingTest {
 
     @Test
     fun stateOfMindDebug() {
-        val alsPath = "/Users/anthony/Downloads/Teminite - State Of Mind/State Of Mind.als"
+        val alsPath = System.getenv("AMETHYST_DEBUG_ALS_PATH") ?: return
         val platformFile = PlatformFile(alsPath)
         if (!platformFile.exists()) return
         val bytes = runBlocking { platformFile.readBytes() }

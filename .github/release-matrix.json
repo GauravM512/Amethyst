@@ -1,0 +1,52 @@
+{
+  "include": [
+    {
+      "os": "windows-latest",
+      "name": "Windows",
+      "task": "packageReleaseMsi",
+      "artifact-dir": "msi",
+      "artifact-ext": "msi",
+      "artifact-name": "amethyst-windows"
+    },
+    {
+      "os": "macos-26",
+      "name": "macOS ARM",
+      "task": "packageReleaseDmg",
+      "artifact-dir": "dmg",
+      "artifact-ext": "dmg",
+      "artifact-name": "amethyst-macos-arm64"
+    },
+    {
+      "os": "macos-15-intel",
+      "name": "macOS Intel",
+      "task": "packageReleaseDmg",
+      "artifact-dir": "dmg",
+      "artifact-ext": "dmg",
+      "artifact-name": "amethyst-macos-amd64"
+    },
+    {
+      "os": "ubuntu-latest",
+      "name": "Linux DEB",
+      "task": "packageReleaseDeb",
+      "artifact-dir": "deb",
+      "artifact-ext": "deb",
+      "artifact-name": "amethyst-linux-deb"
+    },
+    {
+      "os": "ubuntu-latest",
+      "name": "Linux Fedora RPM",
+      "task": "packageReleaseRpm",
+      "artifact-dir": "rpm",
+      "artifact-ext": "rpm",
+      "artifact-name": "amethyst-linux-fedora-rpm"
+    },
+    {
+      "os": "ubuntu-latest",
+      "name": "Linux AppImage",
+      "task": "packageReleaseAppImage",
+      "artifact-dir": "AppImage",
+      "artifact-ext": "AppImage",
+      "artifact-name": "amethyst-linux-appimage"
+    }
+  ]
+}

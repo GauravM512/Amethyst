@@ -20,6 +20,15 @@ on:
         required: false
         default: 'ubuntu-24.04'
         type: string
+      reuse_run_id:
+        description: 'Reuse Linux and Android artifacts from this run; rebuild Windows and both macOS variants'
+        required: false
+        type: string
+      skip_tests:
+        description: 'Skip desktop tests before building'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -28,55 +37,68 @@ env:
   NUCLEUS_REVISION: 6bcffd07c6e3a9c0e17558a098ef8b8c3c4a80b3
 
 jobs:
+  prepare:
+    name: Select builds
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify reusable artifacts
+        if: inputs.reuse_run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REUSE_RUN_ID: ${{ inputs.reuse_run_id }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$REUSE_RUN_ID/artifacts" > "$RUNNER_TEMP/reusable-artifacts.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifacts = json.loads((Path(os.environ["RUNNER_TEMP"]) / "reusable-artifacts.json").read_text())
+          available = {artifact["name"] for artifact in artifacts["artifacts"] if not artifact["expired"]}
+          required = {
+              "release-assets-amethyst-linux-deb",
+              "release-assets-amethyst-linux-fedora-rpm",
+              "release-assets-amethyst-linux-appimage",
+              "release-assets-amethyst-android",
+          }
+          missing = required - available
+          if missing:
+              raise SystemExit(f"Missing reusable artifacts: {', '.join(sorted(missing))}")
+          PY
+
+      - name: Select build matrix
+        id: matrix
+        env:
+          REUSE_RUN_ID: ${{ inputs.reuse_run_id }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          matrix = json.loads(Path(".github/release-matrix.json").read_text())
+          if os.environ["REUSE_RUN_ID"]:
+              matrix["include"] = [entry for entry in matrix["include"] if entry["os"].startswith(("windows-", "macos-"))]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"matrix={json.dumps(matrix, separators=(',', ':'))}\n")
+          PY
+
   build:
     name: Build (${{ matrix.name }})
+    needs: prepare
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            name: Windows
-            task: packageReleaseMsi
-            artifact-dir: msi
-            artifact-ext: msi
-            artifact-name: amethyst-windows
-
-          - os: macos-26
-            name: macOS ARM
-            task: packageReleaseDmg
-            artifact-dir: dmg
-            artifact-ext: dmg
-            artifact-name: amethyst-macos-arm64
-
-          - os: macos-15-intel
-            name: macOS Intel
-            task: packageReleaseDmg
-            artifact-dir: dmg
-            artifact-ext: dmg
-            artifact-name: amethyst-macos-amd64
-
-          - os: ubuntu-latest
-            name: Linux DEB
-            task: packageReleaseDeb
-            artifact-dir: deb
-            artifact-ext: deb
-            artifact-name: amethyst-linux-deb
-
-          - os: ubuntu-latest
-            name: Linux Fedora RPM
-            task: packageReleaseRpm
-            artifact-dir: rpm
-            artifact-ext: rpm
-            artifact-name: amethyst-linux-fedora-rpm
-
-          - os: ubuntu-latest
-            name: Linux AppImage
-            task: packageReleaseAppImage
-            artifact-dir: AppImage
-            artifact-ext: AppImage
-            artifact-name: amethyst-linux-appimage
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
 
     steps:
       - name: Checkout
@@ -134,14 +156,24 @@ jobs:
         shell: bash
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: ./gradlew :composeApp:desktopTest :composeApp:${{ matrix.task }} -Pamethyst.nucleus.path=Nucleus -Pamethyst.native.variant=release -Pamethyst.stems.python=python
+        run: |
+          if [ "${{ inputs.skip_tests }}" = "true" ]; then
+            ./gradlew :composeApp:${{ matrix.task }} -Pamethyst.nucleus.path=Nucleus -Pamethyst.native.variant=release -Pamethyst.stems.python=python -x desktopTest
+          else
+            ./gradlew :composeApp:desktopTest :composeApp:${{ matrix.task }} -Pamethyst.nucleus.path=Nucleus -Pamethyst.native.variant=release -Pamethyst.stems.python=python
+          fi
 
       - name: Test and build Windows
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: ./gradlew.bat :composeApp:desktopTest :composeApp:${{ matrix.task }} '-Pamethyst.nucleus.path=Nucleus' '-Pamethyst.native.variant=release' '-Pamethyst.stems.python=python'
+        run: |
+          if ("${{ inputs.skip_tests }}" -eq "true") {
+            ./gradlew.bat :composeApp:${{ matrix.task }} '-Pamethyst.nucleus.path=Nucleus' '-Pamethyst.native.variant=release' '-Pamethyst.stems.python=python' -x desktopTest
+          } else {
+            ./gradlew.bat :composeApp:desktopTest :composeApp:${{ matrix.task }} '-Pamethyst.nucleus.path=Nucleus' '-Pamethyst.native.variant=release' '-Pamethyst.stems.python=python'
+          }
 
       - name: Rename artifact
         shell: bash
@@ -166,6 +198,7 @@ jobs:
 
   android:
     name: Build (Android)
+    if: inputs.reuse_run_id == ''
     runs-on: ${{ inputs.android_runner || 'ubuntu-24.04' }}
     timeout-minutes: 120
     permissions:
@@ -278,9 +311,11 @@ jobs:
   release:
     name: Create Release
     needs: [build, android]
+    if: ${{ !cancelled() && needs.build.result == 'success' && (needs.android.result == 'success' || (inputs.reuse_run_id != '' && needs.android.result == 'skipped')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -290,6 +325,52 @@ jobs:
         with:
           path: release-artifacts
           pattern: release-assets-*
+
+      - name: Download existing Linux artifacts
+        if: inputs.reuse_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.reuse_run_id }}
+          path: release-artifacts
+          pattern: release-assets-amethyst-linux-*
+
+      - name: Download existing Android artifact
+        if: inputs.reuse_run_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.reuse_run_id }}
+          name: release-assets-amethyst-android
+          path: release-artifacts/release-assets-amethyst-android
+
+      - name: Verify release assets
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          assets = {
+              "amethyst-windows": "msi",
+              "amethyst-macos-arm64": "dmg",
+              "amethyst-macos-amd64": "dmg",
+              "amethyst-linux-deb": "deb",
+              "amethyst-linux-fedora-rpm": "rpm",
+              "amethyst-linux-appimage": "AppImage",
+              "amethyst-android": "apk",
+          }
+          version = os.environ["RELEASE_VERSION"]
+          root = Path("release-artifacts")
+          missing = [
+              f"{name}-{version}.{extension}"
+              for name, extension in assets.items()
+              if not (root / f"release-assets-{name}" / f"{name}-{version}.{extension}").is_file()
+          ]
+          if missing:
+              raise SystemExit(f"Missing release assets for version {version}: {', '.join(missing)}")
+          PY
 
       - name: Generate update YML
         uses: kdroidFilter/Nucleus/.github/actions/generate-update-yml@main
@@ -302,6 +383,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
+          target_commitish: ${{ github.sha }}
           name: ${{ inputs.release_name || format('Amethyst v{0}', inputs.version) }}
           prerelease: ${{ contains(inputs.version, '-rc') }}
           body: |

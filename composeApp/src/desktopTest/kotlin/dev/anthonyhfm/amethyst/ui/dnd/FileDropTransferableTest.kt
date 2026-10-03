@@ -42,7 +42,7 @@ class FileDropTransferableTest {
 
     @Test
     fun windowsFileListPreservesPathsWithoutParsingAsUris() {
-        val file = java.io.File("C:\\Users\\Anthony\\Music\\Überblick + drums.wav")
+        val file = java.io.File("C:\\Users\\AmethystUser\\Music\\Überblick + drums.wav")
         val transferable = TestTransferable(
             flavor = DataFlavor.javaFileListFlavor,
             value = listOf(file)
