@@ -54,9 +54,8 @@ import dev.anthonyhfm.amethyst.settings.AppLocaleRefreshBoundary
 import dev.anthonyhfm.amethyst.ui.components.primitives.SidebarProvider
 import dev.anthonyhfm.amethyst.ui.components.primitives.rememberSidebarState
 import dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager
-import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ZippedProjectFormat
-import dev.anthonyhfm.amethyst.core.util.determineFormat
+import dev.anthonyhfm.amethyst.core.util.determineProjectArchiveFormat
 import dev.anthonyhfm.amethyst.hub.data.HubProject
 import dev.nucleusframework.updater.NucleusUpdater
 import dev.nucleusframework.updater.UpdateResult
@@ -323,8 +322,8 @@ private suspend fun openHubProject(
     val platformFile = PlatformFile(file)
     val needsAbletonWizard = try {
         file.extension.equals("als", ignoreCase = true) ||
-            (file.extension.equals("zip", ignoreCase = true) && withContext(Dispatchers.IO) {
-                Zip.determineFormat(platformFile) == ZippedProjectFormat.ABLETON
+            (file.extension.lowercase() in setOf("zip", "rar") && withContext(context = Dispatchers.IO) {
+                determineProjectArchiveFormat(file = platformFile) == ZippedProjectFormat.ABLETON
             })
     } catch (failure: Exception) {
         DesktopHubDownload.discardImport(file)

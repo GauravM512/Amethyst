@@ -5,6 +5,7 @@ import android.util.Base64
 import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.home.data.MobileProjectRecord
+import dev.anthonyhfm.amethyst.hub.data.DropboxDownloadLinks
 import dev.anthonyhfm.amethyst.hub.data.HubProject
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
 import io.github.vinceglb.filekit.PlatformFile
@@ -141,7 +142,9 @@ internal object HubProjectDownloader {
         }
         if (!externalUrl.isNullOrBlank()) {
             val uri = externalUrl.toUri()
-            return googleDriveFileId(uri) != null || mediaFireQuickKey(uri) != null
+            return googleDriveFileId(uri) != null ||
+                mediaFireQuickKey(uri) != null ||
+                DropboxDownloadLinks.resolve(value = externalUrl) != null
         }
         return false
     }
@@ -195,7 +198,8 @@ internal object HubProjectDownloader {
             if (host in mediaFireHosts) {
                 return resolveMediaFire(uri)
             }
-            error("External source is not directly importable")
+            return DropboxDownloadLinks.resolve(value = raw)
+                ?: error("External source is not directly importable")
         }
         error("No download available")
     }
