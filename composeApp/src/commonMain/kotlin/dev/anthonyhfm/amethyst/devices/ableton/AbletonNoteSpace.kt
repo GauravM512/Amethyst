@@ -49,16 +49,37 @@ internal object AbletonNoteSpace {
         return Note(pitch, targetX, targetY)
     }
 
-    fun withPitch(signal: Signal, note: Note, pitch: Int): Signal? {
+    fun withPitch(
+        signal: Signal,
+        note: Note,
+        pitch: Int,
+        extrasCache: MutableMap<Note, Map<String, Int>>? = null,
+    ): Signal? {
         if (pitch !in 0..127) {
             return null
         }
 
-        val extras = signal.extras + mapOf(
+        val pitchNote = if (note.pitch == pitch) {
+            note
+        } else {
+            note.copy(pitch = pitch)
+        }
+        val pitchExtras = extrasCache?.getOrPut(pitchNote) {
+            mapOf(
+                PITCH to pitch,
+                TARGET_X to note.targetX,
+                TARGET_Y to note.targetY,
+            )
+        } ?: mapOf(
             PITCH to pitch,
             TARGET_X to note.targetX,
             TARGET_Y to note.targetY,
         )
+        val extras = if (signal.extras.isEmpty()) {
+            pitchExtras
+        } else {
+            signal.extras + pitchExtras
+        }
         val index = padIndex(pitch)
         val x = index?.rem(10)?.plus(note.targetX)
         val y = index?.div(10)?.let { 9 - it + note.targetY }

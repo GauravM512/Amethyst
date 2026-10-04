@@ -35,8 +35,9 @@ data class ScheduledJob(
 
 object Heaven {
     private sealed interface SchedulerCommand {
-        data class Add(val scheduledJob: ScheduledJob) : SchedulerCommand
-        data class Cancel(val filter: (ScheduledJob) -> Boolean) : SchedulerCommand
+        class Add(var scheduledJob: ScheduledJob?) : SchedulerCommand
+        class Cancel(var filter: ((ScheduledJob) -> Boolean)?) : SchedulerCommand
+        class ForgetOwner(var owner: Any?) : SchedulerCommand
         data object Clear : SchedulerCommand
     }
 
@@ -226,6 +227,13 @@ object Heaven {
         }
     }
 
+    fun forgetJobsForOwner(owner: Any) {
+        synchronized(schedulerMutationLock) {
+            invalidateJobGeneration(owner = owner, identifier = null)
+            schedulerCommands.trySend(SchedulerCommand.ForgetOwner(owner = owner))
+        }
+    }
+
     fun cancelJob(jobId: String) {
         cancelJobs { it.id == jobId }
     }
@@ -297,17 +305,31 @@ object Heaven {
     ) {
         when (command) {
             is SchedulerCommand.Add -> {
-                if (!isJobCurrent(command.scheduledJob)) {
+                val scheduledJob = command.scheduledJob ?: return
+                command.scheduledJob = null
+                if (!isJobCurrent(scheduledJob)) {
                     pendingJobsCount.decrementAndGet()
                     return
                 }
 
-                jobs.add(command.scheduledJob)
+                jobs.add(scheduledJob)
             }
             is SchedulerCommand.Cancel -> {
-                repeat(jobs.removeAll(command.filter)) {
+                val filter = command.filter ?: return
+                command.filter = null
+                repeat(jobs.removeAll(filter)) {
                     pendingJobsCount.decrementAndGet()
                 }
+            }
+            is SchedulerCommand.ForgetOwner -> {
+                val owner = command.owner
+                repeat(jobs.removeAll { it.owner === owner }) {
+                    pendingJobsCount.decrementAndGet()
+                }
+                synchronized(ownerGenerationLock) {
+                    ownerGenerations.keys.removeAll { it.owner === owner }
+                }
+                command.owner = null
             }
             SchedulerCommand.Clear -> {
                 repeat(jobs.clear()) {

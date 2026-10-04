@@ -821,9 +821,13 @@ class SampleChainDevice : AudioChainDevice<SampleChainDeviceState>(), Chokeable,
         )
     }
 
+    internal fun preparedPcmData(): ByteArray? = renderCache.value?.preparedSource?.rawData
+
     override fun releaseAudio() {
         resetAudio()
         audioConfiguration.value = null
+        renderCache.value = null
+        modulation = SampleVoiceModulationBuffer(1)
     }
 
     override fun onStateRestored() {

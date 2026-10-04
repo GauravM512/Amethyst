@@ -17,7 +17,11 @@ object PreparedAudioSourceCache {
         val frameCount: Long,
     )
 
-    private data class Entry(val sourceBytes: ByteArray?, val prepared: AudioSource)
+    private data class Entry(
+        val sourceBytes: ByteArray?,
+        val prepared: AudioSource,
+        val retainForProject: Boolean,
+    )
 
     private val entries = atomic<Map<Key, Entry>>(emptyMap())
     private val persistentRoot = atomic<String?>(null)
@@ -30,9 +34,15 @@ object PreparedAudioSourceCache {
         }
     }
 
-    fun getOrPrepare(source: AudioSource, outputRate: Int): AudioSource {
+    fun getOrPrepare(
+        source: AudioSource,
+        outputRate: Int,
+        retainForProject: Boolean = false,
+    ): AudioSource {
         require(outputRate > 0)
-        if (source.sampleRate == outputRate) return source
+        if (source.sampleRate == outputRate) {
+            return source
+        }
         val key = Key(
             id = source.id,
             sourceRate = source.sampleRate,
@@ -41,7 +51,9 @@ object PreparedAudioSourceCache {
             frameCount = source.frameCount,
         )
         val sourceBytes = (source as? ByteArrayPcmAudioSource)?.rawData
-        entries.value[key]?.takeIf { it.sourceBytes === sourceBytes }?.let { return it.prepared }
+        cachedSource(key = key, sourceBytes = sourceBytes, retainForProject = retainForProject)?.let {
+            return it
+        }
 
         val diskKey = (source as? ByteArrayPcmAudioSource)?.let {
             "${source.id.hashCode().toUInt().toString(16)}-${it.rawData.contentHashCode().toUInt().toString(16)}-" +
@@ -67,20 +79,69 @@ object PreparedAudioSourceCache {
         }
         while (true) {
             val current = entries.value
-            current[key]?.takeIf { it.sourceBytes === sourceBytes }?.let { return it.prepared }
-            val trimmed = if (current.size >= MAXIMUM_ENTRIES) {
-                current.entries.drop(current.size - MAXIMUM_ENTRIES + 1)
-                    .associate { it.toPair() }
-            } else {
-                current
+            val existing = current[key]?.takeIf { it.sourceBytes === sourceBytes }
+            if (existing != null) {
+                if (!retainForProject || existing.retainForProject) {
+                    return existing.prepared
+                }
+                if (
+                    entries.compareAndSet(
+                        expect = current,
+                        update = current + (key to existing.copy(retainForProject = true)),
+                    )
+                ) {
+                    return existing.prepared
+                }
+                continue
+            }
+            val updated = current + (key to Entry(
+                sourceBytes = sourceBytes,
+                prepared = prepared,
+                retainForProject = retainForProject,
+            ))
+            val transientEntries = updated.entries.filter { !it.value.retainForProject }
+            val evictedKeys = transientEntries
+                .take((transientEntries.size - MAXIMUM_ENTRIES).coerceAtLeast(0))
+                .map { it.key }
+            if (entries.compareAndSet(expect = current, update = updated - evictedKeys.toSet())) {
+                return prepared
+            }
+        }
+    }
+
+    private fun cachedSource(
+        key: Key,
+        sourceBytes: ByteArray?,
+        retainForProject: Boolean,
+    ): AudioSource? {
+        while (true) {
+            val current = entries.value
+            val existing = current[key]?.takeIf { it.sourceBytes === sourceBytes } ?: return null
+            if (!retainForProject || existing.retainForProject) {
+                return existing.prepared
             }
             if (
                 entries.compareAndSet(
-                    current,
-                    trimmed + (key to Entry(sourceBytes, prepared)),
+                    expect = current,
+                    update = current + (key to existing.copy(retainForProject = true)),
                 )
             ) {
-                return prepared
+                return existing.prepared
+            }
+        }
+    }
+
+    internal fun retainedPcmBytes(): Long = entries.value.values
+        .mapNotNull { (it.prepared as? ByteArrayPcmAudioSource)?.rawData }
+        .toSet()
+        .sumOf { it.size.toLong() }
+
+    internal fun removeSources(sourceIds: Set<String>) {
+        while (true) {
+            val current = entries.value
+            val updated = current.filterKeys { it.id !in sourceIds }
+            if (entries.compareAndSet(expect = current, update = updated)) {
+                return
             }
         }
     }

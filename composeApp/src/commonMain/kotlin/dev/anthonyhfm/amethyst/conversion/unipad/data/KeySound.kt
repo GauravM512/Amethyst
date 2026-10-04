@@ -9,7 +9,11 @@ import dev.anthonyhfm.amethyst.devices.effects.group.data.Group
 import dev.anthonyhfm.amethyst.devices.effects.macro_filter.MacroFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.multi.MultiGroupChainDeviceState
 import dev.anthonyhfm.amethyst.workspace.chain.data.StateChain
-import kotlinx.coroutines.*
+import dev.anthonyhfm.amethyst.core.util.ConversionTempFiles
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class DecodedAudioClip(
     val name: String,
@@ -50,40 +54,48 @@ object KeySound {
         val clipMap = mutableMapOf<String, DecodedAudioClip>()
 
         // Only process entries that live inside the sounds/ directory
-        val soundEntries = UnipadConverter.entries.values.filter {
-            it.path.lowercase().startsWith("sounds/") && !it.isDirectory
+        val soundEntries = UnipadConverter.entries.filter { (path, entry) ->
+            path.lowercase().startsWith("sounds/") && !entry.isDirectory
         }
 
-        // Process audio files in parallel
-        val jobs = soundEntries.map { entry ->
-            async(Dispatchers.Default) {
-                val clipName = entry.path.substring(entry.path.indexOf('/') + 1).trim()
-
-                try {
-                    val audioSignal = Echo.decodeAudioData(entry.data, clipName)
-
-                    if (audioSignal != null) {
-                        clipName to DecodedAudioClip(
-                            name = clipName,
-                            rawData = audioSignal.rawData,
-                            sampleRate = audioSignal.sampleRate,
-                            channels = audioSignal.channels,
-                            bitDepth = audioSignal.bitDepth,
-                            isLoaded = true
-                        )
-                    } else {
-                        println("Failed to decode audio clip: $clipName")
-                        clipName to DecodedAudioClip(name = clipName, rawData = null, isLoaded = false)
+        soundEntries.forEach { (path, _) ->
+            val clipName = path.substringAfter('/').trim()
+            val temporaryPath = ConversionTempFiles.newPath(
+                extension = clipName.substringAfterLast('.', "audio"),
+            )
+            try {
+                val audioSignal = if (UnipadConverter.extractEntryToFile(
+                        path = path,
+                        destinationPath = temporaryPath,
+                    )
+                ) {
+                    Echo.decodeAudioFile(filePath = temporaryPath)
+                } else {
+                    UnipadConverter.readEntry(path = path)?.let { bytes ->
+                        Echo.decodeAudioData(audioData = bytes, fileName = clipName)
                     }
-                } catch (e: Exception) {
-                    println("Error loading audio clip '$clipName': ${e.message}")
-                    clipName to DecodedAudioClip(name = clipName, rawData = null, isLoaded = false)
                 }
+                clipMap[clipName] = if (audioSignal != null) {
+                    DecodedAudioClip(
+                        name = clipName,
+                        rawData = audioSignal.rawData,
+                        sampleRate = audioSignal.sampleRate,
+                        channels = audioSignal.channels,
+                        bitDepth = audioSignal.bitDepth,
+                        isLoaded = true,
+                    )
+                } else {
+                    DecodedAudioClip(name = clipName, rawData = null, isLoaded = false)
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                println("Error loading audio clip '$clipName': ${exception.message}")
+                clipMap[clipName] = DecodedAudioClip(name = clipName, rawData = null, isLoaded = false)
+            } finally {
+                ConversionTempFiles.remove(path = temporaryPath)
             }
         }
-
-        // Wait for all audio clips to be processed
-        clipMap.putAll(jobs.awaitAll())
 
         println("Finished loading ${clipMap.count { it.value.isLoaded }} audio clips successfully (${clipMap.size} total).")
 

@@ -1,9 +1,17 @@
 package dev.anthonyhfm.amethyst.core.loading
 
+import dev.anthonyhfm.amethyst.core.util.Platform
+import dev.anthonyhfm.amethyst.core.util.platform
 import kotlin.time.TimeSource
 
 /** Lightweight stage measurements for comparing identical imports on device. */
 object ProjectLoadMetrics {
+    val memoryMetric: String = when (platform) {
+        Platform.Android -> "androidPss"
+        Platform.iOS -> "iosPeakResident"
+        is Platform.Desktop -> "jvmUsedHeap"
+    }
+
     inline fun <T> measure(stage: String, block: () -> T): T {
         val started = TimeSource.Monotonic.markNow()
         val before = residentMemoryBytes()
@@ -11,7 +19,7 @@ object ProjectLoadMetrics {
             return block()
         } finally {
             val after = residentMemoryBytes()
-            println("ProjectLoad stage=$stage durationMs=${started.elapsedNow().inWholeMilliseconds} memoryBefore=$before memoryAfter=$after")
+            println("ProjectLoad stage=$stage durationMs=${started.elapsedNow().inWholeMilliseconds} memoryMetric=$memoryMetric memoryBefore=$before memoryAfter=$after")
         }
     }
 
@@ -22,7 +30,7 @@ object ProjectLoadMetrics {
             return block()
         } finally {
             val after = residentMemoryBytes()
-            println("ProjectLoad stage=$stage durationMs=${started.elapsedNow().inWholeMilliseconds} memoryBefore=$before memoryAfter=$after")
+            println("ProjectLoad stage=$stage durationMs=${started.elapsedNow().inWholeMilliseconds} memoryMetric=$memoryMetric memoryBefore=$before memoryAfter=$after")
         }
     }
 }

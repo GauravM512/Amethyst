@@ -114,6 +114,11 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
         )
     }
 
+    override fun dispose() {
+        stateObserverScope.cancel()
+        super.dispose()
+    }
+
     override fun timelineDuration(context: TimelineDurationContext): TimelineDuration {
         val current = state.value
         if (current.playbackMode == PlaybackMode.Loop || current.playbackMode == PlaybackMode.Continuous) {
@@ -985,6 +990,7 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
     fun renderAnimation() {
         val bpm = WorkspaceRepository.bpm.value
         var animationMs = 0
+        val extrasCache = mutableMapOf<AbletonNoteSpace.Note, Map<String, Int>>()
 
         val frames = state.value.frames + Frame(
             timing = Timing.Rythm(Timing.Rythm.RythmTiming._1_16),
@@ -998,7 +1004,11 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
                 animationMs += deltaMs
 
                 val signals = buildList {
-                    addAll(frame.entries.filter { !(previousFrame?.entries?.contains(it) ?: false) }.mapNotNull { it.toSignal() })
+                    addAll(
+                        frame.entries
+                            .filter { !(previousFrame?.entries?.contains(it) ?: false) }
+                            .mapNotNull { it.toSignal(extrasCache = extrasCache) }
+                    )
                     if (frame.triggersNoteZero) {
                         add(
                             Signal.LED(
@@ -1019,7 +1029,7 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
 
                         val cleared = previousFrame.entries.filter { prev ->
                             frame.entries.none { it.samePosition(prev) }
-                        }.mapNotNull { it.toOffSignal() }
+                        }.mapNotNull { it.toOffSignal(extrasCache = extrasCache) }
 
                         addAll(cleared)
                     }
@@ -1064,7 +1074,10 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
         return Pair(x, y)
     }
 
-    private fun KeyframesEntry.resolveToSignal(color: Color): Signal.LED {
+    private fun KeyframesEntry.resolveToSignal(
+        color: Color,
+        extrasCache: MutableMap<AbletonNoteSpace.Note, Map<String, Int>>? = null,
+    ): Signal.LED {
         val (gx, gy) = resolveGlobal()
         val origin = resolveLaunchpadOrigin(
             origin = null,
@@ -1078,8 +1091,9 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
         val targetY = gy - (localY ?: 0)
         return AbletonNoteSpace.withPitch(
             signal = signal,
-            note = AbletonNoteSpace.Note(pitch, targetX, targetY),
+            note = AbletonNoteSpace.Note(pitch = pitch, targetX = targetX, targetY = targetY),
             pitch = pitch,
+            extrasCache = extrasCache,
         ) as? Signal.LED ?: signal
     }
 
@@ -1095,9 +1109,19 @@ class KeyframesChainDevice : LEDChainDevice<KeyframesChainDeviceState>(), Chokea
         }
     }
 
-    private fun KeyframesEntry.toSignal(): Signal.LED = resolveToSignal(Color(r, g, b))
+    private fun KeyframesEntry.toSignal(
+        extrasCache: MutableMap<AbletonNoteSpace.Note, Map<String, Int>>? = null,
+    ): Signal.LED = resolveToSignal(
+        color = Color(red = r, green = g, blue = b),
+        extrasCache = extrasCache,
+    )
 
-    private fun KeyframesEntry.toOffSignal(): Signal.LED = resolveToSignal(Color.Black)
+    private fun KeyframesEntry.toOffSignal(
+        extrasCache: MutableMap<AbletonNoteSpace.Note, Map<String, Int>>? = null,
+    ): Signal.LED = resolveToSignal(
+        color = Color.Black,
+        extrasCache = extrasCache,
+    )
 
     private val heldSignals = mutableSetOf<Int>() // Signals currently held in Loop mode
     private val continuousLoopIdentifier = Int.MIN_VALUE

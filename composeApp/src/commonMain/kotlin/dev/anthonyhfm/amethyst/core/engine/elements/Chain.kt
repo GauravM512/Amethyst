@@ -27,6 +27,14 @@ open class Chain : SignalReceiver() {
         topologyChangedListener?.invoke()
     }
 
+    open fun dispose() {
+        topologyChangedListener = null
+        signalExit = null
+        devices.value.forEach { it.dispose() }
+        devices.value = emptyList()
+        SignalIndicatorManager.forget(chain = this)
+    }
+
     fun isWorkspaceChain(): Boolean {
         fun contains(current: Chain): Boolean {
             if (current === this) {

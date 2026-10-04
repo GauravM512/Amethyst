@@ -137,6 +137,9 @@ class ChainEffectRuntime(
         stateJobs.forEach(Job::cancel)
         stateJobs.clear()
         scope.cancel()
+        source?.dispose()
+        source = null
+        processors.dispose()
     }
 
     internal fun updateEntryMetadata(updated: ChainEffectEntry) {

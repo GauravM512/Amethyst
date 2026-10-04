@@ -143,6 +143,11 @@ class AudioChain : Chain() {
             .forEach(LiveAutomationSource::clearAutomationOverride)
     }
 
+    override fun dispose() {
+        releaseAudio()
+        super.dispose()
+    }
+
     fun releaseAudio() {
         triggerRuntime.clearBatches()
         triggerRuntime.clearAutomationOverrides()

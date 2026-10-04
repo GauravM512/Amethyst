@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -143,6 +144,19 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
         this.parentChain = null
     }
 
+    open fun dispose() {
+        stopDialAutomations()
+        automationScope.cancel()
+        automationTickerJob = null
+        (this as? Chokeable)?.onChoke()
+        (this as? NestedChainDevice)?.nestedChains()?.forEach { it.dispose() }
+        onRemovedFromChain()
+        Heaven.forgetJobsForOwner(owner = this)
+        parentChain = null
+        signalExit = null
+        (this as? AudioTriggerRuntimeAware)?.audioTriggerRuntime = null
+    }
+
     fun setMuted(muted: Boolean) {
         val current = state.value
         if (current.isMuted != muted) {
@@ -247,7 +261,9 @@ abstract class GenericChainDevice <State : @Serializable DeviceState> : SignalRe
     }
 
     private fun startAutomationTicker() {
-        if (automationTickerJob?.isActive == true) return
+        if (automationTickerJob?.isActive == true || dialAutomationRuntimes.values.none { it.isRunning }) {
+            return
+        }
         automationTickerJob = automationScope.launch {
             while (dialAutomationRuntimes.values.any { it.isRunning }) {
                 onAutomationTick()

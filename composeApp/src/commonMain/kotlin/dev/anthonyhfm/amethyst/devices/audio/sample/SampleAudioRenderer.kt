@@ -83,6 +83,7 @@ internal class SampleRenderSnapshot private constructor(
                 return PreparedAudioSourceCache.getOrPrepare(
                     source = original,
                     outputRate = outputSampleRate,
+                    retainForProject = true,
                 ) as ByteArrayPcmAudioSource
             }
 

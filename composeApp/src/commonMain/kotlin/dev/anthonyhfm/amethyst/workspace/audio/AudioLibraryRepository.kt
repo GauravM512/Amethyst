@@ -123,7 +123,7 @@ object AudioLibraryRepository {
 
     internal fun releaseInstances(sourceIds: Set<String>) {
         require(sourceIds.none { _sources.value[it]?.isLibraryAsset == true })
-        PreparedAudioSourceCache.clear()
+        PreparedAudioSourceCache.removeSources(sourceIds = sourceIds)
         _sources.update { it - sourceIds }
         WorkspaceRepository.markDirty()
     }
@@ -226,7 +226,7 @@ object AudioLibraryRepository {
         }
         if (removed.isEmpty()) return null
         if (_previewState.value.sourceId in sourceIds) stopPreview(resetPosition = true)
-        PreparedAudioSourceCache.clear()
+        PreparedAudioSourceCache.removeSources(sourceIds = sourceIds)
         _sources.value = currentSources - removed.map { it.source.id }.toSet()
         _sourceOrder.value = currentOrder.filterNot(sourceIds::contains)
         WorkspaceRepository.markDirty()

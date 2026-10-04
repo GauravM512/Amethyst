@@ -43,6 +43,7 @@ import dev.anthonyhfm.amethyst.ui.theme.primaryForeground
 import dev.anthonyhfm.amethyst.workspace.WorkspaceRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import dev.anthonyhfm.amethyst.workspace.ui.viewport.elements.LaunchpadViewportElement
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,6 +58,11 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 class CoordinateFilterChainDevice : GenericChainDevice<CoordinateFilterChainDeviceState>() {
+    override fun dispose() {
+        stateObserverScope.cancel()
+        super.dispose()
+    }
+
     override fun timelineDuration(context: TimelineDurationContext) =
         TimelineDuration.None
     override val state = MutableStateFlow(CoordinateFilterChainDeviceState())

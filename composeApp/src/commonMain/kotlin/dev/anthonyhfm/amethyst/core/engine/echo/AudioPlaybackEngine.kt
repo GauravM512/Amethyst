@@ -11,6 +11,7 @@ import dev.anthonyhfm.amethyst.core.engine.audio.voice.VoiceId
 import dev.anthonyhfm.amethyst.core.engine.elements.AudioChain
 import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import dev.anthonyhfm.amethyst.devices.AudioConfiguration
+import dev.anthonyhfm.amethyst.workspace.audio.AudioLibraryRepository
 import kotlinx.atomicfu.atomic
 
 /**
@@ -55,10 +56,17 @@ class AudioPlaybackEngine(
         val outputRate = renderer.configuration?.sampleRate ?: return
         sources.forEach { source ->
             runCatching {
-                PreparedAudioSourceCache.getOrPrepare(source, outputRate)
+                PreparedAudioSourceCache.getOrPrepare(
+                    source = source,
+                    outputRate = outputRate,
+                    retainForProject = isProjectSource(source = source),
+                )
             }
         }
     }
+
+    private fun isProjectSource(source: AudioSource): Boolean =
+        source is ByteArrayPcmAudioSource && AudioLibraryRepository.get(id = source.id)?.rawData === source.rawData
 
     fun play(
         signal: Signal.AudioSignal,
@@ -95,7 +103,11 @@ class AudioPlaybackEngine(
     ): String? {
         val configuration = renderer.configuration ?: return null
         val preparedSource = runCatching {
-            PreparedAudioSourceCache.getOrPrepare(source, configuration.sampleRate)
+            PreparedAudioSourceCache.getOrPrepare(
+                source = source,
+                outputRate = configuration.sampleRate,
+                retainForProject = isProjectSource(source = source),
+            )
         }.getOrNull() ?: return null
         val frameScale = configuration.sampleRate.toDouble() / source.sampleRate
         val preparedStartFrame = (sourceStartFrame * frameScale)
