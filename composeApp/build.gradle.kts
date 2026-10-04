@@ -55,6 +55,20 @@ kotlin {
         }
     }
 
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    swiftPMDependencies {
+        iosMinimumDeploymentTarget.set("17.6")
+
+        discoverClangModulesImplicitly.set(false)
+
+        swiftPackage(
+            url = url("https://github.com/mtgto/Unrar.swift.git"),
+            version = exact("0.5.4"),
+            products = listOf(product(name = "Unrar")),
+            importedClangModules = listOf("Cunrar"),
+        )
+    }
+
     jvm("desktop") {
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
@@ -72,6 +86,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.process)
             implementation(libs.jetbrains.material3)
             implementation(libs.ktor.client.okhttp)
+            implementation("com.github.junrar:junrar:8.1.1")
 
             implementation(projects.nativeEngine)
         }

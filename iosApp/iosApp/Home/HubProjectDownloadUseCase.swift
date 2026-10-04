@@ -96,7 +96,7 @@ struct HubProjectDownloadUseCase {
     private func validFilename(_ value: String?) -> String? {
         guard let value else { return nil }
         let filename = URL(fileURLWithPath: value).lastPathComponent
-        let allowed = ["ame", "als", "zip", "approj"]
+        let allowed = ["ame", "als", "zip", "rar", "approj"]
         return allowed.contains(URL(fileURLWithPath: filename).pathExtension.lowercased()) ? filename : nil
     }
 

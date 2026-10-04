@@ -21,7 +21,7 @@ import androidx.core.net.toUri
 
 /** Streams a Hub project into the same persistent catalog used by the Projects tab. */
 internal object HubProjectDownloader {
-    private val supportedExtensions = setOf("ame", "als", "approj", "zip")
+    private val supportedExtensions = setOf("ame", "als", "approj", "zip", "rar")
     private val driveHosts = setOf("drive.google.com", "www.drive.google.com", "drive.usercontent.google.com")
     private val mediaFireHosts = setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com")
 

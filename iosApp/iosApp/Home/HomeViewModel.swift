@@ -167,7 +167,7 @@ final class HomeViewModel {
             }
         }
 
-        let supported = ["ame", "als", "zip", "approj"]
+        let supported = ["ame", "als", "zip", "rar", "approj"]
         return parent == amethyst && supported.contains(file.pathExtension.lowercased()) ? file : nil
     }
 
@@ -179,8 +179,8 @@ final class HomeViewModel {
                 activeSheet = .abletonWizard(path: project.path)
                 return
             }
-            if ext == "zip" {
-                detectZipAndRoute(storedPath: project.path)
+            if ext == "zip" || ext == "rar" {
+                detectArchiveAndRoute(storedPath: project.path)
                 return
             }
         }
@@ -327,7 +327,7 @@ final class HomeViewModel {
 
     private func storeAndRouteLocalFile(url: URL, projectID: String, title: String, hubProjectID: String?, isSecurityScoped: Bool, automaticOpen: Bool = false) async {
         let ext = url.pathExtension.lowercased()
-        guard ["ame", "approj", "als", "zip"].contains(ext) else {
+        guard ["ame", "approj", "als", "zip", "rar"].contains(ext) else {
             handleError(localized("home_error_unsupported_project_format", fallback: "Unsupported project file format: .%1$s")
                 .replacingOccurrences(of: "%1$s", with: ext))
             return
@@ -373,9 +373,9 @@ final class HomeViewModel {
             pendingAbletonPath = storedPath
             activeSheet = .abletonWizard(path: storedPath)
 
-        case "zip":
+        case "zip", "rar":
             startLoading(localized("home_projects_loading_project_msg", fallback: "Loading Project"))
-            detectZipAndRoute(storedPath: storedPath)
+            detectArchiveAndRoute(storedPath: storedPath)
 
         default:
             break
@@ -428,7 +428,7 @@ final class HomeViewModel {
         HomeSwiftBridge.shared.localAuthor()
     }
 
-    private func detectZipAndRoute(storedPath: String) {
+    private func detectArchiveAndRoute(storedPath: String) {
         HomeSwiftBridge.shared.getZipFormat(path: storedPath) { [weak self] format in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -445,7 +445,7 @@ final class HomeViewModel {
                     self.handleError(self.localized(
                         "home_error_unsupported_project_format",
                         fallback: "Unsupported project file format: .%1$s"
-                    ).replacingOccurrences(of: ".%1$s", with: "ZIP archive"))
+                    ).replacingOccurrences(of: "%1$s", with: (storedPath as NSString).pathExtension.lowercased()))
                 }
             }
         }

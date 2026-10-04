@@ -10,7 +10,7 @@ import java.nio.file.attribute.BasicFileAttributes
 
 /** Only app-owned project files may be deleted from the Projects tab. */
 internal object AndroidLocalProjectDeletion {
-    private val extensions = setOf("ame", "als", "zip", "approj")
+    private val extensions = setOf("ame", "als", "zip", "rar", "approj")
 
     fun targetFor(path: String): File? {
         val amethyst = MobileFileStorage.getAmethystDirectory().canonicalFile

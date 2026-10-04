@@ -41,9 +41,8 @@ import dev.anthonyhfm.amethyst.home.ui.views.HubLikedScreen
 import dev.anthonyhfm.amethyst.home.ui.views.HubProjectSheet
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.core.loading.ProjectLoadingManager
-import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ZippedProjectFormat
-import dev.anthonyhfm.amethyst.core.util.determineFormat
+import dev.anthonyhfm.amethyst.core.util.determineProjectArchiveFormat
 import io.github.vinceglb.filekit.extension
 import io.github.vinceglb.filekit.path
 import kotlinx.coroutines.Dispatchers
@@ -244,8 +243,8 @@ actual fun Home(
                     try {
                         val isAbleton = when (file.extension.lowercase()) {
                             "als" -> true
-                            "zip" -> withContext(Dispatchers.IO) {
-                                Zip.determineFormat(file) == ZippedProjectFormat.ABLETON
+                            "zip", "rar" -> withContext(context = Dispatchers.IO) {
+                                determineProjectArchiveFormat(file = file) == ZippedProjectFormat.ABLETON
                             }
                             else -> false
                         }
