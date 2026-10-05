@@ -221,17 +221,22 @@ object KeyLED {
 
         val renderedAnimation: List<Pair<Int, List<Signal>>>
 
-        KeyframesChainDevice().apply {
-            state.update {
-                it.copy(
-                    frames = frames,
-                    infinity = keepLastFrameOn
-                )
+        val renderer = KeyframesChainDevice()
+        try {
+            renderer.apply {
+                state.update {
+                    it.copy(
+                        frames = frames,
+                        infinity = keepLastFrameOn
+                    )
+                }
+
+                renderAnimation()
+
+                renderedAnimation = state.value.renderedAnimation
             }
-
-            renderAnimation()
-
-            renderedAnimation = state.value.renderedAnimation
+        } finally {
+            renderer.dispose()
         }
 
         return KeyframesChainDeviceContract.KeyframesChainDeviceState(
@@ -290,7 +295,7 @@ object KeyLED {
 
             if (group.size > 1) {
                 val multiGroups = group.mapNotNull { ledEntry ->
-                    val keyLED = UnipadConverter.entries[ledEntry.path]?.data ?: return@mapNotNull null
+                    val keyLED = UnipadConverter.readEntry(path = ledEntry.path) ?: return@mapNotNull null
                     val keyframes = convertToKeyframes(keyLED)
                     val chainSwitches = extractChainSwitches(keyLED)
 
@@ -328,7 +333,7 @@ object KeyLED {
                 }
             } else {
                 val ledEntry = group.first()
-                val keyLED = UnipadConverter.entries[ledEntry.path]?.data ?: return@forEachIndexed
+                val keyLED = UnipadConverter.readEntry(path = ledEntry.path) ?: return@forEachIndexed
                 println("Decoding KeyLED: ${ledEntry.path}")
 
                 val keyframes = convertToKeyframes(keyLED)
