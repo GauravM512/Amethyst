@@ -16,11 +16,11 @@ object SignalIndicatorManager {
     private val chainSlotFlows: MutableMap<Chain, MutableMap<Int, MutableSharedFlow<Unit>>> = mutableMapOf()
 
     fun trigger(chain: Chain, slotIndex: Int) {
-        val slotMap = chainSlotFlows.getOrPut(chain) { mutableMapOf() }
-        val flow = slotMap.getOrPut(slotIndex) {
-            MutableSharedFlow(extraBufferCapacity = 32)
-        }
-        flow.tryEmit(Unit)
+        chainSlotFlows[chain]?.get(slotIndex)?.tryEmit(Unit)
+    }
+
+    fun forget(chain: Chain) {
+        chainSlotFlows.remove(chain)
     }
 
     fun events(chain: Chain, slotIndex: Int): SharedFlow<Unit> {

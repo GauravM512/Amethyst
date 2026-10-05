@@ -48,6 +48,7 @@ import dev.anthonyhfm.amethyst.timeline.ui.components.PlayheadCursor
 import dev.anthonyhfm.amethyst.timeline.viewport.EditorViewportState
 import dev.anthonyhfm.amethyst.timeline.viewport.wheelZoomScaleFactor
 import dev.anthonyhfm.amethyst.ui.components.primitives.SmallShape
+import dev.anthonyhfm.amethyst.ui.modifier.scaleGestureZoom
 import dev.anthonyhfm.amethyst.ui.theme.TimelineTheme
 import dev.anthonyhfm.amethyst.ui.theme.background
 import dev.anthonyhfm.amethyst.ui.theme.border
@@ -209,6 +210,25 @@ fun PianoRollEditorCanvas(
 
     LaunchedEffect(draftNote?.resolvedDeviceIndex, draftNote?.resolvedPadIndex) {
         draftNote?.let { latestOnPreviewNote(it) }
+    }
+
+    fun zoomViewport(scaleFactor: Float, anchorPx: Float) {
+        val currentViewport = latestViewport
+        val targetZoom = (currentViewport.zoomX * scaleFactor)
+            .coerceIn(
+                minimumValue = currentViewport.minZoomX,
+                maximumValue = currentViewport.maxZoomX,
+            )
+        val timeAtAnchor = currentViewport.screenToTimeMs(screenX = anchorPx)
+
+        latestOnViewportChange(
+            currentViewport.withConstrainedViewport(
+                zoomX = targetZoom,
+                scrollX = (timeAtAnchor * targetZoom - anchorPx).toFloat(),
+                contentWidth = targetZoom * latestMetrics.beatDurationMs.toFloat() *
+                    latestTotalBeatsWithOverhang,
+            )
+        )
     }
 
     fun snapSelectedTimeMs(timeMs: Double, currentResolution: GridResolution): Long {
@@ -705,6 +725,12 @@ fun PianoRollEditorCanvas(
                                     latestOnViewportChange(updatedViewport)
                                 }
                             }
+                            .scaleGestureZoom { scaleFactor, position ->
+                                zoomViewport(
+                                    scaleFactor = scaleFactor,
+                                    anchorPx = position.x,
+                                )
+                            }
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
                                     while (true) {
@@ -723,22 +749,13 @@ fun PianoRollEditorCanvas(
                                         val zoomModifier = event.keyboardModifiers.isCtrlPressed ||
                                             event.keyboardModifiers.isMetaPressed
                                         if (zoomModifier && delta.y != 0f) {
-                                            val currentViewport = latestViewport
-                                            val factor = wheelZoomScaleFactor(scrollDelta = -delta.y)
-                                            val targetZoom = (currentViewport.zoomX * factor)
-                                                .coerceIn(currentViewport.minZoomX, currentViewport.maxZoomX)
                                             val anchorPx = resolveViewportRelativeCursorX(
                                                 trackedPointerX = lastPointerX,
                                                 eventPointerX = change.position.x,
                                             )
-                                            val timeAtAnchor = currentViewport.screenToTimeMs(screenX = anchorPx)
-                                            latestOnViewportChange(
-                                                currentViewport.withConstrainedViewport(
-                                                    zoomX = targetZoom,
-                                                    scrollX = (timeAtAnchor * targetZoom - anchorPx).toFloat(),
-                                                    contentWidth = targetZoom * latestMetrics.beatDurationMs.toFloat() *
-                                                        latestTotalBeatsWithOverhang,
-                                                )
+                                            zoomViewport(
+                                                scaleFactor = wheelZoomScaleFactor(scrollDelta = -delta.y),
+                                                anchorPx = anchorPx,
                                             )
                                             event.changes.forEach { it.consume() }
                                         } else {

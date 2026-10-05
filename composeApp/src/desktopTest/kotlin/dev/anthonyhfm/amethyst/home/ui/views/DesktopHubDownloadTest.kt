@@ -23,6 +23,105 @@ import kotlin.test.assertTrue
 
 class DesktopHubDownloadTest {
     @Test
+    fun dropboxFileLinksAreOfferedForImport() {
+        val repository = HubRepository()
+
+        try {
+            listOf(
+                "https://www.dropbox.com/s/abc123/project.ame?dl=0",
+                "https://dropbox.com/scl/fi/abc123/project.als?rlkey=key&dl=0",
+            ).forEach { url ->
+                val project = project(id = "dropbox", sha256 = "0".repeat(64)).copy(
+                    packageName = null,
+                    downloadUrl = null,
+                    externalDownloadUrl = url,
+                )
+
+                assertTrue(actual = DesktopHubDownload.canImport(project = project, repository = repository))
+                assertEquals(
+                    expected = url,
+                    actual = DesktopHubDownload.downloadPageUrl(project = project, repository = repository),
+                )
+            }
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
+    fun dropboxDescriptionMetadataIsOfferedForImport() {
+        val repository = HubRepository()
+        val url = "https://www.dropbox.com/scl/fi/abc123/project.zip?rlkey=key&dl=0"
+        val project = project(id = "dropbox-metadata", sha256 = "0".repeat(64)).copy(
+            packageName = null,
+            downloadUrl = null,
+            description = "Project description\n<!-- glacier-meta: {\"externalDownloadUrl\":\"$url\"} -->",
+        )
+
+        try {
+            assertEquals(expected = url, actual = DesktopHubDownload.externalUrl(project = project))
+            assertTrue(actual = DesktopHubDownload.canImport(project = project, repository = repository))
+            assertEquals(expected = "Project description", actual = DesktopHubDownload.cleanDescription(project = project))
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
+    fun unsupportedDropboxLinksRemainAvailableAsExternalPages() {
+        val repository = HubRepository()
+
+        try {
+            listOf(
+                "https://dropbox.com/scl/fo/abc123/folder?rlkey=key",
+                "http://dropbox.com/s/abc123/project.ame",
+                "https://dropbox.com.evil.test/s/abc123/project.ame",
+            ).forEach { url ->
+                val project = project(id = "unsupported-dropbox", sha256 = "0".repeat(64)).copy(
+                    packageName = null,
+                    downloadUrl = null,
+                    externalDownloadUrl = url,
+                )
+
+                assertFalse(actual = DesktopHubDownload.canImport(project = project, repository = repository))
+                assertEquals(
+                    expected = url,
+                    actual = DesktopHubDownload.downloadPageUrl(project = project, repository = repository),
+                )
+            }
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
+    fun hubDownloadsTakePriorityOverSupportedDropboxLinks() {
+        val repository = HubRepository()
+        val original = project(id = "dropbox-priority", sha256 = "0".repeat(64)).copy(
+            externalDownloadUrl = "https://dropbox.com/s/abc123/project.ame?dl=0",
+        )
+
+        try {
+            listOf(
+                original.copy(overrideDownloadUrl = "/projects/dropbox-priority/override"),
+                original.copy(packageName = null),
+                original.copy(downloadUrl = null),
+            ).forEach { project ->
+                assertNull(actual = DesktopHubDownload.externalUrl(project = project))
+                assertTrue(actual = DesktopHubDownload.canImport(project = project, repository = repository))
+                assertEquals(
+                    expected = repository.client.resolveUrl(
+                        pathOrUrl = project.overrideDownloadUrl ?: "/projects/dropbox-priority/download",
+                    ),
+                    actual = DesktopHubDownload.downloadPageUrl(project = project, repository = repository),
+                )
+            }
+        } finally {
+            repository.close()
+        }
+    }
+
+    @Test
     fun malformedDownloadLinksAreNotOfferedForImport() {
         val repository = HubRepository()
         val project = project("bad-link", "0".repeat(64)).copy(
@@ -127,6 +226,40 @@ class DesktopHubDownloadTest {
     } }
 
     @Test
+    fun rarResponseFilenameControlsArchiveExtension() = runBlocking {
+        val bytes = byteArrayOf(0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x01, 0x00, 0, 1, 2, 3)
+        val server = serve(
+            bytes = bytes,
+            disposition = "attachment; filename*=UTF-8''Ableton%20%26%20Apollo.rar",
+        )
+        val id = "download-test-${UUID.randomUUID()}"
+        val repository = HubRepository(baseUrl = "http://127.0.0.1:${server.address.port}")
+
+        try {
+            val file = DesktopHubDownload.download(
+                project = project(id = id, sha256 = sha256(bytes = bytes)),
+                repository = repository,
+                onProgress = {},
+            )
+
+            try {
+                assertEquals(expected = "rar", actual = file.extension)
+                assertTrue(actual = file.name.endsWith(suffix = "Ableton & Apollo.rar"))
+                assertContentEquals(expected = bytes, actual = file.readBytes())
+                assertNull(actual = GlobalSettings.mobileProjects.firstOrNull { it.id == "hub-$id" })
+            } finally {
+                DesktopHubDownload.discardImport(file = file)
+            }
+
+            assertFalse(actual = file.exists())
+        } finally {
+            repository.close()
+            server.stop(0)
+            testDirectory(id = id).deleteRecursively()
+        }
+    }
+
+    @Test
     fun checksumMismatchDoesNotRegisterOrKeepDownloadedFile() { runBlocking {
         val bytes = byteArrayOf(0x50, 0x4b, 3, 4, 8, 9)
         val server = serve(bytes, "attachment; filename=project.zip")
@@ -144,6 +277,30 @@ class DesktopHubDownloadTest {
             testDirectory(id).deleteRecursively()
         }
     } }
+
+    @Test
+    fun errorPagesAreNotRegisteredOrKeptAsProjects() = runBlocking {
+        val bytes = "<!DOCTYPE html><html>Sign in to Dropbox</html>".toByteArray()
+        val server = serve(bytes = bytes, disposition = "attachment; filename=project.zip")
+        val id = "download-test-${UUID.randomUUID()}"
+        val repository = HubRepository(baseUrl = "http://127.0.0.1:${server.address.port}")
+
+        try {
+            assertFailsWith<IllegalStateException> {
+                DesktopHubDownload.download(
+                    project = project(id = id, sha256 = sha256(bytes = bytes)),
+                    repository = repository,
+                    onProgress = {},
+                )
+            }
+            assertNull(actual = GlobalSettings.mobileProjects.firstOrNull { it.id == "hub-$id" })
+            assertTrue(actual = File(testDirectory(id = id), "Original").listFiles().isNullOrEmpty())
+        } finally {
+            repository.close()
+            server.stop(0)
+            testDirectory(id = id).deleteRecursively()
+        }
+    }
 
     private fun project(id: String, sha256: String) = HubProject(
         id = id,

@@ -362,11 +362,16 @@ object MidiFileImporter {
         }
 
         var renderedAnimation: List<Pair<Int, List<Signal>>> = emptyList()
-        KeyframesChainDevice().apply {
-            state.update { it.copy(frames = frames) }
-            renderAnimation()
+        val renderer = KeyframesChainDevice()
+        try {
+            renderer.apply {
+                state.update { it.copy(frames = frames) }
+                renderAnimation()
 
-            renderedAnimation = state.value.renderedAnimation
+                renderedAnimation = state.value.renderedAnimation
+            }
+        } finally {
+            renderer.dispose()
         }
 
         return KeyframesChainDeviceContract.KeyframesChainDeviceState(

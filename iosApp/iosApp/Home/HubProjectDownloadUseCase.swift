@@ -12,6 +12,7 @@ struct HubProjectDownloadUseCase {
         case hub(URL)
         case googleDrive(URL)
         case mediaFire(URL)
+        case dropbox(URL)
     }
 
     static func supportsGoogleDrive(_ url: URL) -> Bool {
@@ -20,6 +21,10 @@ struct HubProjectDownloadUseCase {
 
     static func supportsMediaFire(_ url: URL) -> Bool {
         mediaFireQuickKey(in: url) != nil
+    }
+
+    static func supportsDropbox(_ url: URL) -> Bool {
+        DropboxDownloadLinks.shared.resolve(value: url.absoluteString) != nil
     }
 
     func execute(
@@ -54,6 +59,12 @@ struct HubProjectDownloadUseCase {
             let download = try await Self.resolveMediaFireDownload(from: sharedURL)
             requestURL = download.url
             knownSize = download.size ?? expectedSize
+        case .dropbox(let sharedURL):
+            guard let resolved = DropboxDownloadLinks.shared.resolve(value: sharedURL.absoluteString),
+                  let url = URL(string: resolved) else {
+                throw HubProjectDownloadError.unavailable
+            }
+            requestURL = url
         }
 
         guard requestURL.scheme == "https" else { throw HubProjectDownloadError.unavailable }
@@ -96,7 +107,7 @@ struct HubProjectDownloadUseCase {
     private func validFilename(_ value: String?) -> String? {
         guard let value else { return nil }
         let filename = URL(fileURLWithPath: value).lastPathComponent
-        let allowed = ["ame", "als", "zip", "approj"]
+        let allowed = ["ame", "als", "zip", "rar", "approj"]
         return allowed.contains(URL(fileURLWithPath: filename).pathExtension.lowercased()) ? filename : nil
     }
 
@@ -288,6 +299,9 @@ struct HubProjectImportPlan {
             }
             if HubProjectDownloadUseCase.supportsMediaFire(url) {
                 return .mediaFire(url)
+            }
+            if HubProjectDownloadUseCase.supportsDropbox(url) {
+                return .dropbox(url)
             }
             return nil
         }

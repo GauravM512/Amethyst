@@ -123,6 +123,7 @@ actual object Echo {
             if (playback.renderer.chain === chain) return@withLifecycleLock
             output?.close()
             output = null
+            playback.release()
             playback = AudioPlaybackEngine(chain)
             // Desktop initializes Echo explicitly during application startup.
             // iOS has no equivalent bootstrap, so prepare its exclusive
@@ -232,6 +233,7 @@ actual object Echo {
         withLifecycleLock {
             output?.close()
             output = null
+            playback.release()
         }
     }
 

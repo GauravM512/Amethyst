@@ -30,4 +30,9 @@ specs/*
 docs/
 skills-lock.json
 *_ml.png
-.swiftpm-locks
+.swiftpm-locks/*
+!.swiftpm-locks/default/
+.swiftpm-locks/default/*
+!.swiftpm-locks/default/swiftImport/
+.swiftpm-locks/default/swiftImport/*
+!.swiftpm-locks/default/swiftImport/Package.resolved

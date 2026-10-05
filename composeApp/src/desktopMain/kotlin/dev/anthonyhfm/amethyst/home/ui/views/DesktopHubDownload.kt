@@ -1,5 +1,6 @@
 package dev.anthonyhfm.amethyst.home.ui.views
 
+import dev.anthonyhfm.amethyst.hub.data.DropboxDownloadLinks
 import dev.anthonyhfm.amethyst.hub.data.HubProject
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
 import dev.anthonyhfm.amethyst.core.data.settings.GlobalSettings
@@ -27,7 +28,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 internal object DesktopHubDownload {
-    private val extensions = setOf("ame", "als", "zip", "approj")
+    private val extensions = setOf("ame", "als", "zip", "rar", "approj")
     private val driveHosts = setOf("drive.google.com", "www.drive.google.com", "drive.usercontent.google.com")
     private val mediaFireHosts = setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com")
     private val pendingImports = ConcurrentHashMap<String, MobileProjectRecord>()
@@ -55,7 +56,9 @@ internal object DesktopHubDownload {
     fun canImport(project: HubProject, repository: HubRepository): Boolean {
         val external = externalUrl(project)
         if (external != null) {
-            return driveId(external) != null || mediaFireKey(external) != null
+            return driveId(external) != null ||
+                mediaFireKey(external) != null ||
+                DropboxDownloadLinks.resolve(value = external) != null
         }
 
         val url = project.overrideDownloadUrl
@@ -128,7 +131,8 @@ internal object DesktopHubDownload {
             }
 
             else -> {
-                error("Unsupported download source")
+                DropboxDownloadLinks.resolve(value = external)
+                    ?: error("Unsupported download source")
             }
         }
 

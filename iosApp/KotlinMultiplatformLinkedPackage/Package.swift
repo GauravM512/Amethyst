@@ -3,7 +3,7 @@ import PackageDescription
 let package = Package(
   name: "KotlinMultiplatformLinkedPackage",
   platforms: [
-    .iOS("15.3")
+    .iOS("17.6")
   ],
   products: [
     .library(
@@ -12,11 +12,21 @@ let package = Package(
       targets: ["KotlinMultiplatformLinkedPackage"]
     )
   ],
-  dependencies: [],
+  dependencies: [
+    .package(
+      url: "https://github.com/mtgto/Unrar.swift.git",
+      exact: "0.5.4"
+    )
+  ],
   targets: [
     .target(
       name: "KotlinMultiplatformLinkedPackage",
-      dependencies: []
+      dependencies: [
+        .product(
+          name: "Unrar",
+          package: "Unrar.swift"
+        )
+      ]
     )
   ]
 )

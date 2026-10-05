@@ -84,6 +84,7 @@ struct ProjectsTabView: View {
                 UTType(filenameExtension: "ame")    ?? .data,
                 UTType(filenameExtension: "als")    ?? .data,
                 UTType(filenameExtension: "zip")    ?? .data,
+                UTType(filenameExtension: "rar")    ?? .data,
                 UTType(filenameExtension: "approj") ?? .data,
                 .zip,
                 .data,

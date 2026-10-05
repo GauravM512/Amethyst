@@ -6,8 +6,7 @@ import org.jetbrains.compose.resources.getString
 
 import dev.anthonyhfm.amethyst.core.util.FileHelper
 import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
-import dev.anthonyhfm.amethyst.core.util.Zip
-import dev.anthonyhfm.amethyst.core.util.determineFormat
+import dev.anthonyhfm.amethyst.core.util.determineProjectArchiveFormat
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.home.data.MobileProjectRecord
 import dev.anthonyhfm.amethyst.workspace.data.RecentWorkspace
@@ -98,7 +97,7 @@ object HomeSwiftBridge {
             val format = withContext(Dispatchers.IO) {
                 runCatching {
                     val file = resolveFile(path)
-                    Zip.determineFormat(file).name
+                    determineProjectArchiveFormat(file = file).name
                 }.getOrDefault("UNKNOWN")
             }
             onResult(format)

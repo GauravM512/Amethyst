@@ -69,6 +69,7 @@ import dev.anthonyhfm.amethyst.timeline.ui.TimelineClipDragCoordinator
 import dev.anthonyhfm.amethyst.timeline.contract.TimelineClipKey
 import dev.anthonyhfm.amethyst.timeline.TimelineCommandExecutor
 import dev.anthonyhfm.amethyst.ui.theme.TimelineTheme
+import dev.anthonyhfm.amethyst.ui.modifier.scaleGestureZoom
 import dev.anthonyhfm.amethyst.timeline.utils.computeTimelineContentWidthPx
 
 @Composable
@@ -185,6 +186,19 @@ fun TimelineLaneView(
             .background(timelinePalette.canvas)
             .onSizeChanged { viewportWidthPx = it.width }
             .onGloballyPositioned { clipDragCoordinator.updateSurfaceBounds(it.boundsInRoot()) }
+            .scaleGestureZoom { scaleFactor, position ->
+                val anchorPx = position.x.coerceIn(
+                    minimumValue = 0f,
+                    maximumValue = currentViewportWidthPx.value.coerceAtLeast(0f),
+                )
+                viewModel.updateViewport { currentViewport ->
+                    zoomViewport(
+                        base = currentViewport,
+                        scaleDelta = scaleFactor,
+                        anchorPx = anchorPx,
+                    )
+                }
+            }
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {

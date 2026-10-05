@@ -174,7 +174,7 @@ struct RecentProjectRow: View {
     private var fileIcon: String {
         switch (project.path as NSString).pathExtension.lowercased() {
         case "als": return "music.note.list"
-        case "zip": return "archivebox"
+        case "zip", "rar": return "archivebox"
         case "approj": return "waveform"
         default: return "doc"
         }

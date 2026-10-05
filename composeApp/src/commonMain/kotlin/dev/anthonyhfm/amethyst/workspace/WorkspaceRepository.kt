@@ -818,11 +818,15 @@ object WorkspaceRepository {
         preparedCacheRoot: String?,
     ) {
         resetChainScrollStates()
-        dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.configurePersistentRoot(preparedCacheRoot)
         AutoPlayRepository.stopAutoPlay()
-        TimelineRepository.stop()
+        TimelineRepository.loadTracks(loadedTracks = emptyList())
+        UndoManager.clear()
+        SelectionManager.clear()
         clearEverything(restartContinuousLights = false)
-        Echo.reset()
+        disposeWorkspaceChains()
+        StemExtractionRepository.reset()
+        previousMode = LayoutWorkspaceMode()
+        dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.configurePersistentRoot(preparedCacheRoot)
 
         if (fromRemote) {
             isApplyingRemoteBpmUpdate = true
@@ -966,6 +970,7 @@ object WorkspaceRepository {
             replaceMode(PerformanceWorkspaceMode())
         }
 
+        logAudioMemory(stage = "workspace.loaded")
         runBlocking {
             deviceRefresh.emit(Unit)
         }
@@ -1266,6 +1271,23 @@ object WorkspaceRepository {
         return changeRevision.value != savedRevision.value
     }
 
+    private fun disposeWorkspaceChains() {
+        val previousLights = lightsChain
+        val previousSampling = samplingChain
+        lightsChain = Chain()
+        samplingChain = AudioChain()
+        Echo.attachAudioChain(chain = samplingChain)
+        previousLights.dispose()
+        previousSampling.dispose()
+    }
+
+    private fun logAudioMemory(stage: String) {
+        val sources = AudioLibraryRepository.sources.value.values
+        val sourcePcmBytes = sources.map { it.rawData }.toSet().sumOf { it.size.toLong() }
+        val preparedPcmBytes = dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.retainedPcmBytes()
+        println("ProjectAudioMemory stage=$stage sourceCount=${sources.size} sourcePcmBytes=$sourcePcmBytes cachedPreparedPcmBytes=$preparedPcmBytes")
+    }
+
     fun clean() {
         resetChainScrollStates()
         AutoPlayRepository.stopAutoPlay()
@@ -1274,16 +1296,14 @@ object WorkspaceRepository {
         UndoManager.clear()
         SelectionManager.clear()
         clearEverything(restartContinuousLights = false)
-        Echo.reset()
+        disposeWorkspaceChains()
         AudioLibraryRepository.clear()
+        dev.anthonyhfm.amethyst.core.util.FileHelper.clearCache()
+        dev.anthonyhfm.amethyst.core.engine.audio.source.PreparedAudioSourceCache.configurePersistentRoot(root = null)
         StemExtractionRepository.reset()
         TransmitChainDevice.clearReceivers()
         AutomappingManager.reset()
 
-        // Reset chains
-        lightsChain = Chain()
-        samplingChain = AudioChain()
-        
         // Re-setup signal exits
         setupChains()
         
@@ -1306,6 +1326,7 @@ object WorkspaceRepository {
         previousMode = LayoutWorkspaceMode()
         _gridType.update { GridUtils.GridType.Flexible.Medium }
         savedRevision.value = changeRevision.value
+        logAudioMemory(stage = "workspace.closed")
     }
 
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)

@@ -43,6 +43,7 @@ import dev.anthonyhfm.amethyst.workspace.ViewportRepository
 import dev.anthonyhfm.amethyst.workspace.chain.ui.LocalTitleBarModifier
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -96,6 +97,12 @@ class CompositionChainDevice : LEDChainDevice<CompositionChainDeviceState>(), Ch
                 renderAnimation()
             }
         }
+    }
+
+    override fun dispose() {
+        stateObserverScope.cancel()
+        pause()
+        super.dispose()
     }
 
     override fun timelineDuration(context: TimelineDurationContext): TimelineDuration {

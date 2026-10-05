@@ -5,8 +5,44 @@ import dev.anthonyhfm.amethyst.core.engine.elements.Signal
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertNotSame
 
 class AbletonNoteSpaceTest {
+    @Test
+    fun cachedPitchMetadataPreservesRoutingAndOtherSignalExtras() {
+        val cache = mutableMapOf<AbletonNoteSpace.Note, Map<String, Int>>()
+        val input = Signal.LED(origin = null, x = 11, y = 8, color = Color.White)
+        val note = AbletonNoteSpace.Note(pitch = 36, targetX = 10, targetY = 0)
+        val first = AbletonNoteSpace.withPitch(signal = input, note = note, pitch = 36, extrasCache = cache) as Signal.LED
+        val repeated = AbletonNoteSpace.withPitch(
+            signal = input.copy(color = Color.Black),
+            note = note,
+            pitch = 36,
+            extrasCache = cache,
+        ) as Signal.LED
+        val moved = AbletonNoteSpace.withPitch(
+            signal = input,
+            note = note.copy(targetX = 20),
+            pitch = 36,
+            extrasCache = cache,
+        ) as Signal.LED
+        val flagged = AbletonNoteSpace.withPitch(
+            signal = input.copy(extras = mapOf("flag" to 7)),
+            note = note,
+            pitch = 36,
+            extrasCache = cache,
+        ) as Signal.LED
+
+        assertSame(expected = first.extras, actual = repeated.extras)
+        assertNotSame(illegal = first.extras, actual = moved.extras)
+        assertEquals(expected = 11, actual = repeated.x)
+        assertEquals(expected = 21, actual = moved.x)
+        assertEquals(expected = Color.Black, actual = repeated.color)
+        assertEquals(expected = 7, actual = flagged.extras["flag"])
+        assertEquals(expected = note, actual = AbletonNoteSpace.note(signal = flagged))
+    }
+
     @Test
     fun finalProjectionPreservesCrossLaunchpadOffsets() {
         val input = Signal.LED(origin = null, x = 11, y = 8, color = Color.White)

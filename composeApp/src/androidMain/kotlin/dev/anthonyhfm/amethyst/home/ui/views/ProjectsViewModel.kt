@@ -9,9 +9,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import dev.anthonyhfm.amethyst.core.util.BaseViewModel
 import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
-import dev.anthonyhfm.amethyst.core.util.Zip
 import dev.anthonyhfm.amethyst.core.util.ZippedProjectFormat
-import dev.anthonyhfm.amethyst.core.util.determineFormat
+import dev.anthonyhfm.amethyst.core.util.determineProjectArchiveFormat
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.home.data.AndroidLocalProjectDeletion
 import dev.anthonyhfm.amethyst.home.data.AndroidProjectImporter
@@ -105,9 +104,11 @@ class ProjectsViewModel(
                             }
                         }
 
-                        "zip" -> {
+                        "zip", "rar" -> {
                             val format = try {
-                                Zip.determineFormat(persistentFile)
+                                withContext(context = Dispatchers.IO) {
+                                    determineProjectArchiveFormat(file = persistentFile)
+                                }
                             } catch (error: Exception) {
                                 error.printStackTrace()
                                 snackbarHostState.showSnackbar(
@@ -156,9 +157,13 @@ class ProjectsViewModel(
                 viewModelScope.launch {
                     val recentFile = MobileFileStorage.resolvePath(event.project.path)
                     if (!HomeRepository.hasConvertedMobileProject(recentFile.path) &&
-                        (recentFile.extension.equals("als", ignoreCase = true) ||
-                            (recentFile.extension.equals("zip", ignoreCase = true) &&
-                                runCatching { Zip.determineFormat(recentFile) }.getOrNull() == ZippedProjectFormat.ABLETON))
+                        withContext(context = Dispatchers.IO) {
+                            recentFile.extension.equals("als", ignoreCase = true) ||
+                                (recentFile.extension.lowercase() in setOf("zip", "rar") &&
+                                    runCatching {
+                                        determineProjectArchiveFormat(file = recentFile)
+                                    }.getOrNull() == ZippedProjectFormat.ABLETON)
+                        }
                     ) {
                         navigator.navigate(HomeNavRoute.AbletonImportWizard(recentFile.path))
                         return@launch
@@ -234,7 +239,7 @@ class ProjectsViewModel(
     }
 
     private companion object {
-        val SUPPORTED_PROJECT_EXTENSIONS = setOf("ame", "als", "zip", "approj")
+        val SUPPORTED_PROJECT_EXTENSIONS = setOf("ame", "als", "zip", "rar", "approj")
     }
 }
 

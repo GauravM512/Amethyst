@@ -5,8 +5,9 @@ import dev.anthonyhfm.amethyst.conversion.unipad.data.KeyLED
 import dev.anthonyhfm.amethyst.conversion.unipad.data.KeySound
 import dev.anthonyhfm.amethyst.conversion.unipad.data.DecodedAudioClip
 import dev.anthonyhfm.amethyst.conversion.unipad.data.UnipadAutoPlay
-import dev.anthonyhfm.amethyst.core.util.ZipEntry
-import dev.anthonyhfm.amethyst.core.util.getProjectArchiveEntries
+import dev.anthonyhfm.amethyst.core.util.ProjectArchiveEntry
+import dev.anthonyhfm.amethyst.core.util.ProjectArchiveReader
+import dev.anthonyhfm.amethyst.core.util.openProjectArchive
 import dev.anthonyhfm.amethyst.devices.effects.color.ColorChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.coordinate_filter.CoordinateFilterChainDeviceState
 import dev.anthonyhfm.amethyst.devices.effects.group.GroupChainDeviceState
@@ -19,20 +20,39 @@ import io.github.vinceglb.filekit.PlatformFile
 import kotlinx.coroutines.runBlocking
 
 object UnipadConverter : AmethystConverter {
-    val entries: MutableMap<String, ZipEntry> = mutableMapOf()
+    val entries: MutableMap<String, ProjectArchiveEntry> = mutableMapOf()
+    private var archive: ProjectArchiveReader? = null
+
+    internal fun readEntry(path: String): ByteArray? =
+        entries[path]?.let { archive?.readEntry(path = it.path) }
+
+    internal fun extractEntryToFile(path: String, destinationPath: String): Boolean =
+        entries[path]?.let {
+            archive?.extractEntryToFile(path = it.path, destinationPath = destinationPath)
+        } == true
 
     override fun convertZipToWorkspace(file: PlatformFile, palettePath: String?): SavableWorkspaceData {
-        println("Starting Zip Decoding")
-
-        entries.clear()
-        entries.putAll(
-            from = getProjectArchiveEntries(file)
-                .associateBy {
-                    it.path
-                }
-                .toMutableMap()
+        return convertArchiveToWorkspace(
+            reader = checkNotNull(openProjectArchive(file = file)) {
+                "Could not open UniPad archive"
+            },
         )
+    }
 
+    internal fun convertArchiveToWorkspace(reader: ProjectArchiveReader): SavableWorkspaceData {
+        entries.clear()
+        archive = reader
+        try {
+            entries.putAll(reader.entries.associateBy { it.path })
+            return convertEntriesToWorkspace()
+        } finally {
+            entries.clear()
+            archive = null
+            reader.close()
+        }
+    }
+
+    private fun convertEntriesToWorkspace(): SavableWorkspaceData {
         println("Entries in zip: ${entries.size}")
 
         val rawInfoKey = entries.keys.firstOrNull { key ->
@@ -45,8 +65,7 @@ object UnipadConverter : AmethystConverter {
             println("Detected ZIP root prefix: '$rootPrefix' — re-indexing entries")
             val reindexed = entries.values
                 .filter { it.path.startsWith(rootPrefix) }
-                .map { it.copy(path = it.path.removePrefix(rootPrefix)) }
-                .associateBy { it.path }
+                .associateBy { it.path.removePrefix(rootPrefix) }
             entries.clear()
             entries.putAll(reindexed)
             println("Entries after re-indexing: ${entries.size}")
@@ -57,7 +76,7 @@ object UnipadConverter : AmethystConverter {
             lower == "info" || lower.endsWith("/info")
         } ?: throw IllegalArgumentException("UniPack is missing required 'info' file")
 
-        val infoMap: Map<String, String> = entries[infoKey]?.data
+        val infoMap: Map<String, String> = readEntry(path = infoKey)
             ?.decodeToString()
             ?.replace("\r\n", "\n")
             ?.replace("\r", "\n")
@@ -96,7 +115,7 @@ object UnipadConverter : AmethystConverter {
                 if (autoPlayEntry != null) {
                     try {
                         UnipadAutoPlay.getAutoPlayData(
-                            autoPlayString = autoPlayEntry.value.data.decodeToString()
+                            autoPlayString = checkNotNull(readEntry(path = autoPlayEntry.key)).decodeToString()
                         )
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -112,9 +131,7 @@ object UnipadConverter : AmethystConverter {
                     positionY = 0f
                 )
             ),
-        ).also {
-            entries.clear()
-        }
+        )
     }
 
     // still accept old function
@@ -126,7 +143,7 @@ object UnipadConverter : AmethystConverter {
         val keySoundEntry = entries.entries.firstOrNull {
             it.key.lowercase().endsWith("keysound")
         } ?: return StateChain()
-        val keySound = keySoundEntry.value.data
+        val keySound = readEntry(path = keySoundEntry.key) ?: return StateChain()
 
         return StateChain(
             devices = listOf(

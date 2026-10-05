@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import com.composeunstyled.theme.Theme
 import com.composeunstyled.Text
 import dev.anthonyhfm.amethyst.ui.components.primitives.Spinner
+import dev.anthonyhfm.amethyst.ui.modifier.scaleGestureZoom
 import dev.anthonyhfm.amethyst.ui.theme.border
 import dev.anthonyhfm.amethyst.ui.theme.colors
 import dev.anthonyhfm.amethyst.ui.theme.mutedForeground
@@ -307,7 +308,7 @@ fun SimplerWaveformEditor(
         viewport = viewport.zoom(
             scale = scale,
             anchorFraction = (anchorX / canvasWidthPx.coerceAtLeast(1f)).toDouble(),
-            minimumSpan = minimumViewSpan,
+            minimumSpan = latestMinimumViewSpan,
         )
     }
 
@@ -456,6 +457,15 @@ fun SimplerWaveformEditor(
             }
             .onKeyEvent(onKeyEvent = keyHandler)
             .focusable()
+            .scaleGestureZoom { scaleFactor, position ->
+                if (canvasWidthPx > 0f) {
+                    focusRequester.requestFocus()
+                    zoomViewport(
+                        scale = scaleFactor,
+                        anchorX = position.x,
+                    )
+                }
+            }
             .pointerInput(rawData) {
                 awaitPointerEventScope {
                     while (true) {
@@ -482,11 +492,9 @@ fun SimplerWaveformEditor(
 
                         if (isZoomModifier && delta.y != 0f) {
                             focusRequester.requestFocus()
-                            fitSelection = false
-                            viewport = viewport.zoom(
+                            zoomViewport(
                                 scale = wheelZoomScaleFactor(scrollDelta = -delta.y),
-                                anchorFraction = (change.position.x / w).toDouble(),
-                                minimumSpan = latestMinimumViewSpan,
+                                anchorX = change.position.x,
                             )
                             event.changes.forEach { it.consume() }
                         } else if (!isZoomModifier) {

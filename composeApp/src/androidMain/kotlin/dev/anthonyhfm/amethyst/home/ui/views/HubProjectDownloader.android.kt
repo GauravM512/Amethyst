@@ -5,6 +5,7 @@ import android.util.Base64
 import dev.anthonyhfm.amethyst.core.util.MobileFileStorage
 import dev.anthonyhfm.amethyst.home.data.HomeRepository
 import dev.anthonyhfm.amethyst.home.data.MobileProjectRecord
+import dev.anthonyhfm.amethyst.hub.data.DropboxDownloadLinks
 import dev.anthonyhfm.amethyst.hub.data.HubProject
 import dev.anthonyhfm.amethyst.hub.data.HubRepository
 import io.github.vinceglb.filekit.PlatformFile
@@ -21,7 +22,7 @@ import androidx.core.net.toUri
 
 /** Streams a Hub project into the same persistent catalog used by the Projects tab. */
 internal object HubProjectDownloader {
-    private val supportedExtensions = setOf("ame", "als", "approj", "zip")
+    private val supportedExtensions = setOf("ame", "als", "approj", "zip", "rar")
     private val driveHosts = setOf("drive.google.com", "www.drive.google.com", "drive.usercontent.google.com")
     private val mediaFireHosts = setOf("mediafire.com", "www.mediafire.com", "m.mediafire.com")
 
@@ -141,7 +142,9 @@ internal object HubProjectDownloader {
         }
         if (!externalUrl.isNullOrBlank()) {
             val uri = externalUrl.toUri()
-            return googleDriveFileId(uri) != null || mediaFireQuickKey(uri) != null
+            return googleDriveFileId(uri) != null ||
+                mediaFireQuickKey(uri) != null ||
+                DropboxDownloadLinks.resolve(value = externalUrl) != null
         }
         return false
     }
@@ -195,7 +198,8 @@ internal object HubProjectDownloader {
             if (host in mediaFireHosts) {
                 return resolveMediaFire(uri)
             }
-            error("External source is not directly importable")
+            return DropboxDownloadLinks.resolve(value = raw)
+                ?: error("External source is not directly importable")
         }
         error("No download available")
     }
